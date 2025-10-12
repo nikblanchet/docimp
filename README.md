@@ -861,10 +861,29 @@ DocImp is dual-licensed under **AGPL-3.0** (for open-source use) or a **Commerci
 
 ## Acknowledgments
 
-- Built with [Claude](https://claude.ai) by Anthropic
-- TypeScript compiler for JSDoc validation
-- Python AST for code analysis
-- Open-source tools: Commander.js, chalk, cli-table3, pytest, ruff
+### AI Assistance
+
+- Program design assisted by [Claude](https://claude.ai) (macOS app) and [ChatGPT](https://openai.com/chatgpt) (macOS app)
+- All coding done exclusively with [Claude Code](https://claude.com/code), running in a terminal within [VS Code](https://code.visualstudio.com/) on macOS
+
+### Development Tools
+
+- **Editor**: [VS Code](https://code.visualstudio.com/) with [Sublime Text](https://www.sublimetext.com/) for regex work
+- **Font**: [Fira Code Nerd Font](https://github.com/Trzcin/Fira-Code-Nerd) with ligatures enabled
+- **Environment Management**: [Conda](https://docs.conda.io/) (primary) with [pip](https://pip.pypa.io/) for package installation
+- **Git Workflow**: [GitHub CLI](https://cli.github.com/) (installed via [Homebrew](https://brew.sh/)) for pull requests and merges
+- **Version Control**: [Git](https://git-scm.com/)
+
+### Core Technologies
+
+- [TypeScript Compiler](https://www.typescriptlang.org/) for JSDoc validation
+- [Python AST](https://docs.python.org/3/library/ast.html) for code analysis
+- [Anthropic Claude API](https://www.anthropic.com/api) for documentation generation
+
+### Open-Source Libraries
+
+- **TypeScript/JavaScript**: [Commander.js](https://github.com/tj/commander.js), [chalk](https://github.com/chalk/chalk), [cli-table3](https://github.com/cli-table/cli-table3)
+- **Python**: [pytest](https://pytest.org/), [ruff](https://github.com/astral-sh/ruff)
 
 ---
 

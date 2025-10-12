@@ -19,4 +19,5 @@ dist/
 .coverage
 # Project-specific
 CLAUDE.md
+CLAUDE_CONTEXT.md
 PLAN.md
