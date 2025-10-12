@@ -17,3 +17,6 @@ dist/
 .pytest_cache/
 .mypy_cache/
 .coverage
+# Project-specific
+CLAUDE.md
+PLAN.md
