@@ -7,7 +7,7 @@ DocImp analyzes your Python, TypeScript, and JavaScript codebases to identify un
 [![CI Status](https://github.com/USERNAME/docimp/workflows/CI/badge.svg)](https://github.com/USERNAME/docimp/actions)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![Node.js 22](https://img.shields.io/badge/node-22-green.svg)](https://nodejs.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![License: AGPL-3.0 or Commercial](https://img.shields.io/badge/License-AGPL%20v3%20%7C%20Commercial-blue.svg)](./LICENSE)
 
 ---
 
@@ -855,7 +855,7 @@ npm run test:integration
 
 ## License
 
-MIT License - see [LICENSE](./LICENSE) for details.
+DocImp is dual-licensed under **AGPL-3.0** (for open-source use) or a **Commercial License** (for proprietary use without source code disclosure). See [LICENSE](./LICENSE) for full details.
 
 ---
 
