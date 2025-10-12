@@ -1,0 +1,8 @@
+# DocImp Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# Claude API client for AI-powered documentation generation
+anthropic>=0.18.0
+
+# Type checking support
+typing-extensions>=4.9.0

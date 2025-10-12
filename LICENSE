@@ -1,0 +1,58 @@
+DocImp - Dual License
+
+Copyright (c) 2025 Nikolas Braren Blanchet
+
+This software is dual-licensed under the following terms:
+
+================================================================================
+OPTION 1: GNU Affero General Public License v3.0 (AGPL-3.0)
+================================================================================
+
+For open-source and non-commercial use, this software is licensed under the
+GNU Affero General Public License v3.0.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+Key requirements under AGPL-3.0:
+- You must disclose your source code when you modify and distribute this software
+- You must disclose your source code if you run a modified version as a network service
+- You must license your derivative works under AGPL-3.0
+- You must preserve copyright and license notices
+
+Full license text: https://www.gnu.org/licenses/agpl-3.0.html
+
+================================================================================
+OPTION 2: Commercial License
+================================================================================
+
+If you wish to use this software in a proprietary or commercial product without
+the obligations of the AGPL-3.0 license (such as disclosing your source code),
+you must obtain a commercial license.
+
+Commercial licenses allow you to:
+- Use the software in closed-source products
+- Modify the software without releasing your changes
+- Distribute the software as part of proprietary applications
+- Use the software in commercial SaaS products without source disclosure
+
+To obtain a commercial license, please contact:
+
+  Nikolas Braren Blanchet
+  LinkedIn: https://www.linkedin.com/in/nik-blanchet/
+  Repository: https://github.com/nikblanchet/docimp
+
+================================================================================
+
+By using this software, you agree to comply with either the AGPL-3.0 license
+terms or obtain a commercial license.
