@@ -5,10 +5,32 @@
  * and parses JSON responses from stdout.
  */
 
-import { spawn } from 'child_process';
+import { spawn, spawnSync } from 'child_process';
 import { resolve } from 'path';
 import type { IPythonBridge, AnalyzeOptions, AuditOptions, PlanOptions, SuggestOptions, ApplyData } from './IPythonBridge.js';
 import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult } from '../types/analysis.js';
+
+/**
+ * Detect available Python executable.
+ * Tries python3, then python, then py.
+ */
+function detectPythonExecutable(): string {
+  const candidates = ['python3', 'python', 'py'];
+
+  for (const candidate of candidates) {
+    try {
+      const result = spawnSync(candidate, ['--version'], { timeout: 2000 });
+      if (result.status === 0) {
+        return candidate;
+      }
+    } catch {
+      // Try next candidate
+    }
+  }
+
+  // Default fallback
+  return 'python';
+}
 
 /**
  * Default implementation of Python bridge using subprocess.
@@ -20,14 +42,14 @@ export class PythonBridge implements IPythonBridge {
   /**
    * Create a new Python bridge.
    *
-   * @param pythonPath - Path to Python executable (default: 'python')
+   * @param pythonPath - Path to Python executable (default: auto-detected)
    * @param analyzerPath - Path to analyzer module (default: auto-detected)
    */
   constructor(
-    pythonPath: string = 'python',
+    pythonPath?: string,
     analyzerPath?: string
   ) {
-    this.pythonPath = pythonPath;
+    this.pythonPath = pythonPath || detectPythonExecutable();
 
     // Auto-detect analyzer path relative to this file
     // cli/src/python-bridge/PythonBridge.ts -> analyzer/
