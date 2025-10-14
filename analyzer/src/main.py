@@ -16,6 +16,7 @@ from .claude.claude_client import ClaudeClient
 from .claude.prompt_builder import PromptBuilder
 from .parsers.python_parser import PythonParser
 from .parsers.typescript_parser import TypeScriptParser
+from .planning.plan_generator import generate_plan, save_plan
 from .scoring.impact_scorer import ImpactScorer
 
 
@@ -259,6 +260,58 @@ def cmd_apply_audit(args: argparse.Namespace) -> int:
         return 1
 
 
+def cmd_plan(args: argparse.Namespace) -> int:
+    """Handle the plan subcommand.
+
+    Args:
+        args: Parsed command-line arguments.
+
+    Returns:
+        Exit code (0 for success, 1 for error).
+    """
+    try:
+        # Create analyzer
+        analyzer = create_analyzer()
+
+        # Run analysis
+        if args.verbose:
+            print(f"Analyzing: {args.path}", file=sys.stderr)
+
+        result = analyzer.analyze(args.path, verbose=args.verbose)
+
+        # Generate plan
+        if args.verbose:
+            print("Generating improvement plan...", file=sys.stderr)
+
+        plan = generate_plan(
+            result,
+            audit_file=Path(args.audit_file),
+            quality_threshold=args.quality_threshold
+        )
+
+        # Save plan to file
+        plan_file = Path(args.plan_file)
+        save_plan(plan, plan_file)
+
+        if args.verbose:
+            print(f"Plan saved to: {plan_file}", file=sys.stderr)
+
+        # Output JSON to stdout
+        print(json.dumps(plan.to_dict(), indent=2))
+
+        return 0
+
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        if args.verbose:
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+        return 1
+
+
 def cmd_suggest(args: argparse.Namespace) -> int:
     """Handle the suggest subcommand.
 
@@ -427,6 +480,38 @@ def main(argv: Optional[list] = None) -> int:
         help='Enable verbose output'
     )
 
+    # Plan command
+    plan_parser = subparsers.add_parser(
+        'plan',
+        help='Generate prioritized documentation improvement plan'
+    )
+    plan_parser.add_argument(
+        'path',
+        help='Path to file or directory to analyze'
+    )
+    plan_parser.add_argument(
+        '--audit-file',
+        default='.docimp-audit.json',
+        help='Path to audit results file (default: .docimp-audit.json)'
+    )
+    plan_parser.add_argument(
+        '--plan-file',
+        default='.docimp-plan.json',
+        help='Path to save plan file (default: .docimp-plan.json)'
+    )
+    plan_parser.add_argument(
+        '--quality-threshold',
+        type=int,
+        default=2,
+        choices=[1, 2, 3, 4],
+        help='Include items with audit rating <= threshold (default: 2)'
+    )
+    plan_parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Enable verbose output'
+    )
+
     # Suggest command
     suggest_parser = subparsers.add_parser(
         'suggest',
@@ -469,6 +554,8 @@ def main(argv: Optional[list] = None) -> int:
         return cmd_audit(args)
     elif args.command == 'apply-audit':
         return cmd_apply_audit(args)
+    elif args.command == 'plan':
+        return cmd_plan(args)
     elif args.command == 'suggest':
         return cmd_suggest(args)
 
