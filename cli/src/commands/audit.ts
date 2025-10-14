@@ -62,33 +62,13 @@ export async function auditCore(
     // Initialize ratings structure
     const ratings: AuditRatings = { ratings: {} };
 
-    // Load existing ratings into ratings structure
-    for (const item of items) {
-      if (item.audit_rating !== undefined && item.audit_rating !== null) {
-        if (!ratings.ratings[item.filepath]) {
-          ratings.ratings[item.filepath] = {};
-        }
-        ratings.ratings[item.filepath][item.name] = item.audit_rating;
-      }
-    }
-
-    // Filter out already-rated items (for resume capability)
-    const unratedItems = items.filter(item => item.audit_rating === undefined || item.audit_rating === null);
-
-    if (unratedItems.length === 0) {
-      terminalDisplay.showMessage('All items have already been audited.');
-      return;
-    }
-
-    terminalDisplay.showMessage(`${unratedItems.length} items remaining to audit.\n`);
-
     // Interactive rating loop
     let audited = 0;
-    for (const item of unratedItems) {
+    for (const item of items) {
       audited++;
 
       // Show progress
-      terminalDisplay.showMessage(`\nAuditing: ${audited}/${unratedItems.length}`);
+      terminalDisplay.showMessage(`\nAuditing: ${audited}/${items.length}`);
       terminalDisplay.showMessage(`${item.type} ${item.name} (${item.language})`);
       terminalDisplay.showMessage(`Location: ${item.filepath}:${item.line_number}`);
       terminalDisplay.showMessage(`Complexity: ${item.complexity}\n`);
