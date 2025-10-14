@@ -6,7 +6,7 @@
  * configuration, and parse JSON responses.
  */
 
-import type { AnalysisResult } from '../types/analysis.js';
+import type { AnalysisResult, AuditListResult, AuditRatings } from '../types/analysis.js';
 import type { IConfig } from '../config/IConfig.js';
 
 /**
@@ -24,6 +24,20 @@ export interface AnalyzeOptions {
 }
 
 /**
+ * Options for audit command.
+ */
+export interface AuditOptions {
+  /** Path to audit */
+  path: string;
+
+  /** Path to audit file (default: .docimp-audit.json) */
+  auditFile?: string;
+
+  /** Enable verbose output */
+  verbose?: boolean;
+}
+
+/**
  * Python subprocess bridge interface.
  */
 export interface IPythonBridge {
@@ -35,4 +49,23 @@ export interface IPythonBridge {
    * @throws Error if Python process fails or returns invalid JSON
    */
   analyze(options: AnalyzeOptions): Promise<AnalysisResult>;
+
+  /**
+   * Get list of documented items for quality audit.
+   *
+   * @param options - Audit options
+   * @returns Promise resolving to list of documented items
+   * @throws Error if Python process fails or returns invalid JSON
+   */
+  audit(options: AuditOptions): Promise<AuditListResult>;
+
+  /**
+   * Save audit ratings to file.
+   *
+   * @param ratings - Audit ratings to persist
+   * @param auditFile - Path to audit file (default: .docimp-audit.json)
+   * @returns Promise resolving when ratings are saved
+   * @throws Error if Python process fails
+   */
+  applyAudit(ratings: AuditRatings, auditFile?: string): Promise<void>;
 }
