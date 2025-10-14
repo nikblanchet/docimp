@@ -7,7 +7,7 @@
 
 import { spawn } from 'child_process';
 import { resolve } from 'path';
-import type { IPythonBridge, AnalyzeOptions, AuditOptions, PlanOptions } from './IPythonBridge.js';
+import type { IPythonBridge, AnalyzeOptions, AuditOptions, PlanOptions, SuggestOptions, ApplyData } from './IPythonBridge.js';
 import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult } from '../types/analysis.js';
 
 /**
@@ -183,6 +183,147 @@ export class PythonBridge implements IPythonBridge {
     }
 
     return this.executePython<PlanResult>(args, options.verbose);
+  }
+
+  /**
+   * Request documentation suggestion from Claude.
+   *
+   * @param options - Suggestion options
+   * @returns Promise resolving to suggested documentation text
+   * @throws Error if Python process fails or Claude API error
+   */
+  async suggest(options: SuggestOptions): Promise<string> {
+    const args = [
+      '-m',
+      'src.main',
+      'suggest',
+      options.target,
+      '--style-guide', options.styleGuide,
+      '--tone', options.tone,
+    ];
+
+    if (options.verbose) {
+      args.push('--verbose');
+    }
+
+    // suggest command returns plain text, not JSON
+    return this.executePythonText(args, options.verbose);
+  }
+
+  /**
+   * Write documentation to a source file.
+   *
+   * @param data - Data for writing documentation
+   * @returns Promise resolving when documentation is written
+   * @throws Error if Python process fails or write fails
+   */
+  async apply(data: ApplyData): Promise<void> {
+    const args = [
+      '-m',
+      'src.main',
+      'apply',
+    ];
+
+    return new Promise((resolve, reject) => {
+      const childProcess = spawn(this.pythonPath, args, {
+        cwd: this.analyzerModule,
+        env: { ...process.env },
+      });
+
+      let stderr = '';
+
+      // Send apply data as JSON via stdin
+      childProcess.stdin.write(JSON.stringify(data));
+      childProcess.stdin.end();
+
+      childProcess.stderr.on('data', (data: Buffer) => {
+        stderr += data.toString();
+      });
+
+      childProcess.on('error', (error: Error) => {
+        reject(
+          new Error(
+            `Failed to spawn Python process: ${error.message}\n` +
+            `Make sure Python is installed and the analyzer module is available.`
+          )
+        );
+      });
+
+      childProcess.on('close', (code: number) => {
+        if (code !== 0) {
+          reject(
+            new Error(
+              `Python analyzer exited with code ${code}\n` +
+              `stderr: ${stderr}`
+            )
+          );
+          return;
+        }
+
+        resolve();
+      });
+    });
+  }
+
+  /**
+   * Execute Python subprocess and return text output (not JSON).
+   *
+   * @param args - Command-line arguments for Python
+   * @param verbose - Whether to show verbose output
+   * @returns Promise resolving to text output
+   * @throws Error if process fails
+   */
+  private async executePythonText(
+    args: string[],
+    verbose: boolean = false
+  ): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const childProcess = spawn(this.pythonPath, args, {
+        cwd: this.analyzerModule,
+        env: { ...process.env },
+      });
+
+      let stdout = '';
+      let stderr = '';
+
+      childProcess.stdout.on('data', (data: Buffer) => {
+        stdout += data.toString();
+      });
+
+      childProcess.stderr.on('data', (data: Buffer) => {
+        const text = data.toString();
+        stderr += text;
+
+        // Pass through verbose output
+        if (verbose) {
+          console.error(text);
+        }
+      });
+
+      childProcess.on('error', (error: Error) => {
+        reject(
+          new Error(
+            `Failed to spawn Python process: ${error.message}\n` +
+            `Make sure Python is installed and the analyzer module is available.`
+          )
+        );
+      });
+
+      childProcess.on('close', (code: number) => {
+        if (code !== 0) {
+          reject(
+            new Error(
+              `Python analyzer exited with code ${code}\n` +
+              `stderr: ${stderr}\n` +
+              `stdout: ${stdout}`
+            )
+          );
+          return;
+        }
+
+        resolve(stdout);
+      });
+    });
   }
 
   /**
