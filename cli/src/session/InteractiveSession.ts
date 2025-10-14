@@ -90,18 +90,15 @@ export class InteractiveSession {
       const item = items[i];
 
       // Show progress
-      console.log(chalk.dim(`\n[${ i + 1}/${items.length}] ${tracker.getProgressString()}`));
+      console.log(chalk.dim(`\n[${i + 1}/${items.length}] ${tracker.getProgressString()}`));
 
       // Process this item
-      const shouldContinue = await this.processItem(item, i);
+      const shouldContinue = await this.processItem(item, i, tracker);
 
       if (!shouldContinue) {
         tracker.recordQuit(i);
         break;
       }
-
-      // Update tracker based on user action
-      // (tracking is done in processItem)
     }
 
     // Show final summary
@@ -113,9 +110,10 @@ export class InteractiveSession {
    *
    * @param item - Plan item to process
    * @param _index - Item index in the plan (unused)
+   * @param tracker - Progress tracker
    * @returns Promise resolving to true if should continue, false if user quit
    */
-  private async processItem(item: PlanItem, _index: number): Promise<boolean> {
+  private async processItem(item: PlanItem, _index: number, tracker: ProgressTracker): Promise<boolean> {
     // Show item details
     this.showItemDetails(item);
 
@@ -145,7 +143,8 @@ export class InteractiveSession {
         // Write to file
         const success = await this.writeDocstring(item, currentDocstring);
         if (success) {
-          console.log(chalk.green(`Documentation written to ${item.filepath}`));
+          tracker.recordAccepted();
+          console.log(chalk.green(`✓ Documentation written to ${item.filepath}`));
         } else {
           console.log(chalk.red('Failed to write documentation'));
         }
@@ -182,6 +181,7 @@ export class InteractiveSession {
         }
 
       } else if (action === 'skip') {
+        tracker.recordSkipped();
         console.log(chalk.yellow('Skipping item'));
         return true; // Continue to next item
 
