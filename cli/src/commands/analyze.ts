@@ -7,87 +7,10 @@
 
 import { ConfigLoader } from '../config/ConfigLoader.js';
 import { PythonBridge } from '../python-bridge/PythonBridge.js';
+import { TerminalDisplay } from '../display/TerminalDisplay.js';
 import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
-import type { AnalysisResult } from '../types/analysis.js';
+import type { IDisplay } from '../display/IDisplay.js';
 
-/**
- * Format analysis result as JSON string.
- *
- * @param result - Analysis result to format
- * @returns Formatted JSON string
- */
-function formatJson(result: AnalysisResult): string {
-  return JSON.stringify(result, null, 2);
-}
-
-/**
- * Format analysis result as human-readable summary.
- *
- * @param result - Analysis result to format
- * @returns Formatted summary string
- */
-function formatSummary(result: AnalysisResult): string {
-  const lines: string[] = [];
-
-  lines.push('='.repeat(60));
-  lines.push('Documentation Coverage Analysis');
-  lines.push('='.repeat(60));
-  lines.push('');
-  lines.push(
-    `Overall Coverage: ${result.coverage_percent.toFixed(1)}% ` +
-    `(${result.documented_items}/${result.total_items} items)`
-  );
-  lines.push('');
-
-  if (Object.keys(result.by_language).length > 0) {
-    lines.push('By Language:');
-    lines.push('-'.repeat(60));
-
-    // Sort languages for consistent output
-    const languages = Object.keys(result.by_language).sort();
-    for (const lang of languages) {
-      const metrics = result.by_language[lang];
-      lines.push(`  ${lang.charAt(0).toUpperCase() + lang.slice(1)}:`);
-      lines.push(
-        `    Coverage: ${metrics.coverage_percent.toFixed(1)}% ` +
-        `(${metrics.documented_items}/${metrics.total_items})`
-      );
-      lines.push(`    Avg Complexity: ${metrics.avg_complexity.toFixed(1)}`);
-      lines.push(`    Avg Impact Score: ${metrics.avg_impact_score.toFixed(1)}`);
-      lines.push('');
-    }
-  }
-
-  // Show undocumented items by priority
-  const undocumented = result.items.filter((item) => !item.has_docs);
-  if (undocumented.length > 0) {
-    lines.push('Top Undocumented Items (by impact):');
-    lines.push('-'.repeat(60));
-
-    // Sort by impact score descending
-    const sorted = undocumented
-      .sort((a, b) => b.impact_score - a.impact_score)
-      .slice(0, 10);
-
-    for (const item of sorted) {
-      const score = item.impact_score.toFixed(1).padStart(5);
-      const type = item.type.padEnd(8);
-      const name = item.name.padEnd(30).slice(0, 30);
-      lines.push(
-        `  [${score}] ${type} ${name} (${item.filepath}:${item.line_number})`
-      );
-    }
-
-    if (undocumented.length > 10) {
-      lines.push(`  ... and ${undocumented.length - 10} more`);
-    }
-  }
-
-  lines.push('');
-  lines.push('='.repeat(60));
-
-  return lines.join('\n');
-}
 
 /**
  * Core analyze logic (extracted for testability).
@@ -95,6 +18,7 @@ function formatSummary(result: AnalysisResult): string {
  * @param path - Path to file or directory to analyze
  * @param options - Command options
  * @param bridge - Python bridge instance (injected for testing)
+ * @param display - Display instance (injected for testing)
  */
 export async function analyzeCore(
   path: string,
@@ -103,44 +27,50 @@ export async function analyzeCore(
     config?: string;
     verbose?: boolean;
   },
-  bridge?: IPythonBridge
+  bridge?: IPythonBridge,
+  display?: IDisplay
 ): Promise<void> {
+  // Create dependencies if not injected (dependency injection pattern)
+  const pythonBridge = bridge ?? new PythonBridge();
+  const terminalDisplay = display ?? new TerminalDisplay();
+
   // Load configuration
   const configLoader = new ConfigLoader();
   const config = await configLoader.load(options.config);
 
   if (options.verbose) {
-    console.log('Configuration loaded:');
-    console.log(`  Style guide: ${config.styleGuide}`);
-    console.log(`  Tone: ${config.tone}`);
-    console.log(`  Plugins: ${config.plugins?.length || 0} loaded`);
-    console.log(`  Exclude patterns: ${config.exclude?.length || 0} patterns`);
-    if (config.jsdocStyle) {
-      console.log('  JSDoc options:');
-      console.log(`    Enforce types: ${config.jsdocStyle.enforceTypes}`);
-      console.log(`    Require examples: ${config.jsdocStyle.requireExamples}`);
-    }
-    console.log('');
+    terminalDisplay.showConfig({
+      styleGuide: config.styleGuide,
+      tone: config.tone,
+      plugins: config.plugins,
+      exclude: config.exclude,
+      jsdocStyle: config.jsdocStyle,
+    });
   }
-
-  // Create bridge if not injected (dependency injection pattern)
-  const pythonBridge = bridge ?? new PythonBridge();
 
   // Run analysis via Python subprocess
   if (options.verbose) {
-    console.log(`Analyzing: ${path}`);
+    terminalDisplay.showMessage(`Analyzing: ${path}`);
   }
 
-  const result = await pythonBridge.analyze({
-    path,
-    config,
-    verbose: options.verbose,
-  });
+  const stopSpinner = terminalDisplay.startSpinner('Analyzing codebase...');
 
-  // Format and display output
-  const format = options.format || 'summary';
-  const output = format === 'json' ? formatJson(result) : formatSummary(result);
-  console.log(output);
+  try {
+    const result = await pythonBridge.analyze({
+      path,
+      config,
+      verbose: options.verbose,
+    });
+
+    stopSpinner();
+
+    // Display results using the display service
+    const format = (options.format || 'summary') as 'summary' | 'json';
+    terminalDisplay.showAnalysisResult(result, format);
+  } catch (error) {
+    stopSpinner();
+    throw error;
+  }
 }
 
 /**
@@ -158,11 +88,12 @@ export async function analyzeCommand(
     verbose?: boolean;
   }
 ): Promise<void> {
+  const display = new TerminalDisplay();
+
   try {
     await analyzeCore(path, options);
   } catch (error) {
-    console.error('Error:');
-    console.error(error instanceof Error ? error.message : String(error));
+    display.showError(error instanceof Error ? error.message : String(error));
     process.exit(1);
   }
 }
