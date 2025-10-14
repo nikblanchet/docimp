@@ -93,6 +93,11 @@ jobs:
           cd cli
           npm test
 
+      - name: Run integration tests
+        run: |
+          cd cli
+          npm run test:integration
+
   integration-test:
     name: Integration Test (Python + TypeScript)
     runs-on: ubuntu-latest
