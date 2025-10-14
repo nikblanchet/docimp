@@ -44,8 +44,10 @@ program
   .command('plan')
   .description('Generate prioritized documentation improvement plan')
   .argument('<path>', 'Path to file or directory to plan')
-  .option('--config <path>', 'Path to configuration file')
-  .option('--output <file>', 'Output file for plan (default: .docimp-plan.json)')
+  .option('--audit-file <file>', 'Path to audit results file (default: .docimp-audit.json)')
+  .option('--plan-file <file>', 'Output file for plan (default: .docimp-plan.json)')
+  .option('--quality-threshold <threshold>', 'Include items with rating <= threshold (default: 2)', '2')
+  .option('--verbose', 'Enable verbose output')
   .action(planCommand);
 
 // Improve command
