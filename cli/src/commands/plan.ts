@@ -2,32 +2,117 @@
  * Plan command implementation.
  *
  * This command generates a prioritized documentation improvement plan
- * by combining missing and poor-quality documentation items.
+ * by combining items with missing or poor quality documentation.
  */
+
+import { PythonBridge } from '../python-bridge/PythonBridge.js';
+import { TerminalDisplay } from '../display/TerminalDisplay.js';
+import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
+import type { IDisplay } from '../display/IDisplay.js';
+
+/**
+ * Core plan logic (extracted for testability).
+ *
+ * @param path - Path to file or directory to analyze
+ * @param options - Command options
+ * @param bridge - Python bridge instance (injected for testing)
+ * @param display - Display instance (injected for testing)
+ */
+export async function planCore(
+  path: string,
+  options: {
+    auditFile?: string;
+    planFile?: string;
+    qualityThreshold?: number;
+    verbose?: boolean;
+  },
+  bridge?: IPythonBridge,
+  display?: IDisplay
+): Promise<void> {
+  // Create dependencies if not injected (dependency injection pattern)
+  const pythonBridge = bridge ?? new PythonBridge();
+  const terminalDisplay = display ?? new TerminalDisplay();
+
+  // Run plan generation via Python subprocess
+  if (options.verbose) {
+    terminalDisplay.showMessage(`Generating plan for: ${path}`);
+  }
+
+  const stopSpinner = terminalDisplay.startSpinner('Generating improvement plan...');
+
+  try {
+    const result = await pythonBridge.plan({
+      path,
+      auditFile: options.auditFile,
+      planFile: options.planFile,
+      qualityThreshold: options.qualityThreshold,
+      verbose: options.verbose,
+    });
+
+    stopSpinner();
+
+    // Display plan summary
+    terminalDisplay.showMessage('\n' + '='.repeat(60));
+    terminalDisplay.showMessage('Documentation Improvement Plan');
+    terminalDisplay.showMessage('='.repeat(60));
+    terminalDisplay.showMessage(`\nTotal items to improve: ${result.total_items}`);
+    terminalDisplay.showMessage(`  Missing documentation: ${result.missing_docs_count}`);
+    terminalDisplay.showMessage(`  Poor quality documentation: ${result.poor_quality_count}`);
+
+    if (result.items.length > 0) {
+      terminalDisplay.showMessage('\nTop 10 priorities (by impact score):');
+      terminalDisplay.showMessage('-'.repeat(60));
+
+      const topItems = result.items.slice(0, 10);
+      for (const item of topItems) {
+        const priorityLabel = `[${item.impact_score.toFixed(1).padStart(5)}]`;
+        const typeLabel = item.type.padEnd(8);
+        const nameLabel = item.name.padEnd(30);
+        const location = `${item.filepath}:${item.line_number}`;
+
+        terminalDisplay.showMessage(
+          `  ${priorityLabel} ${typeLabel} ${nameLabel} ${location}`
+        );
+        terminalDisplay.showMessage(`         ${item.reason}`);
+      }
+
+      if (result.items.length > 10) {
+        terminalDisplay.showMessage(`\n  ... and ${result.items.length - 10} more items`);
+      }
+    }
+
+    terminalDisplay.showMessage('\n' + '='.repeat(60));
+    terminalDisplay.showMessage(`Plan saved to: ${options.planFile || '.docimp-plan.json'}`);
+    terminalDisplay.showMessage('Run \'docimp improve\' to start improving documentation.');
+    terminalDisplay.showMessage('='.repeat(60) + '\n');
+  } catch (error) {
+    stopSpinner();
+    throw error;
+  }
+}
 
 /**
  * Execute the plan command.
+ * This is the entry point called by Commander.js.
  *
- * @param path - Path to file or directory to plan
+ * @param path - Path to file or directory to analyze
  * @param options - Command options
  */
 export async function planCommand(
   path: string,
   options: {
-    config?: string;
-    output?: string;
+    auditFile?: string;
+    planFile?: string;
+    qualityThreshold?: number;
+    verbose?: boolean;
   }
 ): Promise<void> {
-  console.log(`Planning improvements for: ${path}`);
-  if (options.config) {
-    console.log(`Config: ${options.config}`);
-  }
-  if (options.output) {
-    console.log(`Output file: ${options.output}`);
-  } else {
-    console.log('Output file: .docimp-plan.json');
-  }
+  const display = new TerminalDisplay();
 
-  console.log('\nThis command will be fully implemented in Step 16 (Plan Command).');
-  console.log('Current status: Stub implementation');
+  try {
+    await planCore(path, options);
+  } catch (error) {
+    display.showError(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
 }

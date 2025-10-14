@@ -131,3 +131,70 @@ export interface AuditRatings {
   /** Nested mapping: filepath -> item_name -> rating (1-4 or null for skipped) */
   ratings: Record<string, Record<string, number | null>>;
 }
+
+/**
+ * Plan item for documentation improvement.
+ */
+export interface PlanItem {
+  /** Function, class, or method name */
+  name: string;
+
+  /** Type of code element */
+  type: 'function' | 'class' | 'method';
+
+  /** Absolute path to source file */
+  filepath: string;
+
+  /** Line number where definition starts */
+  line_number: number;
+
+  /** Source language */
+  language: 'python' | 'typescript' | 'javascript';
+
+  /** Cyclomatic complexity score */
+  complexity: number;
+
+  /** Calculated impact score (0-100) */
+  impact_score: number;
+
+  /** Whether item currently has documentation */
+  has_docs: boolean;
+
+  /** Optional audit quality rating */
+  audit_rating: number | null;
+
+  /** Parameter names */
+  parameters: string[];
+
+  /** Return type annotation if available */
+  return_type: string | null;
+
+  /** Existing documentation if present */
+  docstring: string | null;
+
+  /** Export type for JavaScript/TypeScript */
+  export_type: 'named' | 'default' | 'commonjs' | 'internal';
+
+  /** Module system for JavaScript */
+  module_system: 'esm' | 'commonjs' | 'unknown';
+
+  /** Reason for inclusion in plan */
+  reason: string;
+}
+
+/**
+ * Result from plan command.
+ */
+export interface PlanResult {
+  /** Prioritized items to improve */
+  items: PlanItem[];
+
+  /** Total number of items in plan */
+  total_items: number;
+
+  /** Number of items with missing docs */
+  missing_docs_count: number;
+
+  /** Number of items with poor quality docs */
+  poor_quality_count: number;
+}
