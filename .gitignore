@@ -21,3 +21,5 @@ dist/
 CLAUDE.md
 CLAUDE_CONTEXT.md
 PLAN.md
+.docimp-audit.json
+.docimp-plan.json

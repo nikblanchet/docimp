@@ -7,8 +7,8 @@
 
 import { spawn } from 'child_process';
 import { resolve } from 'path';
-import type { IPythonBridge, AnalyzeOptions } from './IPythonBridge.js';
-import type { AnalysisResult } from '../types/analysis.js';
+import type { IPythonBridge, AnalyzeOptions, AuditOptions } from './IPythonBridge.js';
+import type { AnalysisResult, AuditListResult, AuditRatings } from '../types/analysis.js';
 
 /**
  * Default implementation of Python bridge using subprocess.
@@ -62,7 +62,93 @@ export class PythonBridge implements IPythonBridge {
       args.push('--verbose');
     }
 
-    return this.executePython(args, options.verbose);
+    return this.executePython<AnalysisResult>(args, options.verbose);
+  }
+
+  /**
+   * Get list of documented items for quality audit.
+   *
+   * @param options - Audit options
+   * @returns Promise resolving to list of documented items
+   * @throws Error if Python process fails or returns invalid JSON
+   */
+  async audit(options: AuditOptions): Promise<AuditListResult> {
+    const args = [
+      '-m',
+      'src.main',
+      'audit',
+      options.path,
+    ];
+
+    if (options.auditFile) {
+      args.push('--audit-file', options.auditFile);
+    }
+
+    if (options.verbose) {
+      args.push('--verbose');
+    }
+
+    return this.executePython<AuditListResult>(args, options.verbose);
+  }
+
+  /**
+   * Save audit ratings to file.
+   *
+   * @param ratings - Audit ratings to persist
+   * @param auditFile - Path to audit file (default: .docimp-audit.json)
+   * @returns Promise resolving when ratings are saved
+   * @throws Error if Python process fails
+   */
+  async applyAudit(ratings: AuditRatings, auditFile?: string): Promise<void> {
+    const args = [
+      '-m',
+      'src.main',
+      'apply-audit',
+    ];
+
+    if (auditFile) {
+      args.push('--audit-file', auditFile);
+    }
+
+    return new Promise((resolve, reject) => {
+      const childProcess = spawn(this.pythonPath, args, {
+        cwd: this.analyzerModule,
+        env: { ...process.env },
+      });
+
+      let stderr = '';
+
+      // Send ratings as JSON via stdin
+      childProcess.stdin.write(JSON.stringify(ratings));
+      childProcess.stdin.end();
+
+      childProcess.stderr.on('data', (data: Buffer) => {
+        stderr += data.toString();
+      });
+
+      childProcess.on('error', (error: Error) => {
+        reject(
+          new Error(
+            `Failed to spawn Python process: ${error.message}\n` +
+            `Make sure Python is installed and the analyzer module is available.`
+          )
+        );
+      });
+
+      childProcess.on('close', (code: number) => {
+        if (code !== 0) {
+          reject(
+            new Error(
+              `Python analyzer exited with code ${code}\n` +
+              `stderr: ${stderr}`
+            )
+          );
+          return;
+        }
+
+        resolve();
+      });
+    });
   }
 
   /**
@@ -73,10 +159,10 @@ export class PythonBridge implements IPythonBridge {
    * @returns Promise resolving to parsed JSON result
    * @throws Error if process fails or JSON is invalid
    */
-  private async executePython(
+  private async executePython<T>(
     args: string[],
     verbose: boolean = false
-  ): Promise<AnalysisResult> {
+  ): Promise<T> {
     return new Promise((resolve, reject) => {
       const childProcess = spawn(this.pythonPath, args, {
         cwd: this.analyzerModule,
@@ -123,7 +209,7 @@ export class PythonBridge implements IPythonBridge {
 
         // Parse JSON from stdout
         try {
-          const result = JSON.parse(stdout) as AnalysisResult;
+          const result = JSON.parse(stdout) as T;
           resolve(result);
         } catch (error) {
           reject(

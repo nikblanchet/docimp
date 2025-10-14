@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Optional
 
 from .analysis.analyzer import DocumentationAnalyzer
+from .audit.quality_rater import load_audit_results, save_audit_results, AuditResult
 from .claude.claude_client import ClaudeClient
 from .claude.prompt_builder import PromptBuilder
 from .parsers.python_parser import PythonParser
@@ -166,6 +167,98 @@ def cmd_analyze(args: argparse.Namespace) -> int:
         return 1
 
 
+def cmd_audit(args: argparse.Namespace) -> int:
+    """Handle the audit subcommand.
+
+    Args:
+        args: Parsed command-line arguments.
+
+    Returns:
+        Exit code (0 for success, 1 for error).
+    """
+    try:
+        # Create analyzer
+        analyzer = create_analyzer()
+
+        # Run analysis
+        if args.verbose:
+            print(f"Finding documented items in: {args.path}", file=sys.stderr)
+
+        result = analyzer.analyze(args.path, verbose=args.verbose)
+
+        # Filter for items WITH documentation
+        documented_items = [item for item in result.items if item.has_docs]
+
+        if args.verbose:
+            print(f"Found {len(documented_items)} documented items", file=sys.stderr)
+
+        # Format output as JSON for TypeScript to consume
+        data = {
+            'items': [
+                {
+                    'name': item.name,
+                    'type': item.type,
+                    'filepath': item.filepath,
+                    'line_number': item.line_number,
+                    'language': item.language,
+                    'complexity': item.complexity,
+                    'docstring': item.docstring,
+                    'audit_rating': item.audit_rating
+                }
+                for item in documented_items
+            ]
+        }
+
+        print(json.dumps(data, indent=2))
+        return 0
+
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        if args.verbose:
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+        return 1
+
+
+def cmd_apply_audit(args: argparse.Namespace) -> int:
+    """Handle the apply-audit subcommand to save audit ratings.
+
+    Args:
+        args: Parsed command-line arguments.
+
+    Returns:
+        Exit code (0 for success, 1 for error).
+    """
+    try:
+        # Read audit data from stdin
+        audit_data = json.load(sys.stdin)
+
+        # Convert to AuditResult
+        audit_result = AuditResult(ratings=audit_data.get('ratings', {}))
+
+        # Save to file
+        save_audit_results(audit_result, Path(args.audit_file))
+
+        if args.verbose:
+            total_ratings = sum(len(items) for items in audit_result.ratings.values())
+            print(f"Saved {total_ratings} audit ratings to {args.audit_file}", file=sys.stderr)
+
+        return 0
+
+    except json.JSONDecodeError as e:
+        print(f"Error: Invalid JSON input: {e}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        if args.verbose:
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+        return 1
+
+
 def cmd_suggest(args: argparse.Namespace) -> int:
     """Handle the suggest subcommand.
 
@@ -298,6 +391,42 @@ def main(argv: Optional[list] = None) -> int:
         help='Enable verbose output'
     )
 
+    # Audit command
+    audit_parser = subparsers.add_parser(
+        'audit',
+        help='Find documented items for quality rating'
+    )
+    audit_parser.add_argument(
+        'path',
+        help='Path to file or directory to audit'
+    )
+    audit_parser.add_argument(
+        '--audit-file',
+        default='.docimp-audit.json',
+        help='Path to audit results file (default: .docimp-audit.json)'
+    )
+    audit_parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Enable verbose output'
+    )
+
+    # Apply-audit command
+    apply_audit_parser = subparsers.add_parser(
+        'apply-audit',
+        help='Save audit ratings from stdin'
+    )
+    apply_audit_parser.add_argument(
+        '--audit-file',
+        default='.docimp-audit.json',
+        help='Path to audit results file (default: .docimp-audit.json)'
+    )
+    apply_audit_parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Enable verbose output'
+    )
+
     # Suggest command
     suggest_parser = subparsers.add_parser(
         'suggest',
@@ -336,6 +465,10 @@ def main(argv: Optional[list] = None) -> int:
     # Dispatch to command handler
     if args.command == 'analyze':
         return cmd_analyze(args)
+    elif args.command == 'audit':
+        return cmd_audit(args)
+    elif args.command == 'apply-audit':
+        return cmd_apply_audit(args)
     elif args.command == 'suggest':
         return cmd_suggest(args)
 

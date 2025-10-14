@@ -40,7 +40,7 @@ export interface CodeItem {
   /** Module system for JavaScript */
   module_system: 'esm' | 'commonjs' | 'unknown';
 
-  /** Optional audit quality rating (0-4) */
+  /** Optional audit quality rating (1-4, or undefined if not audited) */
   audit_rating?: number;
 }
 
@@ -85,4 +85,49 @@ export interface AnalysisResult {
 
   /** All parsed code items */
   items: CodeItem[];
+}
+
+/**
+ * Audit item with documentation for quality rating.
+ */
+export interface AuditItem {
+  /** Function, class, or method name */
+  name: string;
+
+  /** Type of code element */
+  type: 'function' | 'class' | 'method';
+
+  /** Absolute path to source file */
+  filepath: string;
+
+  /** Line number where definition starts */
+  line_number: number;
+
+  /** Source language */
+  language: 'python' | 'typescript' | 'javascript' | 'skipped';
+
+  /** Cyclomatic complexity score */
+  complexity: number;
+
+  /** Existing documentation string */
+  docstring: string | null;
+
+  /** Existing audit rating if already rated */
+  audit_rating?: number;
+}
+
+/**
+ * Result from audit command listing documented items.
+ */
+export interface AuditListResult {
+  /** Items with documentation to be audited */
+  items: AuditItem[];
+}
+
+/**
+ * Audit ratings to be persisted.
+ */
+export interface AuditRatings {
+  /** Nested mapping: filepath -> item_name -> rating (1-4 or null for skipped) */
+  ratings: Record<string, Record<string, number | null>>;
 }
