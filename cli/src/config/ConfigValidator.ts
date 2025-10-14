@@ -1,0 +1,120 @@
+/**
+ * Configuration validation functions.
+ *
+ * Pure functions for validating and merging user configuration with defaults.
+ * Separated from ConfigLoader to enable testing without file I/O.
+ */
+
+import type { IConfig } from './IConfig.js';
+import { defaultConfig } from './IConfig.js';
+
+/**
+ * Validate user configuration and merge with defaults.
+ *
+ * @param userConfig - User-provided configuration (partial)
+ * @returns Validated and merged configuration
+ * @throws Error if validation fails
+ */
+export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
+  // Validate styleGuide
+  if (userConfig.styleGuide !== undefined) {
+    const validStyles = ['numpy', 'google', 'sphinx', 'jsdoc'];
+    if (!validStyles.includes(userConfig.styleGuide)) {
+      throw new Error(
+        `Invalid styleGuide: ${userConfig.styleGuide}. Must be one of: ${validStyles.join(', ')}`
+      );
+    }
+  }
+
+  // Validate tone
+  if (userConfig.tone !== undefined) {
+    const validTones = ['concise', 'detailed', 'friendly'];
+    if (!validTones.includes(userConfig.tone)) {
+      throw new Error(
+        `Invalid tone: ${userConfig.tone}. Must be one of: ${validTones.join(', ')}`
+      );
+    }
+  }
+
+  // Validate jsdocStyle
+  if (userConfig.jsdocStyle !== undefined) {
+    if (userConfig.jsdocStyle.requireExamples !== undefined) {
+      const validValues = ['all', 'public', 'none'];
+      if (!validValues.includes(userConfig.jsdocStyle.requireExamples)) {
+        throw new Error(
+          `Invalid jsdocStyle.requireExamples: ${userConfig.jsdocStyle.requireExamples}. Must be one of: ${validValues.join(', ')}`
+        );
+      }
+    }
+  }
+
+  // Validate impactWeights
+  if (userConfig.impactWeights !== undefined) {
+    const { complexity, quality } = userConfig.impactWeights;
+    if (complexity !== undefined) {
+      if (complexity < 0 || complexity > 1) {
+        throw new Error(
+          `Invalid impactWeights.complexity: ${complexity}. Must be between 0 and 1`
+        );
+      }
+    }
+    if (quality !== undefined) {
+      if (quality < 0 || quality > 1) {
+        throw new Error(
+          `Invalid impactWeights.quality: ${quality}. Must be between 0 and 1`
+        );
+      }
+    }
+    // Warn if weights don't sum to 1
+    const complexityWeight = complexity ?? defaultConfig.impactWeights!.complexity;
+    const qualityWeight = quality ?? defaultConfig.impactWeights!.quality;
+    const sum = complexityWeight + qualityWeight;
+    if (Math.abs(sum - 1.0) > 0.01) {
+      console.warn(
+        `Warning: impactWeights.complexity (${complexityWeight}) + impactWeights.quality (${qualityWeight}) = ${sum}, not 1.0`
+      );
+    }
+  }
+
+  // Validate plugins array
+  if (userConfig.plugins !== undefined) {
+    if (!Array.isArray(userConfig.plugins)) {
+      throw new Error('plugins must be an array of strings');
+    }
+    for (const plugin of userConfig.plugins) {
+      if (typeof plugin !== 'string') {
+        throw new Error('Each plugin must be a string path');
+      }
+    }
+  }
+
+  // Validate exclude array
+  if (userConfig.exclude !== undefined) {
+    if (!Array.isArray(userConfig.exclude)) {
+      throw new Error('exclude must be an array of strings');
+    }
+    for (const pattern of userConfig.exclude) {
+      if (typeof pattern !== 'string') {
+        throw new Error('Each exclude pattern must be a string');
+      }
+    }
+  }
+
+  // Merge with defaults
+  const config: IConfig = {
+    styleGuide: userConfig.styleGuide ?? defaultConfig.styleGuide,
+    tone: userConfig.tone ?? defaultConfig.tone,
+    jsdocStyle: {
+      ...defaultConfig.jsdocStyle,
+      ...userConfig.jsdocStyle,
+    },
+    impactWeights: {
+      ...defaultConfig.impactWeights!,
+      ...userConfig.impactWeights,
+    },
+    plugins: userConfig.plugins ?? defaultConfig.plugins,
+    exclude: userConfig.exclude ?? defaultConfig.exclude,
+  };
+
+  return config;
+}

@@ -6,9 +6,8 @@ for parsing .ts, .js, .cjs, and .mjs files with full JSDoc validation.
 
 import json
 import subprocess
-import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 from .base_parser import BaseParser
 from ..models.code_item import CodeItem
 
@@ -25,16 +24,16 @@ class TypeScriptParser(BaseParser):
     """
 
     def __init__(self):
-        """Initialize the TypeScript parser and locate the Node.js helper script."""
-        # Find the compiled JavaScript helper
-        # Path from analyzer/src/parsers -> cli/dist
+        """Initialize the TypeScript parser and locate the Node.js CLI script."""
+        # Find the compiled JavaScript CLI entry point
+        # Path from analyzer/src/parsers -> cli/dist/parsers
         current_file = Path(__file__)
         project_root = current_file.parent.parent.parent.parent
-        self.helper_path = project_root / 'cli' / 'dist' / 'ts-js-parser-helper.js'
+        self.helper_path = project_root / 'cli' / 'dist' / 'parsers' / 'ts-js-parser-cli.js'
 
         if not self.helper_path.exists():
             raise FileNotFoundError(
-                f"TypeScript parser helper not found at {self.helper_path}. "
+                f"TypeScript parser CLI not found at {self.helper_path}. "
                 "Run 'cd cli && npm install && npm run build' to compile the TypeScript parser."
             )
 

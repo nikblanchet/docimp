@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Optional
 
 from .analysis.analyzer import DocumentationAnalyzer
-from .audit.quality_rater import load_audit_results, save_audit_results, AuditResult
+from .audit.quality_rater import save_audit_results, AuditResult
 from .claude.claude_client import ClaudeClient
 from .claude.prompt_builder import PromptBuilder
 from .parsers.python_parser import PythonParser

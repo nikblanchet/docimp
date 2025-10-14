@@ -5,12 +5,8 @@
  */
 
 export class PythonBridge {
-  private pythonPath: string;
-  private analyzerModule: string;
-
-  constructor(pythonPath: string = 'python', analyzerPath?: string) {
-    this.pythonPath = pythonPath;
-    this.analyzerModule = analyzerPath || '/mock/analyzer';
+  constructor(_pythonPath: string = 'python', _analyzerPath?: string) {
+    // Mock constructor - parameters are intentionally unused
   }
 
   async analyze(): Promise<any> {

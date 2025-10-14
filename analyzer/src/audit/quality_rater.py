@@ -74,7 +74,7 @@ def load_audit_results(audit_file: Path = Path('.docimp-audit.json')) -> AuditRe
         with open(audit_file, 'r') as f:
             data = json.load(f)
         return AuditResult(ratings=data.get('ratings', {}))
-    except (json.JSONDecodeError, IOError) as e:
+    except (json.JSONDecodeError, IOError):
         # If file is corrupted, start fresh
         return AuditResult(ratings={})
 

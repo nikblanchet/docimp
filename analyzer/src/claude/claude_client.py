@@ -91,7 +91,7 @@ class ClaudeClient:
                 # Extract text from response
                 return message.content[0].text
 
-            except anthropic.RateLimitError as e:
+            except anthropic.RateLimitError:
                 if attempt < self.max_retries - 1:
                     # Exponential backoff
                     delay = self.retry_delay * (2 ** attempt)

@@ -147,7 +147,7 @@ Calculate the sum of two numbers.
             "Example format:",
             style_info['example'],
             "",
-            f"Code to document:",
+            "Code to document:",
             "```" + language,
             code.strip(),
             "```",
