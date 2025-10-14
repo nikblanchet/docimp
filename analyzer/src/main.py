@@ -192,15 +192,6 @@ def cmd_audit(args: argparse.Namespace) -> int:
         if args.verbose:
             print(f"Found {len(documented_items)} documented items", file=sys.stderr)
 
-        # Load existing audit results for resume capability
-        audit_results = load_audit_results(Path(args.audit_file))
-
-        # Mark items that have already been audited
-        for item in documented_items:
-            existing_rating = audit_results.get_rating(item.filepath, item.name)
-            if existing_rating is not None:
-                item.audit_rating = existing_rating
-
         # Format output as JSON for TypeScript to consume
         data = {
             'items': [
