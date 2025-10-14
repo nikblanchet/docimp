@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Optional
 
 from .analysis.analyzer import DocumentationAnalyzer
+from .claude.claude_client import ClaudeClient
+from .claude.prompt_builder import PromptBuilder
 from .parsers.python_parser import PythonParser
 from .parsers.typescript_parser import TypeScriptParser
 from .scoring.impact_scorer import ImpactScorer
@@ -164,6 +166,95 @@ def cmd_analyze(args: argparse.Namespace) -> int:
         return 1
 
 
+def cmd_suggest(args: argparse.Namespace) -> int:
+    """Handle the suggest subcommand.
+
+    Args:
+        args: Parsed command-line arguments.
+
+    Returns:
+        Exit code (0 for success, 1 for error).
+    """
+    try:
+        # Parse the target (filepath:itemname format)
+        if ':' not in args.target:
+            print("Error: Target must be in format 'filepath:itemname'", file=sys.stderr)
+            print("Example: examples/test.py:my_function", file=sys.stderr)
+            return 1
+
+        filepath, item_name = args.target.rsplit(':', 1)
+        filepath = Path(filepath)
+
+        if not filepath.exists():
+            print(f"Error: File not found: {filepath}", file=sys.stderr)
+            return 1
+
+        # Read the file
+        with open(filepath, 'r') as f:
+            code_content = f.read()
+
+        # Determine language from file extension
+        ext = filepath.suffix.lower()
+        if ext == '.py':
+            language = 'python'
+        elif ext in ['.ts']:
+            language = 'typescript'
+        elif ext in ['.js', '.cjs', '.mjs']:
+            language = 'javascript'
+        else:
+            print(f"Error: Unsupported file type: {ext}", file=sys.stderr)
+            return 1
+
+        # Extract the specific function/class code (simple approach for MVP)
+        # For a full implementation, we'd use the parsers to find the exact location
+        # For now, just use the whole file as context
+        target_code = code_content  # Simplified for MVP
+
+        # Create Claude client and prompt builder
+        try:
+            client = ClaudeClient()
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            print("Please set the ANTHROPIC_API_KEY environment variable", file=sys.stderr)
+            return 1
+
+        builder = PromptBuilder(
+            style_guide=args.style_guide,
+            tone=args.tone
+        )
+
+        # Build prompt
+        prompt = builder.build_prompt(
+            code=target_code,
+            item_name=item_name,
+            item_type='function',  # Simplified for MVP
+            language=language
+        )
+
+        if args.verbose:
+            print(f"Generating documentation for: {item_name}", file=sys.stderr)
+            print(f"Style: {args.style_guide}, Tone: {args.tone}", file=sys.stderr)
+            print("", file=sys.stderr)
+
+        # Generate documentation
+        docstring = client.generate_docstring(prompt)
+
+        # Output the result
+        print(docstring)
+
+        return 0
+
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        if args.verbose:
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+        return 1
+
+
 def main(argv: Optional[list] = None) -> int:
     """Main entry point for the CLI.
 
@@ -207,6 +298,33 @@ def main(argv: Optional[list] = None) -> int:
         help='Enable verbose output'
     )
 
+    # Suggest command
+    suggest_parser = subparsers.add_parser(
+        'suggest',
+        help='Generate documentation suggestion for a specific item using Claude'
+    )
+    suggest_parser.add_argument(
+        'target',
+        help='Target in format filepath:itemname (e.g., examples/test.py:my_function)'
+    )
+    suggest_parser.add_argument(
+        '--style-guide',
+        choices=['jsdoc', 'numpy', 'google', 'sphinx'],
+        default='numpy',
+        help='Documentation style guide (default: numpy)'
+    )
+    suggest_parser.add_argument(
+        '--tone',
+        choices=['concise', 'detailed', 'friendly'],
+        default='concise',
+        help='Documentation tone (default: concise)'
+    )
+    suggest_parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Enable verbose output'
+    )
+
     # Parse arguments
     args = parser.parse_args(argv)
 
@@ -218,6 +336,8 @@ def main(argv: Optional[list] = None) -> int:
     # Dispatch to command handler
     if args.command == 'analyze':
         return cmd_analyze(args)
+    elif args.command == 'suggest':
+        return cmd_suggest(args)
 
     return 1
 
