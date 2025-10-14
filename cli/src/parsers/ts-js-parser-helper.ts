@@ -438,37 +438,4 @@ function parseFile(filepath: string): CodeItem[] {
     return items;
 }
 
-/**
- * Main entry point for CLI usage
- */
-function main() {
-    const args = process.argv.slice(2);
-
-    if (args.length === 0) {
-        console.error('Usage: ts-node ts-js-parser-helper.ts <filepath>');
-        process.exit(1);
-    }
-
-    const filepath = args[0];
-
-    if (!fs.existsSync(filepath)) {
-        console.error(JSON.stringify({ error: `File not found: ${filepath}` }));
-        process.exit(1);
-    }
-
-    try {
-        const items = parseFile(filepath);
-        console.log(JSON.stringify(items, null, 2));
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(JSON.stringify({ error: errorMessage }));
-        process.exit(1);
-    }
-}
-
-// Run if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-    main();
-}
-
 export { parseFile, CodeItem };
