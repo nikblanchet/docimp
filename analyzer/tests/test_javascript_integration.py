@@ -14,7 +14,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.analysis.analyzer import DocumentationAnalyzer
 from src.parsers.typescript_parser import TypeScriptParser
 from src.scoring.impact_scorer import ImpactScorer
-from src.models.code_item import CodeItem
 
 
 class TestJavaScriptIntegration:
@@ -187,7 +186,7 @@ class TestJavaScriptIntegration:
         assert len(functions) > 0, "No JavaScript functions found"
 
         for func in functions:
-            assert func.name, f"Function has no name"
+            assert func.name, "Function has no name"
             assert func.type == 'function'
             assert func.line_number > 0
 

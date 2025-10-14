@@ -6,9 +6,8 @@ for parsing .ts, .js, .cjs, and .mjs files with full JSDoc validation.
 
 import json
 import subprocess
-import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 from .base_parser import BaseParser
 from ..models.code_item import CodeItem
 

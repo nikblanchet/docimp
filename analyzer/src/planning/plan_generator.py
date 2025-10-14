@@ -142,8 +142,9 @@ def generate_plan(
     Returns:
         PlanResult with prioritized items to improve.
     """
-    # Load audit results if available
-    audit_results = load_audit_results(audit_file)
+    # Load audit results if available (currently items already have audit_rating set)
+    # audit_results are loaded by the analyzer if needed
+    _ = load_audit_results(audit_file)  # Future: use for additional validation
 
     plan_items: List[PlanItem] = []
     missing_docs_count = 0

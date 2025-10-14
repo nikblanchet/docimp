@@ -7,7 +7,7 @@ files while preserving formatting and ensuring idempotent operations.
 import re
 import shutil
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 
 class DocstringWriter:

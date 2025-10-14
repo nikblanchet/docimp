@@ -56,7 +56,7 @@ export async function improveCommand(
     try {
       const planContent = readFileSync(resolve(planFilePath), 'utf-8');
       planResult = JSON.parse(planContent);
-    } catch (error) {
+    } catch {
       display.showError(
         `Failed to load plan file: ${planFilePath}\n` +
         `Run 'docimp plan ${path}' first to generate a plan.`

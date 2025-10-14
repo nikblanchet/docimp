@@ -49,13 +49,14 @@ function calculateComplexity(node: ts.Node): number {
             case ts.SyntaxKind.ConditionalExpression:
                 complexity++;
                 break;
-            case ts.SyntaxKind.BinaryExpression:
+            case ts.SyntaxKind.BinaryExpression: {
                 const binExpr = node as ts.BinaryExpression;
                 if (binExpr.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken ||
                     binExpr.operatorToken.kind === ts.SyntaxKind.BarBarToken) {
                     complexity++;
                 }
                 break;
+            }
         }
 
         ts.forEachChild(node, visit);

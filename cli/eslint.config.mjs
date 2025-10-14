@@ -13,6 +13,28 @@ export default [
         ecmaVersion: 2022,
         sourceType: 'module',
       },
+      globals: {
+        // Node.js globals
+        process: 'readonly',
+        console: 'readonly',
+        Buffer: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        module: 'readonly',
+        require: 'readonly',
+        exports: 'readonly',
+        global: 'readonly',
+        // Jest globals (for test files)
+        describe: 'readonly',
+        test: 'readonly',
+        it: 'readonly',
+        expect: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+        jest: 'readonly',
+      },
     },
     plugins: {
       '@typescript-eslint': tseslint,
@@ -21,21 +43,30 @@ export default [
     rules: {
       ...tseslint.configs.recommended.rules,
 
-      // JSDoc rules
+      // TypeScript-specific rules
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+        },
+      ],
+
+      // JSDoc rules (relaxed for TypeScript since it has its own type system)
       'jsdoc/check-alignment': 'warn',
       'jsdoc/check-indentation': 'warn',
-      'jsdoc/check-param-names': 'error',
+      'jsdoc/check-param-names': 'warn',  // Warn instead of error for object properties
       'jsdoc/check-tag-names': 'error',
-      'jsdoc/check-types': 'error',
+      'jsdoc/check-types': 'off',  // TypeScript handles this
       'jsdoc/require-description': 'warn',
-      'jsdoc/require-param': 'warn',
+      'jsdoc/require-param': 'off',  // Too strict for nested object properties
       'jsdoc/require-param-description': 'warn',
       'jsdoc/require-param-name': 'error',
-      'jsdoc/require-param-type': 'warn',
+      'jsdoc/require-param-type': 'off',  // TypeScript provides types
       'jsdoc/require-returns': 'warn',
       'jsdoc/require-returns-description': 'warn',
-      'jsdoc/require-returns-type': 'warn',
-      'jsdoc/valid-types': 'error',
+      'jsdoc/require-returns-type': 'off',  // TypeScript provides types
+      'jsdoc/valid-types': 'off',  // TypeScript handles this
     },
   },
   {
@@ -66,6 +97,6 @@ export default [
     },
   },
   {
-    ignores: ['dist/**', 'node_modules/**', 'coverage/**', '**/*.test.ts', '**/__tests__/**'],
+    ignores: ['dist/**', 'node_modules/**', 'coverage/**', '**/*.test.ts', '**/__tests__/**', '**/__mocks__/**'],
   },
 ];
