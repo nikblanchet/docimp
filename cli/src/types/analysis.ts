@@ -7,14 +7,14 @@
  */
 
 /**
- * Represents a parsed code item (function, class, or method).
+ * Represents a parsed code item (function, class, method, or interface).
  */
 export interface CodeItem {
-  /** Function, class, or method name */
+  /** Function, class, method, or interface name */
   name: string;
 
   /** Type of code element */
-  type: 'function' | 'class' | 'method';
+  type: 'function' | 'class' | 'method' | 'interface';
 
   /** Absolute path to source file */
   filepath: string;
@@ -91,11 +91,11 @@ export interface AnalysisResult {
  * Audit item with documentation for quality rating.
  */
 export interface AuditItem {
-  /** Function, class, or method name */
+  /** Function, class, method, or interface name */
   name: string;
 
   /** Type of code element */
-  type: 'function' | 'class' | 'method';
+  type: 'function' | 'class' | 'method' | 'interface';
 
   /** Absolute path to source file */
   filepath: string;
@@ -136,11 +136,11 @@ export interface AuditRatings {
  * Plan item for documentation improvement.
  */
 export interface PlanItem {
-  /** Function, class, or method name */
+  /** Function, class, method, or interface name */
   name: string;
 
   /** Type of code element */
-  type: 'function' | 'class' | 'method';
+  type: 'function' | 'class' | 'method' | 'interface';
 
   /** Absolute path to source file */
   filepath: string;
