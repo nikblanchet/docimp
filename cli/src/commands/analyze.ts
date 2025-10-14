@@ -5,6 +5,8 @@
  * the Python analyzer via subprocess.
  */
 
+import { ConfigLoader } from '../config/ConfigLoader.js';
+
 /**
  * Execute the analyze command.
  *
@@ -19,15 +21,32 @@ export async function analyzeCommand(
     verbose?: boolean;
   }
 ): Promise<void> {
-  console.log(`Analyzing: ${path}`);
-  console.log(`Format: ${options.format || 'summary'}`);
-  if (options.config) {
-    console.log(`Config: ${options.config}`);
-  }
-  if (options.verbose) {
-    console.log('Verbose mode enabled');
-  }
+  try {
+    // Load configuration
+    const configLoader = new ConfigLoader();
+    const config = await configLoader.load(options.config);
 
-  console.log('\nThis command will be fully implemented in Step 11 (TypeScript-Python Bridge).');
-  console.log('Current status: Stub implementation');
+    if (options.verbose) {
+      console.log('Configuration loaded:');
+      console.log(`  Style guide: ${config.styleGuide}`);
+      console.log(`  Tone: ${config.tone}`);
+      console.log(`  Plugins: ${config.plugins?.length || 0} loaded`);
+      console.log(`  Exclude patterns: ${config.exclude?.length || 0} patterns`);
+      if (config.jsdocStyle) {
+        console.log('  JSDoc options:');
+        console.log(`    Enforce types: ${config.jsdocStyle.enforceTypes}`);
+        console.log(`    Require examples: ${config.jsdocStyle.requireExamples}`);
+      }
+    }
+
+    console.log(`\nAnalyzing: ${path}`);
+    console.log(`Format: ${options.format || 'summary'}`);
+
+    console.log('\nConfiguration system ready!');
+    console.log('Full analyze implementation will be added in Step 11 (TypeScript-Python Bridge).');
+  } catch (error) {
+    console.error('Error loading configuration:');
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
 }
