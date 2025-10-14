@@ -19,11 +19,11 @@ class AuditResult:
     and item name.
 
     Attributes:
-        ratings: Nested dict mapping filepath -> item_name -> rating (0-4).
-                 Rating scale: 0=Skip, 1=Terrible, 2=OK, 3=Good, 4=Excellent.
+        ratings: Nested dict mapping filepath -> item_name -> rating.
+                 Rating scale: 1=Terrible, 2=OK, 3=Good, 4=Excellent, None=Skipped.
     """
 
-    ratings: Dict[str, Dict[str, int]]
+    ratings: Dict[str, Dict[str, Optional[int]]]
 
     def get_rating(self, filepath: str, item_name: str) -> Optional[int]:
         """Get audit rating for a specific item.
@@ -33,17 +33,17 @@ class AuditResult:
             item_name: Name of the function/class/method.
 
         Returns:
-            Rating (0-4) if found, None otherwise.
+            Rating (1-4) if found, None if not found or skipped.
         """
         return self.ratings.get(filepath, {}).get(item_name)
 
-    def set_rating(self, filepath: str, item_name: str, rating: int) -> None:
+    def set_rating(self, filepath: str, item_name: str, rating: Optional[int]) -> None:
         """Set audit rating for a specific item.
 
         Args:
             filepath: Path to the source file.
             item_name: Name of the function/class/method.
-            rating: Quality rating (0-4).
+            rating: Quality rating (1-4) or None for skipped.
         """
         if filepath not in self.ratings:
             self.ratings[filepath] = {}

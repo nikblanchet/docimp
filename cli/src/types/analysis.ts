@@ -128,6 +128,6 @@ export interface AuditListResult {
  * Audit ratings to be persisted.
  */
 export interface AuditRatings {
-  /** Nested mapping: filepath -> item_name -> rating (0-4) */
-  ratings: Record<string, Record<string, number>>;
+  /** Nested mapping: filepath -> item_name -> rating (1-4 or null for skipped) */
+  ratings: Record<string, Record<string, number | null>>;
 }
