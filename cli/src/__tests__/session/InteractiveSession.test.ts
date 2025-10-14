@@ -43,6 +43,7 @@ describe('InteractiveSession', () => {
   let session: InteractiveSession;
   let mockPythonBridge: jest.Mocked<PythonBridge>;
   let mockPluginManager: jest.Mocked<PluginManager>;
+  let mockEditorLauncher: jest.Mocked<EditorLauncher>;
   let mockConfig: IConfig;
   let mockPlanItem: PlanItem;
 
@@ -65,6 +66,12 @@ describe('InteractiveSession', () => {
     // Create mock instances
     mockPythonBridge = new MockPythonBridge() as jest.Mocked<PythonBridge>;
     mockPluginManager = new MockPluginManager() as jest.Mocked<PluginManager>;
+
+    // Create mock EditorLauncher and set up constructor to return it
+    mockEditorLauncher = {
+      editText: jest.fn().mockResolvedValue(null),
+    } as any;
+    MockEditorLauncher.mockImplementation(() => mockEditorLauncher);
 
     // Setup default mock behaviors
     mockPythonBridge.suggest = jest.fn().mockResolvedValue('/** Generated docs */');
@@ -90,7 +97,7 @@ describe('InteractiveSession', () => {
       audit_rating: null,
     };
 
-    // Create session
+    // Create session (will use our mocked EditorLauncher)
     session = new InteractiveSession({
       config: mockConfig,
       pythonBridge: mockPythonBridge,
@@ -102,7 +109,7 @@ describe('InteractiveSession', () => {
 
   afterEach(() => {
     consoleSpy.mockRestore();
-    jest.clearAllMocks();
+    jest.resetAllMocks();
   });
 
   describe('run', () => {
@@ -239,9 +246,7 @@ describe('InteractiveSession', () => {
 
   describe('edit action', () => {
     it('should launch editor when edit action chosen', async () => {
-      const mockEditorLauncher = new MockEditorLauncher() as jest.Mocked<EditorLauncher>;
-      mockEditorLauncher.editText = jest.fn().mockResolvedValue('/** Edited docs */');
-      (session as any).editorLauncher = mockEditorLauncher;
+      mockEditorLauncher.editText.mockResolvedValueOnce('/** Edited docs */');
 
       mockPrompts
         .mockResolvedValueOnce({ action: 'edit' })
@@ -261,9 +266,7 @@ describe('InteractiveSession', () => {
     });
 
     it('should re-validate after editing', async () => {
-      const mockEditorLauncher = new MockEditorLauncher() as jest.Mocked<EditorLauncher>;
-      mockEditorLauncher.editText = jest.fn().mockResolvedValue('/** Edited docs */');
-      (session as any).editorLauncher = mockEditorLauncher;
+      mockEditorLauncher.editText.mockResolvedValueOnce('/** Edited docs */');
 
       mockPrompts
         .mockResolvedValueOnce({ action: 'edit' })
@@ -281,9 +284,7 @@ describe('InteractiveSession', () => {
     });
 
     it('should handle editor returning null (no changes)', async () => {
-      const mockEditorLauncher = new MockEditorLauncher() as jest.Mocked<EditorLauncher>;
-      mockEditorLauncher.editText = jest.fn().mockResolvedValue(null);
-      (session as any).editorLauncher = mockEditorLauncher;
+      mockEditorLauncher.editText.mockResolvedValueOnce(null);
 
       mockPrompts
         .mockResolvedValueOnce({ action: 'edit' })
@@ -296,9 +297,7 @@ describe('InteractiveSession', () => {
     });
 
     it('should use correct file extension for Python', async () => {
-      const mockEditorLauncher = new MockEditorLauncher() as jest.Mocked<EditorLauncher>;
-      mockEditorLauncher.editText = jest.fn().mockResolvedValue('"""Edited docs"""');
-      (session as any).editorLauncher = mockEditorLauncher;
+      mockEditorLauncher.editText.mockResolvedValueOnce('"""Edited docs"""');
 
       const pythonItem: PlanItem = { ...mockPlanItem, language: 'python', filepath: 'test.py' };
       mockPrompts
