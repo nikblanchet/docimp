@@ -133,7 +133,7 @@ export async function auditCore(
         4: 'Excellent',
       };
 
-      terminalDisplay.showMessage(`Rated as: ${ratingLabels[response.rating]}\n`);
+      terminalDisplay.showMessage(`Rated as: ${ratingLabels[numericRating]}\n`);
     }
 
     // Save all ratings
