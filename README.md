@@ -201,7 +201,10 @@ docimp audit ./src
 
 Interactive workflow:
 - Reviews items that HAVE documentation
-- Prompts: [0] Skip, [1] Terrible, [2] OK, [3] Good, [4] Excellent
+- Prompts: [1-4] for quality rating, S to skip, Q to quit
+  - 1 = Terrible, 2 = OK, 3 = Good, 4 = Excellent
+  - S = Skip (saves null for later review)
+  - Q = Quit (stops audit)
 - Calculates weighted coverage score
 - Saves results to `.docimp-audit.json`
 
@@ -790,7 +793,7 @@ class CodeItem:
     docstring: Optional[str]
     export_type: str             # 'named', 'default', 'commonjs', 'internal'
     module_system: str           # 'esm', 'commonjs', 'unknown'
-    audit_rating: Optional[int]  # 0-4 rating from audit command (if available)
+    audit_rating: Optional[int]  # 1-4 rating from audit, or None if skipped/not audited
 ```
 
 ### AnalysisResult

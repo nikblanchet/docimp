@@ -83,17 +83,16 @@ export async function auditCore(
 
       // Prompt for rating
       const response = await prompts({
-        type: 'select',
+        type: 'text',
         name: 'rating',
-        message: 'Rate the documentation quality:',
-        choices: [
-          { title: '0 - Skip (come back later)', value: -1 },
-          { title: '1 - Terrible (needs major improvement)', value: 1 },
-          { title: '2 - OK (adequate but could be better)', value: 2 },
-          { title: '3 - Good (clear and helpful)', value: 3 },
-          { title: '4 - Excellent (exemplary documentation)', value: 4 },
-        ],
-        initial: 0,
+        message: 'Rate the documentation quality ([1-4], S to skip, Q to quit):',
+        validate: (value: string) => {
+          const normalized = value.trim().toUpperCase();
+          if (['1', '2', '3', '4', 'S', 'Q'].includes(normalized)) {
+            return true;
+          }
+          return 'Please enter 1-4 for quality rating, S to skip, or Q to quit';
+        },
       });
 
       // Handle user cancellation (Ctrl+C)
@@ -102,17 +101,30 @@ export async function auditCore(
         break;
       }
 
-      // Skip = -1, don't save
-      if (response.rating === -1) {
+      const normalized = response.rating.trim().toUpperCase();
+
+      // Handle quit
+      if (normalized === 'Q') {
+        terminalDisplay.showMessage('\n\nAudit stopped by user.');
+        break;
+      }
+
+      // Handle skip - save null
+      if (normalized === 'S') {
+        if (!ratings.ratings[item.filepath]) {
+          ratings.ratings[item.filepath] = {};
+        }
+        ratings.ratings[item.filepath][item.name] = null;
         terminalDisplay.showMessage('Skipped.\n');
         continue;
       }
 
-      // Save the rating
+      // Save the numeric rating (1-4)
+      const numericRating = parseInt(normalized, 10);
       if (!ratings.ratings[item.filepath]) {
         ratings.ratings[item.filepath] = {};
       }
-      ratings.ratings[item.filepath][item.name] = response.rating;
+      ratings.ratings[item.filepath][item.name] = numericRating;
 
       const ratingLabels: Record<number, string> = {
         1: 'Terrible',

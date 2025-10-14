@@ -40,7 +40,7 @@ export interface CodeItem {
   /** Module system for JavaScript */
   module_system: 'esm' | 'commonjs' | 'unknown';
 
-  /** Optional audit quality rating (0-4) */
+  /** Optional audit quality rating (1-4, or undefined if not audited) */
   audit_rating?: number;
 }
 
@@ -128,6 +128,6 @@ export interface AuditListResult {
  * Audit ratings to be persisted.
  */
 export interface AuditRatings {
-  /** Nested mapping: filepath -> item_name -> rating (0-4) */
-  ratings: Record<string, Record<string, number>>;
+  /** Nested mapping: filepath -> item_name -> rating (1-4 or null for skipped) */
+  ratings: Record<string, Record<string, number | null>>;
 }

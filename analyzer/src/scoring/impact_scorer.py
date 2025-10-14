@@ -92,7 +92,7 @@ class ImpactScorer:
         """Map audit rating to quality penalty.
 
         Args:
-            rating: Audit rating (0-4) or None.
+            rating: Audit rating (1-4) or None if skipped/not audited.
 
         Returns:
             Quality penalty score (0-100).
