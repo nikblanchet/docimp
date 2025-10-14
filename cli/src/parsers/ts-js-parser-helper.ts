@@ -124,14 +124,14 @@ function getExportType(node: ts.Node): 'named' | 'default' | 'internal' {
     if (ts.canHaveModifiers(node)) {
         const modifiers = ts.getModifiers(node);
         if (modifiers) {
-            for (const modifier of modifiers) {
-                if (modifier.kind === ts.SyntaxKind.ExportKeyword) {
-                    // Check if it's a default export
-                    if (node.parent && ts.isExportAssignment(node.parent)) {
-                        return 'default';
-                    }
-                    return 'named';
-                }
+            const hasExport = modifiers.some(m => m.kind === ts.SyntaxKind.ExportKeyword);
+            const hasDefault = modifiers.some(m => m.kind === ts.SyntaxKind.DefaultKeyword);
+
+            if (hasExport && hasDefault) {
+                return 'default';
+            }
+            if (hasExport) {
+                return 'named';
             }
         }
     }
