@@ -54,9 +54,15 @@ export class PythonBridge implements IPythonBridge {
     // Auto-detect analyzer path relative to this file
     // cli/src/python-bridge/PythonBridge.ts -> analyzer/
     if (!analyzerPath) {
-      // For tests or non-ESM environments, use a simple fallback
-      // In production, this constructor should always receive analyzerPath explicitly
-      this.analyzerModule = resolve(process.cwd(), 'analyzer');
+      // Check if we're in cli/ directory (most common case)
+      // If process.cwd() ends with 'cli', go up one level
+      const cwd = process.cwd();
+      if (cwd.endsWith('cli')) {
+        this.analyzerModule = resolve(cwd, '..', 'analyzer');
+      } else {
+        // Otherwise assume we're at repo root
+        this.analyzerModule = resolve(cwd, 'analyzer');
+      }
     } else {
       this.analyzerModule = analyzerPath;
     }
