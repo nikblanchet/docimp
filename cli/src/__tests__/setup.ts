@@ -8,7 +8,7 @@
 global.URL = class URL {
   pathname: string;
 
-  constructor(url: string) {
+  constructor(_url: string) {
     // Simple mock that returns a path
     this.pathname = '/Users/test/docimp/cli/src/python-bridge/PythonBridge.ts';
   }

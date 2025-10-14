@@ -69,11 +69,6 @@ function calculateComplexity(node: ts.Node): number {
  * Extract JSDoc comment from a node
  */
 function getDocstring(node: ts.Node, sourceFile: ts.SourceFile): string | null {
-    const jsDocTags = ts.getJSDocTags(node);
-    if (jsDocTags.length === 0) {
-        return null;
-    }
-
     const fullText = sourceFile.getFullText();
     const jsDocComments = ts.getJSDocCommentsAndTags(node);
 
@@ -89,7 +84,7 @@ function getDocstring(node: ts.Node, sourceFile: ts.SourceFile): string | null {
  * Check if node has JSDoc documentation
  */
 function hasDocumentation(node: ts.Node): boolean {
-    return ts.getJSDocTags(node).length > 0;
+    return ts.getJSDocCommentsAndTags(node).length > 0;
 }
 
 /**
@@ -124,14 +119,14 @@ function getExportType(node: ts.Node): 'named' | 'default' | 'internal' {
     if (ts.canHaveModifiers(node)) {
         const modifiers = ts.getModifiers(node);
         if (modifiers) {
-            for (const modifier of modifiers) {
-                if (modifier.kind === ts.SyntaxKind.ExportKeyword) {
-                    // Check if it's a default export
-                    if (node.parent && ts.isExportAssignment(node.parent)) {
-                        return 'default';
-                    }
-                    return 'named';
-                }
+            const hasExport = modifiers.some(m => m.kind === ts.SyntaxKind.ExportKeyword);
+            const hasDefault = modifiers.some(m => m.kind === ts.SyntaxKind.DefaultKeyword);
+
+            if (hasExport && hasDefault) {
+                return 'default';
+            }
+            if (hasExport) {
+                return 'named';
             }
         }
     }
@@ -436,39 +431,6 @@ function parseFile(filepath: string): CodeItem[] {
 
     visit(sourceFile);
     return items;
-}
-
-/**
- * Main entry point for CLI usage
- */
-function main() {
-    const args = process.argv.slice(2);
-
-    if (args.length === 0) {
-        console.error('Usage: ts-node ts-js-parser-helper.ts <filepath>');
-        process.exit(1);
-    }
-
-    const filepath = args[0];
-
-    if (!fs.existsSync(filepath)) {
-        console.error(JSON.stringify({ error: `File not found: ${filepath}` }));
-        process.exit(1);
-    }
-
-    try {
-        const items = parseFile(filepath);
-        console.log(JSON.stringify(items, null, 2));
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(JSON.stringify({ error: errorMessage }));
-        process.exit(1);
-    }
-}
-
-// Run if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-    main();
 }
 
 export { parseFile, CodeItem };
