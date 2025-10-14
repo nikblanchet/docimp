@@ -58,6 +58,46 @@ export interface PlanOptions {
 }
 
 /**
+ * Options for suggest command.
+ */
+export interface SuggestOptions {
+  /** Target in format filepath:itemname */
+  target: string;
+
+  /** Style guide to use */
+  styleGuide: string;
+
+  /** Documentation tone */
+  tone: string;
+
+  /** Enable verbose output */
+  verbose?: boolean;
+}
+
+/**
+ * Data for apply command.
+ */
+export interface ApplyData {
+  /** Path to source file */
+  filepath: string;
+
+  /** Name of function/class/method */
+  item_name: string;
+
+  /** Type of item */
+  item_type: string;
+
+  /** Documentation to write */
+  docstring: string;
+
+  /** Language of source file */
+  language: string;
+
+  /** Line number where item is located */
+  line_number?: number;
+}
+
+/**
  * Python subprocess bridge interface.
  */
 export interface IPythonBridge {
@@ -97,4 +137,22 @@ export interface IPythonBridge {
    * @throws Error if Python process fails or returns invalid JSON
    */
   plan(options: PlanOptions): Promise<PlanResult>;
+
+  /**
+   * Request documentation suggestion from Claude.
+   *
+   * @param options - Suggestion options
+   * @returns Promise resolving to suggested documentation text
+   * @throws Error if Python process fails or Claude API error
+   */
+  suggest(options: SuggestOptions): Promise<string>;
+
+  /**
+   * Write documentation to a source file.
+   *
+   * @param data - Data for writing documentation
+   * @returns Promise resolving when documentation is written
+   * @throws Error if Python process fails or write fails
+   */
+  apply(data: ApplyData): Promise<void>;
 }

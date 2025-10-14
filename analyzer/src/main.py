@@ -18,6 +18,7 @@ from .parsers.python_parser import PythonParser
 from .parsers.typescript_parser import TypeScriptParser
 from .planning.plan_generator import generate_plan, save_plan
 from .scoring.impact_scorer import ImpactScorer
+from .writer.docstring_writer import DocstringWriter
 
 
 def create_analyzer() -> DocumentationAnalyzer:
@@ -401,6 +402,72 @@ def cmd_suggest(args: argparse.Namespace) -> int:
         return 1
 
 
+def cmd_apply(args: argparse.Namespace) -> int:
+    """Handle the apply subcommand to write documentation to files.
+
+    Args:
+        args: Parsed command-line arguments.
+
+    Returns:
+        Exit code (0 for success, 1 for error).
+    """
+    try:
+        # Read apply data from stdin (sent by TypeScript CLI)
+        apply_data = json.load(sys.stdin)
+
+        filepath = apply_data.get('filepath')
+        item_name = apply_data.get('item_name')
+        item_type = apply_data.get('item_type')
+        docstring = apply_data.get('docstring')
+        language = apply_data.get('language')
+        line_number = apply_data.get('line_number')
+
+        if not all([filepath, item_name, item_type, docstring, language]):
+            print("Error: Missing required fields in apply data", file=sys.stderr)
+            return 1
+
+        # Create writer
+        writer = DocstringWriter()
+
+        # Write docstring
+        if args.verbose:
+            print(f"Writing documentation for {item_name} in {filepath}", file=sys.stderr)
+
+        success = writer.write_docstring(
+            filepath=filepath,
+            item_name=item_name,
+            item_type=item_type,
+            docstring=docstring,
+            language=language,
+            line_number=line_number
+        )
+
+        if success:
+            result = {
+                'success': True,
+                'filepath': filepath,
+                'item_name': item_name
+            }
+            print(json.dumps(result))
+            return 0
+        else:
+            print(json.dumps({'success': False, 'error': 'Failed to write docstring'}))
+            return 1
+
+    except json.JSONDecodeError as e:
+        print(f"Error: Invalid JSON input: {e}", file=sys.stderr)
+        return 1
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        if args.verbose:
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+        return 1
+
+
 def main(argv: Optional[list] = None) -> int:
     """Main entry point for the CLI.
 
@@ -539,6 +606,17 @@ def main(argv: Optional[list] = None) -> int:
         help='Enable verbose output'
     )
 
+    # Apply command (write documentation to files)
+    apply_parser = subparsers.add_parser(
+        'apply',
+        help='Apply documentation to a source file (reads JSON from stdin)'
+    )
+    apply_parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Enable verbose output'
+    )
+
     # Parse arguments
     args = parser.parse_args(argv)
 
@@ -558,6 +636,8 @@ def main(argv: Optional[list] = None) -> int:
         return cmd_plan(args)
     elif args.command == 'suggest':
         return cmd_suggest(args)
+    elif args.command == 'apply':
+        return cmd_apply(args)
 
     return 1
 
