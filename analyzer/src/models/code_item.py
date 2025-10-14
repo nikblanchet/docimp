@@ -26,7 +26,7 @@ class CodeItem:
         return_type: Return type annotation if available.
         docstring: Existing documentation string if present.
         impact_score: Calculated priority score (0-100), set by ImpactScorer.
-        audit_rating: Quality rating from audit command (0-4), None if not audited.
+        audit_rating: Quality rating from audit command (1-4), or None if skipped/not audited.
     """
 
     # Required identity fields

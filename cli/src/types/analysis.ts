@@ -40,7 +40,7 @@ export interface CodeItem {
   /** Module system for JavaScript */
   module_system: 'esm' | 'commonjs' | 'unknown';
 
-  /** Optional audit quality rating (0-4) */
+  /** Optional audit quality rating (1-4, or undefined if not audited) */
   audit_rating?: number;
 }
 
