@@ -6,7 +6,7 @@
  * configuration, and parse JSON responses.
  */
 
-import type { AnalysisResult, AuditListResult, AuditRatings } from '../types/analysis.js';
+import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult } from '../types/analysis.js';
 import type { IConfig } from '../config/IConfig.js';
 
 /**
@@ -32,6 +32,26 @@ export interface AuditOptions {
 
   /** Path to audit file (default: .docimp-audit.json) */
   auditFile?: string;
+
+  /** Enable verbose output */
+  verbose?: boolean;
+}
+
+/**
+ * Options for plan command.
+ */
+export interface PlanOptions {
+  /** Path to analyze */
+  path: string;
+
+  /** Path to audit file (default: .docimp-audit.json) */
+  auditFile?: string;
+
+  /** Path to save plan file (default: .docimp-plan.json) */
+  planFile?: string;
+
+  /** Quality threshold for including audited items (default: 2) */
+  qualityThreshold?: number;
 
   /** Enable verbose output */
   verbose?: boolean;
@@ -68,4 +88,13 @@ export interface IPythonBridge {
    * @throws Error if Python process fails
    */
   applyAudit(ratings: AuditRatings, auditFile?: string): Promise<void>;
+
+  /**
+   * Generate prioritized documentation improvement plan.
+   *
+   * @param options - Plan options
+   * @returns Promise resolving to plan result
+   * @throws Error if Python process fails or returns invalid JSON
+   */
+  plan(options: PlanOptions): Promise<PlanResult>;
 }

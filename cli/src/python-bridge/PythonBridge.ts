@@ -7,8 +7,8 @@
 
 import { spawn } from 'child_process';
 import { resolve } from 'path';
-import type { IPythonBridge, AnalyzeOptions, AuditOptions } from './IPythonBridge.js';
-import type { AnalysisResult, AuditListResult, AuditRatings } from '../types/analysis.js';
+import type { IPythonBridge, AnalyzeOptions, AuditOptions, PlanOptions } from './IPythonBridge.js';
+import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult } from '../types/analysis.js';
 
 /**
  * Default implementation of Python bridge using subprocess.
@@ -149,6 +149,40 @@ export class PythonBridge implements IPythonBridge {
         resolve();
       });
     });
+  }
+
+  /**
+   * Generate prioritized documentation improvement plan.
+   *
+   * @param options - Plan options
+   * @returns Promise resolving to plan result
+   * @throws Error if Python process fails or returns invalid JSON
+   */
+  async plan(options: PlanOptions): Promise<PlanResult> {
+    const args = [
+      '-m',
+      'src.main',
+      'plan',
+      options.path,
+    ];
+
+    if (options.auditFile) {
+      args.push('--audit-file', options.auditFile);
+    }
+
+    if (options.planFile) {
+      args.push('--plan-file', options.planFile);
+    }
+
+    if (options.qualityThreshold !== undefined) {
+      args.push('--quality-threshold', String(options.qualityThreshold));
+    }
+
+    if (options.verbose) {
+      args.push('--verbose');
+    }
+
+    return this.executePython<PlanResult>(args, options.verbose);
   }
 
   /**
