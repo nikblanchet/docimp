@@ -35,8 +35,8 @@ program
   .command('audit')
   .description('Audit existing documentation quality')
   .argument('<path>', 'Path to file or directory to audit')
-  .option('--config <path>', 'Path to configuration file')
-  .option('--resume', 'Resume interrupted audit session')
+  .option('--audit-file <file>', 'Path to audit results file (default: .docimp-audit.json)')
+  .option('--verbose', 'Enable verbose output')
   .action(auditCommand);
 
 // Plan command
