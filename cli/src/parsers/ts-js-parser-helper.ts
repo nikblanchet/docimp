@@ -69,11 +69,6 @@ function calculateComplexity(node: ts.Node): number {
  * Extract JSDoc comment from a node
  */
 function getDocstring(node: ts.Node, sourceFile: ts.SourceFile): string | null {
-    const jsDocTags = ts.getJSDocTags(node);
-    if (jsDocTags.length === 0) {
-        return null;
-    }
-
     const fullText = sourceFile.getFullText();
     const jsDocComments = ts.getJSDocCommentsAndTags(node);
 
@@ -89,7 +84,7 @@ function getDocstring(node: ts.Node, sourceFile: ts.SourceFile): string | null {
  * Check if node has JSDoc documentation
  */
 function hasDocumentation(node: ts.Node): boolean {
-    return ts.getJSDocTags(node).length > 0;
+    return ts.getJSDocCommentsAndTags(node).length > 0;
 }
 
 /**
