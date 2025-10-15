@@ -76,11 +76,15 @@ export class PythonBridge implements IPythonBridge {
    * @throws Error if Python process fails or returns invalid JSON
    */
   async analyze(options: AnalyzeOptions): Promise<AnalysisResult> {
+    // Resolve path to absolute before passing to Python subprocess
+    // This is necessary because the subprocess runs with CWD set to analyzer/
+    const absolutePath = resolve(process.cwd(), options.path);
+
     const args = [
       '-m',
       'src.main',
       'analyze',
-      options.path,
+      absolutePath,
       '--format',
       'json',
     ];
@@ -100,11 +104,14 @@ export class PythonBridge implements IPythonBridge {
    * @throws Error if Python process fails or returns invalid JSON
    */
   async audit(options: AuditOptions): Promise<AuditListResult> {
+    // Resolve path to absolute before passing to Python subprocess
+    const absolutePath = resolve(process.cwd(), options.path);
+
     const args = [
       '-m',
       'src.main',
       'audit',
-      options.path,
+      absolutePath,
     ];
 
     if (options.auditFile) {
@@ -186,11 +193,14 @@ export class PythonBridge implements IPythonBridge {
    * @throws Error if Python process fails or returns invalid JSON
    */
   async plan(options: PlanOptions): Promise<PlanResult> {
+    // Resolve path to absolute before passing to Python subprocess
+    const absolutePath = resolve(process.cwd(), options.path);
+
     const args = [
       '-m',
       'src.main',
       'plan',
-      options.path,
+      absolutePath,
     ];
 
     if (options.auditFile) {
