@@ -5,9 +5,11 @@
  * the Python analyzer via subprocess.
  */
 
+import { writeFileSync } from 'fs';
 import { ConfigLoader } from '../config/ConfigLoader.js';
 import { PythonBridge } from '../python-bridge/PythonBridge.js';
 import { TerminalDisplay } from '../display/TerminalDisplay.js';
+import { StateManager } from '../utils/StateManager.js';
 import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
 import type { IDisplay } from '../display/IDisplay.js';
 
@@ -26,6 +28,7 @@ export async function analyzeCore(
     format?: string;
     config?: string;
     verbose?: boolean;
+    keepOldReports?: boolean;
   },
   bridge?: IPythonBridge,
   display?: IDisplay
@@ -33,6 +36,21 @@ export async function analyzeCore(
   // Create dependencies if not injected (dependency injection pattern)
   const pythonBridge = bridge ?? new PythonBridge();
   const terminalDisplay = display ?? new TerminalDisplay();
+
+  // Ensure state directory exists
+  StateManager.ensureStateDir();
+
+  // Clear session reports unless --keep-old-reports flag is set
+  if (options.keepOldReports) {
+    if (options.verbose) {
+      terminalDisplay.showMessage('Keeping previous session reports');
+    }
+  } else {
+    const filesRemoved = StateManager.clearSessionReports();
+    if (filesRemoved > 0) {
+      terminalDisplay.showMessage(`Cleared ${filesRemoved} previous session report(s)`);
+    }
+  }
 
   // Load configuration
   const configLoader = new ConfigLoader();
@@ -64,6 +82,14 @@ export async function analyzeCore(
 
     stopSpinner();
 
+    // Save analysis result to state directory
+    const analyzeFile = StateManager.getAnalyzeFile();
+    writeFileSync(analyzeFile, JSON.stringify(result, null, 2), 'utf-8');
+
+    if (options.verbose) {
+      terminalDisplay.showMessage(`Analysis saved to: ${analyzeFile}`);
+    }
+
     // Display results using the display service
     const format = (options.format || 'summary') as 'summary' | 'json';
     terminalDisplay.showAnalysisResult(result, format);
@@ -86,6 +112,7 @@ export async function analyzeCommand(
     format?: string;
     config?: string;
     verbose?: boolean;
+    keepOldReports?: boolean;
   }
 ): Promise<void> {
   const display = new TerminalDisplay();
