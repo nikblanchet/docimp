@@ -57,11 +57,10 @@ class PythonParser(BaseParser):
                     if isinstance(parent, ast.ClassDef):
                         # Skip - this is a method, will be extracted when processing the class
                         continue
-                    else:
-                        # This is a function (top-level or nested in another function)
-                        item = self._extract_function(node, filepath)
-                        if item:
-                            items.append(item)
+                    # This is a function (top-level or nested in another function)
+                    item = self._extract_function(node, filepath)
+                    if item:
+                        items.append(item)
                 elif isinstance(node, ast.ClassDef):
                     item = self._extract_class(node, filepath)
                     if item:
