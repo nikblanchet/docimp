@@ -145,16 +145,12 @@ class DocstringWriter:
 
             # Check if content actually changed (idempotency check)
             if new_content == content:
-                # No changes needed, remove backup
-                backup_path.unlink()
+                # No changes needed
                 return True
 
             # Write modified content
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(new_content)
-
-            # Delete backup after successful write
-            backup_path.unlink()
 
             return True
 
@@ -163,6 +159,10 @@ class DocstringWriter:
             if backup_path.exists():
                 shutil.copy2(backup_path, file_path)
             raise
+        finally:
+            # Always cleanup backup (security: prevent sensitive data leakage)
+            if backup_path.exists():
+                backup_path.unlink()
 
     def _insert_python_docstring(
         self,

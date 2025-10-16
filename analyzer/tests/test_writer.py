@@ -219,6 +219,42 @@ def test_backup_cleanup_on_idempotent_write(writer):
         Path(temp_path + '.bak').unlink(missing_ok=True)
 
 
+def test_backup_cleanup_on_write_failure(writer):
+    """Test that backup files are deleted even when write operations fail."""
+    code = "function test() {\n  return true;\n}"
+
+    # Create temporary file
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False) as f:
+        f.write(code)
+        temp_path = f.name
+
+    try:
+        # Attempt to write with unsupported language (should fail)
+        with pytest.raises(ValueError, match="Unsupported language"):
+            writer.write_docstring(
+                filepath=temp_path,
+                item_name='test',
+                item_type='function',
+                docstring='Test function',
+                language='unsupported_language'
+            )
+
+        # Verify backup file was cleaned up despite the failure
+        backup_path = Path(temp_path + '.bak')
+        assert not backup_path.exists(), \
+            "Backup file should be deleted even after write failure"
+
+        # Verify original file is still intact (restored from backup)
+        with open(temp_path, 'r') as f:
+            content = f.read()
+        assert content == code, "Original file should be restored after failure"
+
+    finally:
+        # Clean up temp file only (backup should already be gone)
+        Path(temp_path).unlink(missing_ok=True)
+        Path(temp_path + '.bak').unlink(missing_ok=True)
+
+
 class TestPathTraversalValidation:
     """Test suite for path traversal security validation."""
 
