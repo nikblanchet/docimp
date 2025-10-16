@@ -14,6 +14,7 @@ dist/
 .idea/
 # Keys and artifacts
 *.log
+*.bak
 .pytest_cache/
 .mypy_cache/
 .coverage
