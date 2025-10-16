@@ -160,7 +160,7 @@ class DocstringWriter:
                 shutil.copy2(backup_path, file_path)
             raise
         finally:
-            # Always cleanup backup (security: prevent sensitive data leakage)
+            # Always cleanup backup (prevent filesystem clutter and accidental commits)
             if backup_path.exists():
                 backup_path.unlink()
 
