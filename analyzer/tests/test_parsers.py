@@ -129,3 +129,34 @@ def complex_func(x):
 
         complex_items = parser.parse_file(str(complex_file))
         assert complex_items[0].complexity > 1
+
+    def test_no_duplicate_methods(self, parser, test_file):
+        """Test that methods are not extracted twice (issue #67 regression test)."""
+        items = parser.parse_file(test_file)
+
+        # test_simple.py contains:
+        # - 1 function: async_function
+        # - 1 class: ExampleClass
+        # - 2 methods: __init__, value
+        # Total: 4 items (NOT 6 with duplicates)
+        assert len(items) == 4, f"Expected 4 items, got {len(items)}"
+
+        # Get all item names
+        item_names = [item.name for item in items]
+
+        # Check that we have exactly the expected items
+        assert 'async_function' in item_names
+        assert 'ExampleClass' in item_names
+        assert 'ExampleClass.__init__' in item_names
+        assert 'ExampleClass.value' in item_names
+
+        # Ensure methods are NOT extracted as plain functions
+        assert '__init__' not in item_names, "Method __init__ should not appear as plain function"
+        assert 'value' not in item_names, "Method value should not appear as plain function"
+
+        # Verify item types
+        types_by_name = {item.name: item.type for item in items}
+        assert types_by_name['async_function'] == 'function'
+        assert types_by_name['ExampleClass'] == 'class'
+        assert types_by_name['ExampleClass.__init__'] == 'method'
+        assert types_by_name['ExampleClass.value'] == 'method'
