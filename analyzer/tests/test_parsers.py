@@ -129,3 +129,169 @@ def complex_func(x):
 
         complex_items = parser.parse_file(str(complex_file))
         assert complex_items[0].complexity > 1
+
+    def test_no_duplicate_methods(self, parser, test_file):
+        """Test that methods are not extracted twice (issue #67 regression test)."""
+        items = parser.parse_file(test_file)
+
+        # test_simple.py contains:
+        # - 1 function: async_function
+        # - 1 class: ExampleClass
+        # - 2 methods: __init__, value
+        # Total: 4 items (NOT 6 with duplicates)
+        assert len(items) == 4, f"Expected 4 items, got {len(items)}"
+
+        # Get all item names
+        item_names = [item.name for item in items]
+
+        # Check that we have exactly the expected items
+        assert 'async_function' in item_names
+        assert 'ExampleClass' in item_names
+        assert 'ExampleClass.__init__' in item_names
+        assert 'ExampleClass.value' in item_names
+
+        # Ensure methods are NOT extracted as plain functions
+        assert '__init__' not in item_names, "Method __init__ should not appear as plain function"
+        assert 'value' not in item_names, "Method value should not appear as plain function"
+
+        # Verify item types
+        types_by_name = {item.name: item.type for item in items}
+        assert types_by_name['async_function'] == 'function'
+        assert types_by_name['ExampleClass'] == 'class'
+        assert types_by_name['ExampleClass.__init__'] == 'method'
+        assert types_by_name['ExampleClass.value'] == 'method'
+
+    def test_extracts_nested_functions(self, parser, tmp_path):
+        """Test that nested functions are extracted (validates parent-tracking fix)."""
+        nested_file = tmp_path / "nested.py"
+        nested_file.write_text("""
+def outer_function(items):
+    '''Process items with validation.'''
+    def validate_item(item):
+        '''Validate a single item.'''
+        if not item:
+            return False
+        return True
+
+    def transform_item(item):
+        '''Transform a single item.'''
+        return item.upper()
+
+    return [transform_item(item) for item in items if validate_item(item)]
+
+class DataProcessor:
+    def process(self, data):
+        '''Process data with nested helper.'''
+        def _helper(x):
+            '''Internal helper function.'''
+            return x * 2
+        return _helper(data)
+""")
+
+        items = parser.parse_file(str(nested_file))
+        item_names = [item.name for item in items]
+
+        # Should extract:
+        # - outer_function (top-level function)
+        # - validate_item (nested in outer_function)
+        # - transform_item (nested in outer_function)
+        # - DataProcessor (class)
+        # - DataProcessor.process (method)
+        # - _helper (nested in method)
+        # Total: 6 items
+        assert len(items) == 6, f"Expected 6 items, got {len(items)}: {item_names}"
+
+        # Verify nested functions are extracted
+        assert 'outer_function' in item_names, "Top-level function should be extracted"
+        assert 'validate_item' in item_names, "Nested function should be extracted"
+        assert 'transform_item' in item_names, "Nested function should be extracted"
+
+        # Verify class and method are extracted
+        assert 'DataProcessor' in item_names, "Class should be extracted"
+        assert 'DataProcessor.process' in item_names, "Method should be extracted"
+
+        # Verify nested function in method is extracted
+        assert '_helper' in item_names, "Nested function in method should be extracted"
+
+        # Verify all are marked as functions (except class and method)
+        types_by_name = {item.name: item.type for item in items}
+        assert types_by_name['outer_function'] == 'function'
+        assert types_by_name['validate_item'] == 'function'
+        assert types_by_name['transform_item'] == 'function'
+        assert types_by_name['DataProcessor'] == 'class'
+        assert types_by_name['DataProcessor.process'] == 'method'
+        assert types_by_name['_helper'] == 'function'
+
+        # Verify nested functions have metadata
+        validate = next(item for item in items if item.name == 'validate_item')
+        assert validate.has_docs is True
+        assert validate.docstring is not None
+        assert 'item' in validate.parameters
+
+    def test_complex_nesting_edge_cases(self, parser, tmp_path):
+        """Test edge cases with nested classes, conditionals, and multiple nesting levels."""
+        edge_case_file = tmp_path / "edge_cases.py"
+        edge_case_file.write_text("""
+class Outer:
+    '''Outer class with nested structures.'''
+    def method(self):
+        '''Method with nested function.'''
+        def nested_in_method():
+            '''Function nested in method.'''
+            pass
+
+    class Inner:
+        '''Nested class.'''
+        def inner_method(self):
+            '''Method in nested class.'''
+            pass
+
+def function():
+    '''Function with conditional nesting.'''
+    if True:
+        def nested_in_conditional():
+            '''Function defined inside conditional.'''
+            pass
+""")
+
+        items = parser.parse_file(str(edge_case_file))
+        item_names = [item.name for item in items]
+
+        # Should extract:
+        # - Outer (class)
+        # - Outer.method (method)
+        # - nested_in_method (function)
+        # - Inner (nested class)
+        # - Inner.inner_method (method in nested class)
+        # - function (top-level function)
+        # - nested_in_conditional (function in conditional)
+        # Total: 7 items
+        assert len(items) == 7, f"Expected 7 items, got {len(items)}: {item_names}"
+
+        # Verify outer class and its method
+        assert 'Outer' in item_names
+        assert 'Outer.method' in item_names
+
+        # Verify nested function in method is extracted as function, not method
+        assert 'nested_in_method' in item_names
+        nested_func = next(item for item in items if item.name == 'nested_in_method')
+        assert nested_func.type == 'function', "Function nested in method should be type 'function'"
+
+        # Verify nested class
+        assert 'Inner' in item_names
+        inner_class = next(item for item in items if item.name == 'Inner')
+        assert inner_class.type == 'class'
+
+        # Verify method in nested class
+        assert 'Inner.inner_method' in item_names
+        inner_method = next(item for item in items if item.name == 'Inner.inner_method')
+        assert inner_method.type == 'method'
+
+        # Verify function with conditional nesting
+        assert 'function' in item_names
+        assert 'nested_in_conditional' in item_names
+        cond_func = next(item for item in items if item.name == 'nested_in_conditional')
+        assert cond_func.type == 'function'
+
+        # Verify all items have documentation
+        assert all(item.has_docs for item in items), "All items should have docstrings"
