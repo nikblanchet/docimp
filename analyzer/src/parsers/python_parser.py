@@ -167,27 +167,38 @@ class PythonParser(BaseParser):
 
         Cyclomatic complexity = number of decision points + 1
         Decision points: if, elif, for, while, except, with, assert, and, or
+
+        Matches Radon's behavior: complexity is calculated separately per function.
+        Nested function decision points do NOT contribute to parent complexity.
         """
         complexity = 1  # Base complexity
 
-        for child in ast.walk(node):
-            # Conditional statements
-            if isinstance(child, (ast.If, ast.While, ast.For, ast.AsyncFor)):
-                complexity += 1
-            # Exception handlers
-            elif isinstance(child, ast.ExceptHandler):
-                complexity += 1
-            # Boolean operators in conditions
-            elif isinstance(child, ast.BoolOp):
-                complexity += len(child.values) - 1
-            # Comprehensions
-            elif isinstance(child, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
-                complexity += 1
-            # Assert statements
-            elif isinstance(child, ast.Assert):
-                complexity += 1
-            # With statements
-            elif isinstance(child, (ast.With, ast.AsyncWith)):
-                complexity += 1
+        # Use a manual traversal that stops at nested function boundaries
+        def traverse(current_node):
+            nonlocal complexity
 
+            for child in ast.iter_child_nodes(current_node):
+                # Stop traversal at nested function boundaries
+                # Nested functions are extracted separately with their own complexity
+                if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+
+                # Count decision points
+                if isinstance(child, (ast.If, ast.While, ast.For, ast.AsyncFor)):
+                    complexity += 1
+                elif isinstance(child, ast.ExceptHandler):
+                    complexity += 1
+                elif isinstance(child, ast.BoolOp):
+                    complexity += len(child.values) - 1
+                elif isinstance(child, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
+                    complexity += 1
+                elif isinstance(child, ast.Assert):
+                    complexity += 1
+                elif isinstance(child, (ast.With, ast.AsyncWith)):
+                    complexity += 1
+
+                # Recursively traverse non-function children
+                traverse(child)
+
+        traverse(node)
         return complexity
