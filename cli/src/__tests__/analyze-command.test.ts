@@ -1,0 +1,230 @@
+/**
+ * Tests for analyze command auto-clean functionality.
+ */
+
+import { mkdtempSync, rmSync, writeFileSync, existsSync, readFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import { analyzeCore } from '../commands/analyze';
+import type { IPythonBridge } from '../python-bridge/IPythonBridge';
+import type { IDisplay } from '../display/IDisplay';
+import type { AnalysisResult } from '../types/AnalysisResult';
+
+describe('analyze command auto-clean', () => {
+  let tempDir: string;
+  let mockBridge: IPythonBridge;
+  let mockDisplay: IDisplay;
+  let mockResult: AnalysisResult;
+
+  beforeEach(() => {
+    // Create a temporary directory for each test
+    tempDir = mkdtempSync(join(tmpdir(), 'docimp-analyze-test-'));
+
+    // Mock analysis result
+    mockResult = {
+      items: [],
+      coverage_percent: 0,
+      total_items: 0,
+      documented_items: 0,
+      by_language: {},
+    };
+
+    // Mock PythonBridge
+    mockBridge = {
+      analyze: jest.fn().mockResolvedValue(mockResult),
+      audit: jest.fn(),
+      plan: jest.fn(),
+      suggest: jest.fn(),
+      apply: jest.fn(),
+    };
+
+    // Mock Display
+    mockDisplay = {
+      showMessage: jest.fn(),
+      showError: jest.fn(),
+      showWarning: jest.fn(),
+      showConfig: jest.fn(),
+      showAnalysisResult: jest.fn(),
+      showAuditSummary: jest.fn(),
+      startSpinner: jest.fn().mockReturnValue(() => {}),
+    };
+
+    // Change working directory to temp dir for StateManager
+    process.chdir(tempDir);
+  });
+
+  afterEach(() => {
+    // Clean up temporary directory
+    if (existsSync(tempDir)) {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  describe('auto-clean behavior', () => {
+    it('clears session reports by default', async () => {
+      // Setup: Create state directory with old reports
+      const sessionDir = join(tempDir, '.docimp', 'session-reports');
+      const auditFile = join(sessionDir, 'audit.json');
+      const planFile = join(sessionDir, 'plan.json');
+
+      // Create directories
+      const stateDir = join(tempDir, '.docimp');
+      const historyDir = join(tempDir, '.docimp', 'history');
+
+      // Use require to avoid import issues with fs
+      const fs = require('fs');
+      fs.mkdirSync(stateDir, { recursive: true });
+      fs.mkdirSync(sessionDir, { recursive: true });
+      fs.mkdirSync(historyDir, { recursive: true });
+
+      // Create old report files
+      writeFileSync(auditFile, '{"ratings": {}}');
+      writeFileSync(planFile, '{"items": []}');
+
+      // Verify files exist before
+      expect(existsSync(auditFile)).toBe(true);
+      expect(existsSync(planFile)).toBe(true);
+
+      // Run analyze without --keep-old-reports
+      await analyzeCore(
+        tempDir,
+        { format: 'json', verbose: false },
+        mockBridge,
+        mockDisplay
+      );
+
+      // Verify files were cleared
+      expect(existsSync(auditFile)).toBe(false);
+      expect(existsSync(planFile)).toBe(false);
+
+      // Verify analyze was called
+      expect(mockBridge.analyze).toHaveBeenCalled();
+    });
+
+    it('preserves session reports with --keep-old-reports flag', async () => {
+      // Setup: Create state directory with old reports
+      const sessionDir = join(tempDir, '.docimp', 'session-reports');
+      const auditFile = join(sessionDir, 'audit.json');
+      const planFile = join(sessionDir, 'plan.json');
+
+      // Create directories
+      const stateDir = join(tempDir, '.docimp');
+      const historyDir = join(tempDir, '.docimp', 'history');
+
+      const fs = require('fs');
+      fs.mkdirSync(stateDir, { recursive: true });
+      fs.mkdirSync(sessionDir, { recursive: true });
+      fs.mkdirSync(historyDir, { recursive: true });
+
+      // Create old report files
+      writeFileSync(auditFile, '{"ratings": {"test": "data"}}');
+      writeFileSync(planFile, '{"items": [{"name": "test"}]}');
+
+      // Verify files exist before
+      expect(existsSync(auditFile)).toBe(true);
+      expect(existsSync(planFile)).toBe(true);
+
+      // Run analyze with --keep-old-reports
+      await analyzeCore(
+        tempDir,
+        { format: 'json', verbose: false, keepOldReports: true },
+        mockBridge,
+        mockDisplay
+      );
+
+      // Verify files were preserved
+      expect(existsSync(auditFile)).toBe(true);
+      expect(existsSync(planFile)).toBe(true);
+
+      // Verify content is unchanged
+      const auditContent = JSON.parse(readFileSync(auditFile, 'utf-8'));
+      const planContent = JSON.parse(readFileSync(planFile, 'utf-8'));
+      expect(auditContent.ratings.test).toBe('data');
+      expect(planContent.items[0].name).toBe('test');
+
+      // Verify analyze was called
+      expect(mockBridge.analyze).toHaveBeenCalled();
+    });
+
+    it('displays message when clearing reports', async () => {
+      // Setup: Create state directory with old reports
+      const sessionDir = join(tempDir, '.docimp', 'session-reports');
+      const auditFile = join(sessionDir, 'audit.json');
+
+      const fs = require('fs');
+      fs.mkdirSync(join(tempDir, '.docimp'), { recursive: true });
+      fs.mkdirSync(sessionDir, { recursive: true });
+      fs.mkdirSync(join(tempDir, '.docimp', 'history'), { recursive: true });
+
+      writeFileSync(auditFile, '{"ratings": {}}');
+
+      // Run analyze
+      await analyzeCore(
+        tempDir,
+        { format: 'json', verbose: false },
+        mockBridge,
+        mockDisplay
+      );
+
+      // Verify message was displayed
+      expect(mockDisplay.showMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Cleared')
+      );
+    });
+
+    it('displays message when keeping reports in verbose mode', async () => {
+      // Setup: Create state directory
+      const fs = require('fs');
+      fs.mkdirSync(join(tempDir, '.docimp', 'session-reports'), { recursive: true });
+      fs.mkdirSync(join(tempDir, '.docimp', 'history'), { recursive: true });
+
+      // Run analyze with --keep-old-reports and --verbose
+      await analyzeCore(
+        tempDir,
+        { format: 'json', verbose: true, keepOldReports: true },
+        mockBridge,
+        mockDisplay
+      );
+
+      // Verify message was displayed
+      expect(mockDisplay.showMessage).toHaveBeenCalledWith(
+        'Keeping previous session reports'
+      );
+    });
+  });
+
+  describe('saving analysis results', () => {
+    it('saves result to analyze-latest.json', async () => {
+      // Run analyze
+      await analyzeCore(
+        tempDir,
+        { format: 'json', verbose: false },
+        mockBridge,
+        mockDisplay
+      );
+
+      // Verify analyze-latest.json was created
+      const analyzeFile = join(tempDir, '.docimp', 'session-reports', 'analyze-latest.json');
+      expect(existsSync(analyzeFile)).toBe(true);
+
+      // Verify content
+      const content = JSON.parse(readFileSync(analyzeFile, 'utf-8'));
+      expect(content).toEqual(mockResult);
+    });
+
+    it('displays save location in verbose mode', async () => {
+      // Run analyze with --verbose
+      await analyzeCore(
+        tempDir,
+        { format: 'json', verbose: true },
+        mockBridge,
+        mockDisplay
+      );
+
+      // Verify message was displayed
+      expect(mockDisplay.showMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Analysis saved to:')
+      );
+    });
+  });
+});
