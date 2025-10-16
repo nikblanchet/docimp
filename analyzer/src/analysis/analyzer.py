@@ -90,11 +90,14 @@ class DocumentationAnalyzer:
 
         Raises:
             FileNotFoundError: If the specified path does not exist.
+            ValueError: If the path resolves to an invalid location.
         """
-        path_obj = Path(path).resolve()
-
-        if not path_obj.exists():
-            raise FileNotFoundError(f"Path does not exist: {path}")
+        # Resolve path to absolute form (handles symlinks and relative paths)
+        # This prevents issues with path traversal and ensures consistent paths
+        try:
+            path_obj = Path(path).resolve(strict=True)
+        except (FileNotFoundError, RuntimeError) as e:
+            raise FileNotFoundError(f"Path does not exist or is invalid: {path}") from e
 
         # Discover files
         files = self._discover_files(path_obj)

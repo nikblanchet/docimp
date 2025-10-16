@@ -116,3 +116,33 @@ class TestDocumentationAnalyzer:
         assert 'node_modules' in analyzer.exclude_patterns
         assert 'custom_dir' in analyzer.exclude_patterns
         assert 'temp' in analyzer.exclude_patterns
+
+    def test_strict_path_resolution(self, analyzer):
+        """Test that paths are resolved with strict validation."""
+        # Nonexistent path should raise FileNotFoundError
+        with pytest.raises(FileNotFoundError, match="does not exist or is invalid"):
+            analyzer.analyze('/this/path/definitely/does/not/exist/anywhere')
+
+    def test_symlink_resolution(self, analyzer):
+        """Test that symlinks are properly resolved during analysis."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create a real directory with a Python file
+            real_dir = Path(temp_dir) / 'real_project'
+            real_dir.mkdir()
+            py_file = real_dir / 'module.py'
+            py_file.write_text('def foo():\n    pass')
+
+            # Create a symlink to it
+            symlink_dir = Path(temp_dir) / 'link_to_project'
+            symlink_dir.symlink_to(real_dir)
+
+            # Analyze via symlink should work and resolve correctly
+            result = analyzer.analyze(str(symlink_dir))
+
+            assert len(result.items) > 0, "Should parse file via symlink"
+            # The filepath in results should be the resolved real path
+            for item in result.items:
+                assert str(real_dir) in item.filepath, \
+                    "Filepath should be resolved from symlink"

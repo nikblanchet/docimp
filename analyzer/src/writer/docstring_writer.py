@@ -26,11 +26,60 @@ class DocstringWriter:
     - Preservation of indentation
     - Idempotent operations (no duplicate comments)
     - Backup creation before modification
+    - Path traversal protection (files must be within allowed base directory)
     """
 
-    def __init__(self):
-        """Initialize the docstring writer."""
-        pass
+    def __init__(self, base_path: Optional[str] = None):
+        """Initialize the docstring writer.
+
+        Parameters
+        ----------
+        base_path : str, optional
+            Base directory path for validation. Files must be within this directory.
+            Defaults to current working directory if not specified.
+        """
+        self.base_path = Path(base_path).resolve() if base_path else Path.cwd().resolve()
+
+    def _validate_path(self, filepath: str) -> Path:
+        """Validate that a file path is within the allowed base directory.
+
+        This prevents path traversal attacks where malicious paths like
+        '../../etc/passwd' could be used to write outside the project.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to validate
+
+        Returns
+        -------
+        Path
+            Resolved absolute Path object
+
+        Raises
+        ------
+        ValueError
+            If the path is outside the allowed base directory
+        FileNotFoundError
+            If the file does not exist
+        """
+        # Resolve to absolute path (handles symlinks and relative paths)
+        file_path = Path(filepath).resolve()
+
+        # Validate file exists
+        if not file_path.exists():
+            raise FileNotFoundError(f"File not found: {filepath}")
+
+        # Validate path is within allowed base directory
+        try:
+            file_path.relative_to(self.base_path)
+        except ValueError:
+            raise ValueError(
+                f"Path '{filepath}' is outside allowed directory '{self.base_path}'. "
+                f"Resolved path: {file_path}"
+            )
+
+        return file_path
 
     def write_docstring(
         self,
@@ -62,11 +111,16 @@ class DocstringWriter:
         -------
         bool
             True if write was successful, False otherwise
-        """
-        file_path = Path(filepath)
 
-        if not file_path.exists():
-            raise FileNotFoundError(f"File not found: {filepath}")
+        Raises
+        ------
+        ValueError
+            If the filepath is outside the allowed base directory
+        FileNotFoundError
+            If the file does not exist
+        """
+        # Validate path and get resolved Path object
+        file_path = self._validate_path(filepath)
 
         # Create backup
         backup_path = file_path.with_suffix(file_path.suffix + '.bak')
