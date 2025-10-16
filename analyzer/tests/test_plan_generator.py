@@ -3,14 +3,13 @@
 import sys
 from pathlib import Path
 import tempfile
-import json
 
 import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.planning.plan_generator import generate_plan, PlanResult
+from src.planning.plan_generator import generate_plan
 from src.models.code_item import CodeItem
 from src.models.analysis_result import AnalysisResult, LanguageMetrics
 from src.audit.quality_rater import AuditResult, save_audit_results
@@ -162,8 +161,8 @@ class TestPlanGenerator:
             save_audit_results(sample_audit, audit_file)
 
         try:
-            # Generate plan
-            plan = generate_plan(sample_result, audit_file=audit_file)
+            # Generate plan (side effect: applies ratings to items)
+            _ = generate_plan(sample_result, audit_file=audit_file)
 
             # Find the items in the original result to verify ratings were applied
             terrible_item = next(i for i in sample_result.items if i.name == 'documented_terrible')
@@ -190,8 +189,8 @@ class TestPlanGenerator:
             save_audit_results(sample_audit, audit_file)
 
         try:
-            # Generate plan
-            plan = generate_plan(sample_result, audit_file=audit_file)
+            # Generate plan (side effect: recalculates impact scores)
+            _ = generate_plan(sample_result, audit_file=audit_file)
 
             # Verify impact scores changed for items with audit ratings
             terrible_item = next(i for i in sample_result.items if i.name == 'documented_terrible')
@@ -247,8 +246,8 @@ class TestPlanGenerator:
             save_audit_results(audit, audit_file)
 
         try:
-            # Generate plan
-            plan = generate_plan(sample_result, audit_file=audit_file)
+            # Generate plan (side effect: applies ratings to matching items)
+            _ = generate_plan(sample_result, audit_file=audit_file)
 
             # Only the correct match should have audit rating applied
             terrible_item = next(i for i in sample_result.items if i.name == 'documented_terrible')

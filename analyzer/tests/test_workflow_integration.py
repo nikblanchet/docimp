@@ -151,8 +151,8 @@ def documented_func():
                 audit_file = Path(tmp.name)
                 save_audit_results(audit, audit_file)
 
-            # Step 3: Plan (with audit)
-            plan = generate_plan(result, audit_file=audit_file, quality_threshold=2)
+            # Step 3: Plan (with audit - side effect: recalculates impact scores)
+            _ = generate_plan(result, audit_file=audit_file, quality_threshold=2)
 
             # Verify impact scores changed
             scores_changed = False
