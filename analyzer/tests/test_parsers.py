@@ -333,3 +333,164 @@ def parent_function(x):
         # Nested function should have complexity 3 (base 1 + two if statements)
         assert nested.complexity == 3, \
             f"Nested complexity should be 3, got {nested.complexity}"
+
+    def test_complexity_with_lambdas(self, parser, tmp_path):
+        """Test that lambda functions are correctly traversed in complexity calculation."""
+        test_file = tmp_path / "lambda_complexity.py"
+        test_file.write_text("""
+def parent_with_lambda(x):
+    '''Parent with lambda and regular conditional.'''
+    # Lambda itself is not a decision point, but it's traversed
+    process = lambda y: y * 2
+
+    # Regular if statement
+    if x > 0:
+        return True
+
+    return False
+""")
+
+        items = parser.parse_file(str(test_file))
+        assert len(items) == 1
+
+        parent = items[0]
+        # Expected: base(1) + if(1) = 2
+        # Lambda is traversed but doesn't add complexity
+        assert parent.complexity == 2, \
+            f"Expected complexity 2 (base + if), got {parent.complexity}"
+
+    def test_complexity_with_comprehensions(self, parser, tmp_path):
+        """Test that comprehensions with conditionals are counted correctly."""
+        test_file = tmp_path / "comprehension_complexity.py"
+        test_file.write_text("""
+def parent_with_comprehension(x):
+    '''Parent with comprehension.'''
+    # List comprehension with conditional - comprehension itself is +1
+    filtered = [i for i in range(10) if i > 5]
+
+    # Regular if
+    if x > 0:
+        return filtered
+
+    return []
+""")
+
+        items = parser.parse_file(str(test_file))
+        assert len(items) == 1
+
+        parent = items[0]
+        # Expected: base(1) + comprehension(1) + if(1) = 3
+        assert parent.complexity == 3, \
+            f"Expected complexity 3 (base + comprehension + if), got {parent.complexity}"
+
+    def test_complexity_async_nested_functions(self, parser, tmp_path):
+        """Test that async nested functions are isolated from async parent."""
+        test_file = tmp_path / "async_nested.py"
+        test_file.write_text("""
+async def parent_async(x):
+    '''Async parent function.'''
+    if x > 0:
+        pass
+
+    async def nested_async(y):
+        '''Async nested function.'''
+        if y > 0:
+            pass
+        while y < 100:
+            y += 1
+
+    return True
+""")
+
+        items = parser.parse_file(str(test_file))
+        assert len(items) == 2
+
+        parent = next(item for item in items if item.name == 'parent_async')
+        nested = next(item for item in items if item.name == 'nested_async')
+
+        # Parent: base(1) + if(1) = 2
+        assert parent.complexity == 2, \
+            f"Async parent should have complexity 2, got {parent.complexity}"
+
+        # Nested: base(1) + if(1) + while(1) = 3
+        assert nested.complexity == 3, \
+            f"Async nested should have complexity 3, got {nested.complexity}"
+
+    def test_complexity_parent_with_many_branches(self, parser, tmp_path):
+        """Test complex parent with multiple decision points and nested function."""
+        test_file = tmp_path / "complex_parent.py"
+        test_file.write_text("""
+def complex_parent(x):
+    '''Parent with multiple decision points.'''
+    if x > 0:
+        pass
+    elif x < 0:
+        pass
+
+    for i in range(10):
+        if i % 2:
+            pass
+
+    def nested_complex(y):
+        '''Nested function with many decision points.'''
+        if y > 0:
+            pass
+        while y < 100:
+            y += 1
+        for item in [1, 2, 3]:
+            if item:
+                pass
+
+    return True
+""")
+
+        items = parser.parse_file(str(test_file))
+        assert len(items) == 2
+
+        parent = next(item for item in items if item.name == 'complex_parent')
+        nested = next(item for item in items if item.name == 'nested_complex')
+
+        # Parent: base(1) + if(1) + elif(1) + for(1) + if(1) = 5
+        # Should NOT include nested's: if(1) + while(1) + for(1) + if(1) = 4
+        assert parent.complexity == 5, \
+            f"Complex parent should have complexity 5, got {parent.complexity}. " \
+            "Nested function complexity should not contribute to parent."
+
+        # Nested: base(1) + if(1) + while(1) + for(1) + if(1) = 5
+        assert nested.complexity == 5, \
+            f"Nested should have complexity 5, got {nested.complexity}"
+
+    def test_complexity_method_with_nested_function(self, parser, tmp_path):
+        """Test that nested function in class method has isolated complexity."""
+        test_file = tmp_path / "method_nested.py"
+        test_file.write_text("""
+class MyClass:
+    def method_with_nested(self, x):
+        '''Method with nested function.'''
+        if x > 0:
+            pass
+
+        def helper(y):
+            '''Helper nested in method.'''
+            if y > 0:
+                pass
+            while y < 100:
+                y += 1
+
+        return True
+""")
+
+        items = parser.parse_file(str(test_file))
+        assert len(items) == 3  # class + method + nested function
+
+        cls = next(item for item in items if item.name == 'MyClass')
+        method = next(item for item in items if item.name == 'MyClass.method_with_nested')
+        helper = next(item for item in items if item.name == 'helper')
+
+        # Method: base(1) + if(1) = 2
+        assert method.complexity == 2, \
+            f"Method should have complexity 2, got {method.complexity}"
+
+        # Helper: base(1) + if(1) + while(1) = 3
+        assert helper.complexity == 3, \
+            f"Helper should have complexity 3, got {helper.complexity}"
