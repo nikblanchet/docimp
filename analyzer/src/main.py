@@ -18,6 +18,7 @@ from .parsers.python_parser import PythonParser
 from .parsers.typescript_parser import TypeScriptParser
 from .planning.plan_generator import generate_plan, save_plan
 from .scoring.impact_scorer import ImpactScorer
+from .utils.state_manager import StateManager
 from .writer.docstring_writer import DocstringWriter
 
 
@@ -235,6 +236,9 @@ def cmd_apply_audit(args: argparse.Namespace) -> int:
         Exit code (0 for success, 1 for error).
     """
     try:
+        # Ensure state directory exists
+        StateManager.ensure_state_dir()
+
         # Read audit data from stdin
         audit_data = json.load(sys.stdin)
 
@@ -271,6 +275,9 @@ def cmd_plan(args: argparse.Namespace) -> int:
         Exit code (0 for success, 1 for error).
     """
     try:
+        # Ensure state directory exists
+        StateManager.ensure_state_dir()
+
         # Create analyzer
         analyzer = create_analyzer()
 
@@ -523,8 +530,8 @@ def main(argv: Optional[list] = None) -> int:
     )
     audit_parser.add_argument(
         '--audit-file',
-        default='.docimp-audit.json',
-        help='Path to audit results file (default: .docimp-audit.json)'
+        default=str(StateManager.get_audit_file()),
+        help=f'Path to audit results file (default: {StateManager.get_audit_file()})'
     )
     audit_parser.add_argument(
         '--verbose',
@@ -539,8 +546,8 @@ def main(argv: Optional[list] = None) -> int:
     )
     apply_audit_parser.add_argument(
         '--audit-file',
-        default='.docimp-audit.json',
-        help='Path to audit results file (default: .docimp-audit.json)'
+        default=str(StateManager.get_audit_file()),
+        help=f'Path to audit results file (default: {StateManager.get_audit_file()})'
     )
     apply_audit_parser.add_argument(
         '--verbose',
@@ -559,13 +566,13 @@ def main(argv: Optional[list] = None) -> int:
     )
     plan_parser.add_argument(
         '--audit-file',
-        default='.docimp-audit.json',
-        help='Path to audit results file (default: .docimp-audit.json)'
+        default=str(StateManager.get_audit_file()),
+        help=f'Path to audit results file (default: {StateManager.get_audit_file()})'
     )
     plan_parser.add_argument(
         '--plan-file',
-        default='.docimp-plan.json',
-        help='Path to save plan file (default: .docimp-plan.json)'
+        default=str(StateManager.get_plan_file()),
+        help=f'Path to save plan file (default: {StateManager.get_plan_file()})'
     )
     plan_parser.add_argument(
         '--quality-threshold',

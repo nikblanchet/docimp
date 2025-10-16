@@ -14,6 +14,7 @@ import { ConfigLoader } from '../config/ConfigLoader.js';
 import { PluginManager } from '../plugins/PluginManager.js';
 import { TerminalDisplay } from '../display/TerminalDisplay.js';
 import { InteractiveSession } from '../session/InteractiveSession.js';
+import { StateManager } from '../utils/StateManager.js';
 import type { PlanResult } from '../types/analysis.js';
 import type { IConfig } from '../config/IConfig.js';
 
@@ -50,7 +51,7 @@ export async function improveCommand(
     const config: IConfig = await configLoader.load(options.config);
 
     // Load plan file
-    const planFilePath = options.planFile || '.docimp-plan.json';
+    const planFilePath = options.planFile || StateManager.getPlanFile();
     let planResult: PlanResult;
 
     try {
