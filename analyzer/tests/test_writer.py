@@ -17,8 +17,13 @@ from src.writer.docstring_writer import DocstringWriter
 
 @pytest.fixture
 def writer():
-    """Create a DocstringWriter instance."""
-    return DocstringWriter()
+    """Create a DocstringWriter instance with unrestricted base path for testing.
+
+    Uses '/' as base_path to allow writing to temporary directories
+    during tests. Security-specific tests create their own instances
+    with restricted paths.
+    """
+    return DocstringWriter(base_path='/')
 
 
 def write_and_check(writer, code, jsdoc, item_name, item_type):
@@ -146,3 +151,149 @@ def test_class_method(writer):
 
     assert '/**' in result, "JSDoc not found in output"
     assert 'sum' in result, "Original code not found"
+
+
+class TestPathTraversalValidation:
+    """Test suite for path traversal security validation."""
+
+    def test_reject_path_outside_base_directory(self):
+        """Test that paths outside base directory are rejected."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create base directory and a file inside it
+            base_path = Path(temp_dir) / 'project'
+            base_path.mkdir()
+            valid_file = base_path / 'code.py'
+            valid_file.write_text('def foo():\n    pass')
+
+            # Create file outside base directory
+            outside_file = Path(temp_dir) / 'outside.py'
+            outside_file.write_text('def bar():\n    pass')
+
+            # Create writer with restricted base path
+            writer = DocstringWriter(base_path=str(base_path))
+
+            # Attempt to write to file outside base directory should fail
+            with pytest.raises(ValueError, match="outside allowed directory"):
+                writer.write_docstring(
+                    filepath=str(outside_file),
+                    item_name='bar',
+                    item_type='function',
+                    docstring='Bar function',
+                    language='python'
+                )
+
+    def test_reject_path_traversal_attack(self):
+        """Test that path traversal attacks are blocked."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create base directory structure
+            base_path = Path(temp_dir) / 'project'
+            base_path.mkdir()
+
+            # Create a file we want to protect outside the project
+            protected_file = Path(temp_dir) / 'secret.txt'
+            protected_file.write_text('sensitive data')
+
+            # Create writer with restricted base path
+            writer = DocstringWriter(base_path=str(base_path))
+
+            # Attempt path traversal using relative path
+            traversal_path = str(base_path / '..' / 'secret.txt')
+
+            # Should reject because resolved path is outside base_path
+            with pytest.raises(ValueError, match="outside allowed directory"):
+                writer.write_docstring(
+                    filepath=traversal_path,
+                    item_name='foo',
+                    item_type='function',
+                    docstring='Doc',
+                    language='python'
+                )
+
+    def test_accept_path_inside_base_directory(self):
+        """Test that paths inside base directory are accepted."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create base directory and nested file
+            base_path = Path(temp_dir) / 'project'
+            base_path.mkdir()
+            src_dir = base_path / 'src'
+            src_dir.mkdir()
+            valid_file = src_dir / 'module.py'
+            valid_file.write_text('def foo():\n    pass')
+
+            # Create writer with base path
+            writer = DocstringWriter(base_path=str(base_path))
+
+            # Should accept file inside base directory
+            success = writer.write_docstring(
+                filepath=str(valid_file),
+                item_name='foo',
+                item_type='function',
+                docstring='Foo function',
+                language='python'
+            )
+
+            assert success, "Should accept file inside base directory"
+
+    def test_resolve_symlinks_before_validation(self):
+        """Test that symlinks are resolved before path validation."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create base directory
+            base_path = Path(temp_dir) / 'project'
+            base_path.mkdir()
+
+            # Create file outside base
+            outside_dir = Path(temp_dir) / 'outside'
+            outside_dir.mkdir()
+            target_file = outside_dir / 'target.py'
+            target_file.write_text('def foo():\n    pass')
+
+            # Create symlink inside base pointing to file outside
+            symlink_file = base_path / 'link.py'
+            symlink_file.symlink_to(target_file)
+
+            # Create writer with restricted base path
+            writer = DocstringWriter(base_path=str(base_path))
+
+            # Should reject because symlink resolves to file outside base
+            with pytest.raises(ValueError, match="outside allowed directory"):
+                writer.write_docstring(
+                    filepath=str(symlink_file),
+                    item_name='foo',
+                    item_type='function',
+                    docstring='Doc',
+                    language='python'
+                )
+
+    def test_default_base_path_is_cwd(self):
+        """Test that base_path defaults to current working directory."""
+        writer = DocstringWriter()
+        assert writer.base_path == Path.cwd().resolve()
+
+    def test_custom_base_path_is_resolved(self):
+        """Test that custom base_path is resolved to absolute path."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base_path = Path(temp_dir) / 'project'
+            base_path.mkdir()
+
+            # Pass relative path representation
+            rel_path = str(base_path)
+            writer = DocstringWriter(base_path=rel_path)
+
+            # Should be resolved to absolute path
+            assert writer.base_path.is_absolute()
+            assert writer.base_path == base_path.resolve()
+
+    def test_nonexistent_file_raises_error(self):
+        """Test that attempting to write to nonexistent file raises FileNotFoundError."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            writer = DocstringWriter(base_path=temp_dir)
+            nonexistent = Path(temp_dir) / 'nonexistent.py'
+
+            with pytest.raises(FileNotFoundError, match="File not found"):
+                writer.write_docstring(
+                    filepath=str(nonexistent),
+                    item_name='foo',
+                    item_type='function',
+                    docstring='Doc',
+                    language='python'
+                )
