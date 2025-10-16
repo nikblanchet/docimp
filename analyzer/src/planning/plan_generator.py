@@ -12,6 +12,7 @@ from typing import List, Optional
 from ..models.code_item import CodeItem
 from ..models.analysis_result import AnalysisResult
 from ..audit.quality_rater import load_audit_results
+from ..scoring.impact_scorer import ImpactScorer
 from ..utils.state_manager import StateManager
 
 
@@ -146,9 +147,20 @@ def generate_plan(
     if audit_file is None:
         audit_file = StateManager.get_audit_file()
 
-    # Load audit results if available (currently items already have audit_rating set)
-    # audit_results are loaded by the analyzer if needed
-    _ = load_audit_results(audit_file)  # Future: use for additional validation
+    # Load audit results if file exists
+    audit_results = None
+    if audit_file.exists():
+        audit_results = load_audit_results(audit_file)
+
+    # Apply audit ratings to items and recalculate impact scores
+    if audit_results:
+        scorer = ImpactScorer()
+        for item in result.items:
+            rating = audit_results.get_rating(item.filepath, item.name)
+            if rating is not None:
+                item.audit_rating = rating
+                # Recalculate impact score with audit rating
+                item.impact_score = scorer.calculate_score(item)
 
     plan_items: List[PlanItem] = []
     missing_docs_count = 0
