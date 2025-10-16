@@ -153,6 +153,72 @@ def test_class_method(writer):
     assert 'sum' in result, "Original code not found"
 
 
+def test_backup_cleanup_on_successful_write(writer):
+    """Test that backup files are deleted after successful writes."""
+    code = "function test() {\n  return true;\n}"
+    jsdoc = "Test function"
+
+    # Create temporary file
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False) as f:
+        f.write(code)
+        temp_path = f.name
+
+    try:
+        # Write docstring (content changes, so write succeeds)
+        success = writer.write_docstring(
+            filepath=temp_path,
+            item_name='test',
+            item_type='function',
+            docstring=jsdoc,
+            language='javascript'
+        )
+
+        assert success, "Write should succeed"
+
+        # Verify backup file does NOT exist
+        backup_path = Path(temp_path + '.bak')
+        assert not backup_path.exists(), \
+            "Backup file should be deleted after successful write"
+
+    finally:
+        # Clean up temp file only (backup should already be gone)
+        Path(temp_path).unlink(missing_ok=True)
+        Path(temp_path + '.bak').unlink(missing_ok=True)
+
+
+def test_backup_cleanup_on_idempotent_write(writer):
+    """Test that backup files are deleted when content is unchanged."""
+    code = "/**\n * Test function\n */\nfunction test() {\n  return true;\n}"
+    jsdoc = "Test function"
+
+    # Create temporary file with docstring already present
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False) as f:
+        f.write(code)
+        temp_path = f.name
+
+    try:
+        # Write docstring (content unchanged, idempotent operation)
+        success = writer.write_docstring(
+            filepath=temp_path,
+            item_name='test',
+            item_type='function',
+            docstring=jsdoc,
+            language='javascript'
+        )
+
+        assert success, "Write should succeed"
+
+        # Verify backup file does NOT exist
+        backup_path = Path(temp_path + '.bak')
+        assert not backup_path.exists(), \
+            "Backup file should be deleted on idempotent operation"
+
+    finally:
+        # Clean up temp file only (backup should already be gone)
+        Path(temp_path).unlink(missing_ok=True)
+        Path(temp_path + '.bak').unlink(missing_ok=True)
+
+
 class TestPathTraversalValidation:
     """Test suite for path traversal security validation."""
 
