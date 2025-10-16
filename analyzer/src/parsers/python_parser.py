@@ -42,11 +42,25 @@ class PythonParser(BaseParser):
             tree = ast.parse(source, filename=filepath)
             items: List[CodeItem] = []
 
-            for node in tree.body:
+            # Build parent map to detect methods (functions inside classes)
+            # This allows us to use ast.walk() for full traversal while avoiding
+            # duplication of methods. See issue #67.
+            parent_map = {}
+            for node in ast.walk(tree):
+                for child in ast.iter_child_nodes(node):
+                    parent_map[child] = node
+
+            for node in ast.walk(tree):
                 if isinstance(node, ast.FunctionDef) or isinstance(node, ast.AsyncFunctionDef):
-                    item = self._extract_function(node, filepath)
-                    if item:
-                        items.append(item)
+                    parent = parent_map.get(node)
+                    if isinstance(parent, ast.ClassDef):
+                        # Skip - this is a method, will be extracted when processing the class
+                        continue
+                    else:
+                        # This is a function (top-level or nested in another function)
+                        item = self._extract_function(node, filepath)
+                        if item:
+                            items.append(item)
                 elif isinstance(node, ast.ClassDef):
                     item = self._extract_class(node, filepath)
                     if item:

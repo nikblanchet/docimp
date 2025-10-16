@@ -160,3 +160,70 @@ def complex_func(x):
         assert types_by_name['ExampleClass'] == 'class'
         assert types_by_name['ExampleClass.__init__'] == 'method'
         assert types_by_name['ExampleClass.value'] == 'method'
+
+    def test_extracts_nested_functions(self, parser, tmp_path):
+        """Test that nested functions are extracted (validates parent-tracking fix)."""
+        nested_file = tmp_path / "nested.py"
+        nested_file.write_text("""
+def outer_function(items):
+    '''Process items with validation.'''
+    def validate_item(item):
+        '''Validate a single item.'''
+        if not item:
+            return False
+        return True
+
+    def transform_item(item):
+        '''Transform a single item.'''
+        return item.upper()
+
+    return [transform_item(item) for item in items if validate_item(item)]
+
+class DataProcessor:
+    def process(self, data):
+        '''Process data with nested helper.'''
+        def _helper(x):
+            '''Internal helper function.'''
+            return x * 2
+        return _helper(data)
+""")
+
+        items = parser.parse_file(str(nested_file))
+        item_names = [item.name for item in items]
+
+        # Should extract:
+        # - outer_function (top-level function)
+        # - validate_item (nested in outer_function)
+        # - transform_item (nested in outer_function)
+        # - DataProcessor (class)
+        # - DataProcessor.process (method)
+        # - _helper (nested in method)
+        # Total: 6 items
+        assert len(items) == 6, f"Expected 6 items, got {len(items)}: {item_names}"
+
+        # Verify nested functions are extracted
+        assert 'outer_function' in item_names, "Top-level function should be extracted"
+        assert 'validate_item' in item_names, "Nested function should be extracted"
+        assert 'transform_item' in item_names, "Nested function should be extracted"
+
+        # Verify class and method are extracted
+        assert 'DataProcessor' in item_names, "Class should be extracted"
+        assert 'DataProcessor.process' in item_names, "Method should be extracted"
+
+        # Verify nested function in method is extracted
+        assert '_helper' in item_names, "Nested function in method should be extracted"
+
+        # Verify all are marked as functions (except class and method)
+        types_by_name = {item.name: item.type for item in items}
+        assert types_by_name['outer_function'] == 'function'
+        assert types_by_name['validate_item'] == 'function'
+        assert types_by_name['transform_item'] == 'function'
+        assert types_by_name['DataProcessor'] == 'class'
+        assert types_by_name['DataProcessor.process'] == 'method'
+        assert types_by_name['_helper'] == 'function'
+
+        # Verify nested functions have metadata
+        validate = next(item for item in items if item.name == 'validate_item')
+        assert validate.has_docs is True
+        assert validate.docstring is not None
+        assert 'item' in validate.parameters
