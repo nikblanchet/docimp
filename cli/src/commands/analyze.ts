@@ -7,7 +7,6 @@
 
 import { ConfigLoader } from '../config/ConfigLoader.js';
 import { PythonBridge } from '../python-bridge/PythonBridge.js';
-import { StateManager } from '../utils/StateManager.js';
 import { TerminalDisplay } from '../display/TerminalDisplay.js';
 import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
 import type { IDisplay } from '../display/IDisplay.js';
