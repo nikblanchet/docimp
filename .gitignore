@@ -5,19 +5,41 @@ __pycache__/
 .env
 env/
 venv/
+*.egg-info/
+build/
+
 # Node
 node_modules/
 dist/
+
 # OS / IDE
 .DS_Store
 .vscode/
 .idea/
-# Keys and artifacts
+
+# Editor temporary files
+*~
+*.swp
+*.swo
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# Node.js caches
+.npm
+.eslintcache
+
+# Environment file variants
+.env.local
+.env.*.local
+
+# Build artifacts and logs
 *.log
 *.bak
 .pytest_cache/
 .mypy_cache/
 .coverage
+
 # Project-specific
 CLAUDE.md
 CLAUDE_CONTEXT.md
@@ -25,3 +47,12 @@ PLAN.md
 ISSUE_ANALYSIS.md
 .docimp-audit.json
 .docimp-plan.json
+
+# NOTE on credential patterns (*.key, *.pem, credentials.json, etc.):
+# We intentionally do NOT include these patterns. Adding them to .gitignore
+# creates false security - they don't prevent "git add -f" and give developers
+# a false sense of protection. Real credential protection comes from:
+# - GitHub's secret scanning (enabled by default on public repos)
+# - Pre-commit hooks (e.g., detect-secrets, gitleaks)
+# - Developer security training
+# See: https://docs.github.com/en/code-security/secret-scanning
