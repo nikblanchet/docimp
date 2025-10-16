@@ -56,8 +56,9 @@ describe('EditorLauncher', () => {
       expect(mockSpawn).toHaveBeenCalledWith(
         'vim',
         expect.arrayContaining([expect.stringMatching(/\.txt$/)]),
-        expect.objectContaining({ stdio: 'inherit', shell: true })
+        expect.objectContaining({ stdio: 'inherit' })
       );
+      expect(mockSpawn.mock.calls[0][2]).not.toHaveProperty('shell');
     });
 
     it('should use EDITOR environment variable if VISUAL not set', async () => {
@@ -333,6 +334,123 @@ describe('EditorLauncher', () => {
         expect.stringMatching(/\.js$/),
         'function foo() {}',
         'utf-8'
+      );
+    });
+  });
+
+  describe('Security: command injection prevention', () => {
+    it('should not use shell:true to prevent command injection', async () => {
+      process.env.EDITOR = 'vim';
+      const mockProcess = new EventEmitter() as any;
+      mockProcess.stdin = undefined;
+      mockProcess.stdout = undefined;
+      mockProcess.stderr = undefined;
+      mockSpawn.mockReturnValue(mockProcess);
+      mockReadFileSync.mockReturnValue('edited content');
+
+      const promise = launcher.editText('initial text');
+
+      setImmediate(() => mockProcess.emit('exit', 0));
+
+      await promise;
+
+      // Verify shell option is NOT set
+      const spawnOptions = mockSpawn.mock.calls[0][2];
+      expect(spawnOptions).not.toHaveProperty('shell');
+    });
+
+    it('should handle editor commands with arguments', async () => {
+      process.env.EDITOR = 'code --wait';
+      const mockProcess = new EventEmitter() as any;
+      mockProcess.stdin = undefined;
+      mockProcess.stdout = undefined;
+      mockProcess.stderr = undefined;
+      mockSpawn.mockReturnValue(mockProcess);
+      mockReadFileSync.mockReturnValue('edited content');
+
+      const promise = launcher.editText('initial text');
+
+      setImmediate(() => mockProcess.emit('exit', 0));
+
+      await promise;
+
+      // Verify command is split correctly: cmd='code', args=['--wait', filepath]
+      expect(mockSpawn).toHaveBeenCalledWith(
+        'code',
+        expect.arrayContaining(['--wait', expect.stringMatching(/\.txt$/)]),
+        expect.objectContaining({ stdio: 'inherit' })
+      );
+    });
+
+    it('should handle editor commands with multiple arguments', async () => {
+      process.env.EDITOR = 'emacs -nw --no-splash';
+      const mockProcess = new EventEmitter() as any;
+      mockProcess.stdin = undefined;
+      mockProcess.stdout = undefined;
+      mockProcess.stderr = undefined;
+      mockSpawn.mockReturnValue(mockProcess);
+      mockReadFileSync.mockReturnValue('edited content');
+
+      const promise = launcher.editText('initial text');
+
+      setImmediate(() => mockProcess.emit('exit', 0));
+
+      await promise;
+
+      // Verify command is split correctly
+      expect(mockSpawn).toHaveBeenCalledWith(
+        'emacs',
+        expect.arrayContaining(['-nw', '--no-splash', expect.stringMatching(/\.txt$/)]),
+        expect.objectContaining({ stdio: 'inherit' })
+      );
+    });
+
+    it('should not execute shell metacharacters', async () => {
+      // Malicious editor command with shell metacharacters
+      process.env.EDITOR = 'vim; echo "injected"';
+      const mockProcess = new EventEmitter() as any;
+      mockProcess.stdin = undefined;
+      mockProcess.stdout = undefined;
+      mockProcess.stderr = undefined;
+      mockSpawn.mockReturnValue(mockProcess);
+
+      const promise = launcher.editText('initial text');
+
+      // Without shell:true, spawn will try to execute 'vim;' as a literal command
+      // which will fail (which is the correct security behavior)
+      setImmediate(() => mockProcess.emit('error', new Error('spawn vim; ENOENT')));
+
+      await expect(promise).rejects.toThrow('Failed to launch editor');
+
+      // Verify that spawn was called with the full string as the command
+      // (not executed through shell)
+      expect(mockSpawn).toHaveBeenCalledWith(
+        'vim;',
+        expect.any(Array),
+        expect.not.objectContaining({ shell: true })
+      );
+    });
+
+    it('should handle whitespace in editor command', async () => {
+      process.env.EDITOR = '  vim  --noplugin  ';
+      const mockProcess = new EventEmitter() as any;
+      mockProcess.stdin = undefined;
+      mockProcess.stdout = undefined;
+      mockProcess.stderr = undefined;
+      mockSpawn.mockReturnValue(mockProcess);
+      mockReadFileSync.mockReturnValue('edited content');
+
+      const promise = launcher.editText('initial text');
+
+      setImmediate(() => mockProcess.emit('exit', 0));
+
+      await promise;
+
+      // Verify whitespace is trimmed and split correctly
+      expect(mockSpawn).toHaveBeenCalledWith(
+        'vim',
+        expect.arrayContaining(['--noplugin', expect.stringMatching(/\.txt$/)]),
+        expect.objectContaining({ stdio: 'inherit' })
       );
     });
   });

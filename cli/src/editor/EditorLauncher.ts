@@ -82,9 +82,15 @@ export class EditorLauncher {
    */
   private launchEditor(editorCmd: string, filepath: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      const editor = spawn(editorCmd, [filepath], {
+      // Parse editor command to separate command from arguments
+      // Split on spaces to handle editors with flags (e.g., "code --wait")
+      const parts = editorCmd.trim().split(/\s+/);
+      const cmd = parts[0];
+      const args = [...parts.slice(1), filepath];
+
+      const editor = spawn(cmd, args, {
         stdio: 'inherit', // Connect editor to terminal
-        shell: true,      // Allow shell commands
+        // NOTE: shell:true removed to prevent command injection vulnerability
       });
 
       editor.on('exit', (code) => {
