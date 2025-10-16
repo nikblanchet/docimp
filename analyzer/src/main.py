@@ -142,6 +142,15 @@ def cmd_analyze(args: argparse.Namespace) -> int:
         # Ensure state directory exists
         StateManager.ensure_state_dir()
 
+        # Clear session reports unless --keep-old-reports flag is set
+        if args.keep_old_reports:
+            if args.verbose:
+                print("Keeping previous session reports", file=sys.stderr)
+        else:
+            files_removed = StateManager.clear_session_reports()
+            if files_removed > 0:
+                print(f"Cleared {files_removed} previous session report(s)", file=sys.stderr)
+
         # Create analyzer
         analyzer = create_analyzer()
 
@@ -150,6 +159,14 @@ def cmd_analyze(args: argparse.Namespace) -> int:
             print(f"Analyzing: {args.path}", file=sys.stderr)
 
         result = analyzer.analyze(args.path, verbose=args.verbose)
+
+        # Save analysis result to state directory
+        analyze_file = StateManager.get_analyze_file()
+        with open(analyze_file, 'w') as f:
+            f.write(format_json(result))
+
+        if args.verbose:
+            print(f"Analysis saved to: {analyze_file}", file=sys.stderr)
 
         # Format output
         if args.format == 'json':
@@ -515,6 +532,11 @@ def main(argv: Optional[list] = None) -> int:
         choices=['json', 'summary'],
         default='summary',
         help='Output format (default: summary)'
+    )
+    analyze_parser.add_argument(
+        '--keep-old-reports',
+        action='store_true',
+        help='Preserve existing audit and plan files'
     )
     analyze_parser.add_argument(
         '--verbose',

@@ -29,6 +29,7 @@ program
   .option('--format <format>', 'Output format (json or summary)', 'summary')
   .option('--config <path>', 'Path to configuration file')
   .option('--verbose', 'Enable verbose output')
+  .option('--keep-old-reports', 'Preserve existing audit and plan files')
   .action(analyzeCommand);
 
 // Audit command
