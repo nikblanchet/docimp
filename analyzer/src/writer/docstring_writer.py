@@ -153,6 +153,9 @@ class DocstringWriter:
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(new_content)
 
+            # Delete backup after successful write
+            backup_path.unlink()
+
             return True
 
         except Exception:
