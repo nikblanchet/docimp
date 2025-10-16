@@ -4,8 +4,6 @@ This module provides utilities for managing the .docimp/ state directory
 where all working files (audit results, plans, session reports) are stored.
 """
 
-import os
-import shutil
 from pathlib import Path
 from typing import Optional
 
