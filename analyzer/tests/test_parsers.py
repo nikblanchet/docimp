@@ -295,3 +295,41 @@ def function():
 
         # Verify all items have documentation
         assert all(item.has_docs for item in items), "All items should have docstrings"
+
+    def test_nested_function_complexity_isolation(self, parser, tmp_path):
+        """Test that nested function complexity does not contribute to parent (issue #66)."""
+        test_file = tmp_path / "nested_complexity.py"
+        test_file.write_text("""
+def parent_function(x):
+    '''Parent function with simple logic.'''
+    if x > 0:  # Parent complexity: base 1 + this if = 2
+        return True
+
+    def nested_helper(y):
+        '''Nested helper with its own complexity.'''
+        if y < 0:  # Nested complexity: base 1 + this if = 2
+            return False
+        if y > 100:  # Nested complexity: +1 = 3
+            return False
+        return True
+
+    return False
+""")
+
+        items = parser.parse_file(str(test_file))
+
+        # Should extract both parent and nested function
+        assert len(items) == 2, f"Expected 2 items (parent + nested), got {len(items)}"
+
+        parent = next(item for item in items if item.name == 'parent_function')
+        nested = next(item for item in items if item.name == 'nested_helper')
+
+        # Parent should have complexity 2 (base 1 + one if statement)
+        # NOT 4 (which would include nested function's two if statements)
+        assert parent.complexity == 2, \
+            f"Parent complexity should be 2, got {parent.complexity}. " \
+            "Nested function complexity should not contribute to parent."
+
+        # Nested function should have complexity 3 (base 1 + two if statements)
+        assert nested.complexity == 3, \
+            f"Nested complexity should be 3, got {nested.complexity}"
