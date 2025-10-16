@@ -42,7 +42,7 @@ class PythonParser(BaseParser):
             tree = ast.parse(source, filename=filepath)
             items: List[CodeItem] = []
 
-            for node in ast.walk(tree):
+            for node in tree.body:
                 if isinstance(node, ast.FunctionDef) or isinstance(node, ast.AsyncFunctionDef):
                     item = self._extract_function(node, filepath)
                     if item:
