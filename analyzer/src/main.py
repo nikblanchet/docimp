@@ -139,6 +139,9 @@ def cmd_analyze(args: argparse.Namespace) -> int:
         Exit code (0 for success, 1 for error).
     """
     try:
+        # Ensure state directory exists
+        StateManager.ensure_state_dir()
+
         # Create analyzer
         analyzer = create_analyzer()
 
