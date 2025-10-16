@@ -10,6 +10,37 @@ import type { IPythonBridge } from '../python-bridge/IPythonBridge';
 import type { IDisplay } from '../display/IDisplay';
 import type { AnalysisResult } from '../types/AnalysisResult';
 
+// Mock ESM modules that Jest can't handle
+jest.mock('chalk', () => ({
+  default: {
+    bold: (str: string) => str,
+    dim: (str: string) => str,
+    green: (str: string) => str,
+    yellow: (str: string) => str,
+    red: (str: string) => str,
+    blue: (str: string) => str,
+    cyan: (str: string) => str,
+  },
+  bold: (str: string) => str,
+  dim: (str: string) => str,
+  green: (str: string) => str,
+  yellow: (str: string) => str,
+  red: (str: string) => str,
+  blue: (str: string) => str,
+  cyan: (str: string) => str,
+}));
+jest.mock('ora', () => ({
+  default: () => ({
+    start: () => ({ stop: () => {}, succeed: () => {}, fail: () => {} }),
+  }),
+}));
+jest.mock('cli-table3', () => {
+  return class MockTable {
+    constructor() {}
+    toString() { return ''; }
+  };
+});
+
 describe('analyze command auto-clean', () => {
   let tempDir: string;
   let mockBridge: IPythonBridge;
