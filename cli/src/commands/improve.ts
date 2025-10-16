@@ -129,6 +129,7 @@ export async function improveCommand(
       pluginManager,
       styleGuide,
       tone,
+      basePath: resolve(process.cwd(), path),
     });
 
     // Run the session

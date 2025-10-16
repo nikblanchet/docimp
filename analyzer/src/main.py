@@ -421,13 +421,14 @@ def cmd_apply(args: argparse.Namespace) -> int:
         docstring = apply_data.get('docstring')
         language = apply_data.get('language')
         line_number = apply_data.get('line_number')
+        base_path = apply_data.get('base_path', '/')
 
         if not all([filepath, item_name, item_type, docstring, language]):
             print("Error: Missing required fields in apply data", file=sys.stderr)
             return 1
 
-        # Create writer
-        writer = DocstringWriter()
+        # Create writer with base_path for path validation
+        writer = DocstringWriter(base_path=base_path)
 
         # Write docstring
         if args.verbose:

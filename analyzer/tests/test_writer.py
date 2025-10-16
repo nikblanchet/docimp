@@ -297,3 +297,47 @@ class TestPathTraversalValidation:
                     docstring='Doc',
                     language='python'
                 )
+
+    def test_improve_workflow_integration(self):
+        """Test realistic improve workflow with correct base_path.
+
+        Simulates the production scenario where:
+        - User runs 'docimp improve ./myproject'
+        - Python subprocess CWD = analyzer/
+        - Project files are outside analyzer/
+        - base_path is set to the user's project directory
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create mock user project directory
+            project_dir = Path(temp_dir) / 'user_project'
+            project_dir.mkdir()
+
+            # Create nested source directory with a Python file
+            src_dir = project_dir / 'src'
+            src_dir.mkdir()
+            test_file = src_dir / 'module.py'
+            test_file.write_text('def foo():\n    pass')
+
+            # Simulate production: base_path is the project root
+            # (NOT the Python subprocess CWD which would be analyzer/)
+            writer = DocstringWriter(base_path=str(project_dir))
+
+            # This should succeed because file is within base_path
+            success = writer.write_docstring(
+                filepath=str(test_file),
+                item_name='foo',
+                item_type='function',
+                docstring='Test function documentation.',
+                language='python'
+            )
+
+            assert success, "Should successfully write to file within project"
+
+            # Verify docstring was actually written
+            content = test_file.read_text()
+            assert '"""' in content, "Docstring markers should be present"
+            assert 'Test function documentation.' in content, \
+                "Docstring content should be present in file"
+
+            # Verify original code is preserved
+            assert 'def foo():' in content, "Original function definition should be preserved"

@@ -95,6 +95,9 @@ export interface ApplyData {
 
   /** Line number where item is located */
   line_number?: number;
+
+  /** Base directory for path validation (files must be within this directory) */
+  base_path?: string;
 }
 
 /**

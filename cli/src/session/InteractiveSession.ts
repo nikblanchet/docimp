@@ -37,6 +37,9 @@ export interface SessionOptions {
 
   /** Documentation tone */
   tone: string;
+
+  /** Base directory for path validation */
+  basePath: string;
 }
 
 /**
@@ -54,6 +57,7 @@ export class InteractiveSession {
   private styleGuide: string;
   private tone: string;
   private editorLauncher: EditorLauncher;
+  private basePath: string;
 
   /**
    * Create a new interactive session.
@@ -67,6 +71,7 @@ export class InteractiveSession {
     this.styleGuide = options.styleGuide;
     this.tone = options.tone;
     this.editorLauncher = new EditorLauncher();
+    this.basePath = options.basePath;
   }
 
   /**
@@ -380,6 +385,7 @@ export class InteractiveSession {
         docstring: docstring,
         language: item.language,
         line_number: item.line_number,
+        base_path: this.basePath,
       });
 
       return true;
