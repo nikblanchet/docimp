@@ -43,15 +43,16 @@ class PythonParser(BaseParser):
             items: List[CodeItem] = []
 
             # Build parent map to detect methods (functions inside classes)
-            # This allows us to use ast.walk() for full traversal while avoiding
-            # duplication of methods. See issue #67.
+            # This prevents method duplication while still extracting nested functions.
+            # Uses ast.walk() for full traversal to capture functions at all nesting levels.
+            # See issue #67.
             parent_map = {}
             for node in ast.walk(tree):
                 for child in ast.iter_child_nodes(node):
                     parent_map[child] = node
 
             for node in ast.walk(tree):
-                if isinstance(node, ast.FunctionDef) or isinstance(node, ast.AsyncFunctionDef):
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     parent = parent_map.get(node)
                     if isinstance(parent, ast.ClassDef):
                         # Skip - this is a method, will be extracted when processing the class

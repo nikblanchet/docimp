@@ -227,3 +227,71 @@ class DataProcessor:
         assert validate.has_docs is True
         assert validate.docstring is not None
         assert 'item' in validate.parameters
+
+    def test_complex_nesting_edge_cases(self, parser, tmp_path):
+        """Test edge cases with nested classes, conditionals, and multiple nesting levels."""
+        edge_case_file = tmp_path / "edge_cases.py"
+        edge_case_file.write_text("""
+class Outer:
+    '''Outer class with nested structures.'''
+    def method(self):
+        '''Method with nested function.'''
+        def nested_in_method():
+            '''Function nested in method.'''
+            pass
+
+    class Inner:
+        '''Nested class.'''
+        def inner_method(self):
+            '''Method in nested class.'''
+            pass
+
+def function():
+    '''Function with conditional nesting.'''
+    if True:
+        def nested_in_conditional():
+            '''Function defined inside conditional.'''
+            pass
+""")
+
+        items = parser.parse_file(str(edge_case_file))
+        item_names = [item.name for item in items]
+
+        # Should extract:
+        # - Outer (class)
+        # - Outer.method (method)
+        # - nested_in_method (function)
+        # - Inner (nested class)
+        # - Inner.inner_method (method in nested class)
+        # - function (top-level function)
+        # - nested_in_conditional (function in conditional)
+        # Total: 7 items
+        assert len(items) == 7, f"Expected 7 items, got {len(items)}: {item_names}"
+
+        # Verify outer class and its method
+        assert 'Outer' in item_names
+        assert 'Outer.method' in item_names
+
+        # Verify nested function in method is extracted as function, not method
+        assert 'nested_in_method' in item_names
+        nested_func = next(item for item in items if item.name == 'nested_in_method')
+        assert nested_func.type == 'function', "Function nested in method should be type 'function'"
+
+        # Verify nested class
+        assert 'Inner' in item_names
+        inner_class = next(item for item in items if item.name == 'Inner')
+        assert inner_class.type == 'class'
+
+        # Verify method in nested class
+        assert 'Inner.inner_method' in item_names
+        inner_method = next(item for item in items if item.name == 'Inner.inner_method')
+        assert inner_method.type == 'method'
+
+        # Verify function with conditional nesting
+        assert 'function' in item_names
+        assert 'nested_in_conditional' in item_names
+        cond_func = next(item for item in items if item.name == 'nested_in_conditional')
+        assert cond_func.type == 'function'
+
+        # Verify all items have documentation
+        assert all(item.has_docs for item in items), "All items should have docstrings"
