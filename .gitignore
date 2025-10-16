@@ -44,9 +44,11 @@ dist/
 CLAUDE.md
 CLAUDE_CONTEXT.md
 PLAN.md
+PLAN_INTERRUPTION.md
 ISSUE_ANALYSIS.md
-.docimp-audit.json
-.docimp-plan.json
+
+# State directory (working files, session reports, history)
+.docimp/
 
 # NOTE on credential patterns (*.key, *.pem, credentials.json, etc.):
 # We intentionally do NOT include these patterns. Adding them to .gitignore

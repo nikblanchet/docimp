@@ -7,6 +7,7 @@
 
 import { PythonBridge } from '../python-bridge/PythonBridge.js';
 import { TerminalDisplay } from '../display/TerminalDisplay.js';
+import { StateManager } from '../utils/StateManager.js';
 import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
 import type { IDisplay } from '../display/IDisplay.js';
 
@@ -33,6 +34,10 @@ export async function planCore(
   const pythonBridge = bridge ?? new PythonBridge();
   const terminalDisplay = display ?? new TerminalDisplay();
 
+  // Use StateManager defaults if not provided
+  const auditFile = options.auditFile ?? StateManager.getAuditFile();
+  const planFile = options.planFile ?? StateManager.getPlanFile();
+
   // Run plan generation via Python subprocess
   if (options.verbose) {
     terminalDisplay.showMessage(`Generating plan for: ${path}`);
@@ -43,8 +48,8 @@ export async function planCore(
   try {
     const result = await pythonBridge.plan({
       path,
-      auditFile: options.auditFile,
-      planFile: options.planFile,
+      auditFile,
+      planFile,
       qualityThreshold: options.qualityThreshold,
       verbose: options.verbose,
     });
@@ -82,7 +87,7 @@ export async function planCore(
     }
 
     terminalDisplay.showMessage('\n' + '='.repeat(60));
-    terminalDisplay.showMessage(`Plan saved to: ${options.planFile || '.docimp-plan.json'}`);
+    terminalDisplay.showMessage(`Plan saved to: ${planFile}`);
     terminalDisplay.showMessage('Run \'docimp improve\' to start improving documentation.');
     terminalDisplay.showMessage('='.repeat(60) + '\n');
   } catch (error) {

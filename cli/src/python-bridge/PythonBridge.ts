@@ -115,7 +115,9 @@ export class PythonBridge implements IPythonBridge {
     ];
 
     if (options.auditFile) {
-      args.push('--audit-file', options.auditFile);
+      // Resolve audit file to absolute path (Python subprocess runs in analyzer/ dir)
+      const absoluteAuditFile = resolve(process.cwd(), options.auditFile);
+      args.push('--audit-file', absoluteAuditFile);
     }
 
     if (options.verbose) {
@@ -141,7 +143,9 @@ export class PythonBridge implements IPythonBridge {
     ];
 
     if (auditFile) {
-      args.push('--audit-file', auditFile);
+      // Resolve audit file to absolute path (Python subprocess runs in analyzer/ dir)
+      const absoluteAuditFile = resolve(process.cwd(), auditFile);
+      args.push('--audit-file', absoluteAuditFile);
     }
 
     return new Promise((resolve, reject) => {
@@ -204,11 +208,15 @@ export class PythonBridge implements IPythonBridge {
     ];
 
     if (options.auditFile) {
-      args.push('--audit-file', options.auditFile);
+      // Resolve audit file to absolute path (Python subprocess runs in analyzer/ dir)
+      const absoluteAuditFile = resolve(process.cwd(), options.auditFile);
+      args.push('--audit-file', absoluteAuditFile);
     }
 
     if (options.planFile) {
-      args.push('--plan-file', options.planFile);
+      // Resolve plan file to absolute path (Python subprocess runs in analyzer/ dir)
+      const absolutePlanFile = resolve(process.cwd(), options.planFile);
+      args.push('--plan-file', absolutePlanFile);
     }
 
     if (options.qualityThreshold !== undefined) {

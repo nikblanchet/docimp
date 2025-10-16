@@ -176,7 +176,7 @@ describe('improve command', () => {
       await improveCommand('./test', {});
 
       expect(mockReadFileSync).toHaveBeenCalledWith(
-        expect.stringMatching(/\.docimp-plan\.json$/),
+        expect.stringMatching(/\.docimp\/session-reports\/plan\.json$/),
         'utf-8'
       );
     });

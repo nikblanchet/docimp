@@ -8,6 +8,7 @@
 import prompts from 'prompts';
 import { PythonBridge } from '../python-bridge/PythonBridge.js';
 import { TerminalDisplay } from '../display/TerminalDisplay.js';
+import { StateManager } from '../utils/StateManager.js';
 import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
 import type { IDisplay } from '../display/IDisplay.js';
 import type { AuditRatings } from '../types/analysis.js';
@@ -33,6 +34,9 @@ export async function auditCore(
   const pythonBridge = bridge ?? new PythonBridge();
   const terminalDisplay = display ?? new TerminalDisplay();
 
+  // Use StateManager default if auditFile not provided
+  const auditFile = options.auditFile ?? StateManager.getAuditFile();
+
   // Get list of documented items from Python
   if (options.verbose) {
     terminalDisplay.showMessage(`Finding documented items in: ${path}`);
@@ -43,7 +47,7 @@ export async function auditCore(
   try {
     const result = await pythonBridge.audit({
       path,
-      auditFile: options.auditFile,
+      auditFile,
       verbose: options.verbose,
     });
 
@@ -146,10 +150,10 @@ export async function auditCore(
       const savingSpinner = terminalDisplay.startSpinner('Saving audit ratings...');
 
       try {
-        await pythonBridge.applyAudit(ratings, options.auditFile);
+        await pythonBridge.applyAudit(ratings, auditFile);
         savingSpinner();
-        terminalDisplay.showMessage(`\n\nAudit complete! Saved ${totalRatings} ratings.`);
-        terminalDisplay.showMessage(`Run 'docimp analyze' to see updated impact scores.`);
+        terminalDisplay.showMessage(`\n\nAudit complete! Saved ${totalRatings} ratings to ${auditFile}`);
+        terminalDisplay.showMessage(`Run 'docimp plan' to generate an improvement plan.`);
       } catch (error) {
         savingSpinner();
         throw error;

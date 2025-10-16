@@ -12,6 +12,7 @@ from typing import List, Optional
 from ..models.code_item import CodeItem
 from ..models.analysis_result import AnalysisResult
 from ..audit.quality_rater import load_audit_results
+from ..utils.state_manager import StateManager
 
 
 @dataclass
@@ -125,7 +126,7 @@ class PlanResult:
 
 def generate_plan(
     result: AnalysisResult,
-    audit_file: Path = Path('.docimp-audit.json'),
+    audit_file: Optional[Path] = None,
     quality_threshold: int = 2
 ) -> PlanResult:
     """Generate a prioritized documentation improvement plan.
@@ -135,13 +136,16 @@ def generate_plan(
 
     Args:
         result: Analysis result containing all code items.
-        audit_file: Path to audit results file.
+        audit_file: Path to audit results file. If None, uses StateManager.get_audit_file().
         quality_threshold: Items with audit rating <= this value are included (default: 2).
                           Scale: 1=Terrible, 2=OK, 3=Good, 4=Excellent.
 
     Returns:
         PlanResult with prioritized items to improve.
     """
+    if audit_file is None:
+        audit_file = StateManager.get_audit_file()
+
     # Load audit results if available (currently items already have audit_rating set)
     # audit_results are loaded by the analyzer if needed
     _ = load_audit_results(audit_file)  # Future: use for additional validation
@@ -179,12 +183,17 @@ def generate_plan(
     )
 
 
-def save_plan(plan: PlanResult, output_file: Path = Path('.docimp-plan.json')) -> None:
+def save_plan(plan: PlanResult, output_file: Optional[Path] = None) -> None:
     """Save plan to JSON file for the improve command to load.
 
     Args:
         plan: PlanResult to save.
-        output_file: Path to output file (default: .docimp-plan.json).
+        output_file: Path to output file. If None, uses StateManager.get_plan_file().
     """
+    if output_file is None:
+        output_file = StateManager.get_plan_file()
+
+    # Ensure state directory exists before writing
+    StateManager.ensure_state_dir()
     with open(output_file, 'w') as f:
         json.dump(plan.to_dict(), f, indent=2)

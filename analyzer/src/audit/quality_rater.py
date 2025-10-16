@@ -1,7 +1,7 @@
 """Quality rating system for existing documentation.
 
 This module handles persistence and management of documentation quality ratings
-collected during interactive audits. Ratings are stored in .docimp-audit.json
+collected during interactive audits. Ratings are stored in .docimp/session-reports/audit.json
 for use in impact scoring calculations.
 """
 
@@ -9,6 +9,8 @@ import json
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Dict, Optional
+
+from ..utils.state_manager import StateManager
 
 
 @dataclass
@@ -58,15 +60,17 @@ class AuditResult:
         return asdict(self)
 
 
-def load_audit_results(audit_file: Path = Path('.docimp-audit.json')) -> AuditResult:
+def load_audit_results(audit_file: Optional[Path] = None) -> AuditResult:
     """Load audit results from JSON file.
 
     Args:
-        audit_file: Path to the audit results file.
+        audit_file: Path to the audit results file. If None, uses StateManager.get_audit_file().
 
     Returns:
         AuditResult with loaded ratings, or empty if file doesn't exist.
     """
+    if audit_file is None:
+        audit_file = StateManager.get_audit_file()
     if not audit_file.exists():
         return AuditResult(ratings={})
 
@@ -81,13 +85,18 @@ def load_audit_results(audit_file: Path = Path('.docimp-audit.json')) -> AuditRe
 
 def save_audit_results(
     audit_result: AuditResult,
-    audit_file: Path = Path('.docimp-audit.json')
+    audit_file: Optional[Path] = None
 ) -> None:
     """Save audit results to JSON file.
 
     Args:
         audit_result: AuditResult to save.
-        audit_file: Path to the audit results file.
+        audit_file: Path to the audit results file. If None, uses StateManager.get_audit_file().
     """
+    if audit_file is None:
+        audit_file = StateManager.get_audit_file()
+
+    # Ensure state directory exists before writing
+    StateManager.ensure_state_dir()
     with open(audit_file, 'w') as f:
         json.dump(audit_result.to_dict(), f, indent=2)
