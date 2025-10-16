@@ -483,7 +483,6 @@ class MyClass:
         items = parser.parse_file(str(test_file))
         assert len(items) == 3  # class + method + nested function
 
-        cls = next(item for item in items if item.name == 'MyClass')
         method = next(item for item in items if item.name == 'MyClass.method_with_nested')
         helper = next(item for item in items if item.name == 'helper')
 
