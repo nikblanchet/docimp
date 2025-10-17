@@ -300,8 +300,8 @@ class TestPlanGenerator:
             save_audit_results(audit, audit_file)
 
         try:
-            # Generate plan
-            plan = generate_plan(sample_result, audit_file=audit_file)
+            # Generate plan (side effect: applies ratings to items)
+            _ = generate_plan(sample_result, audit_file=audit_file)
 
             # Verify invalid ratings were skipped
             terrible_item = next(i for i in sample_result.items if i.name == 'documented_terrible')
