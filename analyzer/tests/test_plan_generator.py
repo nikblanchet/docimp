@@ -285,3 +285,105 @@ class TestPlanGenerator:
             assert 'documented_terrible' in item_names
         finally:
             audit_file.unlink()
+
+    def test_generate_plan_skips_invalid_ratings(self, sample_result):
+        """Test that invalid ratings are skipped and valid ratings are applied."""
+        # Create audit with mix of valid and invalid ratings
+        audit = AuditResult(ratings={})
+        audit.set_rating('test.py', 'documented_terrible', 999)  # Invalid!
+        audit.set_rating('test.py', 'documented_ok', 2)  # Valid
+        audit.set_rating('test.py', 'documented_good', 0)  # Invalid!
+
+        # Save audit to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(audit, audit_file)
+
+        try:
+            # Generate plan
+            plan = generate_plan(sample_result, audit_file=audit_file)
+
+            # Verify invalid ratings were skipped
+            terrible_item = next(i for i in sample_result.items if i.name == 'documented_terrible')
+            ok_item = next(i for i in sample_result.items if i.name == 'documented_ok')
+            good_item = next(i for i in sample_result.items if i.name == 'documented_good')
+
+            # Only valid rating should be applied
+            assert terrible_item.audit_rating is None  # Invalid rating skipped
+            assert ok_item.audit_rating == 2  # Valid rating applied
+            assert good_item.audit_rating is None  # Invalid rating skipped
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_tracks_invalid_ratings_count(self, sample_result):
+        """Test that invalid_ratings_count is accurate."""
+        # Create audit with invalid ratings
+        audit = AuditResult(ratings={})
+        audit.set_rating('test.py', 'documented_terrible', 999)  # Invalid
+        audit.set_rating('test.py', 'documented_ok', 0)  # Invalid
+        audit.set_rating('test.py', 'documented_good', -1)  # Invalid
+
+        # Save audit to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(audit, audit_file)
+
+        try:
+            # Generate plan
+            plan = generate_plan(sample_result, audit_file=audit_file)
+
+            # Verify count is correct
+            assert plan.invalid_ratings_count == 3
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_tracks_invalid_ratings_details(self, sample_result):
+        """Test that invalid_ratings list contains correct details."""
+        # Create audit with invalid ratings
+        audit = AuditResult(ratings={})
+        audit.set_rating('test.py', 'documented_terrible', 999)
+        audit.set_rating('test.py', 'documented_ok', 2)  # Valid
+        audit.set_rating('test.py', 'documented_good', 5)
+
+        # Save audit to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(audit, audit_file)
+
+        try:
+            # Generate plan
+            plan = generate_plan(sample_result, audit_file=audit_file)
+
+            # Verify details are correct
+            assert len(plan.invalid_ratings) == 2
+            assert {'filepath': 'test.py', 'name': 'documented_terrible', 'rating': 999} in plan.invalid_ratings
+            assert {'filepath': 'test.py', 'name': 'documented_good', 'rating': 5} in plan.invalid_ratings
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_invalid_rating_boundaries(self, sample_result):
+        """Test edge cases for invalid ratings."""
+        # Create audit with boundary invalid ratings
+        audit = AuditResult(ratings={})
+        audit.set_rating('test.py', 'documented_terrible', 0)  # Just below valid range
+        audit.set_rating('test.py', 'documented_ok', 5)  # Just above valid range
+        audit.set_rating('test.py', 'documented_good', -1)  # Negative
+        audit.set_rating('test.py', 'documented_excellent', 1)  # Valid
+
+        # Save audit to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(audit, audit_file)
+
+        try:
+            # Generate plan
+            plan = generate_plan(sample_result, audit_file=audit_file)
+
+            # Verify all invalid ratings were caught
+            assert plan.invalid_ratings_count == 3
+
+            # Verify only valid rating was applied
+            excellent_item = next(i for i in sample_result.items if i.name == 'documented_excellent')
+            assert excellent_item.audit_rating == 1
+        finally:
+            audit_file.unlink()
