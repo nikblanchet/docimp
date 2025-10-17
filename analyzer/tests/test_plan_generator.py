@@ -564,7 +564,7 @@ class TestPlanGenerator:
             save_audit_results(audit, audit_file)
 
         try:
-            plan = generate_plan(sample_result, audit_file=audit_file)
+            _ = generate_plan(sample_result, audit_file=audit_file)
             # Should behave same as no audit file
             assert all(item.audit_rating is None for item in sample_result.items)
         finally:
@@ -602,6 +602,6 @@ class TestPlanGenerator:
         try:
             # Current implementation would crash - needs error handling
             with pytest.raises(ValueError, match="Scoring error"):
-                plan = generate_plan(sample_result, audit_file=audit_file)
+                generate_plan(sample_result, audit_file=audit_file)
         finally:
             audit_file.unlink()
