@@ -135,8 +135,17 @@ def generate_plan(
     Combines items that need documentation (missing docs or poor quality)
     and sorts them by impact score for the improve workflow.
 
+    IMPORTANT: This function mutates the input result.items by:
+    - Setting item.audit_rating for items with audit data
+    - Recalculating item.impact_score based on audit ratings
+
+    This mutation is intentional to avoid expensive deep copy operations.
+    If you need to preserve the original AnalysisResult, create a copy
+    before calling this function.
+
     Args:
-        result: Analysis result containing all code items.
+        result: Analysis result containing all code items. Items will be modified
+                in-place to apply audit ratings and recalculate impact scores.
         audit_file: Path to audit results file. If None, uses StateManager.get_audit_file().
         quality_threshold: Items with audit rating <= this value are included (default: 2).
                           Scale: 1=Terrible, 2=OK, 3=Good, 4=Excellent.
