@@ -149,6 +149,12 @@ def generate_plan(
     If you need to preserve the original AnalysisResult, create a copy
     before calling this function.
 
+    Path Matching: File paths are normalized to absolute, canonical form using
+    Path.resolve() before matching audit ratings to code items. This ensures
+    that relative paths (e.g., './foo.py') and absolute paths (e.g.,
+    '/full/path/foo.py') referring to the same file will match correctly.
+    Path components like '.' and '..' are also resolved automatically.
+
     Args:
         result: Analysis result containing all code items. Items will be modified
                 in-place to apply audit ratings and recalculate impact scores.
@@ -167,12 +173,23 @@ def generate_plan(
     if audit_file.exists():
         audit_results = load_audit_results(audit_file)
 
+    # Build normalized path lookup from audit results
+    # This ensures relative/absolute paths match correctly
+    normalized_ratings: dict = {}
+    if audit_results:
+        for filepath, ratings_dict in audit_results.ratings.items():
+            normalized_path = str(Path(filepath).resolve())
+            for item_name, rating in ratings_dict.items():
+                normalized_ratings[(normalized_path, item_name)] = rating
+
     # Apply audit ratings to items and recalculate impact scores
     invalid_ratings: List[dict] = []
     if audit_results:
         scorer = ImpactScorer()
         for item in result.items:
-            rating = audit_results.get_rating(item.filepath, item.name)
+            # Normalize item filepath for matching
+            normalized_item_path = str(Path(item.filepath).resolve())
+            rating = normalized_ratings.get((normalized_item_path, item.name))
             if rating is not None:
                 # Validate rating is in expected range (1-4)
                 if not (1 <= rating <= 4):

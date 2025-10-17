@@ -387,3 +387,156 @@ class TestPlanGenerator:
             assert excellent_item.audit_rating == 1
         finally:
             audit_file.unlink()
+
+    def test_generate_plan_matches_relative_to_absolute_paths(self, sample_result):
+        """Test that relative paths in analysis match absolute paths in audit."""
+        # Create audit with absolute path
+        absolute_path = str(Path('test.py').resolve())
+        audit = AuditResult(ratings={})
+        audit.set_rating(absolute_path, 'documented_terrible', 1)
+
+        # Save audit to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(audit, audit_file)
+
+        try:
+            # sample_result has relative path 'test.py'
+            # Generate plan (side effect: applies ratings to matching items)
+            _ = generate_plan(sample_result, audit_file=audit_file)
+
+            # Verify rating was matched and applied
+            terrible_item = next(i for i in sample_result.items if i.name == 'documented_terrible')
+            assert terrible_item.audit_rating == 1
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_matches_absolute_to_relative_paths(self):
+        """Test that absolute paths in analysis match relative paths in audit."""
+        # Create item with absolute path
+        absolute_path = str(Path('test.py').resolve())
+        item = CodeItem(
+            name='documented_terrible',
+            type='function',
+            filepath=absolute_path,
+            line_number=1,
+            language='python',
+            complexity=10,
+            has_docs=True,
+            export_type='internal',
+            module_system='unknown',
+            impact_score=50.0,
+            audit_rating=None,
+            docstring='Terrible docs'
+        )
+        result = AnalysisResult(
+            items=[item],
+            coverage_percent=100.0,
+            total_items=1,
+            documented_items=1,
+            by_language={}
+        )
+
+        # Create audit with relative path
+        audit = AuditResult(ratings={})
+        audit.set_rating('test.py', 'documented_terrible', 1)
+
+        # Save audit to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(audit, audit_file)
+
+        try:
+            # Generate plan (side effect: applies ratings to matching items)
+            _ = generate_plan(result, audit_file=audit_file)
+
+            # Verify rating was matched and applied
+            assert item.audit_rating == 1
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_normalizes_dot_slash_prefix(self):
+        """Test that paths with ./ prefix are normalized correctly."""
+        # Create item with ./ prefix
+        item = CodeItem(
+            name='documented_terrible',
+            type='function',
+            filepath='./test.py',
+            line_number=1,
+            language='python',
+            complexity=10,
+            has_docs=True,
+            export_type='internal',
+            module_system='unknown',
+            impact_score=50.0,
+            audit_rating=None,
+            docstring='Terrible docs'
+        )
+        result = AnalysisResult(
+            items=[item],
+            coverage_percent=100.0,
+            total_items=1,
+            documented_items=1,
+            by_language={}
+        )
+
+        # Create audit with simple relative path
+        audit = AuditResult(ratings={})
+        audit.set_rating('test.py', 'documented_terrible', 1)
+
+        # Save audit to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(audit, audit_file)
+
+        try:
+            # Generate plan (side effect: applies ratings to matching items)
+            _ = generate_plan(result, audit_file=audit_file)
+
+            # Verify rating was matched and applied (./test.py should match test.py)
+            assert item.audit_rating == 1
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_normalizes_parent_directory_components(self):
+        """Test that paths with .. components are normalized correctly."""
+        # Create item with .. component (e.g., foo/../test.py -> test.py)
+        item = CodeItem(
+            name='documented_terrible',
+            type='function',
+            filepath='foo/../test.py',
+            line_number=1,
+            language='python',
+            complexity=10,
+            has_docs=True,
+            export_type='internal',
+            module_system='unknown',
+            impact_score=50.0,
+            audit_rating=None,
+            docstring='Terrible docs'
+        )
+        result = AnalysisResult(
+            items=[item],
+            coverage_percent=100.0,
+            total_items=1,
+            documented_items=1,
+            by_language={}
+        )
+
+        # Create audit with simple relative path
+        audit = AuditResult(ratings={})
+        audit.set_rating('test.py', 'documented_terrible', 1)
+
+        # Save audit to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(audit, audit_file)
+
+        try:
+            # Generate plan (side effect: applies ratings to matching items)
+            _ = generate_plan(result, audit_file=audit_file)
+
+            # Verify rating was matched and applied (foo/../test.py should match test.py)
+            assert item.audit_rating == 1
+        finally:
+            audit_file.unlink()
