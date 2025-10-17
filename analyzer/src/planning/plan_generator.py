@@ -104,12 +104,16 @@ class PlanResult:
         total_items: Total number of items in the plan.
         missing_docs_count: Number of items with no documentation.
         poor_quality_count: Number of items with poor quality documentation.
+        invalid_ratings_count: Number of invalid audit ratings skipped.
+        invalid_ratings: Details of invalid ratings for debugging.
     """
 
     items: List[PlanItem]
     total_items: int
     missing_docs_count: int
     poor_quality_count: int
+    invalid_ratings_count: int
+    invalid_ratings: List[dict]
 
     def to_dict(self) -> dict:
         """Serialize to dictionary for JSON output.
@@ -121,7 +125,9 @@ class PlanResult:
             'items': [item.to_dict() for item in self.items],
             'total_items': self.total_items,
             'missing_docs_count': self.missing_docs_count,
-            'poor_quality_count': self.poor_quality_count
+            'poor_quality_count': self.poor_quality_count,
+            'invalid_ratings_count': self.invalid_ratings_count,
+            'invalid_ratings': self.invalid_ratings
         }
 
 
@@ -162,11 +168,21 @@ def generate_plan(
         audit_results = load_audit_results(audit_file)
 
     # Apply audit ratings to items and recalculate impact scores
+    invalid_ratings: List[dict] = []
     if audit_results:
         scorer = ImpactScorer()
         for item in result.items:
             rating = audit_results.get_rating(item.filepath, item.name)
             if rating is not None:
+                # Validate rating is in expected range (1-4)
+                if not (1 <= rating <= 4):
+                    invalid_ratings.append({
+                        'filepath': item.filepath,
+                        'name': item.name,
+                        'rating': rating
+                    })
+                    continue  # Skip this invalid rating
+
                 item.audit_rating = rating
                 # Recalculate impact score with audit rating
                 item.impact_score = scorer.calculate_score(item)
@@ -200,7 +216,9 @@ def generate_plan(
         items=plan_items,
         total_items=len(plan_items),
         missing_docs_count=missing_docs_count,
-        poor_quality_count=poor_quality_count
+        poor_quality_count=poor_quality_count,
+        invalid_ratings_count=len(invalid_ratings),
+        invalid_ratings=invalid_ratings
     )
 
 

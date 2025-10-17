@@ -317,6 +317,20 @@ def cmd_plan(args: argparse.Namespace) -> int:
             quality_threshold=args.quality_threshold
         )
 
+        # Display warning if invalid ratings were found
+        if plan.invalid_ratings_count > 0:
+            if args.verbose:
+                # Show detailed warnings for each invalid rating
+                for inv in plan.invalid_ratings:
+                    print(f"Warning: Invalid audit rating {inv['rating']} for {inv['name']} "
+                          f"in {inv['filepath']} (expected 1-4), skipped",
+                          file=sys.stderr)
+            else:
+                # Show summary warning
+                print(f"Warning: {plan.invalid_ratings_count} invalid audit rating(s) skipped. "
+                      f"Run with --verbose for details.",
+                      file=sys.stderr)
+
         # Save plan to file
         plan_file = Path(args.plan_file)
         save_plan(plan, plan_file)
