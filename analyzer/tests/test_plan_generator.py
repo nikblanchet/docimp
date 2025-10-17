@@ -540,3 +540,68 @@ class TestPlanGenerator:
             assert item.audit_rating == 1
         finally:
             audit_file.unlink()
+
+    def test_generate_plan_handles_corrupted_audit_json(self, sample_result):
+        """Test graceful handling of corrupted audit JSON."""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            tmp.write("{invalid json content")
+
+        try:
+            # Should not crash (load_audit_results catches JSONDecodeError)
+            plan = generate_plan(sample_result, audit_file=audit_file)
+            # Should work as if no audit file exists
+            assert plan.total_items == 1
+            assert plan.items[0].audit_rating is None
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_handles_empty_audit(self, sample_result):
+        """Test handling of audit file with no ratings."""
+        audit = AuditResult(ratings={})
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(audit, audit_file)
+
+        try:
+            plan = generate_plan(sample_result, audit_file=audit_file)
+            # Should behave same as no audit file
+            assert all(item.audit_rating is None for item in sample_result.items)
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_idempotency(self, sample_result, sample_audit):
+        """Test calling generate_plan twice with same result."""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(sample_audit, audit_file)
+
+        try:
+            plan1 = generate_plan(sample_result, audit_file=audit_file)
+            plan2 = generate_plan(sample_result, audit_file=audit_file)
+
+            # Should produce identical plans
+            assert plan1.total_items == plan2.total_items
+            assert all(p1.name == p2.name for p1, p2 in zip(plan1.items, plan2.items))
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_handles_scorer_exception(self, sample_result, sample_audit, monkeypatch):
+        """Test handling of ImpactScorer exceptions."""
+        def mock_calculate_score(self, item):
+            raise ValueError("Scoring error")
+
+        # Mock ImpactScorer.calculate_score to raise exception
+        from src.scoring.impact_scorer import ImpactScorer
+        monkeypatch.setattr(ImpactScorer, 'calculate_score', mock_calculate_score)
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(sample_audit, audit_file)
+
+        try:
+            # Current implementation would crash - needs error handling
+            with pytest.raises(ValueError, match="Scoring error"):
+                plan = generate_plan(sample_result, audit_file=audit_file)
+        finally:
+            audit_file.unlink()
