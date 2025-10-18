@@ -6,28 +6,38 @@
  */
 
 import { spawn, spawnSync } from 'child_process';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { resolve, dirname, join } from 'path';
+import { existsSync } from 'fs';
 import type { IPythonBridge, AnalyzeOptions, AuditOptions, PlanOptions, SuggestOptions, ApplyData } from './IPythonBridge.js';
 import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult } from '../types/analysis.js';
 
 /**
- * Get directory path for this module, compatible with both ES modules and CommonJS.
+ * Find the analyzer directory by searching upwards from a starting directory.
  *
- * In ES modules (production), use import.meta.url.
- * In CommonJS (Jest tests), __dirname is globally available.
+ * This works regardless of:
+ * - User's current working directory
+ * - Whether code is in src/ or dist/
+ * - Whether running in ES modules or CommonJS (Jest)
  *
- * @returns Directory path of this module
+ * @param startDir - Directory to start searching from
+ * @returns Path to analyzer directory
+ * @throws Error if analyzer directory not found
  */
-function getCurrentDirPath(): string {
-  // Check if running in CommonJS environment (Jest)
-  if (typeof __dirname !== 'undefined') {
-    return __dirname;
+function findAnalyzerDir(startDir: string): string {
+  let currentDir = startDir;
+  const root = resolve('/');
+
+  while (currentDir !== root) {
+    const analyzerPath = join(currentDir, 'analyzer');
+    if (existsSync(analyzerPath)) {
+      return analyzerPath;
+    }
+    currentDir = dirname(currentDir);
   }
-  // ES modules: use import.meta.url
-  // Use indirect eval to avoid syntax error in CommonJS/Jest
-  const importMetaUrl = new Function('return import.meta.url')();
-  return dirname(fileURLToPath(importMetaUrl));
+
+  throw new Error(
+    `Could not find analyzer directory. Searched upwards from: ${startDir}`
+  );
 }
 
 /**
@@ -98,14 +108,10 @@ export class PythonBridge implements IPythonBridge {
   ) {
     this.pythonPath = pythonPath || detectPythonExecutable();
 
-    // Auto-detect analyzer path relative to this file location
-    // cli/src/python-bridge/PythonBridge.ts -> ../../analyzer/
-    // This works regardless of process.cwd(), making it safe to call
-    // docimp from any working directory
+    // Auto-detect analyzer path by searching upwards from current working directory
+    // This works regardless of where docimp is invoked from
     if (!analyzerPath) {
-      // Go up from cli/src/python-bridge/ (or cli/dist/python-bridge/ after build)
-      // to repo root, then into analyzer/
-      this.analyzerModule = resolve(getCurrentDirPath(), '..', '..', '..', 'analyzer');
+      this.analyzerModule = findAnalyzerDir(process.cwd());
     } else {
       this.analyzerModule = analyzerPath;
     }
