@@ -130,6 +130,12 @@ print_header "WORKFLOW B: analyze → audit → plan (with audit ratings)"
 # Clean state
 rm -rf .docimp/
 
+# Verify cleanup succeeded
+if [ -d .docimp/ ]; then
+    print_failure "Failed to remove .docimp/ directory"
+    exit 1
+fi
+
 # Analyze
 echo "Running: docimp analyze ."
 if [ -n "$CI" ]; then
@@ -145,29 +151,43 @@ import json
 import sys
 from pathlib import Path
 
-# Load expected audit ratings
-with open('../expected-results.json') as f:
-    expected = json.load(f)
+try:
+    # Load expected audit ratings
+    with open('../expected-results.json') as f:
+        expected = json.load(f)
+except FileNotFoundError:
+    print("ERROR: ../expected-results.json not found", file=sys.stderr)
+    sys.exit(1)
+except json.JSONDecodeError as e:
+    print(f"ERROR: Invalid JSON in expected-results.json: {e}", file=sys.stderr)
+    sys.exit(1)
 
-# Convert to audit.json format with absolute paths
-# The plan_generator expects paths to be resolvable to match analysis results
-ratings = {}
-base_dir = Path.cwd()  # Current directory (example-project/)
-for filepath, items in expected['sample_audit_ratings']['ratings'].items():
-    # Resolve relative path to absolute path
-    abs_path = str((base_dir / filepath).resolve())
-    if abs_path not in ratings:
-        ratings[abs_path] = {}
-    for item_name, rating in items.items():
-        ratings[abs_path][item_name] = rating
+try:
+    # Convert to audit.json format with absolute paths
+    # The plan_generator expects paths to be resolvable to match analysis results
+    ratings = {}
+    base_dir = Path.cwd()  # Current directory (example-project/)
+    for filepath, items in expected['sample_audit_ratings']['ratings'].items():
+        # Resolve relative path to absolute path
+        abs_path = str((base_dir / filepath).resolve())
+        if abs_path not in ratings:
+            ratings[abs_path] = {}
+        for item_name, rating in items.items():
+            ratings[abs_path][item_name] = rating
 
-# Write audit.json
-audit_data = {'ratings': ratings}
-Path('.docimp/session-reports').mkdir(parents=True, exist_ok=True)
-with open('.docimp/session-reports/audit.json', 'w') as f:
-    json.dump(audit_data, f, indent=2)
+    # Write audit.json
+    audit_data = {'ratings': ratings}
+    Path('.docimp/session-reports').mkdir(parents=True, exist_ok=True)
+    with open('.docimp/session-reports/audit.json', 'w') as f:
+        json.dump(audit_data, f, indent=2)
 
-print("✓ Created audit fixture from expected results")
+    print("✓ Created audit fixture from expected results")
+except KeyError as e:
+    print(f"ERROR: Missing expected key in expected-results.json: {e}", file=sys.stderr)
+    sys.exit(1)
+except Exception as e:
+    print(f"ERROR: Failed to create audit fixture: {e}", file=sys.stderr)
+    sys.exit(1)
 PYTHON_SCRIPT
 
 if [ $? -eq 0 ]; then
@@ -211,7 +231,7 @@ if command -v jq &> /dev/null; then
 
     # Verify expected plan item count for workflow B
     PLAN_ITEMS=$(jq '.items | length' .docimp/session-reports/plan.json)
-    EXPECTED_PLAN_ITEMS=27  # 19 undocumented + ~8 rated 1-2 from expected-results.json
+    EXPECTED_PLAN_ITEMS=27  # 19 undocumented + ~9 rated 1-2 from expected-results.json
 
     # Allow tolerance (within 3 items) - exact count may vary with code changes
     DIFF=$((PLAN_ITEMS > EXPECTED_PLAN_ITEMS ? PLAN_ITEMS - EXPECTED_PLAN_ITEMS : EXPECTED_PLAN_ITEMS - PLAN_ITEMS))
