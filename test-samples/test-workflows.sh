@@ -223,22 +223,24 @@ if command -v jq &> /dev/null; then
     # Check that at least one item has non-null audit rating
     ITEMS_WITH_RATINGS=$(jq '[.items[] | select(.audit_rating != null)] | length' .docimp/session-reports/plan.json)
 
-    if [ "$ITEMS_WITH_RATINGS" -gt 0 ]; then
-        print_success "Workflow B: Audit ratings applied to $ITEMS_WITH_RATINGS plan items"
+    EXPECTED_MIN_RATED=9  # Minimum items with audit ratings (rated 1-2 from expected-results.json)
+
+    if [ "$ITEMS_WITH_RATINGS" -ge "$EXPECTED_MIN_RATED" ]; then
+        print_success "Workflow B: At least $EXPECTED_MIN_RATED items have audit ratings ($ITEMS_WITH_RATINGS found)"
     else
-        print_failure "Workflow B: No items have audit ratings (regression!)"
+        print_failure "Workflow B: Expected at least $EXPECTED_MIN_RATED rated items, got $ITEMS_WITH_RATINGS"
     fi
 
     # Verify expected plan item count for workflow B
     PLAN_ITEMS=$(jq '.items | length' .docimp/session-reports/plan.json)
     EXPECTED_PLAN_ITEMS=27  # 19 undocumented + ~9 rated 1-2 from expected-results.json
 
-    # Allow tolerance (within 3 items) - exact count may vary with code changes
+    # Strict count check (±1 tolerance for minor edge cases)
     DIFF=$((PLAN_ITEMS > EXPECTED_PLAN_ITEMS ? PLAN_ITEMS - EXPECTED_PLAN_ITEMS : EXPECTED_PLAN_ITEMS - PLAN_ITEMS))
-    if [ $DIFF -le 3 ]; then
-        print_success "Workflow B plan items: $PLAN_ITEMS (expected ~$EXPECTED_PLAN_ITEMS)"
+    if [ $DIFF -le 1 ]; then
+        print_success "Workflow B plan items: $PLAN_ITEMS (expected: $EXPECTED_PLAN_ITEMS)"
     else
-        print_warning "Workflow B plan items: $PLAN_ITEMS (expected ~$EXPECTED_PLAN_ITEMS, diff: $DIFF)"
+        print_failure "Workflow B plan items: $PLAN_ITEMS (expected: $EXPECTED_PLAN_ITEMS, diff: $DIFF too large)"
     fi
 else
     print_warning "jq not installed, skipping detailed audit rating verification"
