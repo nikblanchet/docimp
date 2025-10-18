@@ -316,6 +316,74 @@ git checkout HEAD -- .
 - Check StateManager implementation in Task 1
 - Verify analyze command creates state directory
 
+## Maintenance
+
+### Updating Expected Results
+
+When you make intentional changes to the example-project code or when parser improvements legitimately change item counts, use the automated script to regenerate `expected-results.json`:
+
+```bash
+# From repository root or test-samples directory
+./test-samples/scripts/update-expected-results.sh
+```
+
+**The script will:**
+
+1. Run `docimp analyze` on example-project
+2. Extract the `analysis` section from the results
+3. Preserve manually-maintained sections:
+   - `high_priority_items`
+   - `sample_audit_ratings`
+   - `expected_plan_items`
+   - `notes`
+4. Add version field (`version: "1.0"`) for backward compatibility tracking (Issue #201)
+5. Output to `expected-results-new.json` for review
+6. Show a diff of what changed
+
+**Version Field**: The `version` field indicates the schema version of `expected-results.json`. Currently at "1.0". This field should be incremented if the structure of expected-results.json changes in breaking ways (e.g., renaming fields, changing data types, or adding required fields).
+
+**Review workflow:**
+
+```bash
+# After running the script, review changes
+diff expected-results.json expected-results-new.json
+
+# If changes are expected and correct, replace
+mv expected-results-new.json expected-results.json
+
+# Commit the updated expectations
+git add expected-results.json
+git commit -m "Update expected results after [description of change]"
+```
+
+**When to regenerate:**
+
+- After adding/removing functions in example-project
+- After parser improvements that correctly change detection
+- After configuration changes (exclude patterns, etc.)
+- After fixing bugs that change analysis accuracy
+
+**When NOT to regenerate:**
+
+- Analysis results changed unexpectedly (investigate first)
+- You haven't verified the new counts are correct
+- Tests are failing and you don't understand why
+
+**Important**: Always understand why the numbers changed before accepting new expected results. Unexpected changes may indicate bugs in the parser or analysis logic.
+
+### Manually-Maintained Sections
+
+The following sections in `expected-results.json` are **NOT** auto-generated and must be updated manually when needed:
+
+- **`description`**: Human-readable description of the file's purpose
+- **`note`**: Important context about how values are generated
+- **`high_priority_items`**: Representative sample of high-impact items for validation
+- **`sample_audit_ratings`**: Consistent audit ratings for workflow B testing
+- **`expected_plan_items`**: Expected plan counts for both workflows A and B
+- **`notes`**: Important context about exclusions, restoration, etc.
+
+If you modify these sections, the update script will preserve your changes. The `description` and `note` fields have sensible defaults if missing.
+
 ## Contributing
 
 When modifying test samples:
