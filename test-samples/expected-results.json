@@ -1,0 +1,208 @@
+{
+  "description": "Expected analysis results for test-samples/example-project/",
+  "note": "These values are generated from actual analysis and should be updated if code changes",
+  "analysis": {
+    "total_items": 62,
+    "documented_items": 43,
+    "undocumented_items": 19,
+    "coverage_percent": 69.35,
+    "by_language": {
+      "python": {
+        "total_items": 25,
+        "documented_items": 18,
+        "coverage_percent": 72.0,
+        "avg_complexity": 2.68,
+        "avg_impact_score": 13.4
+      },
+      "javascript": {
+        "total_items": 18,
+        "documented_items": 13,
+        "coverage_percent": 72.22,
+        "avg_complexity": 2.56,
+        "avg_impact_score": 12.78
+      },
+      "typescript": {
+        "total_items": 19,
+        "documented_items": 12,
+        "coverage_percent": 63.16,
+        "avg_complexity": 1.79,
+        "avg_impact_score": 8.95
+      }
+    }
+  },
+  "high_priority_items": [
+    {
+      "name": "validate_username",
+      "filepath": "src/python/validator.py",
+      "complexity": 8,
+      "impact_score": 40.0,
+      "has_docs": false,
+      "reason": "Highest complexity undocumented item"
+    },
+    {
+      "name": "validate_password",
+      "filepath": "src/python/validator.py",
+      "complexity": 7,
+      "impact_score": 35.0,
+      "has_docs": true,
+      "note": "Has docs but minimal quality"
+    },
+    {
+      "name": "clone",
+      "filepath": "src/javascript/helpers.cjs",
+      "complexity": 6,
+      "impact_score": 30.0,
+      "has_docs": true,
+      "note": "Has docs but minimal quality"
+    },
+    {
+      "name": "merge",
+      "filepath": "src/javascript/helpers.cjs",
+      "complexity": 6,
+      "impact_score": 30.0,
+      "has_docs": false,
+      "reason": "High complexity, no documentation"
+    },
+    {
+      "name": "validateUser",
+      "filepath": "src/typescript/service.ts",
+      "complexity": 5,
+      "impact_score": 25.0,
+      "has_docs": false,
+      "reason": "Complex validation logic, no documentation"
+    }
+  ],
+  "sample_audit_ratings": {
+    "description": "Consistent audit ratings for testing workflow B",
+    "note": "Use these ratings when running 'docimp audit' for repeatable testing",
+    "ratings": {
+      "src/python/calculator.py": {
+        "add": 4,
+        "subtract": 2,
+        "multiply": null,
+        "divide": 3,
+        "calculate_factorial": 3,
+        "power": null,
+        "calculate_average": 3,
+        "Calculator": 3,
+        "Calculator.__init__": 3,
+        "Calculator.add_to_memory": 3,
+        "Calculator.clear_memory": null,
+        "Calculator.get_memory": 3
+      },
+      "src/python/validator.py": {
+        "validate_email": 4,
+        "validate_password": 2,
+        "validate_username": null,
+        "validate_phone_number": 3,
+        "sanitize_input": null,
+        "InputValidator": 3,
+        "InputValidator.__init__": 3,
+        "InputValidator.validate": 3,
+        "InputValidator.get_errors": null
+      },
+      "src/typescript/service.ts": {
+        "User": 3,
+        "Database": 3,
+        "Logger": 3,
+        "UserService": 3,
+        "UserService.getUserById": 3,
+        "UserService.createUser": null,
+        "UserService.updateUser": 2,
+        "UserService.deleteUser": null,
+        "UserService.generateId": null,
+        "getUsersByRole": 3,
+        "validateUser": null
+      },
+      "src/typescript/utils.ts": {
+        "formatDate": 3,
+        "parseDate": 2,
+        "delay": null,
+        "capitalize": 3,
+        "truncate": null,
+        "isValidJson": 2,
+        "debounce": null,
+        "retry": 3
+      },
+      "src/javascript/api.js": {
+        "get": 3,
+        "post": 2,
+        "put": null,
+        "del": 3,
+        "ApiClient": 3,
+        "ApiClient.request": null,
+        "ApiClient.get": 3,
+        "ApiClient.post": 2
+      },
+      "src/javascript/helpers.cjs": {
+        "isEmpty": 3,
+        "clone": 2,
+        "merge": null,
+        "getProperty": 3,
+        "formatNumber": 3,
+        "generateRandomString": null,
+        "Cache": 2,
+        "Cache.get": 3,
+        "Cache.set": null,
+        "Cache.clear": 3
+      }
+    },
+    "rating_summary": {
+      "total_documented": 43,
+      "rated_excellent_4": 2,
+      "rated_good_3": 29,
+      "rated_ok_2": 7,
+      "rated_terrible_1": 0,
+      "skipped": 5
+    }
+  },
+  "expected_plan_items": {
+    "workflow_a": {
+      "description": "Without audit (complexity-only)",
+      "expected_count": 19,
+      "note": "All undocumented items should appear in plan"
+    },
+    "workflow_b": {
+      "description": "With audit (quality threshold = 2)",
+      "expected_count": 12,
+      "note": "Items with no docs OR rated 1-2 should appear",
+      "items_from_ratings": [
+        "subtract (rating 2)",
+        "validate_password (rating 2)",
+        "UserService.updateUser (rating 2)",
+        "parseDate (rating 2)",
+        "post (rating 2)",
+        "clone (rating 2)",
+        "isValidJson (rating 2)",
+        "Cache (rating 2)",
+        "ApiClient.post (rating 2)"
+      ],
+      "items_from_no_docs": [
+        "multiply",
+        "power",
+        "Calculator.clear_memory",
+        "validate_username",
+        "sanitize_input",
+        "InputValidator.get_errors",
+        "UserService.createUser",
+        "UserService.deleteUser",
+        "UserService.generateId",
+        "validateUser",
+        "delay",
+        "truncate",
+        "debounce",
+        "put",
+        "ApiClient.request",
+        "merge",
+        "generateRandomString",
+        "Cache.set"
+      ]
+    }
+  },
+  "notes": {
+    "node_modules": "node_modules/fake-package/ should be excluded (not counted in totals)",
+    "test_files": "tests/test_calculator.py IS included in analysis (MVP behavior)",
+    "restoration": "Use 'git restore test-samples/example-project/' to reset after improve",
+    "consistency": "Run audit with sample_audit_ratings above for consistent workflow B testing"
+  }
+}
