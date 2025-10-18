@@ -233,6 +233,54 @@ The Workflow B test creates a non-interactive audit fixture to simulate user rat
 
 This provides regression protection for the audit rating application feature without requiring interactive user input.
 
+## Testing Improve Command
+
+The improve command is the primary user-facing feature of DocImp, but it requires manual testing due to:
+- Claude API interaction (requires ANTHROPIC_API_KEY)
+- Interactive user input (A/E/R/S/Q choices)
+- Actual file modifications
+
+### Manual Testing Procedure
+
+Run the documented manual testing procedure:
+
+```bash
+cd test-samples/
+
+# Ensure API key is set
+export ANTHROPIC_API_KEY=sk-ant-...
+
+# Run manual test procedure
+chmod +x test-workflows-improve.sh
+./test-workflows-improve.sh
+```
+
+The script will:
+1. Verify ANTHROPIC_API_KEY is set
+2. Clean state and restore files
+3. Run analyze → plan workflow
+4. Show which item will be improved
+5. Provide interactive testing instructions
+6. Validate that documentation was inserted
+7. Offer to restore files to clean state
+
+### What to Verify
+
+During manual testing, verify:
+- Documentation is inserted at the correct location
+- Documentation matches expected style (NumPy for Python, JSDoc for TypeScript/JavaScript)
+- File syntax remains valid (no indentation errors)
+- Git diff shows the expected changes
+- Multiple user choices work correctly: [A] Accept, [E] Edit, [R] Regenerate, [S] Skip, [Q] Quit
+
+### Future Enhancement
+
+When ClaudeClient mocking is implemented, this manual procedure can be converted to automated tests:
+- Mock Claude responses with predetermined documentation
+- Validate DocstringWriter inserts at correct locations
+- Test all code paths (accept, edit, regenerate, skip)
+- Run in CI without API key requirement
+
 ## Adding to CI
 
 To run these tests in CI/CD:
