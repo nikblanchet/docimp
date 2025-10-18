@@ -234,12 +234,12 @@ jobs:
 
       - name: Run workflow validation tests
         run: |
-          # Detect Python path for subprocess spawning (fixes ENOENT in wrapper context)
-          PYTHON_PATH=$(which python3 || which python || echo "python3")
+          # Use 'python' command which is more reliable in GitHub Actions
+          # (setup-python creates both 'python' and 'python3', but 'python' is the primary symlink)
 
           # Create wrapper script for docimp (npm link is unreliable in CI)
           echo '#!/bin/bash' > /tmp/docimp
-          echo "export DOCIMP_PYTHON_PATH=\"$PYTHON_PATH\"" >> /tmp/docimp
+          echo 'export DOCIMP_PYTHON_PATH="python"' >> /tmp/docimp
           echo 'exec node "$GITHUB_WORKSPACE/cli/dist/index.js" "$@"' >> /tmp/docimp
           chmod +x /tmp/docimp
           export PATH="/tmp:$PATH"
