@@ -12,11 +12,17 @@ import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult } from '
 
 /**
  * Detect available Python executable.
- * First checks DOCIMP_PYTHON_PATH environment variable (for CI),
+ * Checks GitHub Actions pythonLocation first, then DOCIMP_PYTHON_PATH,
  * then tries python3, python, and py.
  */
 function detectPythonExecutable(): string {
-  // Check for explicit path from environment (used in CI)
+  // GitHub Actions sets pythonLocation env var (e.g., /opt/hostedtoolcache/Python/3.13.8/x64)
+  const pythonLocation = process.env.pythonLocation;
+  if (pythonLocation) {
+    return `${pythonLocation}/bin/python`;
+  }
+
+  // Check for explicit path from environment (for CI)
   const envPath = process.env.DOCIMP_PYTHON_PATH;
   if (envPath) {
     return envPath;
