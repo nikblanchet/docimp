@@ -66,7 +66,7 @@ print_header "WORKFLOW A: analyze → plan (complexity-only)"
 
 # Analyze
 echo "Running: docimp analyze ."
-docimp analyze . > /dev/null 2>&1
+docimp analyze .
 
 # Check state directory created
 if [ -d .docimp/session-reports ]; then
@@ -92,7 +92,7 @@ fi
 # Plan (workflow A - no audit)
 echo ""
 echo "Running: docimp plan ."
-docimp plan . > /dev/null 2>&1
+docimp plan .
 
 # Check plan.json exists
 if [ -f .docimp/session-reports/plan.json ]; then
@@ -129,7 +129,7 @@ fi
 # Run analyze (should clear old files)
 echo ""
 echo "Running: docimp analyze . (should auto-clean)"
-docimp analyze . > /dev/null 2>&1
+docimp analyze .
 
 if [ ! -f .docimp/session-reports/audit.json ]; then
     print_success "Auto-clean: Old audit file cleared by analyze"
@@ -141,7 +141,7 @@ fi
 echo '{"ratings": {}}' > .docimp/session-reports/audit.json
 echo ""
 echo "Running: docimp analyze . --keep-old-reports"
-docimp analyze . --keep-old-reports > /dev/null 2>&1
+docimp analyze . --keep-old-reports
 
 if [ -f .docimp/session-reports/audit.json ]; then
     print_success "--keep-old-reports: Old audit file preserved"
@@ -156,7 +156,7 @@ print_header "STATE DIRECTORY STRUCTURE"
 
 # Clean and re-analyze
 rm -rf .docimp/
-docimp analyze . > /dev/null 2>&1
+docimp analyze .
 
 if [ -d .docimp ]; then
     print_success "State directory exists (.docimp/)"
