@@ -11,9 +11,24 @@ import { fileURLToPath } from 'url';
 import type { IPythonBridge, AnalyzeOptions, AuditOptions, PlanOptions, SuggestOptions, ApplyData } from './IPythonBridge.js';
 import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult } from '../types/analysis.js';
 
-// Get __dirname equivalent in ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+/**
+ * Get directory path for this module, compatible with both ES modules and CommonJS.
+ *
+ * In ES modules (production), use import.meta.url.
+ * In CommonJS (Jest tests), __dirname is globally available.
+ *
+ * @returns Directory path of this module
+ */
+function getCurrentDirPath(): string {
+  // Check if running in CommonJS environment (Jest)
+  if (typeof __dirname !== 'undefined') {
+    return __dirname;
+  }
+  // ES modules: use import.meta.url
+  // Use indirect eval to avoid syntax error in CommonJS/Jest
+  const importMetaUrl = new Function('return import.meta.url')();
+  return dirname(fileURLToPath(importMetaUrl));
+}
 
 /**
  * Detect available Python executable.
@@ -88,8 +103,9 @@ export class PythonBridge implements IPythonBridge {
     // This works regardless of process.cwd(), making it safe to call
     // docimp from any working directory
     if (!analyzerPath) {
-      // Go up from cli/src/python-bridge/ to repo root, then into analyzer/
-      this.analyzerModule = resolve(__dirname, '..', '..', '..', 'analyzer');
+      // Go up from cli/src/python-bridge/ (or cli/dist/python-bridge/ after build)
+      // to repo root, then into analyzer/
+      this.analyzerModule = resolve(getCurrentDirPath(), '..', '..', '..', 'analyzer');
     } else {
       this.analyzerModule = analyzerPath;
     }
