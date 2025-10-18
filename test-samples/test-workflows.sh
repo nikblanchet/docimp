@@ -377,6 +377,48 @@ else
 fi
 
 #
+# EXPECTED RESULTS VALIDATION
+#
+print_header "EXPECTED RESULTS VALIDATION"
+
+echo "Validating expected-results.json accuracy..."
+echo ""
+
+# Check if jq is available (required for validation)
+if ! command -v jq &> /dev/null; then
+    print_warning "jq not installed, skipping expected results validation"
+elif ! command -v bc &> /dev/null; then
+    print_warning "bc not installed, skipping expected results validation"
+else
+    # Compare actual vs expected totals
+    ACTUAL_TOTAL=$(jq -r '.total_items' .docimp/session-reports/analyze-latest.json)
+    EXPECTED_TOTAL=$(jq -r '.analysis.total_items' ../expected-results.json)
+
+    if [ "$ACTUAL_TOTAL" -eq "$EXPECTED_TOTAL" ]; then
+        print_success "Total items match: $ACTUAL_TOTAL"
+    else
+        print_failure "Total items mismatch: actual=$ACTUAL_TOTAL, expected=$EXPECTED_TOTAL"
+        echo "If this change is intentional, update expected-results.json"
+        echo "If unexpected, investigate why analysis results changed"
+    fi
+
+    # Compare coverage percentage
+    ACTUAL_COVERAGE=$(jq -r '.coverage_percent' .docimp/session-reports/analyze-latest.json)
+    EXPECTED_COVERAGE=$(jq -r '.analysis.coverage_percent' ../expected-results.json)
+
+    # Allow 0.1% variance due to rounding
+    COVERAGE_DIFF=$(echo "$ACTUAL_COVERAGE - $EXPECTED_COVERAGE" | bc | sed 's/^-//')
+    if (( $(echo "$COVERAGE_DIFF < 0.1" | bc -l) )); then
+        print_success "Coverage percentage matches: $ACTUAL_COVERAGE%"
+    else
+        print_warning "Coverage percentage differs: actual=$ACTUAL_COVERAGE%, expected=$EXPECTED_COVERAGE%"
+        echo "Difference: ${COVERAGE_DIFF}%"
+    fi
+fi
+
+echo ""
+
+#
 # ERROR CONDITION TESTING
 #
 print_header "ERROR CONDITION TESTING"
