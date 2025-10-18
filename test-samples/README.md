@@ -211,11 +211,27 @@ cd test-samples/
 
 The script validates:
 
-- Workflow A (analyze → plan) works correctly
-- Workflow B (analyze → audit → plan) works correctly
-- Audit ratings are applied to plan items
+- **Workflow A** (analyze → plan) works correctly with complexity-only scoring
+- **Workflow B** (analyze → audit → plan) works correctly with quality ratings applied
+  - Creates audit.json fixture from expected-results.json
+  - Converts relative paths to absolute paths for proper matching
+  - Validates that audit ratings are applied (non-null in plan items)
+  - Checks plan item count is approximately correct (~27 items)
+  - Verifies at least 9 items have audit ratings
 - Auto-clean prevents stale data
 - --keep-old-reports flag works
+
+### How Workflow B Automation Works
+
+The Workflow B test creates a non-interactive audit fixture to simulate user ratings:
+
+1. **Reads expected-results.json**: Contains sample audit ratings for specific items
+2. **Converts to audit.json format**: Transforms ratings into the session report format
+3. **Path normalization**: Converts relative paths to absolute paths (critical for matching with analysis results)
+4. **Runs plan command**: Applies audit ratings to impact scores
+5. **Validates results**: Checks that ratings are applied and plan item count is correct
+
+This provides regression protection for the audit rating application feature without requiring interactive user input.
 
 ## Adding to CI
 
