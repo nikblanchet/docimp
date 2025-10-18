@@ -6,9 +6,14 @@
  */
 
 import { spawn, spawnSync } from 'child_process';
-import { resolve } from 'path';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import type { IPythonBridge, AnalyzeOptions, AuditOptions, PlanOptions, SuggestOptions, ApplyData } from './IPythonBridge.js';
 import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult } from '../types/analysis.js';
+
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 /**
  * Detect available Python executable.
@@ -78,18 +83,13 @@ export class PythonBridge implements IPythonBridge {
   ) {
     this.pythonPath = pythonPath || detectPythonExecutable();
 
-    // Auto-detect analyzer path relative to this file
-    // cli/src/python-bridge/PythonBridge.ts -> analyzer/
+    // Auto-detect analyzer path relative to this file location
+    // cli/src/python-bridge/PythonBridge.ts -> ../../analyzer/
+    // This works regardless of process.cwd(), making it safe to call
+    // docimp from any working directory
     if (!analyzerPath) {
-      // Check if we're in cli/ directory (most common case)
-      // If process.cwd() ends with 'cli', go up one level
-      const cwd = process.cwd();
-      if (cwd.endsWith('cli')) {
-        this.analyzerModule = resolve(cwd, '..', 'analyzer');
-      } else {
-        // Otherwise assume we're at repo root
-        this.analyzerModule = resolve(cwd, 'analyzer');
-      }
+      // Go up from cli/src/python-bridge/ to repo root, then into analyzer/
+      this.analyzerModule = resolve(__dirname, '..', '..', '..', 'analyzer');
     } else {
       this.analyzerModule = analyzerPath;
     }
