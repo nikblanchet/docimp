@@ -43,9 +43,10 @@ dist/
 # Project-specific
 CLAUDE.md
 CLAUDE_CONTEXT.md
-PLAN.md
-PLAN_INTERRUPTION.md
-ISSUE_ANALYSIS.md
+
+# Temporary planning and scratch files
+.scratch/
+.planning/
 
 # State directory (working files, session reports, history)
 .docimp/

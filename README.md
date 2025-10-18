@@ -854,6 +854,52 @@ npm test
 npm run test:integration
 ```
 
+### Known Test Coverage Limitations
+
+The following testing gaps represent conscious trade-off decisions made during development to prioritize shipping a functional MVP:
+
+#### Improve Command - Manual Testing Only
+
+**Status**: No automated tests. Manual testing procedure documented in `test-samples/test-workflows-improve.sh`.
+
+**Why**: Requires `ANTHROPIC_API_KEY`, interactive user input (A/E/R/S/Q choices), and incurs API costs. Mocking the Claude client is significant engineering effort.
+
+**Risk**: Medium - Primary feature lacks regression testing, but functionality is straightforward.
+
+**Mitigation**: Manual testing runbook available for pre-release validation.
+
+#### Error Condition Testing - Limited Coverage
+
+**Status**: Minimal testing of error conditions (corrupted state files, malformed JSON, filesystem errors).
+
+**Why**: Users can recover by deleting `.docimp/` directory. Corrupted state files are rare. Focus prioritized on happy path functionality.
+
+**Risk**: Low - Edge case failures don't impact primary workflows.
+
+**Mitigation**: StateManager uses standard JSON parsing with basic error handling.
+
+#### Scaling and Performance - Small Test Samples
+
+**Status**: Test samples intentionally kept small (~62 items). Large codebase performance not formally validated.
+
+**Why**: Small samples enable complete manual audits. Cyclomatic complexity algorithms scale linearly. No algorithmic bottlenecks. Real-world validation occurs when running DocImp on itself during development.
+
+**Risk**: Very low - Architecture has no scaling concerns.
+
+#### Cross-Platform Testing - Ubuntu Only
+
+**Status**: CI runs on `ubuntu-latest` only. Windows and macOS not tested in CI.
+
+**Why**: Project targets Unix-like environments primarily. Multi-platform CI adds cost/complexity. Core Python/TypeScript/Node stack is inherently cross-platform.
+
+**Risk**: Low - Standard tooling is well-tested across platforms.
+
+**Future**: Additional platforms will be added to CI matrix if issues are discovered.
+
+---
+
+**Note**: These limitations are tracked in GitHub issues and will be addressed in future releases. See Issues #174 (improve testing) and #175 (error conditions) for planned enhancements.
+
 ---
 
 ## License

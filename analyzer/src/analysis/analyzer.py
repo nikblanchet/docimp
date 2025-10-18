@@ -39,6 +39,9 @@ class DocumentationAnalyzer:
         '.tox',
         'eggs',
         '.eggs',
+        'tests',  # Exclude test directories
+        'test',   # Common test directory name
+        '__tests__',  # Jest convention
     }
 
     # File extension to language mapping
