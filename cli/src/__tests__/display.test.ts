@@ -80,7 +80,7 @@ describe('TerminalDisplay.showAuditSummary', () => {
     expect(loggedLines.some((line) => line.includes('Terrible (1):  2 items'))).toBe(true);
     expect(loggedLines.some((line) => line.includes('OK (2):        3 items'))).toBe(true);
     expect(loggedLines.some((line) => line.includes('Good (3):      4 items'))).toBe(true);
-    expect(loggedLines.some((line) => line.includes('Excellent (4): 1 items'))).toBe(true);
+    expect(loggedLines.some((line) => line.includes('Excellent (4): 1 item'))).toBe(true);
     expect(loggedLines.some((line) => line.includes('Audit saved to:'))).toBe(true);
     expect(loggedLines.some((line) => line.includes('.docimp/session-reports/audit.json'))).toBe(true);
     expect(loggedLines.some((line) => line.includes('Next steps:'))).toBe(true);
@@ -201,5 +201,34 @@ describe('TerminalDisplay.showAuditSummary', () => {
 
     // Verify it doesn't crash and shows 0.0%
     expect(loggedLines.some((line) => line.includes('Audited: 0 / 0 documented items (0.0%)'))).toBe(true);
+  });
+
+  it('uses singular "item" when count is 1', () => {
+    const summary: AuditSummary = {
+      totalItems: 10,
+      auditedItems: 5,
+      ratingCounts: {
+        terrible: 1,
+        ok: 1,
+        good: 1,
+        excellent: 1,
+        skipped: 1,
+      },
+      auditFile: '.docimp/session-reports/audit.json',
+    };
+
+    display.showAuditSummary(summary);
+
+    const loggedLines = consoleLogSpy.mock.calls.map((call) => call[0]);
+
+    // Verify singular "item" is used for count of 1
+    expect(loggedLines.some((line) => line.includes('Terrible (1):  1 item'))).toBe(true);
+    expect(loggedLines.some((line) => line.includes('OK (2):        1 item'))).toBe(true);
+    expect(loggedLines.some((line) => line.includes('Good (3):      1 item'))).toBe(true);
+    expect(loggedLines.some((line) => line.includes('Excellent (4): 1 item'))).toBe(true);
+    expect(loggedLines.some((line) => line.includes('Skipped:       1 item'))).toBe(true);
+
+    // Verify plural "items" is NOT used
+    expect(loggedLines.some((line) => line.includes('1 items'))).toBe(false);
   });
 });

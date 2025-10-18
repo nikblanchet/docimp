@@ -375,23 +375,23 @@ export class TerminalDisplay implements IDisplay {
 
     // Only show ratings that have counts > 0
     if (ratingCounts.terrible > 0) {
-      const line = `  ${chalk.red('•')} Terrible (1):  ${ratingCounts.terrible} items`;
+      const line = `  ${chalk.red('•')} Terrible (1):  ${ratingCounts.terrible} ${this.pluralize(ratingCounts.terrible, 'item', 'items')}`;
       console.log('│' + this.padLeft(line, width, true) + '│');
     }
     if (ratingCounts.ok > 0) {
-      const line = `  ${chalk.yellow('•')} OK (2):        ${ratingCounts.ok} items`;
+      const line = `  ${chalk.yellow('•')} OK (2):        ${ratingCounts.ok} ${this.pluralize(ratingCounts.ok, 'item', 'items')}`;
       console.log('│' + this.padLeft(line, width, true) + '│');
     }
     if (ratingCounts.good > 0) {
-      const line = `  ${chalk.green('•')} Good (3):      ${ratingCounts.good} items`;
+      const line = `  ${chalk.green('•')} Good (3):      ${ratingCounts.good} ${this.pluralize(ratingCounts.good, 'item', 'items')}`;
       console.log('│' + this.padLeft(line, width, true) + '│');
     }
     if (ratingCounts.excellent > 0) {
-      const line = `  ${chalk.green('•')} Excellent (4): ${ratingCounts.excellent} items`;
+      const line = `  ${chalk.green('•')} Excellent (4): ${ratingCounts.excellent} ${this.pluralize(ratingCounts.excellent, 'item', 'items')}`;
       console.log('│' + this.padLeft(line, width, true) + '│');
     }
     if (ratingCounts.skipped > 0) {
-      const line = `  ${chalk.gray('•')} Skipped:       ${ratingCounts.skipped} items`;
+      const line = `  ${chalk.gray('•')} Skipped:       ${ratingCounts.skipped} ${this.pluralize(ratingCounts.skipped, 'item', 'items')}`;
       console.log('│' + this.padLeft(line, width, true) + '│');
     }
 
@@ -434,5 +434,12 @@ export class TerminalDisplay implements IDisplay {
     // eslint-disable-next-line no-control-regex
     const stripped = str.replace(/\u001b\[[0-9;]*m/g, '');
     return stripped.length;
+  }
+
+  /**
+   * Pluralize a word based on count.
+   */
+  private pluralize(count: number, singular: string, plural: string): string {
+    return count === 1 ? singular : plural;
   }
 }
