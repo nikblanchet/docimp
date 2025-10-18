@@ -1,0 +1,603 @@
+"""Tests for the plan generator module."""
+
+import sys
+from pathlib import Path
+import tempfile
+
+import pytest
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from src.planning.plan_generator import generate_plan
+from src.models.code_item import CodeItem
+from src.models.analysis_result import AnalysisResult, LanguageMetrics
+from src.audit.quality_rater import AuditResult, save_audit_results
+
+
+class TestPlanGenerator:
+    """Test suite for plan generation functionality."""
+
+    @pytest.fixture
+    def sample_items(self):
+        """Return a list of sample CodeItems for testing."""
+        return [
+            CodeItem(
+                name='undocumented_func',
+                type='function',
+                filepath='test.py',
+                line_number=1,
+                language='python',
+                complexity=10,
+                has_docs=False,
+                export_type='internal',
+                module_system='unknown',
+                impact_score=50.0,
+                audit_rating=None
+            ),
+            CodeItem(
+                name='documented_terrible',
+                type='function',
+                filepath='test.py',
+                line_number=10,
+                language='python',
+                complexity=8,
+                has_docs=True,
+                export_type='internal',
+                module_system='unknown',
+                impact_score=40.0,
+                audit_rating=None,
+                docstring='Terrible docs'
+            ),
+            CodeItem(
+                name='documented_ok',
+                type='function',
+                filepath='test.py',
+                line_number=20,
+                language='python',
+                complexity=6,
+                has_docs=True,
+                export_type='internal',
+                module_system='unknown',
+                impact_score=30.0,
+                audit_rating=None,
+                docstring='OK docs'
+            ),
+            CodeItem(
+                name='documented_good',
+                type='function',
+                filepath='test.py',
+                line_number=30,
+                language='python',
+                complexity=5,
+                has_docs=True,
+                export_type='internal',
+                module_system='unknown',
+                impact_score=25.0,
+                audit_rating=None,
+                docstring='Good docs'
+            ),
+            CodeItem(
+                name='documented_excellent',
+                type='function',
+                filepath='test.py',
+                line_number=40,
+                language='python',
+                complexity=4,
+                has_docs=True,
+                export_type='internal',
+                module_system='unknown',
+                impact_score=20.0,
+                audit_rating=None,
+                docstring='Excellent docs'
+            ),
+        ]
+
+    @pytest.fixture
+    def sample_result(self, sample_items):
+        """Return a sample AnalysisResult for testing."""
+        return AnalysisResult(
+            items=sample_items,
+            coverage_percent=80.0,
+            total_items=5,
+            documented_items=4,
+            by_language={
+                'python': LanguageMetrics(
+                    language='python',
+                    total_items=5,
+                    documented_items=4,
+                    coverage_percent=80.0,
+                    avg_complexity=6.6,
+                    avg_impact_score=33.0
+                )
+            }
+        )
+
+    @pytest.fixture
+    def sample_audit(self):
+        """Return a sample AuditResult for testing."""
+        audit = AuditResult(ratings={})
+        audit.set_rating('test.py', 'documented_terrible', 1)  # Terrible
+        audit.set_rating('test.py', 'documented_ok', 2)  # OK
+        audit.set_rating('test.py', 'documented_good', 3)  # Good
+        audit.set_rating('test.py', 'documented_excellent', 4)  # Excellent
+        return audit
+
+    def test_generate_plan_with_audit_file_none(self, sample_result):
+        """Test plan generation with audit_file=None (uses StateManager default)."""
+        # Call with audit_file=None to test StateManager fallback
+        plan = generate_plan(sample_result, audit_file=None)
+
+        # Should include only undocumented items (StateManager default likely doesn't exist)
+        assert plan.total_items == 1
+        assert plan.missing_docs_count == 1
+        assert plan.poor_quality_count == 0
+        assert plan.items[0].name == 'undocumented_func'
+
+    def test_generate_plan_with_nonexistent_audit_file(self, sample_result):
+        """Test graceful degradation when explicit audit file path doesn't exist."""
+        # Use explicit non-existent path (different from None/StateManager fallback)
+        audit_file = Path('/tmp/nonexistent_audit_file_12345.json')
+        assert not audit_file.exists()
+
+        # Should not crash
+        plan = generate_plan(sample_result, audit_file=audit_file)
+
+        # Should only include undocumented items
+        assert plan.total_items == 1
+        assert plan.missing_docs_count == 1
+        assert plan.poor_quality_count == 0
+        assert plan.items[0].name == 'undocumented_func'
+
+    def test_generate_plan_applies_audit_ratings(self, sample_result, sample_audit):
+        """Test that audit ratings are applied to items."""
+        # Save audit to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(sample_audit, audit_file)
+
+        try:
+            # Generate plan (side effect: applies ratings to items)
+            _ = generate_plan(sample_result, audit_file=audit_file)
+
+            # Find the items in the original result to verify ratings were applied
+            terrible_item = next(i for i in sample_result.items if i.name == 'documented_terrible')
+            ok_item = next(i for i in sample_result.items if i.name == 'documented_ok')
+            good_item = next(i for i in sample_result.items if i.name == 'documented_good')
+            excellent_item = next(i for i in sample_result.items if i.name == 'documented_excellent')
+
+            # Verify ratings were applied
+            assert terrible_item.audit_rating == 1
+            assert ok_item.audit_rating == 2
+            assert good_item.audit_rating == 3
+            assert excellent_item.audit_rating == 4
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_recalculates_impact_scores(self, sample_result, sample_audit):
+        """Test that impact scores are recalculated with audit ratings."""
+        # Save initial scores
+        initial_scores = {item.name: item.impact_score for item in sample_result.items}
+
+        # Save audit to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(sample_audit, audit_file)
+
+        try:
+            # Generate plan (side effect: recalculates impact scores)
+            _ = generate_plan(sample_result, audit_file=audit_file)
+
+            # Verify impact scores changed for items with audit ratings
+            terrible_item = next(i for i in sample_result.items if i.name == 'documented_terrible')
+            ok_item = next(i for i in sample_result.items if i.name == 'documented_ok')
+
+            # Impact scores should be different from initial (because audit ratings were applied)
+            assert terrible_item.impact_score != initial_scores['documented_terrible']
+            assert ok_item.impact_score != initial_scores['documented_ok']
+
+            # Impact score for terrible docs should be higher than for OK docs
+            # (both have audit ratings applied, but terrible gets higher penalty)
+            assert terrible_item.impact_score > ok_item.impact_score
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_filters_by_quality_threshold(self, sample_result, sample_audit):
+        """Test that only poor quality items are included based on threshold."""
+        # Save audit to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(sample_audit, audit_file)
+
+        try:
+            # Generate plan with threshold=2 (include Terrible=1 and OK=2)
+            plan = generate_plan(sample_result, audit_file=audit_file, quality_threshold=2)
+
+            # Should include: undocumented + terrible + ok
+            assert plan.total_items == 3
+            assert plan.missing_docs_count == 1
+            assert plan.poor_quality_count == 2
+
+            # Verify the items
+            item_names = {item.name for item in plan.items}
+            assert 'undocumented_func' in item_names
+            assert 'documented_terrible' in item_names
+            assert 'documented_ok' in item_names
+            assert 'documented_good' not in item_names
+            assert 'documented_excellent' not in item_names
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_matches_by_filepath_and_name(self, sample_result):
+        """Test that ratings are matched correctly by filepath and name."""
+        # Create audit with rating for different file
+        audit = AuditResult(ratings={})
+        audit.set_rating('other.py', 'documented_terrible', 1)  # Different file
+        audit.set_rating('test.py', 'wrong_name', 1)  # Different name
+        audit.set_rating('test.py', 'documented_terrible', 1)  # Correct match
+
+        # Save audit to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(audit, audit_file)
+
+        try:
+            # Generate plan (side effect: applies ratings to matching items)
+            _ = generate_plan(sample_result, audit_file=audit_file)
+
+            # Only the correct match should have audit rating applied
+            terrible_item = next(i for i in sample_result.items if i.name == 'documented_terrible')
+            ok_item = next(i for i in sample_result.items if i.name == 'documented_ok')
+
+            assert terrible_item.audit_rating == 1
+            assert ok_item.audit_rating is None  # No rating in audit
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_handles_missing_rating(self, sample_result):
+        """Test that items without audit ratings are handled correctly."""
+        # Create audit with only some items rated
+        audit = AuditResult(ratings={})
+        audit.set_rating('test.py', 'documented_terrible', 1)
+        # Don't rate the other items
+
+        # Save audit to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(audit, audit_file)
+
+        try:
+            # Generate plan
+            plan = generate_plan(sample_result, audit_file=audit_file)
+
+            # Should include undocumented + terrible (rated as 1)
+            # Should NOT include ok/good/excellent (no ratings, so not included)
+            assert plan.total_items == 2
+            assert plan.missing_docs_count == 1
+            assert plan.poor_quality_count == 1
+
+            item_names = {item.name for item in plan.items}
+            assert 'undocumented_func' in item_names
+            assert 'documented_terrible' in item_names
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_skips_invalid_ratings(self, sample_result):
+        """Test that invalid ratings are skipped and valid ratings are applied."""
+        # Create audit with mix of valid and invalid ratings
+        audit = AuditResult(ratings={})
+        audit.set_rating('test.py', 'documented_terrible', 999)  # Invalid!
+        audit.set_rating('test.py', 'documented_ok', 2)  # Valid
+        audit.set_rating('test.py', 'documented_good', 0)  # Invalid!
+
+        # Save audit to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(audit, audit_file)
+
+        try:
+            # Generate plan (side effect: applies ratings to items)
+            _ = generate_plan(sample_result, audit_file=audit_file)
+
+            # Verify invalid ratings were skipped
+            terrible_item = next(i for i in sample_result.items if i.name == 'documented_terrible')
+            ok_item = next(i for i in sample_result.items if i.name == 'documented_ok')
+            good_item = next(i for i in sample_result.items if i.name == 'documented_good')
+
+            # Only valid rating should be applied
+            assert terrible_item.audit_rating is None  # Invalid rating skipped
+            assert ok_item.audit_rating == 2  # Valid rating applied
+            assert good_item.audit_rating is None  # Invalid rating skipped
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_tracks_invalid_ratings_count(self, sample_result):
+        """Test that invalid_ratings_count is accurate."""
+        # Create audit with invalid ratings
+        audit = AuditResult(ratings={})
+        audit.set_rating('test.py', 'documented_terrible', 999)  # Invalid
+        audit.set_rating('test.py', 'documented_ok', 0)  # Invalid
+        audit.set_rating('test.py', 'documented_good', -1)  # Invalid
+
+        # Save audit to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(audit, audit_file)
+
+        try:
+            # Generate plan
+            plan = generate_plan(sample_result, audit_file=audit_file)
+
+            # Verify count is correct
+            assert plan.invalid_ratings_count == 3
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_tracks_invalid_ratings_details(self, sample_result):
+        """Test that invalid_ratings list contains correct details."""
+        # Create audit with invalid ratings
+        audit = AuditResult(ratings={})
+        audit.set_rating('test.py', 'documented_terrible', 999)
+        audit.set_rating('test.py', 'documented_ok', 2)  # Valid
+        audit.set_rating('test.py', 'documented_good', 5)
+
+        # Save audit to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(audit, audit_file)
+
+        try:
+            # Generate plan
+            plan = generate_plan(sample_result, audit_file=audit_file)
+
+            # Verify details are correct
+            assert len(plan.invalid_ratings) == 2
+            assert {'filepath': 'test.py', 'name': 'documented_terrible', 'rating': 999} in plan.invalid_ratings
+            assert {'filepath': 'test.py', 'name': 'documented_good', 'rating': 5} in plan.invalid_ratings
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_invalid_rating_boundaries(self, sample_result):
+        """Test edge cases for invalid ratings."""
+        # Create audit with boundary invalid ratings
+        audit = AuditResult(ratings={})
+        audit.set_rating('test.py', 'documented_terrible', 0)  # Just below valid range
+        audit.set_rating('test.py', 'documented_ok', 5)  # Just above valid range
+        audit.set_rating('test.py', 'documented_good', -1)  # Negative
+        audit.set_rating('test.py', 'documented_excellent', 1)  # Valid
+
+        # Save audit to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(audit, audit_file)
+
+        try:
+            # Generate plan
+            plan = generate_plan(sample_result, audit_file=audit_file)
+
+            # Verify all invalid ratings were caught
+            assert plan.invalid_ratings_count == 3
+
+            # Verify only valid rating was applied
+            excellent_item = next(i for i in sample_result.items if i.name == 'documented_excellent')
+            assert excellent_item.audit_rating == 1
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_matches_relative_to_absolute_paths(self, sample_result):
+        """Test that relative paths in analysis match absolute paths in audit."""
+        # Create audit with absolute path
+        absolute_path = str(Path('test.py').resolve())
+        audit = AuditResult(ratings={})
+        audit.set_rating(absolute_path, 'documented_terrible', 1)
+
+        # Save audit to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(audit, audit_file)
+
+        try:
+            # sample_result has relative path 'test.py'
+            # Generate plan (side effect: applies ratings to matching items)
+            _ = generate_plan(sample_result, audit_file=audit_file)
+
+            # Verify rating was matched and applied
+            terrible_item = next(i for i in sample_result.items if i.name == 'documented_terrible')
+            assert terrible_item.audit_rating == 1
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_matches_absolute_to_relative_paths(self):
+        """Test that absolute paths in analysis match relative paths in audit."""
+        # Create item with absolute path
+        absolute_path = str(Path('test.py').resolve())
+        item = CodeItem(
+            name='documented_terrible',
+            type='function',
+            filepath=absolute_path,
+            line_number=1,
+            language='python',
+            complexity=10,
+            has_docs=True,
+            export_type='internal',
+            module_system='unknown',
+            impact_score=50.0,
+            audit_rating=None,
+            docstring='Terrible docs'
+        )
+        result = AnalysisResult(
+            items=[item],
+            coverage_percent=100.0,
+            total_items=1,
+            documented_items=1,
+            by_language={}
+        )
+
+        # Create audit with relative path
+        audit = AuditResult(ratings={})
+        audit.set_rating('test.py', 'documented_terrible', 1)
+
+        # Save audit to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(audit, audit_file)
+
+        try:
+            # Generate plan (side effect: applies ratings to matching items)
+            _ = generate_plan(result, audit_file=audit_file)
+
+            # Verify rating was matched and applied
+            assert item.audit_rating == 1
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_normalizes_dot_slash_prefix(self):
+        """Test that paths with ./ prefix are normalized correctly."""
+        # Create item with ./ prefix
+        item = CodeItem(
+            name='documented_terrible',
+            type='function',
+            filepath='./test.py',
+            line_number=1,
+            language='python',
+            complexity=10,
+            has_docs=True,
+            export_type='internal',
+            module_system='unknown',
+            impact_score=50.0,
+            audit_rating=None,
+            docstring='Terrible docs'
+        )
+        result = AnalysisResult(
+            items=[item],
+            coverage_percent=100.0,
+            total_items=1,
+            documented_items=1,
+            by_language={}
+        )
+
+        # Create audit with simple relative path
+        audit = AuditResult(ratings={})
+        audit.set_rating('test.py', 'documented_terrible', 1)
+
+        # Save audit to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(audit, audit_file)
+
+        try:
+            # Generate plan (side effect: applies ratings to matching items)
+            _ = generate_plan(result, audit_file=audit_file)
+
+            # Verify rating was matched and applied (./test.py should match test.py)
+            assert item.audit_rating == 1
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_normalizes_parent_directory_components(self):
+        """Test that paths with .. components are normalized correctly."""
+        # Create item with .. component (e.g., foo/../test.py -> test.py)
+        item = CodeItem(
+            name='documented_terrible',
+            type='function',
+            filepath='foo/../test.py',
+            line_number=1,
+            language='python',
+            complexity=10,
+            has_docs=True,
+            export_type='internal',
+            module_system='unknown',
+            impact_score=50.0,
+            audit_rating=None,
+            docstring='Terrible docs'
+        )
+        result = AnalysisResult(
+            items=[item],
+            coverage_percent=100.0,
+            total_items=1,
+            documented_items=1,
+            by_language={}
+        )
+
+        # Create audit with simple relative path
+        audit = AuditResult(ratings={})
+        audit.set_rating('test.py', 'documented_terrible', 1)
+
+        # Save audit to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(audit, audit_file)
+
+        try:
+            # Generate plan (side effect: applies ratings to matching items)
+            _ = generate_plan(result, audit_file=audit_file)
+
+            # Verify rating was matched and applied (foo/../test.py should match test.py)
+            assert item.audit_rating == 1
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_handles_corrupted_audit_json(self, sample_result):
+        """Test graceful handling of corrupted audit JSON."""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            tmp.write("{invalid json content")
+
+        try:
+            # Should not crash (load_audit_results catches JSONDecodeError)
+            plan = generate_plan(sample_result, audit_file=audit_file)
+            # Should work as if no audit file exists
+            assert plan.total_items == 1
+            assert plan.items[0].audit_rating is None
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_handles_empty_audit(self, sample_result):
+        """Test handling of audit file with no ratings."""
+        audit = AuditResult(ratings={})
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(audit, audit_file)
+
+        try:
+            _ = generate_plan(sample_result, audit_file=audit_file)
+            # Should behave same as no audit file
+            assert all(item.audit_rating is None for item in sample_result.items)
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_idempotency(self, sample_result, sample_audit):
+        """Test calling generate_plan twice with same result."""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(sample_audit, audit_file)
+
+        try:
+            plan1 = generate_plan(sample_result, audit_file=audit_file)
+            plan2 = generate_plan(sample_result, audit_file=audit_file)
+
+            # Should produce identical plans
+            assert plan1.total_items == plan2.total_items
+            assert all(p1.name == p2.name for p1, p2 in zip(plan1.items, plan2.items))
+        finally:
+            audit_file.unlink()
+
+    def test_generate_plan_handles_scorer_exception(self, sample_result, sample_audit, monkeypatch):
+        """Test handling of ImpactScorer exceptions."""
+        def mock_calculate_score(self, item):
+            raise ValueError("Scoring error")
+
+        # Mock ImpactScorer.calculate_score to raise exception
+        from src.scoring.impact_scorer import ImpactScorer
+        monkeypatch.setattr(ImpactScorer, 'calculate_score', mock_calculate_score)
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            audit_file = Path(tmp.name)
+            save_audit_results(sample_audit, audit_file)
+
+        try:
+            # Current implementation would crash - needs error handling
+            with pytest.raises(ValueError, match="Scoring error"):
+                generate_plan(sample_result, audit_file=audit_file)
+        finally:
+            audit_file.unlink()

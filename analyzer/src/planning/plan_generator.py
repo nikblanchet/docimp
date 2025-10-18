@@ -12,6 +12,7 @@ from typing import List, Optional
 from ..models.code_item import CodeItem
 from ..models.analysis_result import AnalysisResult
 from ..audit.quality_rater import load_audit_results
+from ..scoring.impact_scorer import ImpactScorer
 from ..utils.state_manager import StateManager
 
 
@@ -103,12 +104,16 @@ class PlanResult:
         total_items: Total number of items in the plan.
         missing_docs_count: Number of items with no documentation.
         poor_quality_count: Number of items with poor quality documentation.
+        invalid_ratings_count: Number of invalid audit ratings skipped.
+        invalid_ratings: Details of invalid ratings for debugging.
     """
 
     items: List[PlanItem]
     total_items: int
     missing_docs_count: int
     poor_quality_count: int
+    invalid_ratings_count: int
+    invalid_ratings: List[dict]
 
     def to_dict(self) -> dict:
         """Serialize to dictionary for JSON output.
@@ -120,7 +125,9 @@ class PlanResult:
             'items': [item.to_dict() for item in self.items],
             'total_items': self.total_items,
             'missing_docs_count': self.missing_docs_count,
-            'poor_quality_count': self.poor_quality_count
+            'poor_quality_count': self.poor_quality_count,
+            'invalid_ratings_count': self.invalid_ratings_count,
+            'invalid_ratings': self.invalid_ratings
         }
 
 
@@ -134,8 +141,23 @@ def generate_plan(
     Combines items that need documentation (missing docs or poor quality)
     and sorts them by impact score for the improve workflow.
 
+    IMPORTANT: This function mutates the input result.items by:
+    - Setting item.audit_rating for items with audit data
+    - Recalculating item.impact_score based on audit ratings
+
+    This mutation is intentional to avoid expensive deep copy operations.
+    If you need to preserve the original AnalysisResult, create a copy
+    before calling this function.
+
+    Path Matching: File paths are normalized to absolute, canonical form using
+    Path.resolve() before matching audit ratings to code items. This ensures
+    that relative paths (e.g., './foo.py') and absolute paths (e.g.,
+    '/full/path/foo.py') referring to the same file will match correctly.
+    Path components like '.' and '..' are also resolved automatically.
+
     Args:
-        result: Analysis result containing all code items.
+        result: Analysis result containing all code items. Items will be modified
+                in-place to apply audit ratings and recalculate impact scores.
         audit_file: Path to audit results file. If None, uses StateManager.get_audit_file().
         quality_threshold: Items with audit rating <= this value are included (default: 2).
                           Scale: 1=Terrible, 2=OK, 3=Good, 4=Excellent.
@@ -146,9 +168,41 @@ def generate_plan(
     if audit_file is None:
         audit_file = StateManager.get_audit_file()
 
-    # Load audit results if available (currently items already have audit_rating set)
-    # audit_results are loaded by the analyzer if needed
-    _ = load_audit_results(audit_file)  # Future: use for additional validation
+    # Load audit results if file exists
+    audit_results = None
+    if audit_file.exists():
+        audit_results = load_audit_results(audit_file)
+
+    # Build normalized path lookup from audit results
+    # This ensures relative/absolute paths match correctly
+    normalized_ratings: dict = {}
+    if audit_results:
+        for filepath, ratings_dict in audit_results.ratings.items():
+            normalized_path = str(Path(filepath).resolve())
+            for item_name, rating in ratings_dict.items():
+                normalized_ratings[(normalized_path, item_name)] = rating
+
+    # Apply audit ratings to items and recalculate impact scores
+    invalid_ratings: List[dict] = []
+    if audit_results:
+        scorer = ImpactScorer()
+        for item in result.items:
+            # Normalize item filepath for matching
+            normalized_item_path = str(Path(item.filepath).resolve())
+            rating = normalized_ratings.get((normalized_item_path, item.name))
+            if rating is not None:
+                # Validate rating is in expected range (1-4)
+                if not (1 <= rating <= 4):
+                    invalid_ratings.append({
+                        'filepath': item.filepath,
+                        'name': item.name,
+                        'rating': rating
+                    })
+                    continue  # Skip this invalid rating
+
+                item.audit_rating = rating
+                # Recalculate impact score with audit rating
+                item.impact_score = scorer.calculate_score(item)
 
     plan_items: List[PlanItem] = []
     missing_docs_count = 0
@@ -179,7 +233,9 @@ def generate_plan(
         items=plan_items,
         total_items=len(plan_items),
         missing_docs_count=missing_docs_count,
-        poor_quality_count=poor_quality_count
+        poor_quality_count=poor_quality_count,
+        invalid_ratings_count=len(invalid_ratings),
+        invalid_ratings=invalid_ratings
     )
 
 
