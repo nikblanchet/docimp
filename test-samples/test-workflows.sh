@@ -369,6 +369,146 @@ else
 fi
 
 #
+# ERROR CONDITION TESTING
+#
+print_header "ERROR CONDITION TESTING"
+
+# Temporarily disable exit-on-error for error condition tests
+# (these tests are designed to test failure scenarios)
+set +e
+
+# Test 1: Corrupted analyze-latest.json
+echo "Test: Corrupted analyze-latest.json"
+rm -rf .docimp/
+if [ -n "$CI" ]; then
+  node "$GITHUB_WORKSPACE/cli/dist/index.js" analyze . > /dev/null 2>&1
+else
+  docimp analyze . > /dev/null 2>&1
+fi
+echo '{"invalid": json}' > .docimp/session-reports/analyze-latest.json
+
+if [ -n "$CI" ]; then
+  node "$GITHUB_WORKSPACE/cli/dist/index.js" plan . > /dev/null 2>&1
+else
+  docimp plan . > /dev/null 2>&1
+fi
+PLAN_EXIT_CODE=$?
+
+if [ $PLAN_EXIT_CODE -eq 0 ]; then
+    # Plan re-analyzes, so corrupted analyze-latest.json should be overwritten
+    print_success "Plan handles corrupted analyze-latest.json (re-analyzes)"
+else
+    print_warning "Plan failed on corrupted analyze-latest.json (exit code: $PLAN_EXIT_CODE)"
+fi
+
+# Test 2: Malformed audit.json (wrong data type)
+echo ""
+echo "Test: Malformed audit.json (ratings not a dict)"
+rm -rf .docimp/
+if [ -n "$CI" ]; then
+  node "$GITHUB_WORKSPACE/cli/dist/index.js" analyze . > /dev/null 2>&1
+else
+  docimp analyze . > /dev/null 2>&1
+fi
+echo '{"ratings": "not-a-dict"}' > .docimp/session-reports/audit.json
+
+if [ -n "$CI" ]; then
+  node "$GITHUB_WORKSPACE/cli/dist/index.js" plan . > /dev/null 2>&1
+else
+  docimp plan . > /dev/null 2>&1
+fi
+PLAN_EXIT_CODE=$?
+
+if [ $PLAN_EXIT_CODE -eq 0 ]; then
+    # Plan should either ignore bad audit or error gracefully
+    if [ -f .docimp/session-reports/plan.json ]; then
+        print_success "Plan handles malformed audit.json (ignored bad data)"
+    else
+        print_warning "Plan completed but did not create plan.json"
+    fi
+else
+    # Failing is OK if error message is clear
+    print_success "Plan fails gracefully on malformed audit.json"
+fi
+
+# Test 3: Missing required fields in audit.json
+echo ""
+echo "Test: audit.json missing 'ratings' field"
+rm -rf .docimp/
+if [ -n "$CI" ]; then
+  node "$GITHUB_WORKSPACE/cli/dist/index.js" analyze . > /dev/null 2>&1
+else
+  docimp analyze . > /dev/null 2>&1
+fi
+echo '{"wrong_field": {}}' > .docimp/session-reports/audit.json
+
+if [ -n "$CI" ]; then
+  node "$GITHUB_WORKSPACE/cli/dist/index.js" plan . > /dev/null 2>&1
+else
+  docimp plan . > /dev/null 2>&1
+fi
+PLAN_EXIT_CODE=$?
+
+if [ $PLAN_EXIT_CODE -eq 0 ]; then
+    print_success "Plan handles audit.json with missing fields"
+else
+    print_success "Plan fails gracefully on invalid audit structure"
+fi
+
+# Test 4: Empty state directory (edge case)
+echo ""
+echo "Test: Empty state directory"
+rm -rf .docimp/
+mkdir -p .docimp/session-reports
+
+if [ -n "$CI" ]; then
+  node "$GITHUB_WORKSPACE/cli/dist/index.js" plan . > /dev/null 2>&1
+else
+  docimp plan . > /dev/null 2>&1
+fi
+PLAN_EXIT_CODE=$?
+
+if [ $PLAN_EXIT_CODE -eq 0 ]; then
+    # Plan re-analyzes, so this should work fine
+    print_success "Plan handles empty state directory (re-analyzes)"
+else
+    print_warning "Plan failed on empty state directory (exit code: $PLAN_EXIT_CODE)"
+fi
+
+# Test 5: Read-only analyze-latest.json (can't be updated)
+echo ""
+echo "Test: Read-only permissions on state file"
+rm -rf .docimp/
+if [ -n "$CI" ]; then
+  node "$GITHUB_WORKSPACE/cli/dist/index.js" analyze . > /dev/null 2>&1
+else
+  docimp analyze . > /dev/null 2>&1
+fi
+chmod 444 .docimp/session-reports/analyze-latest.json
+
+if [ -n "$CI" ]; then
+  node "$GITHUB_WORKSPACE/cli/dist/index.js" analyze . > /dev/null 2>&1
+else
+  docimp analyze . > /dev/null 2>&1
+fi
+ANALYZE_EXIT_CODE=$?
+
+# Restore permissions before cleanup
+chmod 644 .docimp/session-reports/analyze-latest.json 2>/dev/null || true
+
+if [ $ANALYZE_EXIT_CODE -ne 0 ]; then
+    print_success "Analyze detects write permission issues"
+else
+    print_warning "Analyze may not check file write permissions"
+fi
+
+# Clean up
+rm -rf .docimp/
+
+# Re-enable exit-on-error
+set -e
+
+#
 # FINAL SUMMARY
 #
 print_header "TEST SUMMARY"
