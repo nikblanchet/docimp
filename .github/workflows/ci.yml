@@ -234,13 +234,5 @@ jobs:
 
       - name: Run workflow validation tests
         run: |
-          # Add CLI dist to PATH directly (avoid wrapper script complications)
-          export PATH="$GITHUB_WORKSPACE/cli/dist:$PATH"
-
-          # Create simple docimp launcher
-          echo '#!/usr/bin/env node' > cli/dist/docimp
-          cat cli/dist/index.js >> cli/dist/docimp
-          chmod +x cli/dist/docimp
-
           chmod +x test-samples/test-workflows.sh
           ./test-samples/test-workflows.sh

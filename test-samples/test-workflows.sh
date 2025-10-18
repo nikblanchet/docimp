@@ -66,7 +66,12 @@ print_header "WORKFLOW A: analyze → plan (complexity-only)"
 
 # Analyze
 echo "Running: docimp analyze ."
-docimp analyze .
+# Use node directly (CI compatibility - avoids wrapper script PATH issues)
+if [ -n "$CI" ]; then
+  node "$GITHUB_WORKSPACE/cli/dist/index.js" analyze .
+else
+  docimp analyze .
+fi
 
 # Check state directory created
 if [ -d .docimp/session-reports ]; then
@@ -92,7 +97,11 @@ fi
 # Plan (workflow A - no audit)
 echo ""
 echo "Running: docimp plan ."
-docimp plan .
+if [ -n "$CI" ]; then
+  node "$GITHUB_WORKSPACE/cli/dist/index.js" plan .
+else
+  docimp plan .
+fi
 
 # Check plan.json exists
 if [ -f .docimp/session-reports/plan.json ]; then
@@ -129,7 +138,11 @@ fi
 # Run analyze (should clear old files)
 echo ""
 echo "Running: docimp analyze . (should auto-clean)"
-docimp analyze .
+if [ -n "$CI" ]; then
+  node "$GITHUB_WORKSPACE/cli/dist/index.js" analyze .
+else
+  docimp analyze .
+fi
 
 if [ ! -f .docimp/session-reports/audit.json ]; then
     print_success "Auto-clean: Old audit file cleared by analyze"
@@ -141,7 +154,11 @@ fi
 echo '{"ratings": {}}' > .docimp/session-reports/audit.json
 echo ""
 echo "Running: docimp analyze . --keep-old-reports"
-docimp analyze . --keep-old-reports
+if [ -n "$CI" ]; then
+  node "$GITHUB_WORKSPACE/cli/dist/index.js" analyze . --keep-old-reports
+else
+  docimp analyze . --keep-old-reports
+fi
 
 if [ -f .docimp/session-reports/audit.json ]; then
     print_success "--keep-old-reports: Old audit file preserved"
@@ -156,7 +173,11 @@ print_header "STATE DIRECTORY STRUCTURE"
 
 # Clean and re-analyze
 rm -rf .docimp/
-docimp analyze .
+if [ -n "$CI" ]; then
+  node "$GITHUB_WORKSPACE/cli/dist/index.js" analyze .
+else
+  docimp analyze .
+fi
 
 if [ -d .docimp ]; then
     print_success "State directory exists (.docimp/)"
