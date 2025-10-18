@@ -9,7 +9,7 @@ import chalk from 'chalk';
 import Table from 'cli-table3';
 import ora, { Ora } from 'ora';
 import type { IDisplay } from './IDisplay.js';
-import type { AnalysisResult, CodeItem, LanguageMetrics } from '../types/analysis.js';
+import type { AnalysisResult, CodeItem, LanguageMetrics, AuditSummary } from '../types/analysis.js';
 
 /**
  * Terminal display implementation with rich formatting.
@@ -348,5 +348,91 @@ export class TerminalDisplay implements IDisplay {
   private truncate(str: string, maxLength: number): string {
     if (str.length <= maxLength) return str;
     return str.slice(0, maxLength - 3) + '...';
+  }
+
+  /**
+   * Display audit summary with rating breakdown and next steps.
+   */
+  public showAuditSummary(summary: AuditSummary): void {
+    const { totalItems, auditedItems, ratingCounts, auditFile } = summary;
+
+    // Calculate percentage
+    const percent = totalItems > 0 ? (auditedItems / totalItems) * 100 : 0;
+
+    // Box width
+    const width = 50;
+    const horizontalLine = '─'.repeat(width);
+
+    console.log('');
+    console.log('┌' + horizontalLine + '┐');
+    console.log('│' + this.padCenter('Documentation Quality Audit Complete', width) + '│');
+    console.log('├' + horizontalLine + '┤');
+    console.log('│' + this.padLeft(`Audited: ${auditedItems} / ${totalItems} documented items (${percent.toFixed(1)}%)`, width) + '│');
+    console.log('│' + ' '.repeat(width) + '│');
+
+    // Rating breakdown
+    console.log('│' + this.padLeft('Rating Breakdown:', width) + '│');
+
+    // Only show ratings that have counts > 0
+    if (ratingCounts.terrible > 0) {
+      const line = `  ${chalk.red('•')} Terrible (1):  ${ratingCounts.terrible} items`;
+      console.log('│' + this.padLeft(line, width, true) + '│');
+    }
+    if (ratingCounts.ok > 0) {
+      const line = `  ${chalk.yellow('•')} OK (2):        ${ratingCounts.ok} items`;
+      console.log('│' + this.padLeft(line, width, true) + '│');
+    }
+    if (ratingCounts.good > 0) {
+      const line = `  ${chalk.green('•')} Good (3):      ${ratingCounts.good} items`;
+      console.log('│' + this.padLeft(line, width, true) + '│');
+    }
+    if (ratingCounts.excellent > 0) {
+      const line = `  ${chalk.green('•')} Excellent (4): ${ratingCounts.excellent} items`;
+      console.log('│' + this.padLeft(line, width, true) + '│');
+    }
+    if (ratingCounts.skipped > 0) {
+      const line = `  ${chalk.gray('•')} Skipped:       ${ratingCounts.skipped} items`;
+      console.log('│' + this.padLeft(line, width, true) + '│');
+    }
+
+    console.log('│' + ' '.repeat(width) + '│');
+    console.log('│' + this.padLeft('Audit saved to:', width) + '│');
+    console.log('│' + this.padLeft(auditFile, width) + '│');
+    console.log('│' + ' '.repeat(width) + '│');
+    console.log('│' + this.padLeft('Next steps:', width) + '│');
+    console.log('│' + this.padLeft("Run 'docimp plan .' to generate", width) + '│');
+    console.log('│' + this.padLeft('improvement priorities.', width) + '│');
+    console.log('└' + horizontalLine + '┘');
+    console.log('');
+  }
+
+  /**
+   * Pad string to center it within specified width.
+   */
+  private padCenter(str: string, width: number): string {
+    const strippedLength = this.stripAnsiLength(str);
+    const padding = width - strippedLength;
+    const leftPad = Math.floor(padding / 2);
+    const rightPad = padding - leftPad;
+    return ' '.repeat(leftPad) + str + ' '.repeat(rightPad);
+  }
+
+  /**
+   * Pad string to left-align it within specified width.
+   */
+  private padLeft(str: string, width: number, hasColor: boolean = false): string {
+    const strippedLength = hasColor ? this.stripAnsiLength(str) : str.length;
+    const padding = width - strippedLength;
+    return '  ' + str + ' '.repeat(padding - 2);
+  }
+
+  /**
+   * Get length of string excluding ANSI color codes.
+   */
+  private stripAnsiLength(str: string): number {
+    // Remove ANSI escape codes to get true display length
+    // eslint-disable-next-line no-control-regex
+    const stripped = str.replace(/\u001b\[[0-9;]*m/g, '');
+    return stripped.length;
   }
 }
