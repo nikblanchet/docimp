@@ -236,12 +236,10 @@ jobs:
         run: |
           # Create wrapper script for docimp (npm link is unreliable in CI)
           # Key: Must explicitly pass PATH to node subprocess for spawn() to find python
-          cat > /tmp/docimp << 'WRAPPER_EOF'
-#!/bin/bash
-export PATH="$PATH"
-export DOCIMP_PYTHON_PATH="python"
-exec node "$GITHUB_WORKSPACE/cli/dist/index.js" "$@"
-WRAPPER_EOF
+          echo '#!/bin/bash' > /tmp/docimp
+          echo 'export PATH="$PATH"' >> /tmp/docimp
+          echo 'export DOCIMP_PYTHON_PATH="python"' >> /tmp/docimp
+          echo 'exec node "$GITHUB_WORKSPACE/cli/dist/index.js" "$@"' >> /tmp/docimp
           chmod +x /tmp/docimp
           export PATH="/tmp:$PATH"
 
