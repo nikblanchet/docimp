@@ -12,9 +12,16 @@ import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult } from '
 
 /**
  * Detect available Python executable.
- * Tries python3, then python, then py.
+ * First checks DOCIMP_PYTHON_PATH environment variable (for CI),
+ * then tries python3, python, and py.
  */
 function detectPythonExecutable(): string {
+  // Check for explicit path from environment (used in CI)
+  const envPath = process.env.DOCIMP_PYTHON_PATH;
+  if (envPath) {
+    return envPath;
+  }
+
   const candidates = ['python3', 'python', 'py'];
 
   for (const candidate of candidates) {
