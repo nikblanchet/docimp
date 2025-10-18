@@ -232,12 +232,13 @@ jobs:
           npm ci
           npm run build
 
-      - name: Install docimp globally
-        run: |
-          cd cli
-          npm link
-
       - name: Run workflow validation tests
         run: |
+          # Create bash function to run docimp via node directly (npm link is unreliable in CI)
+          docimp() {
+            node "$GITHUB_WORKSPACE/cli/dist/index.js" "$@"
+          }
+          export -f docimp
+
           chmod +x test-samples/test-workflows.sh
           ./test-samples/test-workflows.sh

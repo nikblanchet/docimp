@@ -2,9 +2,12 @@
 #
 # Automated workflow validation script for DocImp test samples
 #
-# Tests both workflows:
+# Tests Workflow A in CI:
 # - Workflow A: analyze → plan (complexity-only)
-# - Workflow B: analyze → audit → plan (with quality ratings)
+#
+# NOTE: Workflow B (analyze → audit → plan) requires ANTHROPIC_API_KEY
+# and is interactive, so it must be tested manually. See test-samples/README.md
+# for manual testing instructions.
 #
 # Usage: ./test-workflows.sh
 #
