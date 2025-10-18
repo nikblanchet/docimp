@@ -133,6 +133,29 @@ export interface AuditRatings {
 }
 
 /**
+ * Audit summary statistics for display.
+ */
+export interface AuditSummary {
+  /** Total number of documented items available for audit */
+  totalItems: number;
+
+  /** Number of items that were audited (rated or skipped) */
+  auditedItems: number;
+
+  /** Count of items with each rating (1-4) and skipped (null) */
+  ratingCounts: {
+    terrible: number;  // Rating 1
+    ok: number;        // Rating 2
+    good: number;      // Rating 3
+    excellent: number; // Rating 4
+    skipped: number;   // Rating null
+  };
+
+  /** Path to the audit file */
+  auditFile: string;
+}
+
+/**
  * Plan item for documentation improvement.
  */
 export interface PlanItem {
