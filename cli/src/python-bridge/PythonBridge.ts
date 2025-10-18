@@ -19,7 +19,21 @@ function detectPythonExecutable(): string {
   // GitHub Actions sets pythonLocation env var (e.g., /opt/hostedtoolcache/Python/3.13.8/x64)
   const pythonLocation = process.env.pythonLocation;
   if (pythonLocation) {
-    return `${pythonLocation}/bin/python`;
+    // Try both python3 and python in the bin directory
+    const candidates = [
+      `${pythonLocation}/bin/python3`,
+      `${pythonLocation}/bin/python`
+    ];
+    for (const candidate of candidates) {
+      try {
+        const result = spawnSync(candidate, ['--version'], { timeout: 2000 });
+        if (result.status === 0) {
+          return candidate;
+        }
+      } catch {
+        // Try next candidate
+      }
+    }
   }
 
   // Check for explicit path from environment (for CI)
