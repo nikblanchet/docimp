@@ -123,6 +123,108 @@ else
 fi
 
 #
+# WORKFLOW B: analyze → audit → plan (with audit ratings)
+#
+print_header "WORKFLOW B: analyze → audit → plan (with audit ratings)"
+
+# Clean state
+rm -rf .docimp/
+
+# Analyze
+echo "Running: docimp analyze ."
+if [ -n "$CI" ]; then
+  node "$GITHUB_WORKSPACE/cli/dist/index.js" analyze . > /dev/null 2>&1
+else
+  docimp analyze . > /dev/null 2>&1
+fi
+
+# Create audit fixture from expected-results.json
+# (Simulates user rating items according to expected-results.json)
+python3 << 'PYTHON_SCRIPT'
+import json
+import sys
+from pathlib import Path
+
+# Load expected audit ratings
+with open('../expected-results.json') as f:
+    expected = json.load(f)
+
+# Convert to audit.json format with absolute paths
+# The plan_generator expects paths to be resolvable to match analysis results
+ratings = {}
+base_dir = Path.cwd()  # Current directory (example-project/)
+for filepath, items in expected['sample_audit_ratings']['ratings'].items():
+    # Resolve relative path to absolute path
+    abs_path = str((base_dir / filepath).resolve())
+    if abs_path not in ratings:
+        ratings[abs_path] = {}
+    for item_name, rating in items.items():
+        ratings[abs_path][item_name] = rating
+
+# Write audit.json
+audit_data = {'ratings': ratings}
+Path('.docimp/session-reports').mkdir(parents=True, exist_ok=True)
+with open('.docimp/session-reports/audit.json', 'w') as f:
+    json.dump(audit_data, f, indent=2)
+
+print("✓ Created audit fixture from expected results")
+PYTHON_SCRIPT
+
+if [ $? -eq 0 ]; then
+    print_success "Created audit fixture from expected results"
+else
+    print_failure "Failed to create audit fixture"
+fi
+
+# Verify audit file exists
+if [ -f .docimp/session-reports/audit.json ]; then
+    print_success "Audit fixture file created"
+else
+    print_failure "Audit fixture file missing"
+fi
+
+# Run plan (should apply audit ratings)
+echo ""
+echo "Running: docimp plan ."
+if [ -n "$CI" ]; then
+  node "$GITHUB_WORKSPACE/cli/dist/index.js" plan . > /dev/null 2>&1
+else
+  docimp plan . > /dev/null 2>&1
+fi
+
+if [ -f .docimp/session-reports/plan.json ]; then
+    print_success "Plan generated with audit ratings"
+else
+    print_failure "Plan NOT generated"
+fi
+
+# Verify audit ratings were applied
+if command -v jq &> /dev/null; then
+    # Check that at least one item has non-null audit rating
+    ITEMS_WITH_RATINGS=$(jq '[.items[] | select(.audit_rating != null)] | length' .docimp/session-reports/plan.json)
+
+    if [ "$ITEMS_WITH_RATINGS" -gt 0 ]; then
+        print_success "Workflow B: Audit ratings applied to $ITEMS_WITH_RATINGS plan items"
+    else
+        print_failure "Workflow B: No items have audit ratings (regression!)"
+    fi
+
+    # Verify expected plan item count for workflow B
+    PLAN_ITEMS=$(jq '.items | length' .docimp/session-reports/plan.json)
+    EXPECTED_PLAN_ITEMS=27  # 19 undocumented + ~8 rated 1-2 from expected-results.json
+
+    # Allow tolerance (within 3 items) - exact count may vary with code changes
+    DIFF=$((PLAN_ITEMS > EXPECTED_PLAN_ITEMS ? PLAN_ITEMS - EXPECTED_PLAN_ITEMS : EXPECTED_PLAN_ITEMS - PLAN_ITEMS))
+    if [ $DIFF -le 3 ]; then
+        print_success "Workflow B plan items: $PLAN_ITEMS (expected ~$EXPECTED_PLAN_ITEMS)"
+    else
+        print_warning "Workflow B plan items: $PLAN_ITEMS (expected ~$EXPECTED_PLAN_ITEMS, diff: $DIFF)"
+    fi
+else
+    print_warning "jq not installed, skipping detailed audit rating verification"
+fi
+
+#
 # AUTO-CLEAN TESTING
 #
 print_header "AUTO-CLEAN TESTING"
