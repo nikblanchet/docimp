@@ -234,14 +234,13 @@ jobs:
 
       - name: Run workflow validation tests
         run: |
-          # Create wrapper script for docimp (npm link is unreliable in CI)
-          # Key: Must explicitly pass PATH to node subprocess for spawn() to find python
-          echo '#!/bin/bash' > /tmp/docimp
-          echo 'export PATH="$PATH"' >> /tmp/docimp
-          echo 'export DOCIMP_PYTHON_PATH="python"' >> /tmp/docimp
-          echo 'exec node "$GITHUB_WORKSPACE/cli/dist/index.js" "$@"' >> /tmp/docimp
-          chmod +x /tmp/docimp
-          export PATH="/tmp:$PATH"
+          # Add CLI dist to PATH directly (avoid wrapper script complications)
+          export PATH="$GITHUB_WORKSPACE/cli/dist:$PATH"
+
+          # Create simple docimp launcher
+          echo '#!/usr/bin/env node' > cli/dist/docimp
+          cat cli/dist/index.js >> cli/dist/docimp
+          chmod +x cli/dist/docimp
 
           chmod +x test-samples/test-workflows.sh
           ./test-samples/test-workflows.sh
