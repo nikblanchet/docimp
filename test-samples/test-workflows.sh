@@ -151,6 +151,13 @@ import json
 import sys
 from pathlib import Path
 
+# Validate we're in the right directory
+base_dir = Path.cwd()
+if not (base_dir / 'src' / 'python' / 'calculator.py').exists():
+    print("ERROR: Script must be run from example-project/ directory", file=sys.stderr)
+    print(f"Current directory: {base_dir}", file=sys.stderr)
+    sys.exit(1)
+
 try:
     # Load expected audit ratings
     with open('../expected-results.json') as f:
@@ -166,7 +173,6 @@ try:
     # Convert to audit.json format with absolute paths
     # The plan_generator expects paths to be resolvable to match analysis results
     ratings = {}
-    base_dir = Path.cwd()  # Current directory (example-project/)
     for filepath, items in expected['sample_audit_ratings']['ratings'].items():
         # Resolve relative path to absolute path
         abs_path = str((base_dir / filepath).resolve())
