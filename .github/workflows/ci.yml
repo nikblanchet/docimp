@@ -232,6 +232,27 @@ jobs:
           npm ci
           npm run build
 
+      - name: Debug Python environment
+        run: |
+          echo "=== Python Environment Debug ==="
+          echo "pythonLocation: $pythonLocation"
+          echo ""
+          echo "=== Contents of pythonLocation ==="
+          ls -la "$pythonLocation" || echo "pythonLocation directory not found"
+          echo ""
+          echo "=== Contents of pythonLocation/bin (if exists) ==="
+          ls -la "$pythonLocation/bin/" || echo "pythonLocation/bin directory not found"
+          echo ""
+          echo "=== which python* ==="
+          which python3 || echo "python3 not found in PATH"
+          which python || echo "python not found in PATH"
+          echo ""
+          echo "=== PATH ==="
+          echo "$PATH"
+          echo ""
+          echo "=== Node.js process.env check ==="
+          node -e "console.log('pythonLocation from Node:', process.env.pythonLocation); console.log('PATH from Node:', process.env.PATH);"
+
       - name: Run workflow validation tests
         run: |
           chmod +x test-samples/test-workflows.sh
