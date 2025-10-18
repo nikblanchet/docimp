@@ -65,7 +65,7 @@ fi
 # Run analysis
 echo -e "${YELLOW}Running analysis on example-project...${NC}"
 cd example-project || exit 1
-docimp analyze . --format json > /dev/null
+docimp analyze . --format json > /dev/null 2>&1
 
 ANALYZE_FILE=".docimp/session-reports/analyze-latest.json"
 if [ ! -f "$ANALYZE_FILE" ]; then
@@ -82,15 +82,38 @@ cd "$TEST_SAMPLES_DIR" || exit 1
 
 # Extract new analysis section
 echo -e "${YELLOW}Extracting analysis results...${NC}"
-NEW_ANALYSIS=$(jq '{
+if ! NEW_ANALYSIS=$(jq '{
   total_items: .total_items,
   documented_items: .documented_items,
   undocumented_items: .undocumented_items,
   coverage_percent: .coverage_percent,
   by_language: .by_language
-}' "example-project/$ANALYZE_FILE")
+}' "example-project/$ANALYZE_FILE" 2>/dev/null); then
+    echo -e "${RED}ERROR: Failed to extract analysis data from $ANALYZE_FILE${NC}"
+    echo "The analysis output may be malformed or missing expected fields"
+    exit 1
+fi
+
+# Validate critical fields exist
+if ! echo "$NEW_ANALYSIS" | jq -e '.total_items' > /dev/null 2>&1; then
+    echo -e "${RED}ERROR: Analysis data is missing required field: total_items${NC}"
+    echo "The analysis output may be incomplete or corrupted"
+    exit 1
+fi
 
 # Preserve manually-maintained sections
+echo -e "${YELLOW}Preserving manually-maintained sections...${NC}"
+
+# Validate expected-results.json structure before extraction
+REQUIRED_SECTIONS=("high_priority_items" "sample_audit_ratings" "expected_plan_items" "notes")
+for section in "${REQUIRED_SECTIONS[@]}"; do
+    if ! jq -e ".$section" expected-results.json > /dev/null 2>&1; then
+        echo -e "${RED}ERROR: expected-results.json is missing required field: $section${NC}"
+        echo "The file may be corrupted. Restore from git or check its structure."
+        exit 1
+    fi
+done
+
 MANUAL_SECTIONS=$(jq '{
   high_priority_items: .high_priority_items,
   sample_audit_ratings: .sample_audit_ratings,
@@ -98,9 +121,9 @@ MANUAL_SECTIONS=$(jq '{
   notes: .notes
 }' expected-results.json)
 
-# Get existing description and note
-DESCRIPTION=$(jq -r '.description' expected-results.json)
-NOTE=$(jq -r '.note' expected-results.json)
+# Get existing description and note (with defaults if missing)
+DESCRIPTION=$(jq -r '.description // "Expected analysis results for test-samples/example-project/"' expected-results.json)
+NOTE=$(jq -r '.note // "These values are generated from actual analysis and should be updated if code changes"' expected-results.json)
 
 # Merge everything together with version field
 echo -e "${YELLOW}Merging with manually-maintained sections...${NC}"
@@ -134,7 +157,9 @@ echo ""
 if command -v diff &> /dev/null; then
     echo -e "${BLUE}Detailed changes:${NC}"
     echo ""
-    diff -u expected-results.json expected-results-new.json || true
+    if diff -u expected-results.json expected-results-new.json; then
+        echo "(No changes - files are identical)"
+    fi
     echo ""
 fi
 
