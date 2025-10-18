@@ -201,7 +201,7 @@
   },
   "notes": {
     "node_modules": "node_modules/fake-package/ should be excluded (not counted in totals)",
-    "test_files": "tests/test_calculator.py IS included in analysis (MVP behavior)",
+    "test_files": "tests/test_calculator.py IS included in analysis (known bug tracked in issue #190)",
     "restoration": "Use 'git restore test-samples/example-project/' to reset after improve",
     "consistency": "Run audit with sample_audit_ratings above for consistent workflow B testing"
   }
