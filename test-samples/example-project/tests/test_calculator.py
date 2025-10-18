@@ -1,7 +1,7 @@
 """Tests for calculator module.
 
-This test file should be analyzed by default in MVP since test
-exclusion is configured in docimp.config.js but not enforced yet.
+This test file is properly excluded from documentation analysis.
+Test directories (tests/, test/, __tests__/) are excluded by default.
 """
 
 import sys

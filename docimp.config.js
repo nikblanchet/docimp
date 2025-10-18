@@ -157,9 +157,11 @@ export default {
     // Python test files
     '**/test_*.py',
     '**/*_test.py',
-    '**/tests/**',
+    '**/tests/**/*.py',
 
     // JavaScript/TypeScript test files
+    '**/tests/**/*.ts',
+    '**/tests/**/*.js',
     '**/*.test.ts',
     '**/*.test.js',
     '**/*.spec.ts',

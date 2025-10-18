@@ -2,17 +2,17 @@
   "description": "Expected analysis results for test-samples/example-project/",
   "note": "These values are generated from actual analysis and should be updated if code changes",
   "analysis": {
-    "total_items": 62,
-    "documented_items": 43,
-    "undocumented_items": 19,
-    "coverage_percent": 69.35,
+    "total_items": 58,
+    "documented_items": 40,
+    "undocumented_items": 18,
+    "coverage_percent": 68.97,
     "by_language": {
       "python": {
-        "total_items": 25,
-        "documented_items": 18,
-        "coverage_percent": 72.0,
-        "avg_complexity": 2.68,
-        "avg_impact_score": 13.4
+        "total_items": 21,
+        "documented_items": 15,
+        "coverage_percent": 71.43,
+        "avg_complexity": 2.48,
+        "avg_impact_score": 12.38
       },
       "javascript": {
         "total_items": 18,
@@ -159,7 +159,7 @@
   "expected_plan_items": {
     "workflow_a": {
       "description": "Without audit (complexity-only)",
-      "expected_count": 19,
+      "expected_count": 18,
       "note": "All undocumented items should appear in plan"
     },
     "workflow_b": {
@@ -201,7 +201,7 @@
   },
   "notes": {
     "node_modules": "node_modules/fake-package/ should be excluded (not counted in totals)",
-    "test_files": "tests/test_calculator.py IS included in analysis (known bug tracked in issue #190)",
+    "test_files": "tests/ directories are properly excluded from analysis",
     "restoration": "Use 'git restore test-samples/example-project/' to reset after improve",
     "consistency": "Run audit with sample_audit_ratings above for consistent workflow B testing"
   }

@@ -239,7 +239,7 @@ if command -v jq &> /dev/null; then
 
     # Verify expected plan item count for workflow B
     PLAN_ITEMS=$(jq '.items | length' .docimp/session-reports/plan.json)
-    EXPECTED_PLAN_ITEMS=27  # 19 undocumented + ~9 rated 1-2 from expected-results.json
+    EXPECTED_PLAN_ITEMS=26  # 18 undocumented + ~9 rated 1-2 from expected-results.json
 
     # Strict count check (±1 tolerance for minor edge cases)
     DIFF=$((PLAN_ITEMS > EXPECTED_PLAN_ITEMS ? PLAN_ITEMS - EXPECTED_PLAN_ITEMS : EXPECTED_PLAN_ITEMS - PLAN_ITEMS))
@@ -338,7 +338,7 @@ print_header "ITEM COUNT VALIDATION"
 
 if command -v jq &> /dev/null; then
     TOTAL_ITEMS=$(jq -r '.total_items' .docimp/session-reports/analyze-latest.json)
-    EXPECTED_TOTAL=62
+    EXPECTED_TOTAL=58
 
     if [ "$TOTAL_ITEMS" -eq "$EXPECTED_TOTAL" ]; then
         print_success "Total items: $TOTAL_ITEMS (expected: $EXPECTED_TOTAL)"
@@ -347,7 +347,7 @@ if command -v jq &> /dev/null; then
     fi
 
     PYTHON_ITEMS=$(jq -r '.by_language.python.total_items' .docimp/session-reports/analyze-latest.json)
-    EXPECTED_PYTHON=25
+    EXPECTED_PYTHON=21
 
     if [ "$PYTHON_ITEMS" -eq "$EXPECTED_PYTHON" ]; then
         print_success "Python items: $PYTHON_ITEMS (expected: $EXPECTED_PYTHON)"
