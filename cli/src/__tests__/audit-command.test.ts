@@ -2,6 +2,39 @@
  * Tests for audit command and calculateAuditSummary function.
  */
 
+// Mock ESM modules before importing anything else
+jest.mock('chalk', () => ({
+  default: {
+    bold: (str: string) => str,
+    dim: (str: string) => str,
+    green: (str: string) => str,
+    yellow: (str: string) => str,
+    red: (str: string) => str,
+    blue: (str: string) => str,
+    cyan: (str: string) => str,
+    gray: (str: string) => str,
+  },
+  bold: (str: string) => str,
+  dim: (str: string) => str,
+  green: (str: string) => str,
+  yellow: (str: string) => str,
+  red: (str: string) => str,
+  blue: (str: string) => str,
+  cyan: (str: string) => str,
+  gray: (str: string) => str,
+}));
+jest.mock('ora', () => ({
+  default: () => ({
+    start: () => ({ stop: () => {}, succeed: () => {}, fail: () => {} }),
+  }),
+}));
+jest.mock('cli-table3', () => {
+  return class MockTable {
+    constructor() {}
+    toString() { return ''; }
+  };
+});
+
 import { calculateAuditSummary } from '../commands/audit';
 import type { AuditRatings, AuditSummary } from '../types/analysis';
 
