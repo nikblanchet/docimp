@@ -205,8 +205,10 @@ export async function auditCore(
       try {
         await pythonBridge.applyAudit(ratings, auditFile);
         savingSpinner();
-        terminalDisplay.showMessage(`\n\nAudit complete! Saved ${totalRatings} ratings to ${auditFile}`);
-        terminalDisplay.showMessage(`Run 'docimp plan' to generate an improvement plan.`);
+
+        // Calculate and display audit summary
+        const summary = calculateAuditSummary(items.length, ratings, auditFile);
+        terminalDisplay.showAuditSummary(summary);
       } catch (error) {
         savingSpinner();
         throw error;
