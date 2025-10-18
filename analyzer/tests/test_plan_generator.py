@@ -123,35 +123,31 @@ class TestPlanGenerator:
         audit.set_rating('test.py', 'documented_excellent', 4)  # Excellent
         return audit
 
-    def test_generate_plan_without_audit(self, sample_result):
-        """Test plan generation without audit file."""
-        # Use non-existent audit file
-        with tempfile.NamedTemporaryFile(suffix='.json', delete=True) as tmp:
-            audit_file = Path(tmp.name)
+    def test_generate_plan_with_audit_file_none(self, sample_result):
+        """Test plan generation with audit_file=None (uses StateManager default)."""
+        # Call with audit_file=None to test StateManager fallback
+        plan = generate_plan(sample_result, audit_file=None)
 
-        # File doesn't exist
-        assert not audit_file.exists()
-
-        # Should work without crashing
-        plan = generate_plan(sample_result, audit_file=audit_file)
-
-        # Should include only undocumented items
+        # Should include only undocumented items (StateManager default likely doesn't exist)
         assert plan.total_items == 1
         assert plan.missing_docs_count == 1
         assert plan.poor_quality_count == 0
         assert plan.items[0].name == 'undocumented_func'
 
     def test_generate_plan_with_nonexistent_audit_file(self, sample_result):
-        """Test graceful degradation when audit file doesn't exist."""
-        # Create a path that doesn't exist
+        """Test graceful degradation when explicit audit file path doesn't exist."""
+        # Use explicit non-existent path (different from None/StateManager fallback)
         audit_file = Path('/tmp/nonexistent_audit_file_12345.json')
+        assert not audit_file.exists()
 
         # Should not crash
         plan = generate_plan(sample_result, audit_file=audit_file)
 
-        # Should only include items without docs
+        # Should only include undocumented items
         assert plan.total_items == 1
-        assert plan.items[0].has_docs is False
+        assert plan.missing_docs_count == 1
+        assert plan.poor_quality_count == 0
+        assert plan.items[0].name == 'undocumented_func'
 
     def test_generate_plan_applies_audit_ratings(self, sample_result, sample_audit):
         """Test that audit ratings are applied to items."""
