@@ -7,7 +7,7 @@
  * using console.log directly.
  */
 
-import type { AnalysisResult, CodeItem } from '../types/analysis.js';
+import type { AnalysisResult, CodeItem, AuditSummary } from '../types/analysis.js';
 
 /**
  * Display interface for terminal output with dependency injection support.
@@ -80,4 +80,11 @@ export interface IDisplay {
    * @param message - Optional progress message
    */
   showProgress(current: number, total: number, message?: string): void;
+
+  /**
+   * Display audit summary with rating breakdown and next steps.
+   *
+   * @param summary - Audit summary statistics
+   */
+  showAuditSummary(summary: AuditSummary): void;
 }

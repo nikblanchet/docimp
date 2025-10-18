@@ -11,7 +11,60 @@ import { TerminalDisplay } from '../display/TerminalDisplay.js';
 import { StateManager } from '../utils/StateManager.js';
 import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
 import type { IDisplay } from '../display/IDisplay.js';
-import type { AuditRatings } from '../types/analysis.js';
+import type { AuditRatings, AuditSummary } from '../types/analysis.js';
+
+/**
+ * Calculate audit summary statistics from ratings.
+ *
+ * This is a pure function extracted for testability.
+ *
+ * @param totalItems - Total number of documented items available for audit
+ * @param ratings - Audit ratings collected
+ * @param auditFile - Path to the audit file
+ * @returns Summary statistics for display
+ */
+export function calculateAuditSummary(
+  totalItems: number,
+  ratings: AuditRatings,
+  auditFile: string
+): AuditSummary {
+  // Count ratings by type
+  const ratingCounts = {
+    terrible: 0,  // Rating 1
+    ok: 0,        // Rating 2
+    good: 0,      // Rating 3
+    excellent: 0, // Rating 4
+    skipped: 0,   // Rating null
+  };
+
+  let auditedItems = 0;
+
+  // Iterate through all ratings
+  for (const fileRatings of Object.values(ratings.ratings)) {
+    for (const rating of Object.values(fileRatings)) {
+      auditedItems++;
+
+      if (rating === null) {
+        ratingCounts.skipped++;
+      } else if (rating === 1) {
+        ratingCounts.terrible++;
+      } else if (rating === 2) {
+        ratingCounts.ok++;
+      } else if (rating === 3) {
+        ratingCounts.good++;
+      } else if (rating === 4) {
+        ratingCounts.excellent++;
+      }
+    }
+  }
+
+  return {
+    totalItems,
+    auditedItems,
+    ratingCounts,
+    auditFile,
+  };
+}
 
 /**
  * Core audit logic (extracted for testability).
@@ -152,8 +205,10 @@ export async function auditCore(
       try {
         await pythonBridge.applyAudit(ratings, auditFile);
         savingSpinner();
-        terminalDisplay.showMessage(`\n\nAudit complete! Saved ${totalRatings} ratings to ${auditFile}`);
-        terminalDisplay.showMessage(`Run 'docimp plan' to generate an improvement plan.`);
+
+        // Calculate and display audit summary
+        const summary = calculateAuditSummary(items.length, ratings, auditFile);
+        terminalDisplay.showAuditSummary(summary);
       } catch (error) {
         savingSpinner();
         throw error;
