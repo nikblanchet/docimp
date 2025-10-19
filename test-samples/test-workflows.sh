@@ -564,16 +564,19 @@ else
     fi
 fi
 
-# Test 5: Read-only analyze-latest.json (can't be updated)
+# Test 5: Read-only state directory (can't write new files)
+# Tests that analyze detects when it can't write to the state directory.
+# Note: Making individual files read-only doesn't work on Unix because you can
+# delete read-only files from writable directories. We test read-only directory instead.
 echo ""
-echo "Test: Read-only permissions on state file"
+echo "Test: Read-only permissions on state directory"
 rm -rf .docimp/
 if [ -n "$CI" ]; then
   node "$GITHUB_WORKSPACE/cli/dist/index.js" analyze . > /dev/null 2>&1
 else
   docimp analyze . > /dev/null 2>&1
 fi
-chmod 444 .docimp/session-reports/analyze-latest.json
+chmod 555 .docimp/session-reports
 
 if [ -n "$CI" ]; then
   ERROR_OUTPUT=$(node "$GITHUB_WORKSPACE/cli/dist/index.js" analyze . 2>&1)
@@ -583,7 +586,7 @@ fi
 ANALYZE_EXIT_CODE=$?
 
 # Restore permissions before cleanup
-chmod 644 .docimp/session-reports/analyze-latest.json 2>/dev/null || true
+chmod 755 .docimp/session-reports 2>/dev/null || true
 
 if [ $ANALYZE_EXIT_CODE -ne 0 ]; then
     # Validate error message mentions permissions
