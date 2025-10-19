@@ -428,6 +428,8 @@ print_header "ERROR CONDITION TESTING"
 set +e
 
 # Test 1: Corrupted analyze-latest.json
+# Note: This test accepts both success (graceful recovery via re-analysis)
+# and failure (helpful error message). Both behaviors are acceptable.
 echo "Test: Corrupted analyze-latest.json"
 rm -rf .docimp/
 if [ -n "$CI" ]; then
@@ -438,20 +440,31 @@ fi
 echo '{"invalid": json}' > .docimp/session-reports/analyze-latest.json
 
 if [ -n "$CI" ]; then
-  node "$GITHUB_WORKSPACE/cli/dist/index.js" plan . > /dev/null 2>&1
+  ERROR_OUTPUT=$(node "$GITHUB_WORKSPACE/cli/dist/index.js" plan . 2>&1)
 else
-  docimp plan . > /dev/null 2>&1
+  ERROR_OUTPUT=$(docimp plan . 2>&1)
 fi
 PLAN_EXIT_CODE=$?
 
 if [ $PLAN_EXIT_CODE -eq 0 ]; then
     # Plan re-analyzes, so corrupted analyze-latest.json should be overwritten
-    print_success "Plan handles corrupted analyze-latest.json (re-analyzes)"
+    if [ -f .docimp/session-reports/plan.json ]; then
+        print_success "Plan handles corrupted analyze-latest.json (re-analyzes)"
+    else
+        print_warning "Plan succeeded but did not create plan.json"
+    fi
 else
-    print_warning "Plan failed on corrupted analyze-latest.json (exit code: $PLAN_EXIT_CODE)"
+    # Validate error message is helpful
+    if echo "$ERROR_OUTPUT" | grep -qi "analyz"; then
+        print_success "Plan shows helpful error mentioning analysis"
+    else
+        print_warning "Plan error message unclear: $ERROR_OUTPUT"
+    fi
 fi
 
 # Test 2: Malformed audit.json (wrong data type)
+# Note: This test accepts both success (ignore bad audit data and proceed)
+# and failure (helpful error message). Both behaviors are acceptable.
 echo ""
 echo "Test: Malformed audit.json (ratings not a dict)"
 rm -rf .docimp/
@@ -463,9 +476,9 @@ fi
 echo '{"ratings": "not-a-dict"}' > .docimp/session-reports/audit.json
 
 if [ -n "$CI" ]; then
-  node "$GITHUB_WORKSPACE/cli/dist/index.js" plan . > /dev/null 2>&1
+  ERROR_OUTPUT=$(node "$GITHUB_WORKSPACE/cli/dist/index.js" plan . 2>&1)
 else
-  docimp plan . > /dev/null 2>&1
+  ERROR_OUTPUT=$(docimp plan . 2>&1)
 fi
 PLAN_EXIT_CODE=$?
 
@@ -477,11 +490,17 @@ if [ $PLAN_EXIT_CODE -eq 0 ]; then
         print_warning "Plan completed but did not create plan.json"
     fi
 else
-    # Failing is OK if error message is clear
-    print_success "Plan fails gracefully on malformed audit.json"
+    # Validate error message is helpful
+    if echo "$ERROR_OUTPUT" | grep -qi "audit\|invalid\|rating"; then
+        print_success "Plan shows helpful error mentioning audit data"
+    else
+        print_warning "Plan error message unclear: $ERROR_OUTPUT"
+    fi
 fi
 
 # Test 3: Missing required fields in audit.json
+# Note: This test accepts both success (ignore invalid audit structure)
+# and failure (helpful error message). Both behaviors are acceptable.
 echo ""
 echo "Test: audit.json missing 'ratings' field"
 rm -rf .docimp/
@@ -493,63 +512,96 @@ fi
 echo '{"wrong_field": {}}' > .docimp/session-reports/audit.json
 
 if [ -n "$CI" ]; then
-  node "$GITHUB_WORKSPACE/cli/dist/index.js" plan . > /dev/null 2>&1
+  ERROR_OUTPUT=$(node "$GITHUB_WORKSPACE/cli/dist/index.js" plan . 2>&1)
 else
-  docimp plan . > /dev/null 2>&1
+  ERROR_OUTPUT=$(docimp plan . 2>&1)
 fi
 PLAN_EXIT_CODE=$?
 
 if [ $PLAN_EXIT_CODE -eq 0 ]; then
-    print_success "Plan handles audit.json with missing fields"
+    if [ -f .docimp/session-reports/plan.json ]; then
+        print_success "Plan handles audit.json with missing fields"
+    else
+        print_warning "Plan succeeded but did not create plan.json"
+    fi
 else
-    print_success "Plan fails gracefully on invalid audit structure"
+    # Validate error message is helpful
+    if echo "$ERROR_OUTPUT" | grep -qi "audit\|rating\|field\|missing"; then
+        print_success "Plan shows helpful error for invalid audit structure"
+    else
+        print_warning "Plan error message unclear: $ERROR_OUTPUT"
+    fi
 fi
 
 # Test 4: Empty state directory (edge case)
+# Note: This test accepts both success (graceful recovery via re-analysis)
+# and failure (helpful error message). Both behaviors are acceptable.
 echo ""
 echo "Test: Empty state directory"
 rm -rf .docimp/
 mkdir -p .docimp/session-reports
 
 if [ -n "$CI" ]; then
-  node "$GITHUB_WORKSPACE/cli/dist/index.js" plan . > /dev/null 2>&1
+  ERROR_OUTPUT=$(node "$GITHUB_WORKSPACE/cli/dist/index.js" plan . 2>&1)
 else
-  docimp plan . > /dev/null 2>&1
+  ERROR_OUTPUT=$(docimp plan . 2>&1)
 fi
 PLAN_EXIT_CODE=$?
 
 if [ $PLAN_EXIT_CODE -eq 0 ]; then
     # Plan re-analyzes, so this should work fine
-    print_success "Plan handles empty state directory (re-analyzes)"
+    if [ -f .docimp/session-reports/plan.json ]; then
+        print_success "Plan handles empty state directory (re-analyzes)"
+    else
+        print_warning "Plan succeeded but did not create plan.json"
+    fi
 else
-    print_warning "Plan failed on empty state directory (exit code: $PLAN_EXIT_CODE)"
+    # Validate error message is helpful
+    if echo "$ERROR_OUTPUT" | grep -qi "analyz\|not found\|missing"; then
+        print_success "Plan shows helpful error for missing analysis"
+    else
+        print_warning "Plan error message unclear: $ERROR_OUTPUT"
+    fi
 fi
 
-# Test 5: Read-only analyze-latest.json (can't be updated)
+# Test 5: Read-only state directory (can't write new files)
+# Tests that analyze detects when it can't write to the state directory.
+# Note: Making individual files read-only doesn't work on Unix because you can
+# delete read-only files from writable directories. We test read-only directory instead.
+#
+# Test flow: Run analyze to create directory structure, then make the directory
+# read-only, then run analyze again. This simulates the edge case where permissions
+# change mid-workflow (e.g., another process or user changes permissions).
+# The validate_write_permission() check should catch this before attempting to write.
 echo ""
-echo "Test: Read-only permissions on state file"
+echo "Test: Read-only permissions on state directory"
 rm -rf .docimp/
 if [ -n "$CI" ]; then
   node "$GITHUB_WORKSPACE/cli/dist/index.js" analyze . > /dev/null 2>&1
 else
   docimp analyze . > /dev/null 2>&1
 fi
-chmod 444 .docimp/session-reports/analyze-latest.json
+chmod 555 .docimp/session-reports
 
 if [ -n "$CI" ]; then
-  node "$GITHUB_WORKSPACE/cli/dist/index.js" analyze . > /dev/null 2>&1
+  ERROR_OUTPUT=$(node "$GITHUB_WORKSPACE/cli/dist/index.js" analyze . 2>&1)
 else
-  docimp analyze . > /dev/null 2>&1
+  ERROR_OUTPUT=$(docimp analyze . 2>&1)
 fi
 ANALYZE_EXIT_CODE=$?
 
 # Restore permissions before cleanup
-chmod 644 .docimp/session-reports/analyze-latest.json 2>/dev/null || true
+chmod 755 .docimp/session-reports 2>/dev/null || true
 
 if [ $ANALYZE_EXIT_CODE -ne 0 ]; then
-    print_success "Analyze detects write permission issues"
+    # Validate error message mentions permissions
+    if echo "$ERROR_OUTPUT" | grep -qi "permission\|write\|read-only\|access denied"; then
+        print_success "Analyze shows helpful error for permission issues"
+    else
+        print_warning "Analyze error message unclear: $ERROR_OUTPUT"
+    fi
 else
-    print_warning "Analyze may not check file write permissions"
+    print_failure "Analyze should detect write permission issues but succeeded"
 fi
 
 # Clean up

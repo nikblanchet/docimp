@@ -4,6 +4,7 @@ This module provides utilities for managing the .docimp/ state directory
 where all working files (audit results, plans, session reports) are stored.
 """
 
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -166,3 +167,40 @@ class StateManager:
             True if .docimp/ directory exists, False otherwise.
         """
         return cls.get_state_dir(base_path).exists()
+
+    @classmethod
+    def validate_write_permission(cls, file_path: Path) -> None:
+        """Validate that we have write permission for the specified file.
+
+        Checks if:
+        1. The file exists and is writable, OR
+        2. The file doesn't exist but the parent directory is writable
+
+        Args:
+            file_path: Path to the file to validate.
+
+        Raises:
+            PermissionError: If we don't have write permission with a helpful error message.
+        """
+        # If file exists, check if it's writable
+        if file_path.exists():
+            if not os.access(file_path, os.W_OK):
+                raise PermissionError(
+                    f"Permission denied: Cannot write to {file_path}. "
+                    f"The file is read-only or you don't have write access. "
+                    f"Please check file permissions and try again."
+                )
+        else:
+            # File doesn't exist, check if parent directory is writable
+            parent_dir = file_path.parent
+            if not parent_dir.exists():
+                raise PermissionError(
+                    f"Permission denied: Parent directory {parent_dir} does not exist. "
+                    f"Cannot create file {file_path.name}."
+                )
+            if not os.access(parent_dir, os.W_OK):
+                raise PermissionError(
+                    f"Permission denied: Cannot write to directory {parent_dir}. "
+                    f"You don't have write access to create {file_path.name}. "
+                    f"Please check directory permissions and try again."
+                )
