@@ -568,6 +568,11 @@ fi
 # Tests that analyze detects when it can't write to the state directory.
 # Note: Making individual files read-only doesn't work on Unix because you can
 # delete read-only files from writable directories. We test read-only directory instead.
+#
+# Test flow: Run analyze to create directory structure, then make the directory
+# read-only, then run analyze again. This simulates the edge case where permissions
+# change mid-workflow (e.g., another process or user changes permissions).
+# The validate_write_permission() check should catch this before attempting to write.
 echo ""
 echo "Test: Read-only permissions on state directory"
 rm -rf .docimp/
