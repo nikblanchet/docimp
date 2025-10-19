@@ -428,6 +428,8 @@ print_header "ERROR CONDITION TESTING"
 set +e
 
 # Test 1: Corrupted analyze-latest.json
+# Note: This test accepts both success (graceful recovery via re-analysis)
+# and failure (helpful error message). Both behaviors are acceptable.
 echo "Test: Corrupted analyze-latest.json"
 rm -rf .docimp/
 if [ -n "$CI" ]; then
@@ -461,6 +463,8 @@ else
 fi
 
 # Test 2: Malformed audit.json (wrong data type)
+# Note: This test accepts both success (ignore bad audit data and proceed)
+# and failure (helpful error message). Both behaviors are acceptable.
 echo ""
 echo "Test: Malformed audit.json (ratings not a dict)"
 rm -rf .docimp/
@@ -495,6 +499,8 @@ else
 fi
 
 # Test 3: Missing required fields in audit.json
+# Note: This test accepts both success (ignore invalid audit structure)
+# and failure (helpful error message). Both behaviors are acceptable.
 echo ""
 echo "Test: audit.json missing 'ratings' field"
 rm -rf .docimp/
@@ -528,6 +534,8 @@ else
 fi
 
 # Test 4: Empty state directory (edge case)
+# Note: This test accepts both success (graceful recovery via re-analysis)
+# and failure (helpful error message). Both behaviors are acceptable.
 echo ""
 echo "Test: Empty state directory"
 rm -rf .docimp/
@@ -585,7 +593,7 @@ if [ $ANALYZE_EXIT_CODE -ne 0 ]; then
         print_warning "Analyze error message unclear: $ERROR_OUTPUT"
     fi
 else
-    print_warning "Analyze may not check file write permissions"
+    print_failure "Analyze should detect write permission issues but succeeded"
 fi
 
 # Clean up
