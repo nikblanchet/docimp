@@ -493,3 +493,120 @@ class MyClass:
         # Helper: base(1) + if(1) + while(1) = 3
         assert helper.complexity == 3, \
             f"Helper should have complexity 3, got {helper.complexity}"
+
+    def test_extracts_end_line_for_functions(self, parser, tmp_path):
+        """Test that end_line is extracted correctly for functions."""
+        test_file = tmp_path / "end_line_func.py"
+        test_file.write_text("""def simple_function():
+    '''Simple one-line function.'''
+    return 42
+
+def multi_line_function(x, y):
+    '''Function spanning multiple lines.'''
+    result = x + y
+    if result > 10:
+        return result * 2
+    return result
+""")
+
+        items = parser.parse_file(str(test_file))
+        assert len(items) == 2
+
+        simple = next(item for item in items if item.name == 'simple_function')
+        multi = next(item for item in items if item.name == 'multi_line_function')
+
+        # simple_function: lines 1-3
+        assert simple.line_number == 1
+        assert simple.end_line == 3
+
+        # multi_line_function: lines 5-10
+        assert multi.line_number == 5
+        assert multi.end_line == 10
+
+    def test_extracts_end_line_for_classes(self, parser, tmp_path):
+        """Test that end_line is extracted correctly for classes."""
+        test_file = tmp_path / "end_line_class.py"
+        test_file.write_text("""class SimpleClass:
+    '''Simple class.'''
+    pass
+
+class LargerClass:
+    '''Class with methods.'''
+
+    def __init__(self):
+        '''Initialize.'''
+        self.value = 0
+
+    def method(self):
+        '''A method.'''
+        return self.value
+""")
+
+        items = parser.parse_file(str(test_file))
+
+        simple_class = next(item for item in items if item.name == 'SimpleClass')
+        larger_class = next(item for item in items if item.name == 'LargerClass')
+
+        # SimpleClass: lines 1-3
+        assert simple_class.line_number == 1
+        assert simple_class.end_line == 3
+
+        # LargerClass: lines 5-14
+        assert larger_class.line_number == 5
+        assert larger_class.end_line == 14
+
+    def test_extracts_end_line_for_methods(self, parser, tmp_path):
+        """Test that end_line is extracted correctly for methods."""
+        test_file = tmp_path / "end_line_method.py"
+        test_file.write_text("""class MyClass:
+    def method_one(self):
+        '''First method.'''
+        return 1
+
+    def method_two(self):
+        '''Second method with multiple lines.'''
+        x = 10
+        y = 20
+        return x + y
+""")
+
+        items = parser.parse_file(str(test_file))
+
+        method_one = next(item for item in items if item.name == 'MyClass.method_one')
+        method_two = next(item for item in items if item.name == 'MyClass.method_two')
+
+        # method_one: lines 2-4
+        assert method_one.line_number == 2
+        assert method_one.end_line == 4
+
+        # method_two: lines 6-10
+        assert method_two.line_number == 6
+        assert method_two.end_line == 10
+
+    def test_end_line_with_nested_functions(self, parser, tmp_path):
+        """Test that end_line is correct for nested functions."""
+        test_file = tmp_path / "end_line_nested.py"
+        test_file.write_text("""def outer():
+    '''Outer function.'''
+    x = 1
+
+    def inner():
+        '''Inner function.'''
+        return x * 2
+
+    return inner()
+""")
+
+        items = parser.parse_file(str(test_file))
+        assert len(items) == 2
+
+        outer = next(item for item in items if item.name == 'outer')
+        inner = next(item for item in items if item.name == 'inner')
+
+        # outer: lines 1-9
+        assert outer.line_number == 1
+        assert outer.end_line == 9
+
+        # inner: lines 5-7
+        assert inner.line_number == 5
+        assert inner.end_line == 7
