@@ -29,7 +29,6 @@ export async function improveCommand(
   options: {
     config?: string;
     planFile?: string;
-    styleGuide?: string;
     tone?: string;
     verbose?: boolean;
   }
@@ -70,39 +69,82 @@ export async function improveCommand(
       return;
     }
 
+    // Detect languages present in plan
+    // Note: PlanItem.language never includes 'skipped' by design
+    const detectedLanguages = [...new Set(
+      planResult.items.map(item => item.language)
+    )];
+
+    if (detectedLanguages.length === 0) {
+      display.showError('No valid languages found in plan. All items are skipped.');
+      process.exit(1);
+    }
+
     // Collect user preferences
     display.showMessage(chalk.bold('\n Interactive Documentation Improvement'));
     display.showMessage(chalk.dim('Using Claude AI with plugin validation\n'));
 
-    const preferences = await prompts([
-      {
+    // Define style guide choices per language
+    const styleGuideChoices: Record<string, Array<{ title: string; value: string }>> = {
+      python: [
+        { title: 'Google', value: 'google' },
+        { title: 'NumPy + reST', value: 'numpy-rest' },
+        { title: 'NumPy + Markdown', value: 'numpy-markdown' },
+        { title: 'Pure reST (Sphinx)', value: 'sphinx' },
+      ],
+      javascript: [
+        { title: 'JSDoc (Vanilla)', value: 'jsdoc-vanilla' },
+        { title: 'Google JSDoc', value: 'jsdoc-google' },
+        { title: 'Closure (JSDoc/Closure)', value: 'jsdoc-closure' },
+      ],
+      typescript: [
+        { title: 'TSDoc (TypeDoc)', value: 'tsdoc-typedoc' },
+        { title: 'TSDoc (API Extractor/AEDoc)', value: 'tsdoc-aedoc' },
+        { title: 'JSDoc-in-TS', value: 'jsdoc-ts' },
+      ],
+    };
+
+    // Sequential prompts for each detected language
+    const styleGuides: Record<string, string> = {};
+
+    for (const lang of detectedLanguages) {
+      const choices = styleGuideChoices[lang];
+      if (!choices) {
+        display.showWarning(`No style guide choices defined for language: ${lang}. Skipping.`);
+        continue;
+      }
+
+      const response = await prompts({
         type: 'select',
         name: 'styleGuide',
-        message: 'Select documentation style guide:',
-        choices: [
-          { title: 'JSDoc (JavaScript/TypeScript)', value: 'jsdoc' },
-          { title: 'NumPy (Python)', value: 'numpy' },
-          { title: 'Google (Python)', value: 'google' },
-          { title: 'Sphinx (Python)', value: 'sphinx' },
-        ],
+        message: `Select documentation style guide for ${chalk.cyan(lang)}:`,
+        choices,
         initial: 0,
-      },
-      {
-        type: 'select',
-        name: 'tone',
-        message: 'Select documentation tone:',
-        choices: [
-          { title: 'Concise', value: 'concise' },
-          { title: 'Detailed', value: 'detailed' },
-          { title: 'Friendly', value: 'friendly' },
-        ],
-        initial: 0,
-      },
-    ]);
+      });
 
-    // Use command-line overrides or user preferences
-    const styleGuide = options.styleGuide || preferences.styleGuide || 'numpy';
-    const tone = options.tone || preferences.tone || 'concise';
+      if (response.styleGuide) {
+        styleGuides[lang] = response.styleGuide;
+      } else {
+        display.showError('Style guide selection cancelled.');
+        process.exit(0);
+      }
+    }
+
+    // Prompt for tone (applies to all languages)
+    const toneResponse = await prompts({
+      type: 'select',
+      name: 'tone',
+      message: 'Select documentation tone (applies to all languages):',
+      choices: [
+        { title: 'Concise', value: 'concise' },
+        { title: 'Detailed', value: 'detailed' },
+        { title: 'Friendly', value: 'friendly' },
+      ],
+      initial: 0,
+    });
+
+    // Use command-line override or user preference for tone
+    const tone = options.tone || toneResponse.tone || 'concise';
 
     // Load plugins
     const pluginManager = new PluginManager();
@@ -128,7 +170,7 @@ export async function improveCommand(
       config,
       pythonBridge,
       pluginManager,
-      styleGuide,
+      styleGuides,
       tone,
       basePath: resolve(process.cwd(), path),
     });

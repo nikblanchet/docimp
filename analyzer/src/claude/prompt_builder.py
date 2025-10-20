@@ -13,32 +13,42 @@ class PromptBuilder:
     Builder for creating documentation generation prompts.
 
     This class constructs prompts that guide Claude to generate documentation
-    in the appropriate style (JSDoc, NumPy, etc.) with the desired tone.
+    in the appropriate style with the desired tone.
 
     Parameters
     ----------
     style_guide : str, optional
-        Documentation style to use. Supported: 'jsdoc', 'numpy', 'google', 'sphinx'.
-        Defaults to 'numpy'.
+        Documentation style to use. Supported styles by language:
+        - Python: 'google', 'numpy-rest', 'numpy-markdown', 'sphinx'
+        - JavaScript: 'jsdoc-vanilla', 'jsdoc-google', 'jsdoc-closure'
+        - TypeScript: 'tsdoc-typedoc', 'tsdoc-aedoc', 'jsdoc-ts'
+        Defaults to 'google'.
     tone : str, optional
         Writing tone. Supported: 'concise', 'detailed', 'friendly'.
         Defaults to 'concise'.
     """
 
     STYLE_GUIDES = {
-        'jsdoc': {
-            'name': 'JSDoc',
-            'description': 'JavaScript documentation using JSDoc format with @param, @returns, @typedef',
-            'example': """/**
- * Calculate the sum of two numbers.
- * @param {number} a - The first number
- * @param {number} b - The second number
- * @returns {number} The sum of a and b
- */"""
+        # Python style guides (4 variants)
+        'google': {
+            'name': 'Google',
+            'description': 'Google-style Python docstrings',
+            'language': 'python',
+            'example': '''"""
+Calculate the sum of two numbers.
+
+Args:
+    a (int): The first number
+    b (int): The second number
+
+Returns:
+    int: The sum of a and b
+"""'''
         },
-        'numpy': {
-            'name': 'NumPy',
-            'description': 'Python documentation using NumPy docstring format',
+        'numpy-rest': {
+            'name': 'NumPy + reST',
+            'description': 'NumPy docstring format with reStructuredText markup',
+            'language': 'python',
             'example': '''"""
 Calculate the sum of two numbers.
 
@@ -53,25 +63,40 @@ Returns
 -------
 int
     The sum of a and b
+
+Notes
+-----
+Use reST markup for emphasis: *italic*, **bold**, ``code``
 """'''
         },
-        'google': {
-            'name': 'Google',
-            'description': 'Google-style Python docstrings',
+        'numpy-markdown': {
+            'name': 'NumPy + Markdown',
+            'description': 'NumPy docstring format with Markdown markup',
+            'language': 'python',
             'example': '''"""
 Calculate the sum of two numbers.
 
-Args:
-    a (int): The first number
-    b (int): The second number
+Parameters
+----------
+a : int
+    The first number
+b : int
+    The second number
 
-Returns:
-    int: The sum of a and b
+Returns
+-------
+int
+    The sum of a and b
+
+Notes
+-----
+Use Markdown for emphasis: *italic*, **bold**, `code`
 """'''
         },
         'sphinx': {
-            'name': 'Sphinx',
-            'description': 'Sphinx-style Python docstrings',
+            'name': 'Pure reST (Sphinx)',
+            'description': 'Sphinx-style Python docstrings with reST directives',
+            'language': 'python',
             'example': '''"""
 Calculate the sum of two numbers.
 
@@ -82,6 +107,83 @@ Calculate the sum of two numbers.
 :return: The sum of a and b
 :rtype: int
 """'''
+        },
+        # JavaScript style guides (3 variants)
+        'jsdoc-vanilla': {
+            'name': 'JSDoc (Vanilla)',
+            'description': 'Standard JSDoc format with @param, @returns, @typedef',
+            'language': 'javascript',
+            'example': """/**
+ * Calculate the sum of two numbers.
+ * @param {number} a - The first number
+ * @param {number} b - The second number
+ * @returns {number} The sum of a and b
+ */"""
+        },
+        'jsdoc-google': {
+            'name': 'Google JSDoc',
+            'description': 'Google-flavored JSDoc with specific formatting conventions',
+            'language': 'javascript',
+            'example': """/**
+ * Calculate the sum of two numbers.
+ *
+ * @param {number} a The first number.
+ * @param {number} b The second number.
+ * @return {number} The sum of a and b.
+ */"""
+        },
+        'jsdoc-closure': {
+            'name': 'Closure (JSDoc/Closure)',
+            'description': 'Google Closure Compiler style with nullable types and advanced annotations',
+            'language': 'javascript',
+            'example': """/**
+ * Calculate the sum of two numbers.
+ * @param {number} a The first number
+ * @param {number} b The second number
+ * @return {number} The sum of a and b
+ * @public
+ */"""
+        },
+        # TypeScript style guides (3 variants)
+        'tsdoc-typedoc': {
+            'name': 'TSDoc (TypeDoc)',
+            'description': 'TSDoc format optimized for TypeDoc documentation generator',
+            'language': 'typescript',
+            'example': """/**
+ * Calculate the sum of two numbers.
+ *
+ * @param a - The first number
+ * @param b - The second number
+ * @returns The sum of a and b
+ *
+ * @remarks
+ * TypeScript types are inferred from the signature.
+ */"""
+        },
+        'tsdoc-aedoc': {
+            'name': 'TSDoc (API Extractor/AEDoc)',
+            'description': 'TSDoc format for Microsoft API Extractor with public API annotations',
+            'language': 'typescript',
+            'example': """/**
+ * Calculate the sum of two numbers.
+ *
+ * @param a - The first number
+ * @param b - The second number
+ * @returns The sum of a and b
+ *
+ * @public
+ */"""
+        },
+        'jsdoc-ts': {
+            'name': 'JSDoc-in-TS',
+            'description': 'JSDoc format in TypeScript files (hybrid approach)',
+            'language': 'typescript',
+            'example': """/**
+ * Calculate the sum of two numbers.
+ * @param {number} a - The first number
+ * @param {number} b - The second number
+ * @returns {number} The sum of a and b
+ */"""
         }
     }
 
@@ -91,7 +193,7 @@ Calculate the sum of two numbers.
         'friendly': 'Write in a conversational, approachable style while remaining professional.'
     }
 
-    def __init__(self, style_guide: str = 'numpy', tone: str = 'concise'):
+    def __init__(self, style_guide: str = 'google', tone: str = 'concise'):
         if style_guide not in self.STYLE_GUIDES:
             raise ValueError(
                 f"Unsupported style guide: {style_guide}. "
@@ -170,16 +272,56 @@ Calculate the sum of two numbers.
             "3. Use the exact format shown in the example",
         ])
 
-        if self.style_guide == 'jsdoc':
-            prompt_parts.extend([
-                "4. Ensure @param names exactly match the function parameter names",
-                "5. Include type annotations for all parameters and return values",
-                "6. Use @returns (not @return)",
-            ])
-        elif self.style_guide in ['numpy', 'google', 'sphinx']:
+        # Add style-specific requirements
+        style_language = style_info.get('language')
+
+        if style_language == 'python':
             prompt_parts.extend([
                 "4. Include type hints for all parameters and return values",
                 "5. Use triple-quoted docstrings",
             ])
+            if self.style_guide == 'numpy-rest':
+                prompt_parts.append("6. Use reStructuredText markup: *italic*, **bold**, ``code``")
+            elif self.style_guide == 'numpy-markdown':
+                prompt_parts.append("6. Use Markdown markup: *italic*, **bold**, `code`")
+        elif style_language == 'javascript':
+            prompt_parts.extend([
+                "4. Ensure @param names exactly match the function parameter names",
+                "5. Include type annotations for all parameters and return values",
+            ])
+            if self.style_guide == 'jsdoc-vanilla':
+                prompt_parts.append("6. Use @returns (not @return)")
+            elif self.style_guide == 'jsdoc-google':
+                prompt_parts.extend([
+                    "6. Use @return (not @returns)",
+                    "7. End descriptions with periods",
+                    "8. No hyphens after parameter names",
+                ])
+            elif self.style_guide == 'jsdoc-closure':
+                prompt_parts.extend([
+                    "6. Use @return (not @returns)",
+                    "7. Include @public, @private, or @protected annotations",
+                ])
+        elif style_language == 'typescript':
+            if self.style_guide == 'tsdoc-typedoc':
+                prompt_parts.extend([
+                    "4. Use TSDoc format with hyphens after parameter names",
+                    "5. Use @returns (not @return)",
+                    "6. Types are inferred from TypeScript signatures",
+                    "7. Include @remarks for additional details",
+                ])
+            elif self.style_guide == 'tsdoc-aedoc':
+                prompt_parts.extend([
+                    "4. Use TSDoc format with hyphens after parameter names",
+                    "5. Use @returns (not @return)",
+                    "6. Include @public, @beta, or @internal annotations",
+                    "7. Types are inferred from TypeScript signatures",
+                ])
+            elif self.style_guide == 'jsdoc-ts':
+                prompt_parts.extend([
+                    "4. Use JSDoc format with explicit type annotations",
+                    "5. Include {type} annotations even though TypeScript provides types",
+                    "6. Use @returns (not @return)",
+                ])
 
         return "\n".join(prompt_parts)

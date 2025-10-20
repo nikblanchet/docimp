@@ -16,13 +16,27 @@ import { defaultConfig } from './IConfig.js';
  * @throws Error if validation fails
  */
 export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
-  // Validate styleGuide
-  if (userConfig.styleGuide !== undefined) {
-    const validStyles = ['numpy', 'google', 'sphinx', 'jsdoc'];
-    if (!validStyles.includes(userConfig.styleGuide)) {
-      throw new Error(
-        `Invalid styleGuide: ${userConfig.styleGuide}. Must be one of: ${validStyles.join(', ')}`
-      );
+  // Validate styleGuides per language
+  if (userConfig.styleGuides !== undefined) {
+    const validStylesByLang = {
+      python: ['google', 'numpy-rest', 'numpy-markdown', 'sphinx'],
+      javascript: ['jsdoc-vanilla', 'jsdoc-google', 'jsdoc-closure'],
+      typescript: ['tsdoc-typedoc', 'tsdoc-aedoc', 'jsdoc-ts'],
+    };
+
+    for (const [lang, style] of Object.entries(userConfig.styleGuides)) {
+      if (lang !== 'python' && lang !== 'javascript' && lang !== 'typescript') {
+        throw new Error(
+          `Invalid language in styleGuides: ${lang}. Must be one of: python, javascript, typescript`
+        );
+      }
+
+      const validStyles = validStylesByLang[lang as keyof typeof validStylesByLang];
+      if (style && !validStyles.includes(style)) {
+        throw new Error(
+          `Invalid styleGuides.${lang}: ${style}. Must be one of: ${validStyles.join(', ')}`
+        );
+      }
     }
   }
 
@@ -102,7 +116,10 @@ export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
 
   // Merge with defaults
   const config: IConfig = {
-    styleGuide: userConfig.styleGuide ?? defaultConfig.styleGuide,
+    styleGuides: {
+      ...defaultConfig.styleGuides,
+      ...userConfig.styleGuides,
+    },
     tone: userConfig.tone ?? defaultConfig.tone,
     jsdocStyle: {
       ...defaultConfig.jsdocStyle,
