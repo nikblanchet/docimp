@@ -7,6 +7,13 @@
  */
 
 /**
+ * Supported programming languages for documentation generation.
+ * This type provides compile-time verification that all supported
+ * languages are handled consistently across the codebase.
+ */
+export type SupportedLanguage = 'python' | 'javascript' | 'typescript';
+
+/**
  * Represents a parsed code item (function, class, method, or interface).
  */
 export interface CodeItem {
@@ -172,7 +179,7 @@ export interface PlanItem {
   line_number: number;
 
   /** Source language */
-  language: 'python' | 'typescript' | 'javascript';
+  language: SupportedLanguage;
 
   /** Cyclomatic complexity score */
   complexity: number;

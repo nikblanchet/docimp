@@ -15,7 +15,7 @@ import { PluginManager } from '../plugins/PluginManager.js';
 import { TerminalDisplay } from '../display/TerminalDisplay.js';
 import { InteractiveSession } from '../session/InteractiveSession.js';
 import { StateManager } from '../utils/StateManager.js';
-import type { PlanResult } from '../types/analysis.js';
+import type { PlanResult, SupportedLanguage } from '../types/analysis.js';
 import type { IConfig } from '../config/IConfig.js';
 
 /**
@@ -85,7 +85,7 @@ export async function improveCommand(
     display.showMessage(chalk.dim('Using Claude AI with plugin validation\n'));
 
     // Define style guide choices per language
-    const styleGuideChoices: Record<string, Array<{ title: string; value: string }>> = {
+    const styleGuideChoices: Record<SupportedLanguage, Array<{ title: string; value: string }>> = {
       python: [
         { title: 'Google', value: 'google' },
         { title: 'NumPy + reST', value: 'numpy-rest' },
@@ -115,13 +115,13 @@ export async function improveCommand(
     }
 
     // Sequential prompts for each detected language
-    const styleGuides: Record<string, string> = {};
+    const styleGuides: Partial<Record<SupportedLanguage, string>> = {};
 
     for (const lang of detectedLanguages) {
       const choices = styleGuideChoices[lang];
 
       // Find initial selection from config
-      const configuredStyle = config.styleGuides?.[lang as 'python' | 'javascript' | 'typescript'];
+      const configuredStyle = config.styleGuides?.[lang as SupportedLanguage];
       const initialIndex = configuredStyle
         ? choices.findIndex(choice => choice.value === configuredStyle)
         : -1;

@@ -6,6 +6,8 @@
  * JavaScript (CommonJS or ESM) to allow custom logic and functions.
  */
 
+import type { SupportedLanguage } from '../types/analysis.js';
+
 /**
  * Main configuration interface.
  */
@@ -29,11 +31,7 @@ export interface IConfig {
    * - 'tsdoc-aedoc': TSDoc for API Extractor/AEDoc
    * - 'jsdoc-ts': JSDoc format in TypeScript files
    */
-  styleGuides: {
-    python?: string;
-    javascript?: string;
-    typescript?: string;
-  };
+  styleGuides: Partial<Record<SupportedLanguage, string>>;
 
   /**
    * Tone of generated documentation.
