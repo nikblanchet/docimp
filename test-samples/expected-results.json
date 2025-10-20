@@ -1,6 +1,8 @@
 {
   "description": "Expected analysis results for test-samples/example-project/",
   "note": "These values are generated from actual analysis and should be updated if code changes",
+  "version": "1.0",
+  "last_updated": "2025-10-20T13:51:03Z",
   "analysis": {
     "total_items": 58,
     "documented_items": 40,
