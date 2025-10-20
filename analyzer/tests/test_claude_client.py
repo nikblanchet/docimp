@@ -4,7 +4,7 @@ Tests for ClaudeClient functionality including API interaction and response hand
 
 import sys
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 import pytest
 
 # Add parent directory to path for imports
