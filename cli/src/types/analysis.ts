@@ -29,6 +29,9 @@ export interface CodeItem {
   /** Line number where definition starts */
   line_number: number;
 
+  /** Line number where definition ends (inclusive) */
+  end_line: number;
+
   /** Source language */
   language: 'python' | 'typescript' | 'javascript' | 'skipped';
 
