@@ -238,3 +238,352 @@ class TestClaudeClientRetryLogic:
 
         # Verify it only tried once (no retry)
         assert mock_client.messages.create.call_count == 1
+
+
+class TestMultiItemResponseDetection:
+    """
+    Test detection of multi-item responses from Claude API.
+
+    Issue #220: Claude sometimes returns documentation for multiple items instead
+    of just the target item. These tests verify we can detect such responses.
+    """
+
+    def _count_python_docstrings(self, text: str) -> int:
+        """Count Python docstrings (triple-quoted strings) in text."""
+        import re
+        # Match triple-quoted docstrings (both """ and ''')
+        pattern = r'("""[\s\S]*?"""|\'\'\'[\s\S]*?\'\'\')'
+        return len(re.findall(pattern, text))
+
+    def _count_jsdoc_comments(self, text: str) -> int:
+        """Count JSDoc comments (/** ... */) in text."""
+        import re
+        # Match JSDoc comments
+        pattern = r'/\*\*[\s\S]*?\*/'
+        return len(re.findall(pattern, text))
+
+    @patch('anthropic.Anthropic')
+    def test_detect_single_python_function_response(self, mock_anthropic_class):
+        """Test detection of single Python function documentation (expected)."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        # Mock response with single Python docstring
+        single_docstring = '''"""
+Calculate the sum of two numbers.
+
+Parameters
+----------
+a : int
+    The first number
+b : int
+    The second number
+
+Returns
+-------
+int
+    The sum of a and b
+"""'''
+
+        mock_message = MagicMock()
+        mock_message.content = [MagicMock(text=single_docstring)]
+        mock_client.messages.create.return_value = mock_message
+
+        client = ClaudeClient(api_key='sk-ant-test')
+        result = client.generate_docstring('test prompt')
+
+        # Verify only one docstring in response
+        docstring_count = self._count_python_docstrings(result)
+        assert docstring_count == 1, f"Expected 1 docstring, found {docstring_count}"
+
+    @patch('anthropic.Anthropic')
+    def test_detect_multiple_python_function_responses(self, mock_anthropic_class):
+        """Test detection of multiple Python functions (bug scenario from issue #220)."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        # Mock response with MULTIPLE Python docstrings (this is the bug!)
+        multiple_docstrings = '''"""
+Check password strength requirements.
+
+Parameters
+----------
+password : str
+    Password string to validate
+
+Returns
+-------
+bool
+    True if password meets strength requirements, False otherwise
+"""
+
+"""
+Validate username format and requirements.
+
+Parameters
+----------
+username : str
+    Username string to validate
+
+Returns
+-------
+bool
+    True if username is valid, False otherwise
+"""
+
+"""
+Clean and sanitize user input string.
+
+Parameters
+----------
+user_input : str
+    Raw user input to sanitize
+
+Returns
+-------
+str
+    Cleaned and sanitized input string
+"""'''
+
+        mock_message = MagicMock()
+        mock_message.content = [MagicMock(text=multiple_docstrings)]
+        mock_client.messages.create.return_value = mock_message
+
+        client = ClaudeClient(api_key='sk-ant-test')
+        result = client.generate_docstring('test prompt')
+
+        # Verify multiple docstrings detected (this is the problem)
+        docstring_count = self._count_python_docstrings(result)
+        assert docstring_count == 3, f"Expected 3 docstrings (bug scenario), found {docstring_count}"
+
+    @patch('anthropic.Anthropic')
+    def test_detect_single_python_class_response(self, mock_anthropic_class):
+        """Test detection of single Python class documentation (expected)."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        single_class_doc = '''"""
+Validator for user input data.
+
+This class provides methods for validating various types of user input
+including usernames, passwords, and email addresses.
+
+Parameters
+----------
+strict_mode : bool, optional
+    Enable strict validation rules. Defaults to False.
+"""'''
+
+        mock_message = MagicMock()
+        mock_message.content = [MagicMock(text=single_class_doc)]
+        mock_client.messages.create.return_value = mock_message
+
+        client = ClaudeClient(api_key='sk-ant-test')
+        result = client.generate_docstring('test prompt')
+
+        docstring_count = self._count_python_docstrings(result)
+        assert docstring_count == 1
+
+    @patch('anthropic.Anthropic')
+    def test_detect_class_with_method_docs(self, mock_anthropic_class):
+        """Test detection of class doc plus method docs (bug scenario)."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        # Class documentation plus method documentation (should only be one or the other)
+        class_plus_methods = '''"""
+Validator for user input data.
+
+Parameters
+----------
+strict_mode : bool
+    Enable strict validation rules
+"""
+
+"""
+Validate a username.
+
+Parameters
+----------
+username : str
+    The username to validate
+
+Returns
+-------
+bool
+    True if valid, False otherwise
+"""'''
+
+        mock_message = MagicMock()
+        mock_message.content = [MagicMock(text=class_plus_methods)]
+        mock_client.messages.create.return_value = mock_message
+
+        client = ClaudeClient(api_key='sk-ant-test')
+        result = client.generate_docstring('test prompt')
+
+        docstring_count = self._count_python_docstrings(result)
+        assert docstring_count == 2, "Detected class + method docs (bug scenario)"
+
+    @patch('anthropic.Anthropic')
+    def test_detect_single_jsdoc_function_response(self, mock_anthropic_class):
+        """Test detection of single JSDoc function documentation (expected)."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        single_jsdoc = '''/**
+ * Calculate the sum of two numbers.
+ * @param {number} a - The first number
+ * @param {number} b - The second number
+ * @returns {number} The sum of a and b
+ */'''
+
+        mock_message = MagicMock()
+        mock_message.content = [MagicMock(text=single_jsdoc)]
+        mock_client.messages.create.return_value = mock_message
+
+        client = ClaudeClient(api_key='sk-ant-test')
+        result = client.generate_docstring('test prompt')
+
+        jsdoc_count = self._count_jsdoc_comments(result)
+        assert jsdoc_count == 1
+
+    @patch('anthropic.Anthropic')
+    def test_detect_multiple_jsdoc_function_responses(self, mock_anthropic_class):
+        """Test detection of multiple JSDoc functions (bug scenario)."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        multiple_jsdocs = '''/**
+ * Validate password strength.
+ * @param {string} password - Password to validate
+ * @returns {boolean} True if password is strong enough
+ */
+
+/**
+ * Validate username format.
+ * @param {string} username - Username to validate
+ * @returns {boolean} True if username is valid
+ */
+
+/**
+ * Sanitize user input.
+ * @param {string} input - Raw user input
+ * @returns {string} Sanitized input
+ */'''
+
+        mock_message = MagicMock()
+        mock_message.content = [MagicMock(text=multiple_jsdocs)]
+        mock_client.messages.create.return_value = mock_message
+
+        client = ClaudeClient(api_key='sk-ant-test')
+        result = client.generate_docstring('test prompt')
+
+        jsdoc_count = self._count_jsdoc_comments(result)
+        assert jsdoc_count == 3, f"Expected 3 JSDoc comments (bug scenario), found {jsdoc_count}"
+
+    @patch('anthropic.Anthropic')
+    def test_detect_typescript_class_with_methods(self, mock_anthropic_class):
+        """Test detection of TypeScript class with multiple method docs (bug)."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        # TSDoc for class plus multiple methods
+        class_and_methods = '''/**
+ * Validator for user input data.
+ *
+ * @remarks
+ * This class provides comprehensive validation for user inputs.
+ */
+
+/**
+ * Validate a username.
+ *
+ * @param username - The username to validate
+ * @returns True if valid, false otherwise
+ */
+
+/**
+ * Validate a password.
+ *
+ * @param password - The password to validate
+ * @returns True if password meets requirements
+ */'''
+
+        mock_message = MagicMock()
+        mock_message.content = [MagicMock(text=class_and_methods)]
+        mock_client.messages.create.return_value = mock_message
+
+        client = ClaudeClient(api_key='sk-ant-test')
+        result = client.generate_docstring('test prompt')
+
+        jsdoc_count = self._count_jsdoc_comments(result)
+        assert jsdoc_count == 3, "Detected class + 2 methods (bug scenario)"
+
+    @patch('anthropic.Anthropic')
+    def test_detect_mixed_documented_and_target(self, mock_anthropic_class):
+        """
+        Test the exact scenario from issue #220.
+
+        Claude returns docs for already-documented functions PLUS the target function.
+        """
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        # Realistic response from issue #220: includes already-documented function
+        issue_220_response = '''"""
+Check password strength requirements.
+
+Parameters
+----------
+password : str
+    Password string to validate
+
+Returns
+-------
+bool
+    True if password meets strength requirements, False otherwise
+"""
+
+"""
+Validate username format and requirements.
+
+This is the ACTUAL target function we requested documentation for.
+
+Parameters
+----------
+username : str
+    Username string to validate
+
+Returns
+-------
+bool
+    True if username is valid, False otherwise
+"""
+
+"""
+Clean and sanitize user input string.
+
+Parameters
+----------
+user_input : str
+    Raw user input to sanitize
+
+Returns
+-------
+str
+    Cleaned and sanitized input string
+"""'''
+
+        mock_message = MagicMock()
+        mock_message.content = [MagicMock(text=issue_220_response)]
+        mock_client.messages.create.return_value = mock_message
+
+        client = ClaudeClient(api_key='sk-ant-test')
+        result = client.generate_docstring('Generate docs for validate_username')
+
+        # This is the problem: we asked for ONE function but got THREE
+        docstring_count = self._count_python_docstrings(result)
+        assert docstring_count > 1, (
+            f"Issue #220 scenario: Expected multiple docstrings (bug), "
+            f"found {docstring_count}"
+        )
