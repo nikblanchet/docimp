@@ -180,7 +180,7 @@ export class PythonBridge implements IPythonBridge {
    * Save audit ratings to file.
    *
    * @param ratings - Audit ratings to persist
-   * @param auditFile - Path to audit file (default: .docimp-audit.json)
+   * @param auditFile - Path to audit file (default: .docimp/session-reports/audit.json)
    * @returns Promise resolving when ratings are saved
    * @throws Error if Python process fails
    */
