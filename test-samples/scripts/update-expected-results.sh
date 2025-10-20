@@ -22,12 +22,9 @@
 
 set -e
 
-# Color codes for output
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Load shared color constants
+SCRIPT_DIR_COLORS="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR_COLORS/colors.sh"
 
 # Change to test-samples directory
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -125,17 +122,21 @@ MANUAL_SECTIONS=$(jq '{
 DESCRIPTION=$(jq -r '.description // "Expected analysis results for test-samples/example-project/"' expected-results.json)
 NOTE=$(jq -r '.note // "These values are generated from actual analysis and should be updated if code changes"' expected-results.json)
 
-# Merge everything together with version field
+# Merge everything together with version field and timestamp
 echo -e "${YELLOW}Merging with manually-maintained sections...${NC}"
+TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 jq -n \
   --arg desc "$DESCRIPTION" \
   --arg note "$NOTE" \
+  --arg timestamp "$TIMESTAMP" \
   --argjson analysis "$NEW_ANALYSIS" \
   --argjson manual "$MANUAL_SECTIONS" \
   '{
     description: $desc,
     note: $note,
+    # Increment version when schema changes (renamed fields, new required fields, structural changes)
     version: "1.0",
+    last_updated: $timestamp,
     analysis: $analysis
   } + $manual' > expected-results-new.json
 
