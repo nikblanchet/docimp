@@ -28,6 +28,7 @@ class TestImpactScorer:
             type='function',
             filepath='test.py',
             line_number=1,
+            end_line=5,
             language='python',
             complexity=1,
             has_docs=False,
@@ -43,6 +44,7 @@ class TestImpactScorer:
             type='function',
             filepath='service.py',
             line_number=10,
+            end_line=25,
             language='python',
             complexity=15,
             has_docs=False,
@@ -92,6 +94,7 @@ class TestImpactScorer:
             type='function',
             filepath='legacy.py',
             line_number=1,
+            end_line=50,
             language='python',
             complexity=50,  # Would be 250 without cap
             has_docs=False,

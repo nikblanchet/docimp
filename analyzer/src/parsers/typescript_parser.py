@@ -98,6 +98,7 @@ class TypeScriptParser(BaseParser):
                     type=item_data['type'],
                     filepath=item_data['filepath'],
                     line_number=item_data['line_number'],
+                    end_line=item_data['end_line'],
                     language=item_data['language'],
                     complexity=item_data['complexity'],
                     impact_score=item_data['impact_score'],

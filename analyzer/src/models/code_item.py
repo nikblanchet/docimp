@@ -17,6 +17,7 @@ class CodeItem:
         type: The type of code element ('function', 'class', 'method').
         filepath: Absolute or relative path to the source file.
         line_number: Line number where the element is defined.
+        end_line: Line number where the element ends (inclusive).
         language: Programming language ('python', 'typescript', 'javascript').
         complexity: Cyclomatic complexity score.
         has_docs: Whether documentation exists for this element.
@@ -34,6 +35,7 @@ class CodeItem:
     type: str
     filepath: str
     line_number: int
+    end_line: int
     language: str
 
     # Required metric fields

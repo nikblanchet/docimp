@@ -86,6 +86,7 @@ class PythonParser(BaseParser):
             type='function',
             filepath=filepath,
             line_number=node.lineno,
+            end_line=node.end_lineno if node.end_lineno is not None else node.lineno,
             language='python',
             complexity=self._calculate_complexity(node),
             impact_score=0,  # Will be calculated by ImpactScorer
@@ -104,6 +105,7 @@ class PythonParser(BaseParser):
             type='class',
             filepath=filepath,
             line_number=node.lineno,
+            end_line=node.end_lineno if node.end_lineno is not None else node.lineno,
             language='python',
             complexity=self._calculate_complexity(node),
             impact_score=0,  # Will be calculated by ImpactScorer
@@ -122,6 +124,7 @@ class PythonParser(BaseParser):
             type='method',
             filepath=filepath,
             line_number=node.lineno,
+            end_line=node.end_lineno if node.end_lineno is not None else node.lineno,
             language='python',
             complexity=self._calculate_complexity(node),
             impact_score=0,  # Will be calculated by ImpactScorer

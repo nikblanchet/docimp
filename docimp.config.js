@@ -105,6 +105,46 @@ export default {
     enforceTypes: true,
   },
 
+  // Audit code display configuration.
+  //
+  // Controls how code is displayed during the 'docimp audit' command.
+  // Helps users make informed quality ratings by showing code context.
+  audit: {
+    showCode: {
+      // Display mode for code during audit.
+      //
+      // Options:
+      // - 'complete': Show full code block with line numbers, no truncation
+      //   - No [C] option shown (full code already displayed)
+      //   - Best for: Small functions, reviewing complete context
+      //
+      // - 'truncated': Show code up to maxLines (default 20), with line numbers
+      //   - [C] option available to show full code
+      //   - Truncation message shows remaining lines
+      //   - Best for: Balancing context with screen space
+      //
+      // - 'signature': Show only function/class signature (first few lines)
+      //   - [C] option available to show full code
+      //   - Message shows total line count
+      //   - Best for: Quick audits focusing on documentation quality, not implementation
+      //
+      // - 'on-demand': Hide code by default
+      //   - [C] option available to show full code when needed
+      //   - Best for: Experienced users who know the codebase
+      //
+      // Default: 'truncated'
+      mode: 'truncated',
+
+      // Maximum lines to show in 'truncated' and 'signature' modes.
+      //
+      // Note: This does NOT count the docstring itself, only the code.
+      // Set to 0 for unlimited (equivalent to 'complete' mode).
+      //
+      // Default: 20
+      maxLines: 20,
+    },
+  },
+
   // Impact scoring weights.
   //
   // Controls how DocImp prioritizes undocumented code.

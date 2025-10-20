@@ -61,6 +61,11 @@ export interface IConfig {
    * Glob patterns for files to exclude from analysis.
    */
   exclude?: string[];
+
+  /**
+   * Audit command configuration.
+   */
+  audit?: IAuditConfig;
 }
 
 /**
@@ -113,6 +118,32 @@ export interface IImpactWeights {
 }
 
 /**
+ * Audit command configuration.
+ */
+export interface IAuditConfig {
+  /**
+   * Code display settings for audit workflow.
+   */
+  showCode?: {
+    /**
+     * Display mode for code during audit:
+     * - 'complete': Show full code, no truncation, no [C] option
+     * - 'truncated': Show code up to maxLines (default), [C] shows full
+     * - 'signature': Show just function/class signature, [C] shows full
+     * - 'on-demand': Don't show code by default, [C] shows full
+     */
+    mode: 'complete' | 'truncated' | 'signature' | 'on-demand';
+
+    /**
+     * Maximum lines to show in 'truncated' and 'signature' modes.
+     * Does not count the docstring itself.
+     * Set to 0 for unlimited.
+     */
+    maxLines: number;
+  };
+}
+
+/**
  * Default configuration values.
  */
 export const defaultConfig: IConfig = {
@@ -146,4 +177,10 @@ export const defaultConfig: IConfig = {
     '**/dist/**',
     '**/build/**',
   ],
+  audit: {
+    showCode: {
+      mode: 'truncated',
+      maxLines: 20,
+    },
+  },
 };

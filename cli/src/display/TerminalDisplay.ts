@@ -423,6 +423,10 @@ export class TerminalDisplay implements IDisplay {
   private padLeft(str: string, width: number, hasColor: boolean = false): string {
     const strippedLength = hasColor ? this.stripAnsiLength(str) : str.length;
     const padding = width - strippedLength;
+    // Handle case where string exceeds width (no padding)
+    if (padding < 2) {
+      return '  ' + str;
+    }
     return '  ' + str + ' '.repeat(padding - 2);
   }
 
@@ -441,5 +445,68 @@ export class TerminalDisplay implements IDisplay {
    */
   private pluralize(count: number, singular: string, plural: string): string {
     return count === 1 ? singular : plural;
+  }
+
+  /**
+   * Display a docstring in a labeled box for audit review.
+   *
+   * Shows the docstring being audited in a bordered box with the header
+   * "CURRENT DOCSTRING". This makes it clear which docstring is being
+   * rated, especially when code contains nested functions with their
+   * own docstrings.
+   */
+  public showBoxedDocstring(docstring: string, width: number = 60): void {
+    const horizontalLine = '─'.repeat(width);
+
+    // Box top with header
+    console.log('┌' + horizontalLine + '┐');
+    console.log('│' + this.padLeft('CURRENT DOCSTRING', width) + '│');
+    console.log('├' + horizontalLine + '┤');
+
+    // Split docstring into lines and display each
+    const lines = docstring.split('\n');
+    for (const line of lines) {
+      console.log('│' + this.padLeft(line, width) + '│');
+    }
+
+    // Box bottom
+    console.log('└' + horizontalLine + '┘');
+  }
+
+  /**
+   * Display a code block with optional truncation message.
+   *
+   * Shows code (which already includes line numbers from CodeExtractor)
+   * without a header label. If truncated, displays a message indicating
+   * how many more lines are available.
+   */
+  public showCodeBlock(
+    code: string,
+    truncated: boolean,
+    totalLines: number,
+    displayedLines: number
+  ): void {
+    // Display the code (already includes line numbers)
+    console.log(code);
+
+    // If truncated, show message about remaining lines
+    if (truncated) {
+      const remainingLines = totalLines - displayedLines;
+      console.log('');
+      console.log(`... (${remainingLines} more lines, press C to see full code)`);
+    }
+  }
+
+  /**
+   * Display just the function/class signature with message about full code.
+   *
+   * Shows only the signature line(s) followed by a message indicating
+   * the total code size and how to view the full code.
+   */
+  public showSignature(signature: string, totalLines: number): void {
+    // Display the signature (already includes line number)
+    console.log(signature);
+    console.log('');
+    console.log(`(Full code: ${totalLines} lines, press C to see all)`);
   }
 }

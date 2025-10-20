@@ -17,6 +17,7 @@ interface CodeItem {
     type: 'function' | 'class' | 'method' | 'interface';
     filepath: string;
     line_number: number;
+    end_line: number;
     language: 'typescript' | 'javascript';
     complexity: number;
     impact_score: number;
@@ -263,6 +264,7 @@ function parseFile(filepath: string): CodeItem[] {
                                 type: 'function',
                                 filepath,
                                 line_number: sourceFile.getLineAndCharacterOfPosition(prop.getStart()).line + 1,
+                                end_line: sourceFile.getLineAndCharacterOfPosition(prop.getEnd()).line + 1,
                                 language,
                                 complexity: calculateComplexity(funcNode),
                                 impact_score: 0,
@@ -296,6 +298,7 @@ function parseFile(filepath: string): CodeItem[] {
                     type: 'function',
                     filepath,
                     line_number: sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1,
+                    end_line: sourceFile.getLineAndCharacterOfPosition(node.getEnd()).line + 1,
                     language,
                     complexity: calculateComplexity(node.right),
                     impact_score: 0,
@@ -320,6 +323,7 @@ function parseFile(filepath: string): CodeItem[] {
                 type: 'function',
                 filepath,
                 line_number: sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1,
+                end_line: sourceFile.getLineAndCharacterOfPosition(node.getEnd()).line + 1,
                 language,
                 complexity: calculateComplexity(node),
                 impact_score: 0,
@@ -346,6 +350,7 @@ function parseFile(filepath: string): CodeItem[] {
                         type: 'function',
                         filepath,
                         line_number: sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1,
+                        end_line: sourceFile.getLineAndCharacterOfPosition(node.getEnd()).line + 1,
                         language,
                         complexity: calculateComplexity(declaration.initializer),
                         impact_score: 0,
@@ -368,6 +373,7 @@ function parseFile(filepath: string): CodeItem[] {
                 type: 'class',
                 filepath,
                 line_number: sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1,
+                end_line: sourceFile.getLineAndCharacterOfPosition(node.getEnd()).line + 1,
                 language,
                 complexity: calculateComplexity(node),
                 impact_score: 0,
@@ -390,6 +396,7 @@ function parseFile(filepath: string): CodeItem[] {
                         type: 'method',
                         filepath,
                         line_number: sourceFile.getLineAndCharacterOfPosition(member.getStart()).line + 1,
+                        end_line: sourceFile.getLineAndCharacterOfPosition(member.getEnd()).line + 1,
                         language,
                         complexity: calculateComplexity(member),
                         impact_score: 0,
@@ -412,6 +419,7 @@ function parseFile(filepath: string): CodeItem[] {
                 type: 'interface',
                 filepath,
                 line_number: sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1,
+                end_line: sourceFile.getLineAndCharacterOfPosition(node.getEnd()).line + 1,
                 language: 'typescript',
                 complexity: 1, // Interfaces have minimal complexity
                 impact_score: 0,
