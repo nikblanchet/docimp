@@ -2,6 +2,10 @@
  * Valid CommonJS config file.
  */
 module.exports = {
-  styleGuide: 'jsdoc',
+  styleGuides: {
+    python: 'google',
+    javascript: 'jsdoc-vanilla',
+    typescript: 'tsdoc-typedoc',
+  },
   tone: 'detailed',
 };
