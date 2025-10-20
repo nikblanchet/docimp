@@ -87,4 +87,48 @@ export interface IDisplay {
    * @param summary - Audit summary statistics
    */
   showAuditSummary(summary: AuditSummary): void;
+
+  /**
+   * Display a docstring in a labeled box for audit review.
+   *
+   * Shows the docstring being audited in a bordered box with the header
+   * "CURRENT DOCSTRING". This makes it clear which docstring is being
+   * rated, especially when code contains nested functions with their
+   * own docstrings.
+   *
+   * @param docstring - The docstring text to display
+   * @param width - Optional box width in characters (default: 60)
+   */
+  showBoxedDocstring(docstring: string, width?: number): void;
+
+  /**
+   * Display a code block with optional truncation message.
+   *
+   * Shows code (which already includes line numbers from CodeExtractor)
+   * without a header label. If truncated, displays a message indicating
+   * how many more lines are available and how to view them.
+   *
+   * @param code - The code to display (already formatted with line numbers)
+   * @param truncated - Whether the code was truncated
+   * @param totalLines - Total number of lines in the full code
+   * @param displayedLines - Number of lines actually displayed
+   */
+  showCodeBlock(
+    code: string,
+    truncated: boolean,
+    totalLines: number,
+    displayedLines: number
+  ): void;
+
+  /**
+   * Display just the function/class signature with message about full code.
+   *
+   * Shows only the signature line(s) (which already includes line number
+   * from CodeExtractor) followed by a message indicating the total code
+   * size and how to view the full code.
+   *
+   * @param signature - The signature to display (already formatted with line number)
+   * @param totalLines - Total number of lines in the full code
+   */
+  showSignature(signature: string, totalLines: number): void;
 }
