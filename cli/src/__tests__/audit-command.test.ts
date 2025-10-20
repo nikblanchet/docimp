@@ -327,7 +327,8 @@ describe('auditCore - boxed docstring display', () => {
   });
 
   it('displays boxed docstring for items with documentation', async () => {
-    const projectRoot = '/Users/nik/Documents/Code/Polygot/docimp';
+    const path = require('path');
+    const projectRoot = path.resolve(__dirname, '../../..');
     const itemWithDocs: CodeItem = {
       name: 'testFunction',
       type: 'function',
@@ -361,7 +362,8 @@ describe('auditCore - boxed docstring display', () => {
   });
 
   it('does not show dashed lines (uses boxed display instead)', async () => {
-    const projectRoot = '/Users/nik/Documents/Code/Polygot/docimp';
+    const path = require('path');
+    const projectRoot = path.resolve(__dirname, '../../..');
     const itemWithDocs: CodeItem = {
       name: 'testFunction',
       type: 'function',
@@ -399,7 +401,8 @@ describe('auditCore - boxed docstring display', () => {
   });
 
   it('shows boxed docstring before prompting for rating', async () => {
-    const projectRoot = '/Users/nik/Documents/Code/Polygot/docimp';
+    const path = require('path');
+    const projectRoot = path.resolve(__dirname, '../../..');
     const itemWithDocs: CodeItem = {
       name: 'testFunction',
       type: 'function',
@@ -469,8 +472,10 @@ describe('auditCore - code display modes', () => {
   });
 
   const createMockItem = (): CodeItem => {
-    // Use the actual path to an existing test file
-    const projectRoot = '/Users/nik/Documents/Code/Polygot/docimp';
+    // Use path.resolve to get absolute path from project root
+    // __dirname is cli/src/__tests__, so go up 3 levels to reach project root
+    const path = require('path');
+    const projectRoot = path.resolve(__dirname, '../../..');
     return {
       name: 'testFunction',
       type: 'function',
