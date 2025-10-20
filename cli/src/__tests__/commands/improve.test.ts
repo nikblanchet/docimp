@@ -22,12 +22,14 @@ jest.mock('prompts');
 jest.mock('chalk', () => ({
   default: {
     bold: (str: string) => str,
+    cyan: (str: string) => str,
     dim: (str: string) => str,
     green: (str: string) => str,
     yellow: (str: string) => str,
     red: (str: string) => str,
   },
   bold: (str: string) => str,
+  cyan: (str: string) => str,
   dim: (str: string) => str,
   green: (str: string) => str,
   yellow: (str: string) => str,
@@ -76,7 +78,11 @@ describe('improve command', () => {
     // Setup mocks
     mockConfigLoader = new MockConfigLoader() as jest.Mocked<ConfigLoader>;
     mockConfigLoader.load = jest.fn().mockResolvedValue({
-      styleGuide: 'jsdoc',
+      styleGuides: {
+        javascript: 'jsdoc-vanilla',
+        python: 'google',
+        typescript: 'tsdoc-typedoc',
+      },
       tone: 'concise',
       plugins: ['./plugins/validate-types.js'],
       exclude: [],
@@ -115,10 +121,14 @@ describe('improve command', () => {
       ],
     }));
 
-    // Mock user prompts
-    mockPrompts.mockResolvedValue({
-      styleGuide: 'jsdoc',
-      tone: 'concise',
+    // Mock user prompts - use mockImplementation to provide fresh values for each call
+    mockPrompts.mockImplementation((promptConfig: any) => {
+      if (promptConfig.name === 'styleGuide') {
+        return Promise.resolve({ styleGuide: 'jsdoc-vanilla' });
+      } else if (promptConfig.name === 'tone') {
+        return Promise.resolve({ tone: 'concise' });
+      }
+      return Promise.resolve({});
     });
   });
 
@@ -218,25 +228,15 @@ describe('improve command', () => {
   });
 
   describe('user preferences', () => {
-    it('should prompt for style guide and tone', async () => {
+    it('should prompt for style guides per language and tone', async () => {
       await improveCommand('./test', {});
 
-      expect(mockPrompts).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.objectContaining({ name: 'styleGuide' }),
-          expect.objectContaining({ name: 'tone' }),
-        ])
-      );
-    });
-
-    it('should use command-line style guide override', async () => {
-      await improveCommand('./test', { styleGuide: 'numpy' });
-
-      expect(MockInteractiveSession).toHaveBeenCalledWith(
-        expect.objectContaining({
-          styleGuide: 'numpy',
-        })
-      );
+      // Should be called twice: once for javascript style, once for tone
+      expect(mockPrompts).toHaveBeenCalledTimes(2);
+      // First call: javascript style guide
+      expect(mockPrompts).toHaveBeenNthCalledWith(1, expect.objectContaining({ name: 'styleGuide' }));
+      // Second call: tone
+      expect(mockPrompts).toHaveBeenNthCalledWith(2, expect.objectContaining({ name: 'tone' }));
     });
 
     it('should use command-line tone override', async () => {
@@ -249,17 +249,16 @@ describe('improve command', () => {
       );
     });
 
-    it('should use prompted values when no overrides', async () => {
-      mockPrompts.mockResolvedValueOnce({
-        styleGuide: 'google',
-        tone: 'friendly',
-      });
+    it('should use prompted values when no tone override', async () => {
+      mockPrompts
+        .mockResolvedValueOnce({ styleGuide: 'jsdoc-google' })  // JavaScript style
+        .mockResolvedValueOnce({ tone: 'friendly' });           // Tone
 
       await improveCommand('./test', {});
 
       expect(MockInteractiveSession).toHaveBeenCalledWith(
         expect.objectContaining({
-          styleGuide: 'google',
+          styleGuides: { javascript: 'jsdoc-google' },
           tone: 'friendly',
         })
       );
@@ -286,7 +285,11 @@ describe('improve command', () => {
 
     it('should work with no plugins configured', async () => {
       mockConfigLoader.load.mockResolvedValueOnce({
-        styleGuide: 'jsdoc',
+        styleGuides: {
+          javascript: 'jsdoc-vanilla',
+          python: 'google',
+          typescript: 'tsdoc-typedoc',
+        },
         tone: 'concise',
         plugins: [],
         exclude: [],
@@ -307,8 +310,9 @@ describe('improve command', () => {
           config: expect.any(Object),
           pythonBridge: expect.any(Object),
           pluginManager: expect.any(Object),
-          styleGuide: expect.any(String),
+          styleGuides: expect.any(Object),
           tone: expect.any(String),
+          basePath: expect.any(String),
         })
       );
       expect(mockSession.run).toHaveBeenCalledWith([
