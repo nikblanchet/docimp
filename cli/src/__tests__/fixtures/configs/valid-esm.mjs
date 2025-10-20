@@ -2,6 +2,10 @@
  * Valid ESM config file.
  */
 export default {
-  styleGuide: 'google',
+  styleGuides: {
+    python: 'google',
+    javascript: 'jsdoc-vanilla',
+    typescript: 'tsdoc-typedoc',
+  },
   tone: 'friendly',
 };

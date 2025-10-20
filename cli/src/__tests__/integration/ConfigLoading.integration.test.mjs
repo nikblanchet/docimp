@@ -33,7 +33,10 @@ describe('ConfigLoader - File Loading Integration', () => {
 
       const config = await loader.load(configPath);
 
-      assert.equal(config.styleGuide, 'google');
+      assert.ok(config.styleGuides);
+      assert.equal(config.styleGuides.python, 'google');
+      assert.equal(config.styleGuides.javascript, 'jsdoc-vanilla');
+      assert.equal(config.styleGuides.typescript, 'tsdoc-typedoc');
       assert.equal(config.tone, 'friendly');
     });
 
@@ -42,7 +45,10 @@ describe('ConfigLoader - File Loading Integration', () => {
 
       const config = await loader.load(configPath);
 
-      assert.equal(config.styleGuide, 'jsdoc');
+      assert.ok(config.styleGuides);
+      assert.equal(config.styleGuides.python, 'google');
+      assert.equal(config.styleGuides.javascript, 'jsdoc-vanilla');
+      assert.equal(config.styleGuides.typescript, 'tsdoc-typedoc');
       assert.equal(config.tone, 'detailed');
     });
 
@@ -52,7 +58,10 @@ describe('ConfigLoader - File Loading Integration', () => {
       const config = await loader.load(configPath);
 
       // Verify all expected properties are loaded
-      assert.equal(config.styleGuide, 'jsdoc');
+      assert.ok(config.styleGuides);
+      assert.equal(config.styleGuides.python, 'google');
+      assert.equal(config.styleGuides.javascript, 'jsdoc-vanilla');
+      assert.equal(config.styleGuides.typescript, 'tsdoc-typedoc');
       assert.equal(config.tone, 'friendly');
       assert.ok(config.jsdocStyle);
       assert.ok(config.impactWeights);
@@ -79,9 +88,12 @@ describe('ConfigLoader - File Loading Integration', () => {
       const config = await loader.load(configPath);
 
       // User-specified values
-      assert.equal(config.styleGuide, 'sphinx');
+      assert.ok(config.styleGuides);
+      assert.equal(config.styleGuides.python, 'sphinx');
 
       // Default values should be present for unspecified fields
+      assert.equal(config.styleGuides.javascript, 'jsdoc-vanilla', 'Should have default JavaScript style guide');
+      assert.equal(config.styleGuides.typescript, 'tsdoc-typedoc', 'Should have default TypeScript style guide');
       assert.ok(config.tone, 'Should have default tone');
       assert.ok(config.impactWeights, 'Should have default impactWeights');
     });
@@ -121,7 +133,7 @@ describe('ConfigLoader - File Loading Integration', () => {
       const config = await loader.load();
 
       // Should have all default properties
-      assert.ok(config.styleGuide);
+      assert.ok(config.styleGuides);
       assert.ok(config.tone);
       assert.ok(config.jsdocStyle);
       assert.ok(config.impactWeights);
@@ -132,7 +144,10 @@ describe('ConfigLoader - File Loading Integration', () => {
     test('default config has expected values', async () => {
       const config = await loader.load();
 
-      assert.equal(config.styleGuide, 'numpy');
+      assert.ok(config.styleGuides);
+      assert.equal(config.styleGuides.python, 'google');
+      assert.equal(config.styleGuides.javascript, 'jsdoc-vanilla');
+      assert.equal(config.styleGuides.typescript, 'tsdoc-typedoc');
       assert.equal(config.tone, 'concise');
       assert.equal(config.impactWeights.complexity, 0.6);
       assert.equal(config.impactWeights.quality, 0.4);
@@ -177,7 +192,7 @@ describe('ConfigLoader - File Loading Integration', () => {
       const config = await loader.load(configPath);
 
       // Should pass validation and have all required fields
-      assert.ok(config.styleGuide);
+      assert.ok(config.styleGuides);
       assert.ok(config.tone);
       assert.ok(config.jsdocStyle);
       assert.ok(config.impactWeights);
@@ -207,7 +222,8 @@ describe('ConfigLoader - File Loading Integration', () => {
       const config = await loader.load(esmPath);
 
       assert.ok(config, 'Should successfully load ESM module');
-      assert.equal(config.styleGuide, 'google');
+      assert.ok(config.styleGuides);
+      assert.equal(config.styleGuides.python, 'google');
     });
 
     test('correctly loads .cjs as CommonJS from fixture', async () => {
@@ -216,7 +232,8 @@ describe('ConfigLoader - File Loading Integration', () => {
       const config = await loader.load(cjsPath);
 
       assert.ok(config, 'Should successfully load CommonJS module');
-      assert.equal(config.styleGuide, 'jsdoc');
+      assert.ok(config.styleGuides);
+      assert.equal(config.styleGuides.javascript, 'jsdoc-vanilla');
     });
   });
 
@@ -227,7 +244,8 @@ describe('ConfigLoader - File Loading Integration', () => {
       const config = await loader.load(absolutePath);
 
       assert.ok(config);
-      assert.equal(config.styleGuide, 'google');
+      assert.ok(config.styleGuides);
+      assert.equal(config.styleGuides.python, 'google');
     });
 
     test('handles relative paths resolved from current directory', async () => {

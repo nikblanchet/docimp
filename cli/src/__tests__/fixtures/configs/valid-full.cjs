@@ -2,7 +2,11 @@
  * Valid full configuration with all options.
  */
 module.exports = {
-  styleGuide: 'jsdoc',
+  styleGuides: {
+    python: 'google',
+    javascript: 'jsdoc-vanilla',
+    typescript: 'tsdoc-typedoc',
+  },
   tone: 'friendly',
   jsdocStyle: {
     preferredTags: { return: 'returns' },

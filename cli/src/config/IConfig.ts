@@ -6,18 +6,32 @@
  * JavaScript (CommonJS or ESM) to allow custom logic and functions.
  */
 
+import type { SupportedLanguage } from '../types/analysis.js';
+
 /**
  * Main configuration interface.
  */
 export interface IConfig {
   /**
-   * Style guide for generated documentation.
-   * - 'numpy': NumPy-style docstrings (Python)
-   * - 'google': Google-style docstrings (Python)
-   * - 'sphinx': Sphinx-style docstrings (Python)
-   * - 'jsdoc': JSDoc style (JavaScript/TypeScript)
+   * Per-language style guides for generated documentation.
+   *
+   * Python options:
+   * - 'google': Google-style docstrings
+   * - 'numpy-rest': NumPy style with reStructuredText markup
+   * - 'numpy-markdown': NumPy style with Markdown markup
+   * - 'sphinx': Pure reST (Sphinx) style
+   *
+   * JavaScript options:
+   * - 'jsdoc-vanilla': Standard JSDoc format
+   * - 'jsdoc-google': Google-flavored JSDoc
+   * - 'jsdoc-closure': Google Closure Compiler style
+   *
+   * TypeScript options:
+   * - 'tsdoc-typedoc': TSDoc format for TypeDoc
+   * - 'tsdoc-aedoc': TSDoc for API Extractor/AEDoc
+   * - 'jsdoc-ts': JSDoc format in TypeScript files
    */
-  styleGuide: 'numpy' | 'google' | 'sphinx' | 'jsdoc';
+  styleGuides: Partial<Record<SupportedLanguage, string>>;
 
   /**
    * Tone of generated documentation.
@@ -102,7 +116,11 @@ export interface IImpactWeights {
  * Default configuration values.
  */
 export const defaultConfig: IConfig = {
-  styleGuide: 'numpy',
+  styleGuides: {
+    python: 'google',
+    javascript: 'jsdoc-vanilla',
+    typescript: 'tsdoc-typedoc',
+  },
   tone: 'concise',
   jsdocStyle: {
     preferredTags: {

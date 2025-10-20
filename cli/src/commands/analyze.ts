@@ -58,7 +58,7 @@ export async function analyzeCore(
 
   if (options.verbose) {
     terminalDisplay.showConfig({
-      styleGuide: config.styleGuide,
+      styleGuides: config.styleGuides,
       tone: config.tone,
       plugins: config.plugins,
       exclude: config.exclude,

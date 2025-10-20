@@ -25,7 +25,10 @@ describe('ConfigLoader', () => {
       const config = await configLoader.load();
 
       expect(config).toBeDefined();
-      expect(config.styleGuide).toBe('numpy');
+      expect(config.styleGuides).toBeDefined();
+      expect(config.styleGuides.python).toBe('google');
+      expect(config.styleGuides.javascript).toBe('jsdoc-vanilla');
+      expect(config.styleGuides.typescript).toBe('tsdoc-typedoc');
       expect(config.tone).toBe('concise');
       expect(config.jsdocStyle).toBeDefined();
       expect(config.jsdocStyle.preferredTags).toBeDefined();

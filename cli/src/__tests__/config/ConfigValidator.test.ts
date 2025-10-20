@@ -23,7 +23,10 @@ describe('ConfigValidator', () => {
     it('should return defaults when given empty config', () => {
       const config = validateAndMerge({});
 
-      expect(config.styleGuide).toBe('numpy');
+      expect(config.styleGuides).toBeDefined();
+      expect(config.styleGuides.python).toBe('google');
+      expect(config.styleGuides.javascript).toBe('jsdoc-vanilla');
+      expect(config.styleGuides.typescript).toBe('tsdoc-typedoc');
       expect(config.tone).toBe('concise');
       expect(config.jsdocStyle).toBeDefined();
       expect(config.impactWeights).toBeDefined();
@@ -33,13 +36,16 @@ describe('ConfigValidator', () => {
 
     it('should merge user config with defaults', () => {
       const userConfig: Partial<IConfig> = {
-        styleGuide: 'jsdoc',
+        styleGuides: {
+          javascript: 'jsdoc-google',
+        },
         tone: 'detailed',
       };
 
       const config = validateAndMerge(userConfig);
 
-      expect(config.styleGuide).toBe('jsdoc');
+      expect(config.styleGuides.javascript).toBe('jsdoc-google');
+      expect(config.styleGuides.python).toBe('google'); // from defaults
       expect(config.tone).toBe('detailed');
       // Defaults should be present
       expect(config.plugins).toBeDefined();
@@ -64,20 +70,38 @@ describe('ConfigValidator', () => {
     });
   });
 
-  describe('styleGuide validation', () => {
-    it('should accept valid styleGuide values', () => {
-      const validStyles = ['numpy', 'google', 'sphinx', 'jsdoc'];
+  describe('styleGuides validation', () => {
+    it('should accept valid styleGuide values per language', () => {
+      const validConfig = {
+        styleGuides: {
+          python: 'google',
+          javascript: 'jsdoc-vanilla',
+          typescript: 'tsdoc-typedoc',
+        },
+      };
 
-      for (const style of validStyles) {
-        const config = validateAndMerge({ styleGuide: style as any });
-        expect(config.styleGuide).toBe(style);
-      }
+      const config = validateAndMerge(validConfig);
+      expect(config.styleGuides.python).toBe('google');
+      expect(config.styleGuides.javascript).toBe('jsdoc-vanilla');
+      expect(config.styleGuides.typescript).toBe('tsdoc-typedoc');
     });
 
-    it('should reject invalid styleGuide', () => {
+    it('should reject invalid styleGuide for python', () => {
       expect(() => {
-        validateAndMerge({ styleGuide: 'invalid-style' as any });
-      }).toThrow('Invalid styleGuide');
+        validateAndMerge({ styleGuides: { python: 'invalid-style' } } as any);
+      }).toThrow('Invalid styleGuides.python');
+    });
+
+    it('should reject invalid styleGuide for javascript', () => {
+      expect(() => {
+        validateAndMerge({ styleGuides: { javascript: 'invalid-style' } } as any);
+      }).toThrow('Invalid styleGuides.javascript');
+    });
+
+    it('should reject invalid language key', () => {
+      expect(() => {
+        validateAndMerge({ styleGuides: { ruby: 'some-style' } } as any);
+      }).toThrow('Invalid language in styleGuides: ruby');
     });
   });
 
@@ -230,7 +254,11 @@ describe('ConfigValidator', () => {
   describe('complex configurations', () => {
     it('should validate and merge full configuration', () => {
       const userConfig: Partial<IConfig> = {
-        styleGuide: 'jsdoc',
+        styleGuides: {
+          javascript: 'jsdoc-vanilla',
+          python: 'numpy-rest',
+          typescript: 'tsdoc-aedoc',
+        },
         tone: 'friendly',
         jsdocStyle: {
           preferredTags: { return: 'returns' },
@@ -248,7 +276,9 @@ describe('ConfigValidator', () => {
 
       const config = validateAndMerge(userConfig);
 
-      expect(config.styleGuide).toBe('jsdoc');
+      expect(config.styleGuides.javascript).toBe('jsdoc-vanilla');
+      expect(config.styleGuides.python).toBe('numpy-rest');
+      expect(config.styleGuides.typescript).toBe('tsdoc-aedoc');
       expect(config.tone).toBe('friendly');
       expect(config.jsdocStyle.requireExamples).toBe('public');
       expect(config.impactWeights.complexity).toBe(0.7);

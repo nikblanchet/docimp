@@ -1,6 +1,8 @@
 /**
- * Valid partial config (only styleGuide specified).
+ * Valid partial config (only Python styleGuide specified).
  */
 module.exports = {
-  styleGuide: 'sphinx',
+  styleGuides: {
+    python: 'sphinx',
+  },
 };

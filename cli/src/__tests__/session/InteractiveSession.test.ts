@@ -57,7 +57,11 @@ describe('InteractiveSession', () => {
 
     // Create mock config
     mockConfig = {
-      styleGuide: 'jsdoc',
+      styleGuides: {
+        javascript: 'jsdoc-vanilla',
+        python: 'google',
+        typescript: 'tsdoc-typedoc',
+      },
       tone: 'concise',
       plugins: [],
       exclude: [],
@@ -102,8 +106,13 @@ describe('InteractiveSession', () => {
       config: mockConfig,
       pythonBridge: mockPythonBridge,
       pluginManager: mockPluginManager,
-      styleGuide: 'jsdoc',
+      styleGuides: {
+        javascript: 'jsdoc-vanilla',
+        python: 'google',
+        typescript: 'tsdoc-typedoc',
+      },
       tone: 'concise',
+      basePath: process.cwd(),
     });
   });
 
@@ -126,7 +135,7 @@ describe('InteractiveSession', () => {
 
       expect(mockPythonBridge.suggest).toHaveBeenCalledWith({
         target: 'test.js:testFunction',
-        styleGuide: 'jsdoc',
+        styleGuide: 'jsdoc-vanilla',
         tone: 'concise',
       });
       expect(mockPluginManager.runBeforeAccept).toHaveBeenCalled();

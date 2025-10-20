@@ -11,7 +11,7 @@
 
 import prompts from 'prompts';
 import chalk from 'chalk';
-import type { PlanItem } from '../types/analysis.js';
+import type { PlanItem, SupportedLanguage } from '../types/analysis.js';
 import type { IConfig } from '../config/IConfig.js';
 import type { PluginResult, CodeItemMetadata } from '../plugins/IPlugin.js';
 import { PluginManager } from '../plugins/PluginManager.js';
@@ -32,8 +32,8 @@ export interface SessionOptions {
   /** Plugin manager for validation */
   pluginManager: PluginManager;
 
-  /** Style guide to use */
-  styleGuide: string;
+  /** Per-language style guides (only for languages in the plan) */
+  styleGuides: Partial<Record<SupportedLanguage, string>>;
 
   /** Documentation tone */
   tone: string;
@@ -54,7 +54,7 @@ export class InteractiveSession {
   private config: IConfig;
   private pythonBridge: PythonBridge;
   private pluginManager: PluginManager;
-  private styleGuide: string;
+  private styleGuides: Partial<Record<SupportedLanguage, string>>;
   private tone: string;
   private editorLauncher: EditorLauncher;
   private basePath: string;
@@ -68,7 +68,7 @@ export class InteractiveSession {
     this.config = options.config;
     this.pythonBridge = options.pythonBridge;
     this.pluginManager = options.pluginManager;
-    this.styleGuide = options.styleGuide;
+    this.styleGuides = options.styleGuides;
     this.tone = options.tone;
     this.editorLauncher = new EditorLauncher();
     this.basePath = options.basePath;
@@ -233,9 +233,16 @@ export class InteractiveSession {
         console.log(chalk.yellow('Note: Feedback integration is a future enhancement'));
       }
 
+      // Lookup style guide for this item's language
+      const styleGuide = this.styleGuides[item.language];
+      if (!styleGuide) {
+        console.error(chalk.red(`No style guide configured for language: ${item.language}`));
+        return null;
+      }
+
       const result = await this.pythonBridge.suggest({
         target,
-        styleGuide: this.styleGuide,
+        styleGuide,
         tone: this.tone,
       });
 
