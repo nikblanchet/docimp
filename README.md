@@ -193,7 +193,7 @@ docimp analyze ./src
 
 ### Audit
 
-Rate existing documentation quality.
+Rate existing documentation quality with code context displayed.
 
 ```bash
 docimp audit ./src
@@ -201,12 +201,45 @@ docimp audit ./src
 
 Interactive workflow:
 - Reviews items that HAVE documentation
-- Prompts: [1-4] for quality rating, S to skip, Q to quit
+- **Displays code alongside documentation** in configurable modes:
+  - **Complete**: Show full code with line numbers
+  - **Truncated** (default): Show first 20 lines, [C] to view full code
+  - **Signature**: Show function/class signature only, [C] to view full code
+  - **On-demand**: Hide code, [C] to view when needed
+- Shows boxed "CURRENT DOCSTRING" to clearly identify what's being rated
+- Prompts: [1-4] for quality rating, [C] for full code (if applicable), [S] to skip, [Q] to quit
   - 1 = Terrible, 2 = OK, 3 = Good, 4 = Excellent
+  - C = Show full code (only in truncated/signature/on-demand modes)
   - S = Skip (saves null for later review)
   - Q = Quit (stops audit)
 - Calculates weighted coverage score
 - Saves results to `.docimp/session-reports/audit.json`
+
+**Example output:**
+
+```
+Auditing: 5/23
+function calculateImpactScore (typescript)
+Location: src/scoring/scorer.ts:45
+Complexity: 8
+
+┌──────────────────────────────────────────────────────────┐
+│ CURRENT DOCSTRING                                        │
+├──────────────────────────────────────────────────────────┤
+│ /**                                                      │
+│  * Calculate impact score based on complexity.           │
+│  * @param complexity - Cyclomatic complexity             │
+│  * @returns Impact score (0-100)                         │
+│  */                                                      │
+└──────────────────────────────────────────────────────────┘
+  45 | function calculateImpactScore(complexity: number): number {
+  46 |   const baseScore = complexity * 5;
+  47 |   return Math.min(100, baseScore);
+  48 | }
+
+[1] Terrible  [2] Poor  [3] Good  [4] Excellent
+[C] Full code  [S] Skip  [Q] Quit
+```
 
 ### Plan
 
@@ -508,6 +541,22 @@ module.exports = {
     requireDescriptions: true,
     requireExamples: 'public',  // 'all', 'public', 'none'
     enforceTypes: true
+  },
+
+  // Audit code display configuration
+  audit: {
+    showCode: {
+      // Display mode for code during audit:
+      // - 'complete': Show full code, no truncation
+      // - 'truncated': Show code up to maxLines (default)
+      // - 'signature': Show just function/class signature
+      // - 'on-demand': Don't show code, use [C] to view
+      mode: 'truncated',
+
+      // Maximum lines to show in 'truncated' and 'signature' modes
+      // (not counting the docstring itself)
+      maxLines: 20
+    }
   },
 
   // Impact scoring weights (used when audit data available)
@@ -841,6 +890,7 @@ class CodeItem:
     type: str                    # 'function', 'class', 'method'
     filepath: str
     line_number: int
+    end_line: int                # Last line of code block (inclusive)
     language: str                # 'python', 'typescript', 'javascript', 'skipped'
     complexity: int              # Cyclomatic complexity
     impact_score: float          # 0-100 priority score
