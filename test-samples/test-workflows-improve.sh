@@ -223,6 +223,36 @@ else
     git diff "$FIRST_ITEM_FILE" | head -50
     echo "-----------------------------------"
     echo ""
+
+    # Issue #220 validation: Check if multiple items were documented
+    echo "Validating for issue #220 (single-item targeting)..."
+    DIFF_OUTPUT=$(git diff "$FIRST_ITEM_FILE")
+
+    # Count Python docstrings in the diff (lines starting with +""" or +''')
+    PYTHON_DOCSTRING_COUNT=$(echo "$DIFF_OUTPUT" | grep -c '^\+\("""\|'"'"'"'"'"'\)' || true)
+
+    # Count JSDoc comments in the diff (lines with +/** or +*/)
+    JSDOC_START_COUNT=$(echo "$DIFF_OUTPUT" | grep -c '^\+/\*\*' || true)
+
+    # Determine which count to use based on language
+    if [ "$FIRST_ITEM_LANGUAGE" = "python" ]; then
+        DOC_COUNT=$((PYTHON_DOCSTRING_COUNT / 2))  # Divide by 2 (opening + closing)
+    else
+        DOC_COUNT=$JSDOC_START_COUNT
+    fi
+
+    if [ "$DOC_COUNT" -eq 1 ]; then
+        echo -e "${GREEN}✓${NC} Exactly one documentation block added (issue #220 check passed)"
+    elif [ "$DOC_COUNT" -gt 1 ]; then
+        echo -e "${YELLOW}⚠${NC}  Warning: Multiple documentation blocks detected ($DOC_COUNT)"
+        echo "    This may indicate issue #220 (Claude documenting multiple items)"
+        echo "    Expected: Documentation for '$FIRST_ITEM_NAME' only"
+        echo "    Please manually verify the diff above"
+    elif [ "$DOC_COUNT" -eq 0 ]; then
+        echo -e "${YELLOW}⚠${NC}  Warning: No documentation blocks detected in diff"
+        echo "    This may indicate an issue with documentation insertion"
+    fi
+    echo ""
 fi
 
 #
@@ -249,6 +279,11 @@ echo "[ ] Plugin validation executed before accepting documentation"
 echo "[ ] No validation errors were shown (or errors were appropriate)"
 echo "[ ] If validation errors occurred, messages were clear and helpful"
 echo "[ ] Plugin validation did not block valid documentation"
+echo ""
+echo "Issue #220 validation (single-item targeting):"
+echo "[ ] Claude returned documentation for ONLY the target item"
+echo "[ ] No documentation for other functions/classes/methods in the diff"
+echo "[ ] Automated validation passed (see output above)"
 echo ""
 echo "To manually inspect the changes:"
 echo "  git diff $FIRST_ITEM_FILE"
