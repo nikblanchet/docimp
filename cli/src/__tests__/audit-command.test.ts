@@ -34,9 +34,14 @@ jest.mock('cli-table3', () => {
     toString() { return ''; }
   };
 });
+jest.mock('prompts');
 
-import { calculateAuditSummary } from '../commands/audit';
-import type { AuditRatings, AuditSummary } from '../types/analysis';
+import { calculateAuditSummary, auditCore } from '../commands/audit';
+import prompts from 'prompts';
+import type { AuditRatings, AuditSummary, CodeItem } from '../types/analysis';
+import type { IPythonBridge } from '../python-bridge/IPythonBridge';
+import type { IDisplay } from '../display/IDisplay';
+import type { IConfig } from '../config/IConfig';
 
 describe('calculateAuditSummary', () => {
   const auditFile = '.docimp/session-reports/audit.json';
@@ -203,5 +208,482 @@ describe('calculateAuditSummary', () => {
       },
       auditFile,
     });
+  });
+});
+
+describe('auditCore - config loading', () => {
+  // Mock Python bridge
+  const mockPythonBridge: jest.Mocked<IPythonBridge> = {
+    analyze: jest.fn(),
+    audit: jest.fn(),
+    applyAudit: jest.fn(),
+    plan: jest.fn(),
+    improve: jest.fn(),
+  };
+
+  // Mock display
+  const mockDisplay: jest.Mocked<IDisplay> = {
+    showAnalysisResult: jest.fn(),
+    showConfig: jest.fn(),
+    showMessage: jest.fn(),
+    showError: jest.fn(),
+    showWarning: jest.fn(),
+    showSuccess: jest.fn(),
+    showCodeItems: jest.fn(),
+    startSpinner: jest.fn(() => jest.fn()), // Return a stop function
+    showProgress: jest.fn(),
+    showAuditSummary: jest.fn(),
+    showBoxedDocstring: jest.fn(),
+    showCodeBlock: jest.fn(),
+    showSignature: jest.fn(),
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Mock audit to return empty items (we're not testing the full flow yet)
+    mockPythonBridge.audit.mockResolvedValue({
+      items: [],
+      coverage_percent: 0,
+      total_items: 0,
+      documented_items: 0,
+      by_language: {},
+    });
+  });
+
+  it('uses default config when no config provided', async () => {
+    // Default should be: mode='truncated', maxLines=20
+    await auditCore('.', {}, mockPythonBridge, mockDisplay);
+
+    // Verify audit was called (config loading didn't throw)
+    expect(mockPythonBridge.audit).toHaveBeenCalled();
+  });
+
+  it('uses custom config in complete mode', async () => {
+    const customConfig: IConfig = {
+      audit: {
+        showCode: {
+          mode: 'complete',
+          maxLines: 50,
+        },
+      },
+    };
+
+    await auditCore('.', {}, mockPythonBridge, mockDisplay, customConfig);
+
+    // Verify audit was called with custom config
+    expect(mockPythonBridge.audit).toHaveBeenCalled();
+  });
+
+  it('uses custom config in signature mode', async () => {
+    const customConfig: IConfig = {
+      audit: {
+        showCode: {
+          mode: 'signature',
+          maxLines: 10,
+        },
+      },
+    };
+
+    await auditCore('.', {}, mockPythonBridge, mockDisplay, customConfig);
+
+    // Verify audit was called with custom config
+    expect(mockPythonBridge.audit).toHaveBeenCalled();
+  });
+});
+
+describe('auditCore - boxed docstring display', () => {
+  // Mock Python bridge
+  const mockPythonBridge: jest.Mocked<IPythonBridge> = {
+    analyze: jest.fn(),
+    audit: jest.fn(),
+    applyAudit: jest.fn(),
+    plan: jest.fn(),
+    improve: jest.fn(),
+  };
+
+  // Mock display
+  const mockDisplay: jest.Mocked<IDisplay> = {
+    showAnalysisResult: jest.fn(),
+    showConfig: jest.fn(),
+    showMessage: jest.fn(),
+    showError: jest.fn(),
+    showWarning: jest.fn(),
+    showSuccess: jest.fn(),
+    showCodeItems: jest.fn(),
+    startSpinner: jest.fn(() => jest.fn()),
+    showProgress: jest.fn(),
+    showAuditSummary: jest.fn(),
+    showBoxedDocstring: jest.fn(),
+    showCodeBlock: jest.fn(),
+    showSignature: jest.fn(),
+  };
+
+  const mockPrompts = prompts as jest.MockedFunction<typeof prompts>;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Mock prompts to return 'Q' (quit immediately)
+    mockPrompts.mockResolvedValue({ rating: 'Q' });
+  });
+
+  it('displays boxed docstring for items with documentation', async () => {
+    const projectRoot = '/Users/nik/Documents/Code/Polygot/docimp';
+    const itemWithDocs: CodeItem = {
+      name: 'testFunction',
+      type: 'function',
+      filepath: `${projectRoot}/examples/test_simple.ts`,
+      line_number: 1,
+      end_line: 5,
+      language: 'typescript',
+      complexity: 5,
+      impact_score: 25,
+      has_docs: true,
+      parameters: [],
+      return_type: 'void',
+      docstring: '/**\n * Test docstring\n */',
+      export_type: 'named',
+      module_system: 'esm',
+      audit_rating: null,
+    };
+
+    mockPythonBridge.audit.mockResolvedValue({
+      items: [itemWithDocs],
+      coverage_percent: 100,
+      total_items: 1,
+      documented_items: 1,
+      by_language: {},
+    });
+
+    await auditCore('.', {}, mockPythonBridge, mockDisplay);
+
+    // Verify boxed docstring was shown
+    expect(mockDisplay.showBoxedDocstring).toHaveBeenCalledWith('/**\n * Test docstring\n */');
+  });
+
+  it('does not show dashed lines (uses boxed display instead)', async () => {
+    const projectRoot = '/Users/nik/Documents/Code/Polygot/docimp';
+    const itemWithDocs: CodeItem = {
+      name: 'testFunction',
+      type: 'function',
+      filepath: `${projectRoot}/examples/test_simple.ts`,
+      line_number: 1,
+      end_line: 5,
+      language: 'typescript',
+      complexity: 5,
+      impact_score: 25,
+      has_docs: true,
+      parameters: [],
+      return_type: 'void',
+      docstring: 'Simple docstring',
+      export_type: 'named',
+      module_system: 'esm',
+      audit_rating: null,
+    };
+
+    mockPythonBridge.audit.mockResolvedValue({
+      items: [itemWithDocs],
+      coverage_percent: 100,
+      total_items: 1,
+      documented_items: 1,
+      by_language: {},
+    });
+
+    await auditCore('.', {}, mockPythonBridge, mockDisplay);
+
+    // Verify no dashed lines were shown (old format)
+    const messages = mockDisplay.showMessage.mock.calls.map(call => call[0]);
+    const hasDashedLines = messages.some(msg =>
+      typeof msg === 'string' && msg.includes('-'.repeat(60))
+    );
+    expect(hasDashedLines).toBe(false);
+  });
+
+  it('shows boxed docstring before prompting for rating', async () => {
+    const projectRoot = '/Users/nik/Documents/Code/Polygot/docimp';
+    const itemWithDocs: CodeItem = {
+      name: 'testFunction',
+      type: 'function',
+      filepath: `${projectRoot}/examples/test_simple.ts`,
+      line_number: 1,
+      end_line: 5,
+      language: 'typescript',
+      complexity: 5,
+      impact_score: 25,
+      has_docs: true,
+      parameters: [],
+      return_type: 'void',
+      docstring: 'Test',
+      export_type: 'named',
+      module_system: 'esm',
+      audit_rating: null,
+    };
+
+    mockPythonBridge.audit.mockResolvedValue({
+      items: [itemWithDocs],
+      coverage_percent: 100,
+      total_items: 1,
+      documented_items: 1,
+      by_language: {},
+    });
+
+    await auditCore('.', {}, mockPythonBridge, mockDisplay);
+
+    // Verify boxed docstring was called before prompts
+    expect(mockDisplay.showBoxedDocstring).toHaveBeenCalled();
+    expect(mockPrompts).toHaveBeenCalled();
+  });
+});
+
+describe('auditCore - code display modes', () => {
+  // Mock Python bridge
+  const mockPythonBridge: jest.Mocked<IPythonBridge> = {
+    analyze: jest.fn(),
+    audit: jest.fn(),
+    applyAudit: jest.fn(),
+    plan: jest.fn(),
+    improve: jest.fn(),
+  };
+
+  // Mock display
+  const mockDisplay: jest.Mocked<IDisplay> = {
+    showAnalysisResult: jest.fn(),
+    showConfig: jest.fn(),
+    showMessage: jest.fn(),
+    showError: jest.fn(),
+    showWarning: jest.fn(),
+    showSuccess: jest.fn(),
+    showCodeItems: jest.fn(),
+    startSpinner: jest.fn(() => jest.fn()),
+    showProgress: jest.fn(),
+    showAuditSummary: jest.fn(),
+    showBoxedDocstring: jest.fn(),
+    showCodeBlock: jest.fn(),
+    showSignature: jest.fn(),
+  };
+
+  const mockPrompts = prompts as jest.MockedFunction<typeof prompts>;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockPrompts.mockResolvedValue({ rating: 'Q' });
+  });
+
+  const createMockItem = (): CodeItem => {
+    // Use the actual path to an existing test file
+    const projectRoot = '/Users/nik/Documents/Code/Polygot/docimp';
+    return {
+      name: 'testFunction',
+      type: 'function',
+      filepath: `${projectRoot}/examples/test_simple.ts`,
+      line_number: 1,
+      end_line: 5,
+      language: 'typescript',
+      complexity: 5,
+      impact_score: 25,
+      has_docs: true,
+      parameters: [],
+      return_type: 'void',
+      docstring: '/** Test */',
+      export_type: 'named',
+      module_system: 'esm',
+      audit_rating: null,
+    };
+  };
+
+  it('complete mode shows full code without [C] option', async () => {
+    const config: IConfig = {
+      audit: {
+        showCode: {
+          mode: 'complete',
+          maxLines: 20,
+        },
+      },
+    };
+
+    mockPythonBridge.audit.mockResolvedValue({
+      items: [createMockItem()],
+      coverage_percent: 100,
+      total_items: 1,
+      documented_items: 1,
+      by_language: {},
+    });
+
+    await auditCore('.', {}, mockPythonBridge, mockDisplay, config);
+
+    // Verify showCodeBlock was called
+    expect(mockDisplay.showCodeBlock).toHaveBeenCalled();
+    // Verify prompt does NOT include [C] option
+    const promptCall = mockPrompts.mock.calls[0][0];
+    expect(promptCall.message).toContain('[S] Skip');
+    expect(promptCall.message).not.toContain('[C]');
+  });
+
+  it('truncated mode shows truncated code with [C] option when code is long', async () => {
+    const config: IConfig = {
+      audit: {
+        showCode: {
+          mode: 'truncated',
+          maxLines: 2,
+        },
+      },
+    };
+
+    const longItem = createMockItem();
+    longItem.end_line = 30; // Make it longer than maxLines
+
+    mockPythonBridge.audit.mockResolvedValue({
+      items: [longItem],
+      coverage_percent: 100,
+      total_items: 1,
+      documented_items: 1,
+      by_language: {},
+    });
+
+    await auditCore('.', {}, mockPythonBridge, mockDisplay, config);
+
+    // Verify showCodeBlock was called
+    expect(mockDisplay.showCodeBlock).toHaveBeenCalled();
+    // Verify [C] option is present
+    const promptCall = mockPrompts.mock.calls[0][0];
+    expect(promptCall.message).toContain('[C] Full code');
+  });
+
+  it('signature mode shows signature with [C] option', async () => {
+    const config: IConfig = {
+      audit: {
+        showCode: {
+          mode: 'signature',
+          maxLines: 20,
+        },
+      },
+    };
+
+    mockPythonBridge.audit.mockResolvedValue({
+      items: [createMockItem()],
+      coverage_percent: 100,
+      total_items: 1,
+      documented_items: 1,
+      by_language: {},
+    });
+
+    await auditCore('.', {}, mockPythonBridge, mockDisplay, config);
+
+    // Verify showSignature was called
+    expect(mockDisplay.showSignature).toHaveBeenCalled();
+    // Verify [C] option is present
+    const promptCall = mockPrompts.mock.calls[0][0];
+    expect(promptCall.message).toContain('[C] Show code');
+  });
+
+  it('on-demand mode shows no code but has [C] option', async () => {
+    const config: IConfig = {
+      audit: {
+        showCode: {
+          mode: 'on-demand',
+          maxLines: 20,
+        },
+      },
+    };
+
+    mockPythonBridge.audit.mockResolvedValue({
+      items: [createMockItem()],
+      coverage_percent: 100,
+      total_items: 1,
+      documented_items: 1,
+      by_language: {},
+    });
+
+    await auditCore('.', {}, mockPythonBridge, mockDisplay, config);
+
+    // Verify NO code display methods were called
+    expect(mockDisplay.showCodeBlock).not.toHaveBeenCalled();
+    expect(mockDisplay.showSignature).not.toHaveBeenCalled();
+    // Verify [C] option is present
+    const promptCall = mockPrompts.mock.calls[0][0];
+    expect(promptCall.message).toContain('[C] Show code');
+  });
+
+  it('[C] option displays full code and re-prompts', async () => {
+    const config: IConfig = {
+      audit: {
+        showCode: {
+          mode: 'signature',
+          maxLines: 20,
+        },
+      },
+    };
+
+    mockPythonBridge.audit.mockResolvedValue({
+      items: [createMockItem()],
+      coverage_percent: 100,
+      total_items: 1,
+      documented_items: 1,
+      by_language: {},
+    });
+
+    // First response: 'C', then '4' on re-prompt
+    mockPrompts
+      .mockResolvedValueOnce({ rating: 'C' })
+      .mockResolvedValueOnce({ rating: '4' });
+
+    await auditCore('.', {}, mockPythonBridge, mockDisplay, config);
+
+    // Verify showSignature was called once (initial display)
+    expect(mockDisplay.showSignature).toHaveBeenCalledTimes(1);
+    // Verify showCodeBlock was called once (after pressing [C])
+    expect(mockDisplay.showCodeBlock).toHaveBeenCalledTimes(1);
+    // Verify prompts was called twice (initial prompt + re-prompt)
+    expect(mockPrompts).toHaveBeenCalledTimes(2);
+  });
+
+  it('prompt validation accepts C when [C] option is available', async () => {
+    const config: IConfig = {
+      audit: {
+        showCode: {
+          mode: 'signature',
+          maxLines: 20,
+        },
+      },
+    };
+
+    mockPythonBridge.audit.mockResolvedValue({
+      items: [createMockItem()],
+      coverage_percent: 100,
+      total_items: 1,
+      documented_items: 1,
+      by_language: {},
+    });
+
+    await auditCore('.', {}, mockPythonBridge, mockDisplay, config);
+
+    const promptCall = mockPrompts.mock.calls[0][0];
+    // Verify validation function accepts 'C'
+    expect(promptCall.validate('C')).toBe(true);
+    expect(promptCall.validate('c')).toBe(true);
+  });
+
+  it('prompt validation rejects C when [C] option is not available', async () => {
+    const config: IConfig = {
+      audit: {
+        showCode: {
+          mode: 'complete',
+          maxLines: 20,
+        },
+      },
+    };
+
+    mockPythonBridge.audit.mockResolvedValue({
+      items: [createMockItem()],
+      coverage_percent: 100,
+      total_items: 1,
+      documented_items: 1,
+      by_language: {},
+    });
+
+    await auditCore('.', {}, mockPythonBridge, mockDisplay, config);
+
+    const promptCall = mockPrompts.mock.calls[0][0];
+    // Verify validation function rejects 'C'
+    expect(promptCall.validate('C')).not.toBe(true);
   });
 });

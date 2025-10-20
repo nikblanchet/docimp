@@ -9,9 +9,12 @@ import prompts from 'prompts';
 import { PythonBridge } from '../python-bridge/PythonBridge.js';
 import { TerminalDisplay } from '../display/TerminalDisplay.js';
 import { StateManager } from '../utils/StateManager.js';
+import { ConfigLoader } from '../config/ConfigLoader.js';
+import { CodeExtractor } from '../utils/CodeExtractor.js';
 import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
 import type { IDisplay } from '../display/IDisplay.js';
 import type { AuditRatings, AuditSummary } from '../types/analysis.js';
+import type { IConfig } from '../config/IConfig.js';
 
 /**
  * Calculate audit summary statistics from ratings.
@@ -73,6 +76,7 @@ export function calculateAuditSummary(
  * @param options - Command options
  * @param bridge - Python bridge instance (injected for testing)
  * @param display - Display instance (injected for testing)
+ * @param config - Config instance (injected for testing)
  */
 export async function auditCore(
   path: string,
@@ -81,11 +85,23 @@ export async function auditCore(
     verbose?: boolean;
   },
   bridge?: IPythonBridge,
-  display?: IDisplay
+  display?: IDisplay,
+  config?: IConfig
 ): Promise<void> {
   // Create dependencies if not injected (dependency injection pattern)
   const pythonBridge = bridge ?? new PythonBridge();
   const terminalDisplay = display ?? new TerminalDisplay();
+
+  // Load config if not injected
+  let loadedConfig = config;
+  if (!loadedConfig) {
+    const configLoader = new ConfigLoader();
+    loadedConfig = await configLoader.load();
+  }
+
+  // Extract audit.showCode settings with defaults
+  const showCodeMode = loadedConfig.audit?.showCode?.mode ?? 'truncated';
+  const maxLines = loadedConfig.audit?.showCode?.maxLines ?? 20;
 
   // Use StateManager default if auditFile not provided
   const auditFile = options.auditFile ?? StateManager.getAuditFile();
@@ -130,44 +146,156 @@ export async function auditCore(
       terminalDisplay.showMessage(`Location: ${item.filepath}:${item.line_number}`);
       terminalDisplay.showMessage(`Complexity: ${item.complexity}\n`);
 
-      // Show the documentation
+      // Show the documentation in a boxed display
       if (item.docstring) {
-        terminalDisplay.showMessage('Current documentation:');
-        terminalDisplay.showMessage('-'.repeat(60));
-        terminalDisplay.showMessage(item.docstring);
-        terminalDisplay.showMessage('-'.repeat(60) + '\n');
+        terminalDisplay.showBoxedDocstring(item.docstring);
+        terminalDisplay.showMessage(''); // Add blank line after box
       }
 
-      // Prompt for rating
-      const response = await prompts({
-        type: 'text',
-        name: 'rating',
-        message: 'Rate the documentation quality ([1-4], S to skip, Q to quit):',
-        validate: (value: string) => {
-          const normalized = value.trim().toUpperCase();
-          if (['1', '2', '3', '4', 'S', 'Q'].includes(normalized)) {
-            return true;
+      // Display code based on mode
+      let showCodeOption = false; // Track if [C] option should be shown
+
+      if (showCodeMode === 'complete') {
+        // Show full code, no [C] option
+        const codeResult = CodeExtractor.extractCodeBlock(
+          item.filepath,
+          item.line_number,
+          item.end_line,
+          0, // maxLines = 0 means no truncation
+          true // include line numbers
+        );
+        terminalDisplay.showCodeBlock(
+          codeResult.code,
+          codeResult.truncated,
+          codeResult.totalLines,
+          codeResult.displayedLines
+        );
+        showCodeOption = false;
+      } else if (showCodeMode === 'truncated') {
+        // Show code up to maxLines
+        const codeResult = CodeExtractor.extractCodeBlock(
+          item.filepath,
+          item.line_number,
+          item.end_line,
+          maxLines,
+          true // include line numbers
+        );
+        terminalDisplay.showCodeBlock(
+          codeResult.code,
+          codeResult.truncated,
+          codeResult.totalLines,
+          codeResult.displayedLines
+        );
+        // Show [C] if code was truncated
+        showCodeOption = codeResult.truncated;
+      } else if (showCodeMode === 'signature') {
+        // Show just the signature
+        const sigResult = CodeExtractor.extractSignature(
+          item.filepath,
+          item.line_number,
+          item.end_line,
+          item.language,
+          5 // maxLines for signature
+        );
+        terminalDisplay.showSignature(sigResult.signature, sigResult.totalLines);
+        showCodeOption = true; // Always show [C] in signature mode
+      } else if (showCodeMode === 'on-demand') {
+        // Don't show code, but make [C] available
+        showCodeOption = true;
+      }
+
+      // Rating loop - allows re-prompting if user presses [C]
+      let userRating: string | undefined;
+      while (!userRating) {
+        // Build prompt message based on whether [C] option is available
+        let promptMessage = '';
+        let validOptions = ['1', '2', '3', '4', 'S', 'Q'];
+
+        if (showCodeOption) {
+          // [C] option available - different messages for different modes
+          if (showCodeMode === 'truncated') {
+            promptMessage = '[1] Terrible  [2] Poor  [3] Good  [4] Excellent  [C] Full code  [S] Skip  [Q] Quit\n\nYour rating:';
+          } else {
+            // signature and on-demand modes
+            promptMessage = '[1] Terrible  [2] Poor  [3] Good  [4] Excellent  [C] Show code  [S] Skip  [Q] Quit\n\nYour rating:';
           }
-          return 'Please enter 1-4 for quality rating, S to skip, or Q to quit';
-        },
-      });
+          validOptions = ['1', '2', '3', '4', 'C', 'S', 'Q'];
+        } else {
+          // No [C] option (complete mode)
+          promptMessage = '[1] Terrible  [2] Poor  [3] Good  [4] Excellent  [S] Skip  [Q] Quit\n\nYour rating:';
+        }
 
-      // Handle user cancellation (Ctrl+C)
-      if (response.rating === undefined) {
-        terminalDisplay.showMessage('\n\nAudit interrupted by user.');
+        // Prompt for rating
+        const response = await prompts({
+          type: 'text',
+          name: 'rating',
+          message: promptMessage,
+          validate: (value: string) => {
+            const normalized = value.trim().toUpperCase();
+            if (validOptions.includes(normalized)) {
+              return true;
+            }
+            if (showCodeOption) {
+              return 'Please enter 1-4 for quality rating, C to view code, S to skip, or Q to quit';
+            }
+            return 'Please enter 1-4 for quality rating, S to skip, or Q to quit';
+          },
+        });
+
+        // Handle user cancellation (Ctrl+C)
+        if (response.rating === undefined) {
+          terminalDisplay.showMessage('\n\nAudit interrupted by user.');
+          userRating = 'QUIT'; // Signal to quit
+          break;
+        }
+
+        const normalized = response.rating.trim().toUpperCase();
+
+        // Handle [C] option - show full code and re-prompt
+        if (normalized === 'C') {
+          terminalDisplay.showMessage(''); // Blank line before code
+          const fullCodeResult = CodeExtractor.extractCodeBlock(
+            item.filepath,
+            item.line_number,
+            item.end_line,
+            0, // maxLines = 0 means no truncation
+            true // include line numbers
+          );
+          terminalDisplay.showCodeBlock(
+            fullCodeResult.code,
+            false, // not truncated (showing full code)
+            fullCodeResult.totalLines,
+            fullCodeResult.displayedLines
+          );
+          terminalDisplay.showMessage(''); // Blank line after code
+          // Loop continues to re-prompt
+          continue;
+        }
+
+        // Handle quit
+        if (normalized === 'Q') {
+          terminalDisplay.showMessage('\n\nAudit stopped by user.');
+          userRating = 'QUIT'; // Signal to quit
+          break;
+        }
+
+        // Handle skip - save null
+        if (normalized === 'S') {
+          userRating = 'SKIP';
+          break;
+        }
+
+        // Numeric rating (1-4)
+        userRating = normalized;
+      }
+
+      // Break outer loop if user quit
+      if (userRating === 'QUIT') {
         break;
       }
 
-      const normalized = response.rating.trim().toUpperCase();
-
-      // Handle quit
-      if (normalized === 'Q') {
-        terminalDisplay.showMessage('\n\nAudit stopped by user.');
-        break;
-      }
-
-      // Handle skip - save null
-      if (normalized === 'S') {
+      // Handle skip
+      if (userRating === 'SKIP') {
         if (!ratings.ratings[item.filepath]) {
           ratings.ratings[item.filepath] = {};
         }
@@ -177,7 +305,7 @@ export async function auditCore(
       }
 
       // Save the numeric rating (1-4)
-      const numericRating = parseInt(normalized, 10);
+      const numericRating = parseInt(userRating, 10);
       if (!ratings.ratings[item.filepath]) {
         ratings.ratings[item.filepath] = {};
       }
