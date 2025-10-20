@@ -104,15 +104,21 @@ export async function improveCommand(
       ],
     };
 
+    // Fail fast if plan contains unsupported languages
+    const unsupportedLanguages = detectedLanguages.filter(lang => !styleGuideChoices[lang]);
+    if (unsupportedLanguages.length > 0) {
+      display.showError(
+        `Plan contains unsupported languages: ${unsupportedLanguages.join(', ')}\n` +
+        `Supported languages: python, javascript, typescript`
+      );
+      process.exit(1);
+    }
+
     // Sequential prompts for each detected language
     const styleGuides: Record<string, string> = {};
 
     for (const lang of detectedLanguages) {
       const choices = styleGuideChoices[lang];
-      if (!choices) {
-        display.showWarning(`No style guide choices defined for language: ${lang}. Skipping.`);
-        continue;
-      }
 
       // Find initial selection from config
       const configuredStyle = config.styleGuides?.[lang as 'python' | 'javascript' | 'typescript'];

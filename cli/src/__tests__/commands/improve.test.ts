@@ -227,6 +227,134 @@ describe('improve command', () => {
     });
   });
 
+  describe('language support validation', () => {
+    it('should fail fast if plan contains unsupported languages', async () => {
+      mockReadFileSync.mockReturnValueOnce(JSON.stringify({
+        items: [
+          {
+            name: 'testFunc',
+            type: 'function',
+            filepath: 'test.rb',
+            line_number: 10,
+            language: 'ruby',
+            complexity: 5,
+            impact_score: 75,
+            reason: 'High complexity',
+            export_type: 'named',
+            module_system: 'unknown',
+            parameters: [],
+            has_docs: false,
+            docstring: null,
+            audit_rating: null,
+          },
+        ],
+      }));
+
+      await expect(async () => {
+        await improveCommand('./test', {});
+      }).rejects.toThrow('process.exit called with 1');
+
+      expect(exitSpy).toHaveBeenCalledWith(1);
+      // Should not prompt for style guides
+      expect(mockPrompts).not.toHaveBeenCalled();
+    });
+
+    it('should fail fast with multiple unsupported languages', async () => {
+      mockReadFileSync.mockReturnValueOnce(JSON.stringify({
+        items: [
+          {
+            name: 'testFunc1',
+            type: 'function',
+            filepath: 'test.rb',
+            line_number: 10,
+            language: 'ruby',
+            complexity: 5,
+            impact_score: 75,
+            reason: 'reason',
+            export_type: 'named',
+            module_system: 'unknown',
+            parameters: [],
+            has_docs: false,
+            docstring: null,
+            audit_rating: null,
+          },
+          {
+            name: 'testFunc2',
+            type: 'function',
+            filepath: 'test.go',
+            line_number: 10,
+            language: 'go',
+            complexity: 5,
+            impact_score: 75,
+            reason: 'reason',
+            export_type: 'named',
+            module_system: 'unknown',
+            parameters: [],
+            has_docs: false,
+            docstring: null,
+            audit_rating: null,
+          },
+        ],
+      }));
+
+      await expect(async () => {
+        await improveCommand('./test', {});
+      }).rejects.toThrow('process.exit called with 1');
+
+      expect(exitSpy).toHaveBeenCalledWith(1);
+    });
+
+    it('should continue if all languages are supported', async () => {
+      mockReadFileSync.mockReturnValueOnce(JSON.stringify({
+        items: [
+          {
+            name: 'pyFunc',
+            type: 'function',
+            filepath: 'test.py',
+            line_number: 10,
+            language: 'python',
+            complexity: 5,
+            impact_score: 75,
+            reason: 'reason',
+            export_type: 'named',
+            module_system: 'unknown',
+            parameters: [],
+            has_docs: false,
+            docstring: null,
+            audit_rating: null,
+          },
+          {
+            name: 'tsFunc',
+            type: 'function',
+            filepath: 'test.ts',
+            line_number: 10,
+            language: 'typescript',
+            complexity: 5,
+            impact_score: 75,
+            reason: 'reason',
+            export_type: 'named',
+            module_system: 'esm',
+            parameters: [],
+            has_docs: false,
+            docstring: null,
+            audit_rating: null,
+          },
+        ],
+      }));
+
+      mockPrompts
+        .mockResolvedValueOnce({ styleGuide: 'google' })        // Python style
+        .mockResolvedValueOnce({ styleGuide: 'tsdoc-typedoc' }) // TypeScript style
+        .mockResolvedValueOnce({ tone: 'concise' });            // Tone
+
+      await improveCommand('./test', {});
+
+      // Should prompt for both languages and tone
+      expect(mockPrompts).toHaveBeenCalledTimes(3);
+      expect(mockSession.run).toHaveBeenCalled();
+    });
+  });
+
   describe('user preferences', () => {
     it('should prompt for style guides per language and tone', async () => {
       await improveCommand('./test', {});
