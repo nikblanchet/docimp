@@ -305,7 +305,8 @@ class TestPromptStructure:
         )
 
         assert 'Requirements:' in prompt
-        assert 'Return ONLY the documentation comment' in prompt
+        assert 'Return ONLY the documentation for the function' in prompt
+        assert 'The surrounding code is for CONTEXT ONLY' in prompt
         assert 'Do not include the code itself' in prompt
         assert 'Use the exact format shown in the example' in prompt
 

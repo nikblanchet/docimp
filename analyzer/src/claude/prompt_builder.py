@@ -241,7 +241,7 @@ Calculate the sum of two numbers.
         tone_desc = self.TONE_DESCRIPTIONS[self.tone]
 
         prompt_parts = [
-            f"Generate documentation for the following {language} {item_type}.",
+            f"Generate documentation for the {language} {item_type} named '{item_name}'.",
             "",
             f"Documentation Style: {style_info['name']}",
             f"Tone: {self.tone.capitalize()} - {tone_desc}",
@@ -267,9 +267,10 @@ Calculate the sum of two numbers.
         prompt_parts.extend([
             "",
             "Requirements:",
-            "1. Return ONLY the documentation comment, nothing else",
-            "2. Do not include the code itself, only the documentation",
-            "3. Use the exact format shown in the example",
+            f"1. Return ONLY the documentation for the {item_type} '{item_name}' - nothing else",
+            "2. The surrounding code is for CONTEXT ONLY - do not document it",
+            "3. Do not include the code itself, only the documentation",
+            "4. Use the exact format shown in the example",
         ])
 
         # Add style-specific requirements
@@ -277,51 +278,51 @@ Calculate the sum of two numbers.
 
         if style_language == 'python':
             prompt_parts.extend([
-                "4. Include type hints for all parameters and return values",
-                "5. Use triple-quoted docstrings",
+                "5. Include type hints for all parameters and return values",
+                "6. Use triple-quoted docstrings",
             ])
             if self.style_guide == 'numpy-rest':
-                prompt_parts.append("6. Use reStructuredText markup: *italic*, **bold**, ``code``")
+                prompt_parts.append("7. Use reStructuredText markup: *italic*, **bold**, ``code``")
             elif self.style_guide == 'numpy-markdown':
-                prompt_parts.append("6. Use Markdown markup: *italic*, **bold**, `code`")
+                prompt_parts.append("7. Use Markdown markup: *italic*, **bold**, `code`")
         elif style_language == 'javascript':
             prompt_parts.extend([
-                "4. Ensure @param names exactly match the function parameter names",
-                "5. Include type annotations for all parameters and return values",
+                "5. Ensure @param names exactly match the function parameter names",
+                "6. Include type annotations for all parameters and return values",
             ])
             if self.style_guide == 'jsdoc-vanilla':
-                prompt_parts.append("6. Use @returns (not @return)")
+                prompt_parts.append("7. Use @returns (not @return)")
             elif self.style_guide == 'jsdoc-google':
                 prompt_parts.extend([
-                    "6. Use @return (not @returns)",
-                    "7. End descriptions with periods",
-                    "8. No hyphens after parameter names",
+                    "7. Use @return (not @returns)",
+                    "8. End descriptions with periods",
+                    "9. No hyphens after parameter names",
                 ])
             elif self.style_guide == 'jsdoc-closure':
                 prompt_parts.extend([
-                    "6. Use @return (not @returns)",
-                    "7. Include @public, @private, or @protected annotations",
+                    "7. Use @return (not @returns)",
+                    "8. Include @public, @private, or @protected annotations",
                 ])
         elif style_language == 'typescript':
             if self.style_guide == 'tsdoc-typedoc':
                 prompt_parts.extend([
-                    "4. Use TSDoc format with hyphens after parameter names",
-                    "5. Use @returns (not @return)",
-                    "6. Types are inferred from TypeScript signatures",
-                    "7. Include @remarks for additional details",
+                    "5. Use TSDoc format with hyphens after parameter names",
+                    "6. Use @returns (not @return)",
+                    "7. Types are inferred from TypeScript signatures",
+                    "8. Include @remarks for additional details",
                 ])
             elif self.style_guide == 'tsdoc-aedoc':
                 prompt_parts.extend([
-                    "4. Use TSDoc format with hyphens after parameter names",
-                    "5. Use @returns (not @return)",
-                    "6. Include @public, @beta, or @internal annotations",
-                    "7. Types are inferred from TypeScript signatures",
+                    "5. Use TSDoc format with hyphens after parameter names",
+                    "6. Use @returns (not @return)",
+                    "7. Include @public, @beta, or @internal annotations",
+                    "8. Types are inferred from TypeScript signatures",
                 ])
             elif self.style_guide == 'jsdoc-ts':
                 prompt_parts.extend([
-                    "4. Use JSDoc format with explicit type annotations",
-                    "5. Include {type} annotations even though TypeScript provides types",
-                    "6. Use @returns (not @return)",
+                    "5. Use JSDoc format with explicit type annotations",
+                    "6. Include {type} annotations even though TypeScript provides types",
+                    "7. Use @returns (not @return)",
                 ])
 
         return "\n".join(prompt_parts)
