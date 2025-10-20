@@ -487,8 +487,17 @@ DocImp uses a **JavaScript configuration file** (not JSON) to allow custom logic
 
 ```javascript
 module.exports = {
-  // Style guide: 'numpy', 'google', 'sphinx', 'jsdoc'
-  styleGuide: 'jsdoc',
+  // Per-language style guides
+  styleGuides: {
+    // Python: 'google', 'numpy-rest', 'numpy-markdown', 'sphinx'
+    python: 'google',
+
+    // JavaScript: 'jsdoc-vanilla', 'jsdoc-google', 'jsdoc-closure'
+    javascript: 'jsdoc-vanilla',
+
+    // TypeScript: 'tsdoc-typedoc', 'tsdoc-aedoc', 'jsdoc-ts'
+    typescript: 'tsdoc-typedoc'
+  },
 
   // Tone: 'concise', 'detailed', 'friendly'
   tone: 'concise',
