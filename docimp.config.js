@@ -11,16 +11,37 @@
 //
 
 export default {
-  // Style guide for generated documentation.
+  // Per-language style guides for generated documentation.
   //
-  // Options:
-  // - 'numpy': NumPy-style docstrings (Python)
-  // - 'google': Google-style docstrings (Python)
-  // - 'sphinx': Sphinx-style docstrings (Python)
-  // - 'jsdoc': JSDoc style (JavaScript/TypeScript)
+  // BREAKING CHANGE (v0.2.0): Replaces single 'styleGuide' string with
+  // per-language configuration object.
   //
-  // Default: 'numpy'
-  styleGuide: 'jsdoc',
+  // Python options (4 variants):
+  // - 'google': Google-style docstrings
+  // - 'numpy-rest': NumPy format with reStructuredText markup
+  // - 'numpy-markdown': NumPy format with Markdown markup
+  // - 'sphinx': Pure reST (Sphinx) style
+  //
+  // JavaScript options (3 variants):
+  // - 'jsdoc-vanilla': Standard JSDoc format
+  // - 'jsdoc-google': Google-flavored JSDoc conventions
+  // - 'jsdoc-closure': Google Closure Compiler style
+  //
+  // TypeScript options (3 variants):
+  // - 'tsdoc-typedoc': TSDoc format optimized for TypeDoc
+  // - 'tsdoc-aedoc': TSDoc for Microsoft API Extractor/AEDoc
+  // - 'jsdoc-ts': JSDoc format in TypeScript files (hybrid approach)
+  //
+  // Defaults: python='google', javascript='jsdoc-vanilla', typescript='tsdoc-typedoc'
+  //
+  // Migration from v0.1.x:
+  // Old: styleGuide: 'jsdoc'
+  // New: styleGuides: { python: 'google', javascript: 'jsdoc-vanilla', typescript: 'tsdoc-typedoc' }
+  styleGuides: {
+    python: 'google',
+    javascript: 'jsdoc-vanilla',
+    typescript: 'tsdoc-typedoc',
+  },
 
   // Tone of generated documentation.
   //

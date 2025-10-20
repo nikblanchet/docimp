@@ -114,12 +114,18 @@ export async function improveCommand(
         continue;
       }
 
+      // Find initial selection from config
+      const configuredStyle = config.styleGuides?.[lang as 'python' | 'javascript' | 'typescript'];
+      const initialIndex = configuredStyle
+        ? choices.findIndex(choice => choice.value === configuredStyle)
+        : -1;
+
       const response = await prompts({
         type: 'select',
         name: 'styleGuide',
         message: `Select documentation style guide for ${chalk.cyan(lang)}:`,
         choices,
-        initial: 0,
+        initial: initialIndex >= 0 ? initialIndex : 0,
       });
 
       if (response.styleGuide) {
@@ -131,16 +137,22 @@ export async function improveCommand(
     }
 
     // Prompt for tone (applies to all languages)
+    const toneChoices = [
+      { title: 'Concise', value: 'concise' },
+      { title: 'Detailed', value: 'detailed' },
+      { title: 'Friendly', value: 'friendly' },
+    ];
+
+    const toneInitialIndex = config.tone
+      ? toneChoices.findIndex(choice => choice.value === config.tone)
+      : -1;
+
     const toneResponse = await prompts({
       type: 'select',
       name: 'tone',
       message: 'Select documentation tone (applies to all languages):',
-      choices: [
-        { title: 'Concise', value: 'concise' },
-        { title: 'Detailed', value: 'detailed' },
-        { title: 'Friendly', value: 'friendly' },
-      ],
-      initial: 0,
+      choices: toneChoices,
+      initial: toneInitialIndex >= 0 ? toneInitialIndex : 0,
     });
 
     // Use command-line override or user preference for tone
