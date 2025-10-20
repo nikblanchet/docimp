@@ -206,7 +206,7 @@ Interactive workflow:
   - S = Skip (saves null for later review)
   - Q = Quit (stops audit)
 - Calculates weighted coverage score
-- Saves results to `.docimp-audit.json`
+- Saves results to `.docimp/session-reports/audit.json`
 
 ### Plan
 
@@ -256,6 +256,54 @@ docimp improve ./src
 - JSDoc types are incorrect or missing
 - Style guide violations (preferred tags, punctuation)
 - Missing examples for public APIs
+
+---
+
+## Workflows
+
+DocImp supports two monodirectional workflows in MVP:
+
+### Workflow A: analyze → plan → improve
+**Complexity-only** impact scoring (no audit)
+
+```bash
+docimp analyze ./src
+docimp plan ./src
+docimp improve ./src
+```
+
+Best for: Quick start, small codebases, first-time users
+
+### Workflow B: analyze → audit → plan → improve
+**Quality-weighted** impact scoring (with audit)
+
+```bash
+docimp analyze ./src
+docimp audit ./src      # Rate existing documentation quality
+docimp plan ./src       # Generates plan with quality-adjusted priorities
+docimp improve ./src
+```
+
+Best for: Large codebases, teams prioritizing documentation quality
+
+### State Directory (.docimp/)
+
+DocImp stores session data in `.docimp/` (similar to `.git/`):
+
+```
+.docimp/
+├── session-reports/
+│   ├── audit.json          # Latest audit ratings
+│   ├── plan.json           # Latest improvement plan
+│   └── analyze-latest.json # Latest analysis
+└── history/                # Future: audit history
+```
+
+**Auto-clean behavior**: `docimp analyze` clears old session reports by default
+- Prevents stale audit/plan data
+- Use `--keep-old-reports` flag to preserve existing reports
+
+**Note**: `.docimp/` is gitignored automatically. Restore clean state with `rm -rf .docimp/`
 
 ---
 
