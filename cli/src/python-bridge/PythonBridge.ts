@@ -6,15 +6,72 @@
  */
 
 import { spawn, spawnSync } from 'child_process';
-import { resolve } from 'path';
+import { resolve, dirname, join } from 'path';
+import { existsSync } from 'fs';
 import type { IPythonBridge, AnalyzeOptions, AuditOptions, PlanOptions, SuggestOptions, ApplyData } from './IPythonBridge.js';
 import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult } from '../types/analysis.js';
 
 /**
+ * Find the analyzer directory by searching upwards from a starting directory.
+ *
+ * This works regardless of:
+ * - User's current working directory
+ * - Whether code is in src/ or dist/
+ * - Whether running in ES modules or CommonJS (Jest)
+ *
+ * @param startDir - Directory to start searching from
+ * @returns Path to analyzer directory
+ * @throws Error if analyzer directory not found
+ */
+function findAnalyzerDir(startDir: string): string {
+  let currentDir = startDir;
+  const root = resolve('/');
+
+  while (currentDir !== root) {
+    const analyzerPath = join(currentDir, 'analyzer');
+    if (existsSync(analyzerPath)) {
+      return analyzerPath;
+    }
+    currentDir = dirname(currentDir);
+  }
+
+  throw new Error(
+    `Could not find analyzer directory. Searched upwards from: ${startDir}`
+  );
+}
+
+/**
  * Detect available Python executable.
- * Tries python3, then python, then py.
+ * Checks GitHub Actions pythonLocation first, then DOCIMP_PYTHON_PATH,
+ * then tries python3, python, and py.
  */
 function detectPythonExecutable(): string {
+  // GitHub Actions sets pythonLocation env var (e.g., /opt/hostedtoolcache/Python/3.13.8/x64)
+  const pythonLocation = process.env.pythonLocation;
+  if (pythonLocation) {
+    // Try both python3 and python in the bin directory
+    const candidates = [
+      `${pythonLocation}/bin/python3`,
+      `${pythonLocation}/bin/python`
+    ];
+    for (const candidate of candidates) {
+      try {
+        const result = spawnSync(candidate, ['--version'], { timeout: 2000 });
+        if (result.status === 0) {
+          return candidate;
+        }
+      } catch {
+        // Try next candidate
+      }
+    }
+  }
+
+  // Check for explicit path from environment (for CI)
+  const envPath = process.env.DOCIMP_PYTHON_PATH;
+  if (envPath) {
+    return envPath;
+  }
+
   const candidates = ['python3', 'python', 'py'];
 
   for (const candidate of candidates) {
@@ -51,18 +108,10 @@ export class PythonBridge implements IPythonBridge {
   ) {
     this.pythonPath = pythonPath || detectPythonExecutable();
 
-    // Auto-detect analyzer path relative to this file
-    // cli/src/python-bridge/PythonBridge.ts -> analyzer/
+    // Auto-detect analyzer path by searching upwards from current working directory
+    // This works regardless of where docimp is invoked from
     if (!analyzerPath) {
-      // Check if we're in cli/ directory (most common case)
-      // If process.cwd() ends with 'cli', go up one level
-      const cwd = process.cwd();
-      if (cwd.endsWith('cli')) {
-        this.analyzerModule = resolve(cwd, '..', 'analyzer');
-      } else {
-        // Otherwise assume we're at repo root
-        this.analyzerModule = resolve(cwd, 'analyzer');
-      }
+      this.analyzerModule = findAnalyzerDir(process.cwd());
     } else {
       this.analyzerModule = analyzerPath;
     }

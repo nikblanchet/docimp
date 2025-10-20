@@ -173,3 +173,74 @@ class TestStateManager:
         state_dir = StateManager.get_state_dir()
         assert state_dir.is_absolute()
         assert state_dir.name == '.docimp'
+
+    def test_validate_write_permission_succeeds_for_writable_file(self, temp_dir):
+        """Test that validate_write_permission succeeds for writable files."""
+        # Create a writable file
+        test_file = temp_dir / 'writable.json'
+        test_file.write_text('{"test": "data"}')
+
+        # Should not raise an exception
+        StateManager.validate_write_permission(test_file)
+
+    def test_validate_write_permission_succeeds_for_writable_directory(self, temp_dir):
+        """Test that validate_write_permission succeeds when file doesn't exist but directory is writable."""
+        # File doesn't exist yet, but temp_dir is writable
+        test_file = temp_dir / 'new-file.json'
+        assert not test_file.exists()
+
+        # Should not raise an exception
+        StateManager.validate_write_permission(test_file)
+
+    def test_validate_write_permission_fails_for_readonly_file(self, temp_dir):
+        """Test that validate_write_permission raises PermissionError for read-only files."""
+        # Create a read-only file
+        test_file = temp_dir / 'readonly.json'
+        test_file.write_text('{"test": "data"}')
+        test_file.chmod(0o444)  # Read-only
+
+        # Should raise PermissionError with helpful message
+        with pytest.raises(PermissionError) as exc_info:
+            StateManager.validate_write_permission(test_file)
+
+        error_message = str(exc_info.value).lower()
+        assert 'permission' in error_message
+        assert 'write' in error_message or 'read-only' in error_message
+
+        # Cleanup: restore permissions for deletion
+        test_file.chmod(0o644)
+
+    def test_validate_write_permission_fails_for_readonly_directory(self, temp_dir):
+        """Test that validate_write_permission raises PermissionError when directory is read-only."""
+        # Create a read-only directory
+        readonly_dir = temp_dir / 'readonly'
+        readonly_dir.mkdir()
+        readonly_dir.chmod(0o555)  # Read and execute only, no write
+
+        test_file = readonly_dir / 'new-file.json'
+        assert not test_file.exists()
+
+        # Should raise PermissionError with helpful message
+        with pytest.raises(PermissionError) as exc_info:
+            StateManager.validate_write_permission(test_file)
+
+        error_message = str(exc_info.value).lower()
+        assert 'permission' in error_message
+        assert 'write' in error_message or 'access' in error_message
+
+        # Cleanup: restore permissions for deletion
+        readonly_dir.chmod(0o755)
+
+    def test_validate_write_permission_fails_for_nonexistent_directory(self, temp_dir):
+        """Test that validate_write_permission raises PermissionError when parent directory doesn't exist."""
+        # Parent directory doesn't exist
+        test_file = temp_dir / 'nonexistent' / 'new-file.json'
+        assert not test_file.parent.exists()
+
+        # Should raise PermissionError with helpful message
+        with pytest.raises(PermissionError) as exc_info:
+            StateManager.validate_write_permission(test_file)
+
+        error_message = str(exc_info.value).lower()
+        assert 'permission' in error_message
+        assert 'does not exist' in error_message or 'directory' in error_message

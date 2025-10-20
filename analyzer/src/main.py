@@ -142,6 +142,10 @@ def cmd_analyze(args: argparse.Namespace) -> int:
         # Ensure state directory exists
         StateManager.ensure_state_dir()
 
+        # Validate write permission BEFORE clearing (in case files are read-only)
+        analyze_file = StateManager.get_analyze_file()
+        StateManager.validate_write_permission(analyze_file)
+
         # Clear session reports unless --keep-old-reports flag is set
         if args.keep_old_reports:
             if args.verbose:
@@ -161,7 +165,6 @@ def cmd_analyze(args: argparse.Namespace) -> int:
         result = analyzer.analyze(args.path, verbose=args.verbose)
 
         # Save analysis result to state directory
-        analyze_file = StateManager.get_analyze_file()
         with open(analyze_file, 'w') as f:
             f.write(format_json(result))
 
