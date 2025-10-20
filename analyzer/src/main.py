@@ -640,9 +640,16 @@ def main(argv: Optional[list] = None) -> int:
     )
     suggest_parser.add_argument(
         '--style-guide',
-        choices=['jsdoc', 'numpy', 'google', 'sphinx'],
-        default='numpy',
-        help='Documentation style guide (default: numpy)'
+        choices=[
+            # Python (4 variants)
+            'google', 'numpy-rest', 'numpy-markdown', 'sphinx',
+            # JavaScript (3 variants)
+            'jsdoc-vanilla', 'jsdoc-google', 'jsdoc-closure',
+            # TypeScript (3 variants)
+            'tsdoc-typedoc', 'tsdoc-aedoc', 'jsdoc-ts'
+        ],
+        default='google',
+        help='Documentation style guide (default: google)'
     )
     suggest_parser.add_argument(
         '--tone',
