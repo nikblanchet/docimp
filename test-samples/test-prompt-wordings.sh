@@ -285,7 +285,7 @@ main() {
 
     # Parse command line argument
     if [ $# -eq 1 ]; then
-        OPTION="${1^^}"  # Convert to uppercase
+        OPTION=$(echo "$1" | tr '[:lower:]' '[:upper:]')  # Convert to uppercase
         if [[ ! "$OPTION" =~ ^[ABC]$ ]]; then
             echo -e "${RED}Invalid option: $1${NC}"
             echo "Usage: $0 [A|B|C]"
@@ -301,7 +301,7 @@ main() {
         echo "  X - Test all three (sequential)"
         echo -n "Choice (A/B/C/X): "
         read -r choice
-        choice="${choice^^}"
+        choice=$(echo "$choice" | tr '[:lower:]' '[:upper:]')
 
         case $choice in
             A|B|C)
