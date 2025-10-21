@@ -107,7 +107,8 @@ export class ProgressTracker {
     const { completedItems, totalItems, acceptedItems, skippedItems, errorItems } = this.getProgress();
     const parts = [`${acceptedItems} accepted`, `${skippedItems} skipped`];
     if (errorItems > 0) {
-      parts.push(`${errorItems} errors`);
+      const errorText = errorItems === 1 ? 'error' : 'errors';
+      parts.push(`${errorItems} ${errorText}`);
     }
     return `${completedItems}/${totalItems} items (${parts.join(', ')})`;
   }

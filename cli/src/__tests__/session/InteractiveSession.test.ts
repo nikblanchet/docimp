@@ -582,7 +582,7 @@ describe('InteractiveSession', () => {
 
       // Progress string for item 3 should include error count
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringMatching(/\[3\/3\].*1 errors/)
+        expect.stringMatching(/\[3\/3\].*1 error/)
       );
     });
   });

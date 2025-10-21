@@ -126,7 +126,7 @@ export class InteractiveSession {
     let docstring = await this.requestSuggestion(item);
 
     if (!docstring) {
-      console.log(chalk.red('Failed to generate suggestion. Skipping item.'));
+      console.log(chalk.red('Failed to generate suggestion.'));
       tracker.recordError();
       return true; // Continue to next item
     }
