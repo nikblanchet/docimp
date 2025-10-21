@@ -237,6 +237,8 @@ Examples:
                     line_number=1
                 )
 
+                assert success, "DocstringWriter.write_docstring() returned False"
+
                 # Read result
                 with open(temp_path, 'r') as f:
                     result = f.read()
