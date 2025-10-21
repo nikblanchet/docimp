@@ -253,6 +253,7 @@ The `docimp plan` command returns a prioritized list of items needing documentat
 | `type` | string | Type of code element | Required | "function", "class", "method", or "interface" |
 | `filepath` | string | Absolute path to source file | Required | Non-empty string |
 | `line_number` | integer | Line where definition starts | Required | > 0 |
+| `end_line` | integer | Line where definition ends (inclusive) | Required | > 0 |
 | `language` | string | Source language | Required | "python", "typescript", or "javascript" |
 | `complexity` | integer | Cyclomatic complexity score | Required | >= 0 |
 | `impact_score` | number | Calculated impact score | Required | 0-100 |
