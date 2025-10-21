@@ -450,8 +450,7 @@ class TestAtomicWrites:
 
     def test_successful_atomic_write(self):
         """Test that atomic write creates temp file, validates, and renames atomically."""
-        import os
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import patch
 
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create test file
@@ -496,8 +495,6 @@ class TestAtomicWrites:
 
     def test_disk_full_scenario(self):
         """Test that disk full scenario is detected and original file is untouched."""
-        import os
-        import shutil
         from unittest.mock import patch, MagicMock
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -533,9 +530,7 @@ class TestAtomicWrites:
 
     def test_write_validation_failure(self):
         """Test that write validation catches content mismatches."""
-        import os
-        import shutil
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import patch
 
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create test file
@@ -546,8 +541,6 @@ class TestAtomicWrites:
             writer = DocstringWriter(base_path=temp_dir)
 
             # Mock _validate_write to raise validation error
-            original_validate = writer._validate_write
-
             def mock_validate(file_path, expected_content):
                 # Always fail validation
                 raise IOError(f"Write validation failed for '{file_path}'. Content mismatch detected.")
@@ -568,9 +561,8 @@ class TestAtomicWrites:
 
     def test_restore_failure_handling(self):
         """Test that restore failures are properly reported with both file paths."""
-        import os
         import shutil
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import patch
 
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create test file
@@ -606,8 +598,7 @@ class TestAtomicWrites:
     def test_atomic_rename_behavior(self):
         """Test that os.replace is used for atomic rename."""
         import os
-        import shutil
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import patch
 
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create test file
