@@ -177,6 +177,25 @@ class DocstringWriter:
     ) -> bool:
         """Write documentation to a source file.
 
+        This method uses atomic write operations to prevent file corruption:
+
+        1. Write new content to temporary file
+        2. Validate temp file content matches expected content
+        3. Create backup of original (only after temp validated)
+        4. Atomically rename temp file to target using os.replace()
+        5. Clean up backup and temp files in finally block
+
+        Concurrency Limitation
+        ----------------------
+        This implementation uses optimistic locking. The file is read at the
+        beginning, and atomically written at the end. If another process modifies
+        the file between these operations, those changes will be silently
+        overwritten.
+
+        For concurrent environments where multiple processes may modify the same
+        file, external file locking mechanisms would be required. See Issue #197
+        for broader concurrent execution support.
+
         Parameters
         ----------
         filepath : str
@@ -203,6 +222,10 @@ class DocstringWriter:
             If the filepath is outside the allowed base directory
         FileNotFoundError
             If the file does not exist
+        OSError
+            If insufficient disk space is available
+        IOError
+            If write validation fails or restore operation fails
         """
         # Clean any markdown wrappers from docstring (defensive parser)
         # This provides defense-in-depth in case Claude wraps responses in markdown
