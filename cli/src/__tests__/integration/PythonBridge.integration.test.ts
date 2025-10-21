@@ -115,6 +115,7 @@ describe('PythonBridge Integration (Real Python Subprocess)', () => {
         expect(firstItem).toHaveProperty('type');
         expect(firstItem).toHaveProperty('filepath');
         expect(firstItem).toHaveProperty('line_number');
+        expect(firstItem).toHaveProperty('end_line');
         expect(firstItem).toHaveProperty('language');
         expect(firstItem).toHaveProperty('complexity');
         expect(firstItem).toHaveProperty('impact_score');
