@@ -198,6 +198,55 @@ describe('PythonBridge Integration (Real Python Subprocess)', () => {
         expect(lastItem).toHaveProperty('name');
       }
     }, 30000);
+
+    it('should handle missing optional fields from Python output', async () => {
+      // This test verifies Zod .passthrough() and .optional() handle missing fields
+      // In practice, Python always includes all fields, but we test defensive behavior
+
+      const { AnalysisResultSchema } = await import('../../python-bridge/schemas.js');
+
+      // Create minimal JSON with only required fields
+      const minimalJson = {
+        items: [{
+          name: 'minimal_function',
+          type: 'function',
+          filepath: '/test/minimal.py',
+          line_number: 1,
+          end_line: 10,
+          language: 'python',
+          complexity: 5,
+          impact_score: 25,
+          has_docs: false,
+          export_type: 'named',
+          module_system: 'esm',
+          // Intentionally omitting: audit_rating (optional in CodeItemSchema)
+          // Note: Real Python output includes all fields, but Zod should handle omission
+        }],
+        coverage_percent: 0,
+        total_items: 1,
+        documented_items: 0,
+        by_language: {}
+      };
+
+      // Validate that Zod schema accepts JSON with missing optional fields
+      const result = AnalysisResultSchema.parse(minimalJson);
+
+      expect(result.items[0].name).toBe('minimal_function');
+      expect(result.items[0]).not.toHaveProperty('audit_rating');
+
+      // Verify required fields are present
+      expect(result.items[0]).toHaveProperty('name');
+      expect(result.items[0]).toHaveProperty('type');
+      expect(result.items[0]).toHaveProperty('filepath');
+      expect(result.items[0]).toHaveProperty('line_number');
+      expect(result.items[0]).toHaveProperty('end_line');
+      expect(result.items[0]).toHaveProperty('language');
+      expect(result.items[0]).toHaveProperty('complexity');
+      expect(result.items[0]).toHaveProperty('impact_score');
+      expect(result.items[0]).toHaveProperty('has_docs');
+      expect(result.items[0]).toHaveProperty('export_type');
+      expect(result.items[0]).toHaveProperty('module_system');
+    }, 30000);
   });
 
   describe('Error Handling Tests', () => {
