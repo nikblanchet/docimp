@@ -668,3 +668,46 @@ class TestAtomicWrites:
             # Verify no temp files remain (they'd have pattern .test.py.*.tmp)
             temp_files = list(Path(temp_dir).glob('.test.py.*.tmp'))
             assert len(temp_files) == 0, "No temp files should remain"
+
+    def test_backup_collision_handling(self):
+        """Test that pre-existing .bak files don't cause data loss."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create test file
+            test_file = Path(temp_dir) / 'test.py'
+            test_file.write_text('def foo():\n    pass')
+
+            # Create pre-existing .bak file that user cares about
+            user_backup = test_file.with_suffix(test_file.suffix + '.bak')
+            important_content = 'IMPORTANT USER BACKUP - DO NOT LOSE'
+            user_backup.write_text(important_content)
+
+            writer = DocstringWriter(base_path=temp_dir)
+
+            # Write docstring
+            success = writer.write_docstring(
+                filepath=str(test_file),
+                item_name='foo',
+                item_type='function',
+                docstring='New documentation',
+                language='python'
+            )
+
+            assert success, "Write should succeed"
+
+            # Verify user's original .bak file is NOT overwritten (timestamp approach creates new file)
+            if user_backup.exists():
+                content = user_backup.read_text()
+                assert content == important_content, \
+                    "User's original .bak file should not be overwritten"
+
+            # Verify docstring was written to actual file
+            test_content = test_file.read_text()
+            assert '"""' in test_content, "Docstring should be present"
+            assert 'New documentation' in test_content, "Docstring content should be in file"
+
+            # Verify no timestamp backup remains (should be cleaned up in finally block)
+            timestamp_backups = list(Path(temp_dir).glob('test.py.*.bak'))
+            # Filter out the user's manual .bak file
+            timestamp_backups = [b for b in timestamp_backups if b != user_backup]
+            assert len(timestamp_backups) == 0, \
+                "Timestamp-based backup should be cleaned up"

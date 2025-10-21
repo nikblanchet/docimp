@@ -4,6 +4,7 @@ This module handles writing documentation to Python, TypeScript, and JavaScript
 files while preserving formatting and ensuring idempotent operations.
 """
 
+import datetime
 import os
 import re
 import shutil
@@ -263,7 +264,17 @@ class DocstringWriter:
         self._check_disk_space(file_path, required_bytes)
 
         # Create backup and temp file paths
-        backup_path = file_path.with_suffix(file_path.suffix + '.bak')
+        # Use timestamp to avoid collisions with existing .bak files
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+        backup_path = file_path.with_suffix(f'{file_path.suffix}.{timestamp}.bak')
+
+        # Safety check: verify backup path is unique (should always be true with microseconds)
+        if backup_path.exists():
+            raise IOError(
+                f"Backup path collision: '{backup_path}' already exists. "
+                f"This should not happen with timestamp-based naming."
+            )
+
         temp_path = None  # Initialize to avoid NameError if mkstemp fails
 
         try:
