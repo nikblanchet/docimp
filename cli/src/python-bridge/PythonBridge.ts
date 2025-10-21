@@ -8,8 +8,10 @@
 import { spawn, spawnSync } from 'child_process';
 import { resolve, dirname, join } from 'path';
 import { existsSync } from 'fs';
+import { z } from 'zod';
 import type { IPythonBridge, AnalyzeOptions, AuditOptions, PlanOptions, SuggestOptions, ApplyData } from './IPythonBridge.js';
 import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult } from '../types/analysis.js';
+import { AnalysisResultSchema, AuditListResultSchema, PlanResultSchema, formatValidationError } from './schemas.js';
 
 /**
  * Find the analyzer directory by searching upwards from a starting directory.
@@ -142,7 +144,7 @@ export class PythonBridge implements IPythonBridge {
       args.push('--verbose');
     }
 
-    return this.executePython<AnalysisResult>(args, options.verbose);
+    return this.executePython<AnalysisResult>(args, options.verbose, AnalysisResultSchema);
   }
 
   /**
@@ -173,7 +175,7 @@ export class PythonBridge implements IPythonBridge {
       args.push('--verbose');
     }
 
-    return this.executePython<AuditListResult>(args, options.verbose);
+    return this.executePython<AuditListResult>(args, options.verbose, AuditListResultSchema);
   }
 
   /**
@@ -276,7 +278,7 @@ export class PythonBridge implements IPythonBridge {
       args.push('--verbose');
     }
 
-    return this.executePython<PlanResult>(args, options.verbose);
+    return this.executePython<PlanResult>(args, options.verbose, PlanResultSchema);
   }
 
   /**
@@ -425,12 +427,14 @@ export class PythonBridge implements IPythonBridge {
    *
    * @param args - Command-line arguments for Python
    * @param verbose - Whether to show verbose output
-   * @returns Promise resolving to parsed JSON result
-   * @throws Error if process fails or JSON is invalid
+   * @param schema - Optional Zod schema for runtime validation
+   * @returns Promise resolving to parsed and validated JSON result
+   * @throws Error if process fails, JSON is invalid, or validation fails
    */
   private async executePython<T>(
     args: string[],
-    verbose: boolean = false
+    verbose: boolean = false,
+    schema?: z.ZodType<T>
   ): Promise<T> {
     return new Promise((resolve, reject) => {
       const childProcess = spawn(this.pythonPath, args, {
@@ -478,8 +482,26 @@ export class PythonBridge implements IPythonBridge {
 
         // Parse JSON from stdout
         try {
-          const result = JSON.parse(stdout) as T;
-          resolve(result);
+          const parsed = JSON.parse(stdout);
+
+          // Validate with Zod schema if provided
+          if (schema) {
+            try {
+              const validated = schema.parse(parsed);
+              resolve(validated);
+            } catch (validationError) {
+              if (validationError instanceof z.ZodError) {
+                reject(
+                  new Error(formatValidationError(validationError))
+                );
+              } else {
+                reject(validationError);
+              }
+            }
+          } else {
+            // No schema provided, return parsed JSON as-is (backward compatibility)
+            resolve(parsed as T);
+          }
         } catch (error) {
           reject(
             new Error(
