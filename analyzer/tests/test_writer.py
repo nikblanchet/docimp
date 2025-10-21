@@ -443,3 +443,271 @@ class TestPathTraversalValidation:
 
             # Verify original code is preserved
             assert 'def foo():' in content, "Original function definition should be preserved"
+
+
+class TestAtomicWrites:
+    """Test suite for atomic write operations with validation."""
+
+    def test_successful_atomic_write(self):
+        """Test that atomic write creates temp file, validates, and renames atomically."""
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create test file
+            test_file = Path(temp_dir) / 'test.js'
+            test_file.write_text('function foo() {}')
+
+            writer = DocstringWriter(base_path=temp_dir)
+
+            # Track temp file creation
+            original_mkstemp = tempfile.mkstemp
+            temp_files_created = []
+
+            def track_mkstemp(*args, **kwargs):
+                fd, path = original_mkstemp(*args, **kwargs)
+                temp_files_created.append(path)
+                return fd, path
+
+            with patch('tempfile.mkstemp', side_effect=track_mkstemp):
+                success = writer.write_docstring(
+                    filepath=str(test_file),
+                    item_name='foo',
+                    item_type='function',
+                    docstring='Test function',
+                    language='javascript'
+                )
+
+            assert success, "Write should succeed"
+
+            # Verify temp file was created and cleaned up
+            assert len(temp_files_created) == 1, "Exactly one temp file should be created"
+            temp_file_path = Path(temp_files_created[0])
+            assert not temp_file_path.exists(), "Temp file should be cleaned up"
+
+            # Verify final content is correct
+            content = test_file.read_text()
+            assert '/**' in content, "JSDoc should be present"
+            assert 'foo' in content, "Original code should be preserved"
+
+            # Verify no backup remains
+            backup_path = test_file.with_suffix(test_file.suffix + '.bak')
+            assert not backup_path.exists(), "Backup should be cleaned up"
+
+    def test_disk_full_scenario(self):
+        """Test that disk full scenario is detected and original file is untouched."""
+        from unittest.mock import patch, MagicMock
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create test file
+            test_file = Path(temp_dir) / 'test.py'
+            original_content = 'def foo():\n    pass'
+            test_file.write_text(original_content)
+
+            writer = DocstringWriter(base_path=temp_dir)
+
+            # Mock disk_usage to simulate full disk
+            mock_usage = MagicMock()
+            mock_usage.free = 10  # Only 10 bytes free (not enough for any write)
+
+            # Patch at the module where it's used, not where it's imported from
+            with patch('src.writer.docstring_writer.shutil.disk_usage', return_value=mock_usage):
+                with pytest.raises(OSError, match="Insufficient disk space"):
+                    writer.write_docstring(
+                        filepath=str(test_file),
+                        item_name='foo',
+                        item_type='function',
+                        docstring='New documentation',
+                        language='python'
+                    )
+
+            # Verify original file is untouched
+            content = test_file.read_text()
+            assert content == original_content, "Original file should be unchanged"
+
+            # Verify no backup or temp files remain
+            backup_path = test_file.with_suffix(test_file.suffix + '.bak')
+            assert not backup_path.exists(), "No backup should exist"
+
+    def test_write_validation_failure(self):
+        """Test that write validation catches content mismatches."""
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create test file
+            test_file = Path(temp_dir) / 'test.js'
+            original_content = 'function bar() {}'
+            test_file.write_text(original_content)
+
+            writer = DocstringWriter(base_path=temp_dir)
+
+            # Mock _validate_write to raise validation error
+            def mock_validate(file_path, expected_content):
+                # Always fail validation
+                raise IOError(f"Write validation failed for '{file_path}'. Content mismatch detected.")
+
+            with patch.object(writer, '_validate_write', side_effect=mock_validate):
+                with pytest.raises(IOError, match="Write validation failed"):
+                    writer.write_docstring(
+                        filepath=str(test_file),
+                        item_name='bar',
+                        item_type='function',
+                        docstring='Test docs',
+                        language='javascript'
+                    )
+
+            # Verify original file is restored
+            content = test_file.read_text()
+            assert content == original_content, "Original file should be restored"
+
+    def test_restore_failure_handling(self):
+        """Test that restore failures are properly reported with both file paths."""
+        import shutil
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create test file
+            test_file = Path(temp_dir) / 'test.py'
+            test_file.write_text('def foo():\n    pass')
+
+            writer = DocstringWriter(base_path=temp_dir)
+
+            # Mock shutil.copy2 to fail on restore but succeed on backup creation
+            original_copy2 = shutil.copy2
+            call_count = [0]
+
+            def mock_copy2(src, dst):
+                call_count[0] += 1
+                # First call is backup creation (line 258) - let it succeed
+                if call_count[0] == 1:
+                    return original_copy2(src, dst)
+                # Second call is restore (line 156 in _safe_restore) - make it fail
+                raise PermissionError("Mock restore failure")
+
+            # Also mock os.replace to fail, triggering restore attempt
+            with patch('src.writer.docstring_writer.shutil.copy2', side_effect=mock_copy2):
+                with patch('src.writer.docstring_writer.os.replace', side_effect=PermissionError("Mock replace failure")):
+                    with pytest.raises(IOError, match="CRITICAL: Failed to restore"):
+                        writer.write_docstring(
+                            filepath=str(test_file),
+                            item_name='foo',
+                            item_type='function',
+                            docstring='New docs',
+                            language='python'
+                        )
+
+    def test_atomic_rename_behavior(self):
+        """Test that os.replace is used for atomic rename."""
+        import os
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create test file
+            test_file = Path(temp_dir) / 'test.js'
+            test_file.write_text('function test() {}')
+
+            writer = DocstringWriter(base_path=temp_dir)
+
+            # Track os.replace calls
+            replace_calls = []
+            original_replace = os.replace
+
+            def track_replace(src, dst):
+                replace_calls.append((src, dst))
+                return original_replace(src, dst)
+
+            with patch('src.writer.docstring_writer.os.replace', side_effect=track_replace):
+                writer.write_docstring(
+                    filepath=str(test_file),
+                    item_name='test',
+                    item_type='function',
+                    docstring='Test function',
+                    language='javascript'
+                )
+
+            # Verify os.replace was called exactly once
+            assert len(replace_calls) == 1, "os.replace should be called exactly once"
+
+            src, dst = replace_calls[0]
+            # Verify temp file was in same directory as target
+            assert Path(src).parent == Path(dst).parent, \
+                "Temp file must be in same directory as target for atomic rename"
+
+            # Verify destination is the target file (resolve both to handle symlinks like /var -> /private/var on macOS)
+            assert Path(dst).resolve() == test_file.resolve(), "Destination should be the target file"
+
+    def test_temp_file_creation_failure(self):
+        """Test that mkstemp failure is handled without NameError."""
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            test_file = Path(temp_dir) / 'test.py'
+            original_content = 'def foo():\n    pass'
+            test_file.write_text(original_content)
+
+            writer = DocstringWriter(base_path=temp_dir)
+
+            # Mock mkstemp to fail
+            with patch('tempfile.mkstemp', side_effect=OSError("Disk full during temp file creation")):
+                with pytest.raises(OSError, match="Disk full during temp file creation"):
+                    writer.write_docstring(
+                        filepath=str(test_file),
+                        item_name='foo',
+                        item_type='function',
+                        docstring='New docs',
+                        language='python'
+                    )
+
+            # Verify original file is untouched
+            content = test_file.read_text()
+            assert content == original_content, "Original file should be unchanged"
+
+            # Verify no backup files created
+            backup_path = test_file.with_suffix(test_file.suffix + '.bak')
+            assert not backup_path.exists(), "No backup should exist"
+
+            # Verify no temp files remain (they'd have pattern .test.py.*.tmp)
+            temp_files = list(Path(temp_dir).glob('.test.py.*.tmp'))
+            assert len(temp_files) == 0, "No temp files should remain"
+
+    def test_backup_collision_handling(self):
+        """Test that pre-existing .bak files don't cause data loss."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create test file
+            test_file = Path(temp_dir) / 'test.py'
+            test_file.write_text('def foo():\n    pass')
+
+            # Create pre-existing .bak file that user cares about
+            user_backup = test_file.with_suffix(test_file.suffix + '.bak')
+            important_content = 'IMPORTANT USER BACKUP - DO NOT LOSE'
+            user_backup.write_text(important_content)
+
+            writer = DocstringWriter(base_path=temp_dir)
+
+            # Write docstring
+            success = writer.write_docstring(
+                filepath=str(test_file),
+                item_name='foo',
+                item_type='function',
+                docstring='New documentation',
+                language='python'
+            )
+
+            assert success, "Write should succeed"
+
+            # Verify user's original .bak file is NOT overwritten (timestamp approach creates new file)
+            if user_backup.exists():
+                content = user_backup.read_text()
+                assert content == important_content, \
+                    "User's original .bak file should not be overwritten"
+
+            # Verify docstring was written to actual file
+            test_content = test_file.read_text()
+            assert '"""' in test_content, "Docstring should be present"
+            assert 'New documentation' in test_content, "Docstring content should be in file"
+
+            # Verify no timestamp backup remains (should be cleaned up in finally block)
+            timestamp_backups = list(Path(temp_dir).glob('test.py.*.bak'))
+            # Filter out the user's manual .bak file
+            timestamp_backups = [b for b in timestamp_backups if b != user_backup]
+            assert len(timestamp_backups) == 0, \
+                "Timestamp-based backup should be cleaned up"

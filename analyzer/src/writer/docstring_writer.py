@@ -4,8 +4,11 @@ This module handles writing documentation to Python, TypeScript, and JavaScript
 files while preserving formatting and ensuring idempotent operations.
 """
 
+import datetime
+import os
 import re
 import shutil
+import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -83,6 +86,87 @@ class DocstringWriter:
 
         return file_path
 
+    def _check_disk_space(self, file_path: Path, required_bytes: int) -> None:
+        """Check if sufficient disk space is available before writing.
+
+        Parameters
+        ----------
+        file_path : Path
+            Path where file will be written
+        required_bytes : int
+            Number of bytes required for the write operation
+
+        Raises
+        ------
+        OSError
+            If insufficient disk space is available
+        """
+        usage = shutil.disk_usage(file_path.parent)
+        available_bytes = usage.free
+
+        # Add 10% buffer for safety
+        required_with_buffer = int(required_bytes * 1.1)
+
+        if available_bytes < required_with_buffer:
+            raise OSError(
+                f"Insufficient disk space. Required: {required_with_buffer} bytes, "
+                f"Available: {available_bytes} bytes"
+            )
+
+    def _validate_write(self, file_path: Path, expected_content: str) -> None:
+        """Validate that file was written correctly by reading it back.
+
+        Parameters
+        ----------
+        file_path : Path
+            Path to the file that was written
+        expected_content : str
+            Expected content that should be in the file
+
+        Raises
+        ------
+        IOError
+            If the file content doesn't match expected content
+        """
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                actual_content = f.read()
+        except Exception as e:
+            raise IOError(f"Failed to read back written file '{file_path}': {e}")
+
+        if actual_content != expected_content:
+            expected_len = len(expected_content)
+            actual_len = len(actual_content)
+            raise IOError(
+                f"Write validation failed for '{file_path}'. "
+                f"Expected {expected_len} bytes, got {actual_len} bytes. "
+                f"Content mismatch detected."
+            )
+
+    def _safe_restore(self, backup_path: Path, target_path: Path) -> None:
+        """Safely restore a file from backup with error handling.
+
+        Parameters
+        ----------
+        backup_path : Path
+            Path to the backup file
+        target_path : Path
+            Path where backup should be restored
+
+        Raises
+        ------
+        IOError
+            If restore operation fails, with details about both files
+        """
+        try:
+            shutil.copy2(backup_path, target_path)
+        except Exception as e:
+            # This is a critical failure - we failed to restore the original file
+            raise IOError(
+                f"CRITICAL: Failed to restore '{target_path}' from backup '{backup_path}'. "
+                f"Original error: {e}. Both backup and target may be in inconsistent state."
+            ) from e
+
     def write_docstring(
         self,
         filepath: str,
@@ -93,6 +177,25 @@ class DocstringWriter:
         line_number: Optional[int] = None
     ) -> bool:
         """Write documentation to a source file.
+
+        This method uses atomic write operations to prevent file corruption:
+
+        1. Write new content to temporary file
+        2. Validate temp file content matches expected content
+        3. Create backup of original (only after temp validated)
+        4. Atomically rename temp file to target using os.replace()
+        5. Clean up backup and temp files in finally block
+
+        Concurrency Limitation
+        ----------------------
+        This implementation uses optimistic locking. The file is read at the
+        beginning, and atomically written at the end. If another process modifies
+        the file between these operations, those changes will be silently
+        overwritten.
+
+        For concurrent environments where multiple processes may modify the same
+        file, external file locking mechanisms would be required. See Issue #197
+        for broader concurrent execution support.
 
         Parameters
         ----------
@@ -120,6 +223,10 @@ class DocstringWriter:
             If the filepath is outside the allowed base directory
         FileNotFoundError
             If the file does not exist
+        OSError
+            If insufficient disk space is available
+        IOError
+            If write validation fails or restore operation fails
         """
         # Clean any markdown wrappers from docstring (defensive parser)
         # This provides defense-in-depth in case Claude wraps responses in markdown
@@ -129,47 +236,86 @@ class DocstringWriter:
         # Validate path and get resolved Path object
         file_path = self._validate_path(filepath)
 
-        # Create backup
-        backup_path = file_path.with_suffix(file_path.suffix + '.bak')
-        shutil.copy2(file_path, backup_path)
+        # Read file content
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Apply docstring based on language
+        if language == 'python':
+            new_content = self._insert_python_docstring(
+                content, item_name, item_type, docstring, line_number
+            )
+        elif language in ['javascript', 'typescript']:
+            new_content = self._insert_jsdoc(
+                content, item_name, item_type, docstring, line_number
+            )
+        else:
+            raise ValueError(f"Unsupported language: {language}")
+
+        # Check if content actually changed (idempotency check)
+        if new_content == content:
+            # No changes needed
+            return True
+
+        # Calculate required disk space
+        required_bytes = len(new_content.encode('utf-8'))
+
+        # Check disk space before proceeding
+        self._check_disk_space(file_path, required_bytes)
+
+        # Create backup and temp file paths
+        # Use timestamp to avoid collisions with existing .bak files
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+        backup_path = file_path.with_suffix(f'{file_path.suffix}.{timestamp}.bak')
+
+        # Safety check: verify backup path is unique (should always be true with microseconds)
+        if backup_path.exists():
+            raise IOError(
+                f"Backup path collision: '{backup_path}' already exists. "
+                f"This should not happen with timestamp-based naming."
+            )
+
+        temp_path = None  # Initialize to avoid NameError if mkstemp fails
 
         try:
-            # Read file content
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
+            # Temp file must be in same directory for atomic rename to work
+            temp_fd, temp_path_str = tempfile.mkstemp(
+                dir=file_path.parent,
+                prefix=f'.{file_path.name}.',
+                suffix='.tmp'
+            )
+            temp_path = Path(temp_path_str)
 
-            # Apply docstring based on language
-            if language == 'python':
-                new_content = self._insert_python_docstring(
-                    content, item_name, item_type, docstring, line_number
-                )
-            elif language in ['javascript', 'typescript']:
-                new_content = self._insert_jsdoc(
-                    content, item_name, item_type, docstring, line_number
-                )
-            else:
-                raise ValueError(f"Unsupported language: {language}")
-
-            # Check if content actually changed (idempotency check)
-            if new_content == content:
-                # No changes needed
-                return True
-
-            # Write modified content
-            with open(file_path, 'w', encoding='utf-8') as f:
+            # Write to temp file
+            with os.fdopen(temp_fd, 'w', encoding='utf-8') as f:
                 f.write(new_content)
+
+            # Validate the write
+            self._validate_write(temp_path, new_content)
+
+            # Create backup of original (only after temp file validated)
+            shutil.copy2(file_path, backup_path)
+
+            # Atomic rename (overwrites target)
+            os.replace(temp_path, file_path)
 
             return True
 
         except Exception:
-            # Restore from backup on error
+            # Cleanup temp file if it still exists
+            if temp_path and temp_path.exists():
+                temp_path.unlink()
+
+            # Restore from backup if we created one
             if backup_path.exists():
-                shutil.copy2(backup_path, file_path)
+                self._safe_restore(backup_path, file_path)
             raise
         finally:
-            # Always cleanup backup (prevent filesystem clutter and accidental commits)
+            # Always cleanup backup and temp files
             if backup_path.exists():
                 backup_path.unlink()
+            if temp_path and temp_path.exists():
+                temp_path.unlink()
 
     def _insert_python_docstring(
         self,
