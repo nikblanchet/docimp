@@ -17,6 +17,9 @@ export interface SessionProgress {
   /** Number of items skipped */
   skippedItems: number;
 
+  /** Number of items that encountered errors */
+  errorItems: number;
+
   /** Number of items where user quit */
   quitAt: number | null;
 }
@@ -29,6 +32,7 @@ export class ProgressTracker {
   private completedItems: number;
   private acceptedItems: number;
   private skippedItems: number;
+  private errorItems: number;
   private quitAt: number | null;
 
   /**
@@ -41,6 +45,7 @@ export class ProgressTracker {
     this.completedItems = 0;
     this.acceptedItems = 0;
     this.skippedItems = 0;
+    this.errorItems = 0;
     this.quitAt = null;
   }
 
@@ -58,6 +63,14 @@ export class ProgressTracker {
   recordSkipped(): void {
     this.completedItems++;
     this.skippedItems++;
+  }
+
+  /**
+   * Record that an item encountered an error.
+   */
+  recordError(): void {
+    this.completedItems++;
+    this.errorItems++;
   }
 
   /**
@@ -80,6 +93,7 @@ export class ProgressTracker {
       completedItems: this.completedItems,
       acceptedItems: this.acceptedItems,
       skippedItems: this.skippedItems,
+      errorItems: this.errorItems,
       quitAt: this.quitAt,
     };
   }
@@ -87,11 +101,16 @@ export class ProgressTracker {
   /**
    * Get a formatted progress string.
    *
-   * @returns Progress string like "5/10 items (3 accepted, 2 skipped)"
+   * @returns Progress string like "5/10 items (3 accepted, 2 skipped)" or with errors if any
    */
   getProgressString(): string {
-    const { completedItems, totalItems, acceptedItems, skippedItems } = this.getProgress();
-    return `${completedItems}/${totalItems} items (${acceptedItems} accepted, ${skippedItems} skipped)`;
+    const { completedItems, totalItems, acceptedItems, skippedItems, errorItems } = this.getProgress();
+    const parts = [`${acceptedItems} accepted`, `${skippedItems} skipped`];
+    if (errorItems > 0) {
+      const errorText = errorItems === 1 ? 'error' : 'errors';
+      parts.push(`${errorItems} ${errorText}`);
+    }
+    return `${completedItems}/${totalItems} items (${parts.join(', ')})`;
   }
 
   /**

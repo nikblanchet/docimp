@@ -190,6 +190,11 @@ describe('InteractiveSession', () => {
 
       // Should continue despite error
       expect(mockPythonBridge.apply).not.toHaveBeenCalled();
+
+      // Should track error in summary
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/Errors: 1/)
+      );
     });
 
     it('should handle write failure', async () => {
@@ -200,6 +205,11 @@ describe('InteractiveSession', () => {
 
       expect(mockPythonBridge.apply).toHaveBeenCalled();
       // Should not throw, just log error
+
+      // Should track error in summary
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/Errors: 1/)
+      );
     });
   });
 
@@ -443,6 +453,186 @@ describe('InteractiveSession', () => {
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringMatching(/Session Summary/)
       );
+    });
+  });
+
+  describe('error tracking integration', () => {
+    it('should track errors when initial suggestion fails', async () => {
+      mockPythonBridge.suggest.mockRejectedValueOnce(new Error('API error'));
+
+      await session.run([mockPlanItem]);
+
+      // Should show error message
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/Failed to generate suggestion/)
+      );
+
+      // Should show error count in summary
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/Errors: 1/)
+      );
+    });
+
+    it('should track errors when write to file fails', async () => {
+      mockPythonBridge.apply.mockRejectedValueOnce(new Error('Write failed'));
+      mockPrompts.mockResolvedValueOnce({ action: 'accept' });
+
+      await session.run([mockPlanItem]);
+
+      // Should show error message
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/Failed to write documentation/)
+      );
+
+      // Should show error count in summary
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/Errors: 1/)
+      );
+
+      // Should NOT show as accepted
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/Accepted: 0/)
+      );
+    });
+
+    it('should track multiple errors across items', async () => {
+      const items = [
+        mockPlanItem,                                          // Item 1: accept (success)
+        { ...mockPlanItem, name: 'second', line_number: 20 }, // Item 2: error (suggest fails)
+        { ...mockPlanItem, name: 'third', line_number: 30 },  // Item 3: error (write fails)
+        { ...mockPlanItem, name: 'fourth', line_number: 40 }, // Item 4: skip
+        { ...mockPlanItem, name: 'fifth', line_number: 50 },  // Item 5: accept (success)
+      ];
+
+      mockPythonBridge.suggest
+        .mockResolvedValueOnce('/** Docs 1 */')
+        .mockRejectedValueOnce(new Error('API error'))
+        .mockResolvedValueOnce('/** Docs 3 */')
+        .mockResolvedValueOnce('/** Docs 4 */')
+        .mockResolvedValueOnce('/** Docs 5 */');
+
+      mockPythonBridge.apply
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error('Write failed'))
+        .mockResolvedValueOnce(undefined);
+
+      mockPrompts
+        .mockResolvedValueOnce({ action: 'accept' })  // Item 1
+        // Item 2: suggest fails, no prompt
+        .mockResolvedValueOnce({ action: 'accept' })  // Item 3
+        .mockResolvedValueOnce({ action: 'skip' })    // Item 4
+        .mockResolvedValueOnce({ action: 'accept' }); // Item 5
+
+      await session.run(items);
+
+      // Verify summary shows all items accounted for
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/Total items: 5/)
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/Completed: 5/)
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/Accepted: 2/)
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/Skipped: 1/)
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/Errors: 2/)
+      );
+    });
+
+    it('should not show errors in summary when count is zero', async () => {
+      mockPrompts.mockResolvedValueOnce({ action: 'accept' });
+
+      await session.run([mockPlanItem]);
+
+      // Should show summary
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/Session Summary/)
+      );
+
+      // Should NOT contain "Errors:" line
+      const allCalls = consoleSpy.mock.calls.map(call => call[0]);
+      const hasErrorLine = allCalls.some((call: string) =>
+        typeof call === 'string' && call.includes('Errors:')
+      );
+      expect(hasErrorLine).toBe(false);
+    });
+
+    it('should show errors in progress string during workflow', async () => {
+      const items = [
+        mockPlanItem,
+        { ...mockPlanItem, name: 'second', line_number: 20 },
+        { ...mockPlanItem, name: 'third', line_number: 30 },
+      ];
+
+      mockPythonBridge.suggest
+        .mockResolvedValueOnce('/** Docs 1 */')
+        .mockRejectedValueOnce(new Error('API error'))
+        .mockResolvedValueOnce('/** Docs 3 */');
+
+      mockPrompts
+        .mockResolvedValueOnce({ action: 'accept' })
+        // Item 2 fails
+        .mockResolvedValueOnce({ action: 'accept' });
+
+      await session.run(items);
+
+      // Progress string for item 3 should include error count
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/\[3\/3\].*1 error/)
+      );
+    });
+  });
+
+  describe('regression: Issue #219', () => {
+    it('should not lose items in summary when errors occur (Issue #219)', async () => {
+      // Reproduce exact scenario from Issue #219:
+      // Item 1: Accept (success)
+      // Item 2: Suggestion fails
+      // Item 3: Suggestion fails
+      // Item 4: Accept (success)
+      const items = [
+        { ...mockPlanItem, name: 'item1', line_number: 10 },
+        { ...mockPlanItem, name: 'item2', line_number: 20 },
+        { ...mockPlanItem, name: 'item3', line_number: 30 },
+        { ...mockPlanItem, name: 'item4', line_number: 40 },
+      ];
+
+      mockPythonBridge.suggest
+        .mockResolvedValueOnce('/** Docs 1 */')
+        .mockRejectedValueOnce(new Error('Invalid style guide'))
+        .mockRejectedValueOnce(new Error('Invalid style guide'))
+        .mockResolvedValueOnce('/** Docs 4 */');
+
+      mockPrompts
+        .mockResolvedValueOnce({ action: 'accept' })
+        // Items 2-3: errors, no prompts
+        .mockResolvedValueOnce({ action: 'accept' });
+
+      await session.run(items);
+
+      // CRITICAL: All 4 items must be accounted for
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/Total items: 4/)
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/Completed: 4/)
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/Accepted: 2/)
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/Errors: 2/)
+      );
+
+      // Verify no items "disappeared"
+      // 4 total = 2 accepted + 2 errors + 0 skipped
+      const allCalls = consoleSpy.mock.calls.map(call => call[0]).join('\n');
+      expect(allCalls).toMatch(/Completed: 4/);
+      expect(allCalls).not.toMatch(/Quit at item/);
     });
   });
 });
