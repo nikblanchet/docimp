@@ -472,6 +472,8 @@ def cmd_apply(args: argparse.Namespace) -> int:
             return 1
 
         # Create writer with base_path for path validation
+        # Note: DocstringWriter automatically applies defensive parser to clean
+        # any markdown wrappers from Claude responses
         writer = DocstringWriter(base_path=base_path)
 
         # Write docstring
