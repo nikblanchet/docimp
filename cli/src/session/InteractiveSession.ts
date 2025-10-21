@@ -127,6 +127,7 @@ export class InteractiveSession {
 
     if (!docstring) {
       console.log(chalk.red('Failed to generate suggestion. Skipping item.'));
+      tracker.recordError();
       return true; // Continue to next item
     }
 
@@ -152,6 +153,7 @@ export class InteractiveSession {
           console.log(chalk.green(`✓ Documentation written to ${item.filepath}`));
         } else {
           console.log(chalk.red('Failed to write documentation'));
+          tracker.recordError();
         }
         return true; // Continue to next item
 
@@ -418,6 +420,10 @@ export class InteractiveSession {
     console.log(`  Completed: ${progress.completedItems}`);
     console.log(chalk.green(`  Accepted: ${progress.acceptedItems}`));
     console.log(chalk.yellow(`  Skipped: ${progress.skippedItems}`));
+
+    if (progress.errorItems > 0) {
+      console.log(chalk.red(`  Errors: ${progress.errorItems}`));
+    }
 
     if (progress.quitAt !== null) {
       console.log(chalk.dim(`  (Quit at item ${progress.quitAt + 1})`));

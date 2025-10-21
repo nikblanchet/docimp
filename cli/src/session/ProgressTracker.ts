@@ -101,11 +101,15 @@ export class ProgressTracker {
   /**
    * Get a formatted progress string.
    *
-   * @returns Progress string like "5/10 items (3 accepted, 2 skipped)"
+   * @returns Progress string like "5/10 items (3 accepted, 2 skipped)" or with errors if any
    */
   getProgressString(): string {
-    const { completedItems, totalItems, acceptedItems, skippedItems } = this.getProgress();
-    return `${completedItems}/${totalItems} items (${acceptedItems} accepted, ${skippedItems} skipped)`;
+    const { completedItems, totalItems, acceptedItems, skippedItems, errorItems } = this.getProgress();
+    const parts = [`${acceptedItems} accepted`, `${skippedItems} skipped`];
+    if (errorItems > 0) {
+      parts.push(`${errorItems} errors`);
+    }
+    return `${completedItems}/${totalItems} items (${parts.join(', ')})`;
   }
 
   /**
