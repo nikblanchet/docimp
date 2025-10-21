@@ -634,3 +634,37 @@ class TestAtomicWrites:
 
             # Verify destination is the target file (resolve both to handle symlinks like /var -> /private/var on macOS)
             assert Path(dst).resolve() == test_file.resolve(), "Destination should be the target file"
+
+    def test_temp_file_creation_failure(self):
+        """Test that mkstemp failure is handled without NameError."""
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            test_file = Path(temp_dir) / 'test.py'
+            original_content = 'def foo():\n    pass'
+            test_file.write_text(original_content)
+
+            writer = DocstringWriter(base_path=temp_dir)
+
+            # Mock mkstemp to fail
+            with patch('tempfile.mkstemp', side_effect=OSError("Disk full during temp file creation")):
+                with pytest.raises(OSError, match="Disk full during temp file creation"):
+                    writer.write_docstring(
+                        filepath=str(test_file),
+                        item_name='foo',
+                        item_type='function',
+                        docstring='New docs',
+                        language='python'
+                    )
+
+            # Verify original file is untouched
+            content = test_file.read_text()
+            assert content == original_content, "Original file should be unchanged"
+
+            # Verify no backup files created
+            backup_path = test_file.with_suffix(test_file.suffix + '.bak')
+            assert not backup_path.exists(), "No backup should exist"
+
+            # Verify no temp files remain (they'd have pattern .test.py.*.tmp)
+            temp_files = list(Path(temp_dir).glob('.test.py.*.tmp'))
+            assert len(temp_files) == 0, "No temp files should remain"

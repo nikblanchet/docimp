@@ -134,8 +134,11 @@ class DocstringWriter:
             raise IOError(f"Failed to read back written file '{file_path}': {e}")
 
         if actual_content != expected_content:
+            expected_len = len(expected_content)
+            actual_len = len(actual_content)
             raise IOError(
                 f"Write validation failed for '{file_path}'. "
+                f"Expected {expected_len} bytes, got {actual_len} bytes. "
                 f"Content mismatch detected."
             )
 
@@ -238,15 +241,17 @@ class DocstringWriter:
 
         # Create backup and temp file paths
         backup_path = file_path.with_suffix(file_path.suffix + '.bak')
-        # Temp file must be in same directory for atomic rename to work
-        temp_fd, temp_path_str = tempfile.mkstemp(
-            dir=file_path.parent,
-            prefix=f'.{file_path.name}.',
-            suffix='.tmp'
-        )
-        temp_path = Path(temp_path_str)
+        temp_path = None  # Initialize to avoid NameError if mkstemp fails
 
         try:
+            # Temp file must be in same directory for atomic rename to work
+            temp_fd, temp_path_str = tempfile.mkstemp(
+                dir=file_path.parent,
+                prefix=f'.{file_path.name}.',
+                suffix='.tmp'
+            )
+            temp_path = Path(temp_path_str)
+
             # Write to temp file
             with os.fdopen(temp_fd, 'w', encoding='utf-8') as f:
                 f.write(new_content)
@@ -264,7 +269,7 @@ class DocstringWriter:
 
         except Exception:
             # Cleanup temp file if it still exists
-            if temp_path.exists():
+            if temp_path and temp_path.exists():
                 temp_path.unlink()
 
             # Restore from backup if we created one
@@ -275,7 +280,7 @@ class DocstringWriter:
             # Always cleanup backup and temp files
             if backup_path.exists():
                 backup_path.unlink()
-            if temp_path.exists():
+            if temp_path and temp_path.exists():
                 temp_path.unlink()
 
     def _insert_python_docstring(
