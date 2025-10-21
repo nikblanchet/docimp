@@ -90,6 +90,7 @@ export const PlanItemSchema = z.object({
   type: z.enum(['function', 'class', 'method', 'interface']),
   filepath: z.string(),
   line_number: z.number().int().positive(),
+  end_line: z.number().int().positive(),
   language: z.enum(['python', 'typescript', 'javascript']),
   complexity: z.number().int().nonnegative(),
   impact_score: z.number().min(0).max(100),

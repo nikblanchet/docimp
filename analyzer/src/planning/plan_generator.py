@@ -28,6 +28,7 @@ class PlanItem:
         type: Type of code element ('function', 'class', 'method').
         filepath: Path to source file.
         line_number: Line number in source file.
+        end_line: Line number where code element ends (inclusive).
         language: Programming language.
         complexity: Cyclomatic complexity.
         impact_score: Priority score (0-100).
@@ -45,6 +46,7 @@ class PlanItem:
     type: str
     filepath: str
     line_number: int
+    end_line: int
     language: str
     complexity: int
     impact_score: float
@@ -73,6 +75,7 @@ class PlanItem:
             type=item.type,
             filepath=item.filepath,
             line_number=item.line_number,
+            end_line=item.end_line,
             language=item.language,
             complexity=item.complexity,
             impact_score=item.impact_score,

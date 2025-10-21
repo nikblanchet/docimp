@@ -609,3 +609,42 @@ class TestPlanGenerator:
                 generate_plan(sample_result, audit_file=audit_file)
         finally:
             audit_file.unlink()
+
+    def test_plan_item_includes_end_line_field(self, sample_items, sample_result):
+        """Test that PlanItem includes end_line field from CodeItem.
+
+        Regression test for Issue #252 - ensures end_line is copied from
+        CodeItem to PlanItem for code extraction during improve workflow.
+        """
+        # Generate plan with undocumented items
+        plan = generate_plan(sample_result, audit_file=None)
+
+        # Verify plan has items
+        assert plan.total_items > 0
+
+        # Check that all plan items have end_line field
+        for plan_item in plan.items:
+            assert hasattr(plan_item, 'end_line')
+            assert isinstance(plan_item.end_line, int)
+            assert plan_item.end_line > 0
+            # end_line should be >= line_number (inclusive range)
+            assert plan_item.end_line >= plan_item.line_number
+
+        # Verify end_line matches the source CodeItem
+        # Find the undocumented item in plan
+        undoc_plan_item = next(
+            (item for item in plan.items if item.name == 'undocumented_func'),
+            None
+        )
+        assert undoc_plan_item is not None
+
+        # Find the corresponding CodeItem
+        undoc_code_item = next(
+            (item for item in sample_items if item.name == 'undocumented_func'),
+            None
+        )
+        assert undoc_code_item is not None
+
+        # Verify end_line was correctly copied
+        assert undoc_plan_item.end_line == undoc_code_item.end_line
+        assert undoc_plan_item.end_line == 10  # From fixture
