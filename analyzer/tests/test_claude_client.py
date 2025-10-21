@@ -62,6 +62,63 @@ class TestClaudeClientInitialization:
         assert client.timeout == 60.0
 
 
+class TestClaudeClientRetryBackoffHelper:
+    """Test ClaudeClient retry backoff helper method."""
+
+    def test_should_retry_calculation_first_attempt(self):
+        """Test retry calculation for first attempt (attempt=0)."""
+        client = ClaudeClient(api_key='sk-ant-test', max_retries=3, retry_delay=1.0)
+        should_retry, delay = client._should_retry(0)
+
+        assert should_retry is True
+        assert delay == 1.0  # 1.0 * (2^0) = 1.0
+
+    def test_should_retry_calculation_second_attempt(self):
+        """Test retry calculation for second attempt (attempt=1)."""
+        client = ClaudeClient(api_key='sk-ant-test', max_retries=3, retry_delay=1.0)
+        should_retry, delay = client._should_retry(1)
+
+        assert should_retry is True
+        assert delay == 2.0  # 1.0 * (2^1) = 2.0
+
+    def test_should_retry_calculation_third_attempt(self):
+        """Test retry calculation for third attempt (attempt=2)."""
+        client = ClaudeClient(api_key='sk-ant-test', max_retries=3, retry_delay=1.0)
+        should_retry, delay = client._should_retry(2)
+
+        # This is the last retry (attempt 2 < max_retries-1 is False)
+        assert should_retry is False
+        assert delay == 0.0
+
+    def test_should_retry_with_custom_delay(self):
+        """Test retry calculation with custom base delay."""
+        client = ClaudeClient(api_key='sk-ant-test', max_retries=3, retry_delay=2.0)
+        should_retry, delay = client._should_retry(0)
+
+        assert should_retry is True
+        assert delay == 2.0  # 2.0 * (2^0) = 2.0
+
+        should_retry, delay = client._should_retry(1)
+        assert should_retry is True
+        assert delay == 4.0  # 2.0 * (2^1) = 4.0
+
+    def test_should_retry_exponential_progression(self):
+        """Test that delays follow exponential progression."""
+        client = ClaudeClient(api_key='sk-ant-test', max_retries=5, retry_delay=1.0)
+
+        # Test exponential progression: 1.0, 2.0, 4.0, 8.0
+        expected_delays = [1.0, 2.0, 4.0, 8.0]
+        for attempt, expected_delay in enumerate(expected_delays):
+            should_retry, delay = client._should_retry(attempt)
+            assert should_retry is True
+            assert delay == expected_delay, f"Attempt {attempt}: expected {expected_delay}, got {delay}"
+
+        # Last attempt should not retry
+        should_retry, delay = client._should_retry(4)
+        assert should_retry is False
+        assert delay == 0.0
+
+
 class TestClaudeClientAPIInteraction:
     """Test ClaudeClient API calls and response handling."""
 

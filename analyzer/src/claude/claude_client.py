@@ -56,6 +56,31 @@ class ClaudeClient:
         self.timeout = timeout
         self.client = anthropic.Anthropic(api_key=self.api_key)
 
+    def _should_retry(self, attempt: int) -> tuple[bool, float]:
+        """
+        Determine if retry should occur and calculate backoff delay.
+
+        Parameters
+        ----------
+        attempt : int
+            Current attempt number (0-indexed).
+
+        Returns
+        -------
+        tuple[bool, float]
+            Tuple of (should_retry, delay_seconds). If should_retry is False,
+            delay_seconds will be 0.0.
+
+        Notes
+        -----
+        Uses exponential backoff: delay = retry_delay * (2 ** attempt)
+        Returns False if max retries would be exceeded.
+        """
+        if attempt < self.max_retries - 1:
+            delay = self.retry_delay * (2 ** attempt)
+            return (True, delay)
+        return (False, 0.0)
+
     def generate_docstring(self, prompt: str, max_tokens: int = 1024) -> str:
         """
         Generate a documentation string using Claude.
@@ -104,9 +129,8 @@ class ClaudeClient:
                 return message.content[0].text
 
             except anthropic.APITimeoutError:
-                if attempt < self.max_retries - 1:
-                    # Exponential backoff
-                    delay = self.retry_delay * (2 ** attempt)
+                should_retry, delay = self._should_retry(attempt)
+                if should_retry:
                     time.sleep(delay)
                     continue
                 else:
@@ -116,9 +140,8 @@ class ClaudeClient:
                     )
 
             except anthropic.RateLimitError:
-                if attempt < self.max_retries - 1:
-                    # Exponential backoff
-                    delay = self.retry_delay * (2 ** attempt)
+                should_retry, delay = self._should_retry(attempt)
+                if should_retry:
                     time.sleep(delay)
                     continue
                 else:
