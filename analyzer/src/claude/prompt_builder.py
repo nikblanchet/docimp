@@ -273,13 +273,19 @@ Calculate the sum of two numbers.
             "4. Use the exact format shown in the example",
         ])
 
+        # OPTION A: Prevent markdown code fence wrappers
+        prompt_parts.extend([
+            "5. IMPORTANT: Return the raw docstring text only. Do NOT wrap your entire response in markdown code fences (```python, ```javascript, etc.)",
+            "6. Code examples WITHIN the docstring are fine and encouraged - just don't wrap the whole docstring in backticks",
+        ])
+
         # Add style-specific requirements
         style_language = style_info.get('language')
 
         if style_language == 'python':
             prompt_parts.extend([
-                "5. Include type hints for all parameters and return values",
-                "6. Use triple-quoted docstrings",
+                "7. Include type hints for all parameters and return values",  # NOTE: Changed from "5" to "7"
+                "8. Return only the docstring content - do NOT include the triple-quote delimiters (they will be added automatically)",  # NOTE: Changed from "6" to "8"
             ])
             if self.style_guide == 'numpy-rest':
                 prompt_parts.append("7. Use reStructuredText markup: *italic*, **bold**, ``code``")
