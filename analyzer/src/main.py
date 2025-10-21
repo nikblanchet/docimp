@@ -69,6 +69,7 @@ def format_json(result) -> str:
                 'type': item.type,
                 'filepath': item.filepath,
                 'line_number': item.line_number,
+                'end_line': item.end_line,
                 'language': item.language,
                 'complexity': item.complexity,
                 'impact_score': item.impact_score,
