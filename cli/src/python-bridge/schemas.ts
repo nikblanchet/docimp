@@ -70,7 +70,7 @@ export const AuditItemSchema = z.object({
   language: z.enum(['python', 'typescript', 'javascript', 'skipped']),
   complexity: z.number().int().nonnegative(),
   docstring: z.string().nullable(),
-  audit_rating: z.number().int().min(1).max(4).optional(),
+  audit_rating: z.number().int().min(1).max(4).nullable(),
 }).passthrough();
 
 /**
