@@ -45,8 +45,11 @@ CLAUDE.md
 CLAUDE_CONTEXT.md
 
 # Temporary planning and scratch files
-.scratch/
-.planning/
+.scratch
+.planning
+
+# Project-specific skills (symlinked to external repo)
+.claude/skills
 
 # State directory (working files, session reports, history)
 .docimp/
