@@ -55,7 +55,7 @@ class TestPythonStyleGuides:
         assert 'python' in prompt
         assert 'Args:' in prompt
         assert 'Returns:' in prompt
-        assert 'triple-quoted docstrings' in prompt
+        assert 'do NOT include the triple-quote delimiters' in prompt
 
     def test_numpy_rest_style(self):
         """Test NumPy + reST style guide for Python."""
@@ -105,7 +105,7 @@ class TestPythonStyleGuides:
         assert 'python' in prompt
         assert ':param' in prompt
         assert ':return:' in prompt
-        assert 'triple-quoted docstrings' in prompt
+        assert 'do NOT include the triple-quote delimiters' in prompt
 
 
 class TestJavaScriptStyleGuides:
