@@ -6,7 +6,6 @@ wrap responses in markdown despite prompt instructions.
 """
 
 import re
-from typing import Optional
 
 
 class ClaudeResponseParser:
