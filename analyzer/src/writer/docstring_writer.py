@@ -9,6 +9,8 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
+from ..claude.response_parser import ClaudeResponseParser
+
 
 class DocstringWriter:
     """Writes documentation to source files with language-specific formatting.
@@ -119,6 +121,11 @@ class DocstringWriter:
         FileNotFoundError
             If the file does not exist
         """
+        # Clean any markdown wrappers from docstring (defensive parser)
+        # This provides defense-in-depth in case Claude wraps responses in markdown
+        # fences despite prompt instructions
+        docstring = ClaudeResponseParser.strip_markdown_fences(docstring, language)
+
         # Validate path and get resolved Path object
         file_path = self._validate_path(filepath)
 

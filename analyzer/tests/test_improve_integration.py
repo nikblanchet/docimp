@@ -214,19 +214,14 @@ Examples:
                 Path(temp_path).unlink(missing_ok=True)
                 Path(temp_path + '.bak').unlink(missing_ok=True)
 
-    @pytest.mark.xfail(
-        reason="No defensive parser implemented (Issue #233). "
-               "Relies on prompt fix (Option A) only. "
-               "If Claude ignores prompt and returns markdown wrapper, this will fail."
-    )
     def test_improve_markdown_wrapped_response(self):
-        """Test handling of markdown-wrapped responses (documents limitation).
+        """Test handling of markdown-wrapped responses with defensive parser.
 
-        This test documents the OLD bug behavior from Issue #231.
-        It's marked as xfail because we don't have a defensive parser (Issue #233).
+        This test verifies that the defensive parser (Issue #233) correctly strips
+        markdown code fences if Claude returns a wrapped response despite prompt
+        instructions.
 
-        If Issue #233 is implemented, remove the @pytest.mark.xfail decorator
-        and this test should pass.
+        This provides defense-in-depth protection against the original bug (#231).
         """
         with patch('src.claude.claude_client.ClaudeClient.generate_docstring') as mock_generate:
             # Mock returns markdown-wrapped response (the bug we fixed with prompts)
