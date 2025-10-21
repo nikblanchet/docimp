@@ -125,8 +125,8 @@ export interface AuditItem {
   /** Existing documentation string */
   docstring: string | null;
 
-  /** Existing audit rating if already rated */
-  audit_rating?: number;
+  /** Existing audit rating if already rated (null if not audited) */
+  audit_rating: number | null;
 }
 
 /**

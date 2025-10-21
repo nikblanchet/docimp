@@ -227,6 +227,7 @@ def cmd_audit(args: argparse.Namespace) -> int:
                     'type': item.type,
                     'filepath': item.filepath,
                     'line_number': item.line_number,
+                    'end_line': item.end_line,
                     'language': item.language,
                     'complexity': item.complexity,
                     'docstring': item.docstring,

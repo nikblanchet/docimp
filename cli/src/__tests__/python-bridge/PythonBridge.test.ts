@@ -227,6 +227,7 @@ describe('PythonBridge JSON Validation', () => {
             language: 'python',
             complexity: 5,
             docstring: 'This is a docstring',
+            audit_rating: null,
           },
         ],
       };
@@ -262,6 +263,7 @@ describe('PythonBridge JSON Validation', () => {
             language: 'python',
             complexity: 5,
             docstring: null, // Null is valid
+            audit_rating: null,
           },
         ],
       };
