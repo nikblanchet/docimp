@@ -23,9 +23,11 @@ class ClaudeClient:
     model : str, optional
         Claude model to use. Defaults to claude-sonnet-4-20250514.
     max_retries : int, optional
-        Maximum number of retry attempts for rate-limited requests. Defaults to 3.
+        Maximum number of retry attempts for rate-limited or timed-out requests. Defaults to 3.
     retry_delay : float, optional
         Base delay in seconds between retries. Defaults to 1.0.
+    timeout : float, optional
+        Timeout in seconds for API requests. Defaults to 30.0.
 
     Raises
     ------
@@ -38,7 +40,8 @@ class ClaudeClient:
         api_key: Optional[str] = None,
         model: str = "claude-sonnet-4-20250514",
         max_retries: int = 3,
-        retry_delay: float = 1.0
+        retry_delay: float = 1.0,
+        timeout: float = 30.0
     ):
         self.api_key = api_key or os.environ.get('ANTHROPIC_API_KEY')
         if not self.api_key:
@@ -50,7 +53,33 @@ class ClaudeClient:
         self.model = model
         self.max_retries = max_retries
         self.retry_delay = retry_delay
+        self.timeout = timeout
         self.client = anthropic.Anthropic(api_key=self.api_key)
+
+    def _should_retry(self, attempt: int) -> tuple[bool, float]:
+        """
+        Determine if retry should occur and calculate backoff delay.
+
+        Parameters
+        ----------
+        attempt : int
+            Current attempt number (0-indexed).
+
+        Returns
+        -------
+        tuple[bool, float]
+            Tuple of (should_retry, delay_seconds). If should_retry is False,
+            delay_seconds will be 0.0.
+
+        Notes
+        -----
+        Uses exponential backoff: delay = retry_delay * (2 ** attempt)
+        Returns False if max retries would be exceeded.
+        """
+        if attempt < self.max_retries - 1:
+            delay = self.retry_delay * (2 ** attempt)
+            return (True, delay)
+        return (False, 0.0)
 
     def generate_docstring(self, prompt: str, max_tokens: int = 1024) -> str:
         """
@@ -70,16 +99,24 @@ class ClaudeClient:
 
         Raises
         ------
+        RuntimeError
+            If API request times out after all retry attempts.
         anthropic.RateLimitError
             If rate limit is exceeded after all retry attempts.
         anthropic.APIError
             If API request fails for other reasons.
+
+        Notes
+        -----
+        Timeout errors are retried with exponential backoff up to max_retries attempts.
+        Each request has a timeout of self.timeout seconds (default 30 seconds).
         """
         for attempt in range(self.max_retries):
             try:
                 message = self.client.messages.create(
                     model=self.model,
                     max_tokens=max_tokens,
+                    timeout=self.timeout,
                     messages=[
                         {
                             "role": "user",
@@ -91,10 +128,20 @@ class ClaudeClient:
                 # Extract text from response
                 return message.content[0].text
 
+            except anthropic.APITimeoutError:
+                should_retry, delay = self._should_retry(attempt)
+                if should_retry:
+                    time.sleep(delay)
+                    continue
+                else:
+                    raise RuntimeError(
+                        f"Claude API request timed out after {self.max_retries} attempts. "
+                        f"Each request has a {self.timeout} second timeout."
+                    )
+
             except anthropic.RateLimitError:
-                if attempt < self.max_retries - 1:
-                    # Exponential backoff
-                    delay = self.retry_delay * (2 ** attempt)
+                should_retry, delay = self._should_retry(attempt)
+                if should_retry:
                     time.sleep(delay)
                     continue
                 else:

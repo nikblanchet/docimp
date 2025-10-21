@@ -51,6 +51,73 @@ class TestClaudeClientInitialization:
         assert client.max_retries == 5
         assert client.retry_delay == 2.0
 
+    def test_default_timeout_configuration(self):
+        """Test ClaudeClient has default timeout of 30 seconds."""
+        client = ClaudeClient(api_key='sk-ant-test')
+        assert client.timeout == 30.0
+
+    def test_custom_timeout_configuration(self):
+        """Test ClaudeClient with custom timeout."""
+        client = ClaudeClient(api_key='sk-ant-test', timeout=60.0)
+        assert client.timeout == 60.0
+
+
+class TestClaudeClientRetryBackoffHelper:
+    """Test ClaudeClient retry backoff helper method."""
+
+    def test_should_retry_calculation_first_attempt(self):
+        """Test retry calculation for first attempt (attempt=0)."""
+        client = ClaudeClient(api_key='sk-ant-test', max_retries=3, retry_delay=1.0)
+        should_retry, delay = client._should_retry(0)
+
+        assert should_retry is True
+        assert delay == 1.0  # 1.0 * (2^0) = 1.0
+
+    def test_should_retry_calculation_second_attempt(self):
+        """Test retry calculation for second attempt (attempt=1)."""
+        client = ClaudeClient(api_key='sk-ant-test', max_retries=3, retry_delay=1.0)
+        should_retry, delay = client._should_retry(1)
+
+        assert should_retry is True
+        assert delay == 2.0  # 1.0 * (2^1) = 2.0
+
+    def test_should_retry_calculation_third_attempt(self):
+        """Test retry calculation for third attempt (attempt=2)."""
+        client = ClaudeClient(api_key='sk-ant-test', max_retries=3, retry_delay=1.0)
+        should_retry, delay = client._should_retry(2)
+
+        # This is the last retry (attempt 2 < max_retries-1 is False)
+        assert should_retry is False
+        assert delay == 0.0
+
+    def test_should_retry_with_custom_delay(self):
+        """Test retry calculation with custom base delay."""
+        client = ClaudeClient(api_key='sk-ant-test', max_retries=3, retry_delay=2.0)
+        should_retry, delay = client._should_retry(0)
+
+        assert should_retry is True
+        assert delay == 2.0  # 2.0 * (2^0) = 2.0
+
+        should_retry, delay = client._should_retry(1)
+        assert should_retry is True
+        assert delay == 4.0  # 2.0 * (2^1) = 4.0
+
+    def test_should_retry_exponential_progression(self):
+        """Test that delays follow exponential progression."""
+        client = ClaudeClient(api_key='sk-ant-test', max_retries=5, retry_delay=1.0)
+
+        # Test exponential progression: 1.0, 2.0, 4.0, 8.0
+        expected_delays = [1.0, 2.0, 4.0, 8.0]
+        for attempt, expected_delay in enumerate(expected_delays):
+            should_retry, delay = client._should_retry(attempt)
+            assert should_retry is True
+            assert delay == expected_delay, f"Attempt {attempt}: expected {expected_delay}, got {delay}"
+
+        # Last attempt should not retry
+        should_retry, delay = client._should_retry(4)
+        assert should_retry is False
+        assert delay == 0.0
+
 
 class TestClaudeClientAPIInteraction:
     """Test ClaudeClient API calls and response handling."""
@@ -96,6 +163,22 @@ class TestClaudeClientAPIInteraction:
 
         call_kwargs = mock_client.messages.create.call_args[1]
         assert call_kwargs['max_tokens'] == 2048
+
+    @patch('anthropic.Anthropic')
+    def test_timeout_passed_to_api_call(self, mock_anthropic_class):
+        """Test that timeout is passed to API call."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        mock_message = MagicMock()
+        mock_message.content = [MagicMock(text='"""Docstring"""')]
+        mock_client.messages.create.return_value = mock_message
+
+        client = ClaudeClient(api_key='sk-ant-test', timeout=45.0)
+        client.generate_docstring('test prompt')
+
+        call_kwargs = mock_client.messages.create.call_args[1]
+        assert call_kwargs['timeout'] == 45.0
 
     @patch('anthropic.Anthropic')
     def test_response_text_extraction(self, mock_anthropic_class):
@@ -238,6 +321,135 @@ class TestClaudeClientRetryLogic:
 
         # Verify it only tried once (no retry)
         assert mock_client.messages.create.call_count == 1
+
+
+class TestClaudeClientTimeoutHandling:
+    """Test ClaudeClient timeout behavior and retry logic."""
+
+    @patch('anthropic.Anthropic')
+    @patch('time.sleep')
+    def test_retry_on_timeout(self, mock_sleep, mock_anthropic_class):
+        """Test that client retries on timeout error."""
+        import anthropic
+
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        # First call times out, second succeeds
+        mock_message = MagicMock()
+        mock_message.content = [MagicMock(text='"""Success"""')]
+        mock_client.messages.create.side_effect = [
+            anthropic.APITimeoutError('Request timed out'),
+            mock_message
+        ]
+
+        client = ClaudeClient(api_key='sk-ant-test', retry_delay=1.0)
+        result = client.generate_docstring('test prompt')
+
+        # Verify retry happened
+        assert result == '"""Success"""'
+        assert mock_client.messages.create.call_count == 2
+        mock_sleep.assert_called_once_with(1.0)
+
+    @patch('anthropic.Anthropic')
+    @patch('time.sleep')
+    def test_timeout_exponential_backoff(self, mock_sleep, mock_anthropic_class):
+        """Test exponential backoff on multiple timeout errors."""
+        import anthropic
+
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        # Timeout twice, succeed on third attempt
+        mock_message = MagicMock()
+        mock_message.content = [MagicMock(text='"""Success"""')]
+        mock_client.messages.create.side_effect = [
+            anthropic.APITimeoutError('Timeout 1'),
+            anthropic.APITimeoutError('Timeout 2'),
+            mock_message
+        ]
+
+        client = ClaudeClient(api_key='sk-ant-test', retry_delay=1.0)
+        result = client.generate_docstring('test prompt')
+
+        # Verify exponential backoff
+        assert result == '"""Success"""'
+        assert mock_client.messages.create.call_count == 3
+        assert mock_sleep.call_count == 2
+        # First retry: 1.0 * (2^0) = 1.0, Second retry: 1.0 * (2^1) = 2.0
+        mock_sleep.assert_any_call(1.0)
+        mock_sleep.assert_any_call(2.0)
+
+    @patch('anthropic.Anthropic')
+    @patch('time.sleep')
+    def test_timeout_max_retries_exceeded(self, mock_sleep, mock_anthropic_class):
+        """Test that RuntimeError is raised after max timeout retries."""
+        import anthropic
+
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        # Always timeout
+        mock_client.messages.create.side_effect = anthropic.APITimeoutError('Persistent timeout')
+
+        client = ClaudeClient(api_key='sk-ant-test', max_retries=3, timeout=30.0)
+
+        with pytest.raises(RuntimeError, match=r'Claude API request timed out after 3 attempts'):
+            client.generate_docstring('test prompt')
+
+        # Verify it tried max_retries times
+        assert mock_client.messages.create.call_count == 3
+
+    @patch('anthropic.Anthropic')
+    @patch('time.sleep')
+    def test_timeout_error_message_clarity(self, mock_sleep, mock_anthropic_class):
+        """Test that timeout error message includes useful information."""
+        import anthropic
+
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        mock_client.messages.create.side_effect = anthropic.APITimeoutError('Timeout')
+
+        client = ClaudeClient(api_key='sk-ant-test', max_retries=2, timeout=45.0)
+
+        with pytest.raises(RuntimeError) as exc_info:
+            client.generate_docstring('test prompt')
+
+        error_message = str(exc_info.value)
+        # Verify error message includes retry count and timeout duration
+        assert '2 attempts' in error_message
+        assert '45.0 second timeout' in error_message
+
+    @patch('anthropic.Anthropic')
+    @patch('time.sleep')
+    def test_timeout_and_rate_limit_retries_independent(self, mock_sleep, mock_anthropic_class):
+        """Test that timeout and rate limit errors are handled independently."""
+        import anthropic
+
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        # Create mock response for RateLimitError
+        mock_response = MagicMock()
+        mock_response.status_code = 429
+        mock_response.headers = {}
+
+        # Mix of timeout and rate limit errors
+        mock_message = MagicMock()
+        mock_message.content = [MagicMock(text='"""Success"""')]
+        mock_client.messages.create.side_effect = [
+            anthropic.APITimeoutError('Timeout'),
+            anthropic.RateLimitError('Rate limit', response=mock_response, body=None),
+            mock_message
+        ]
+
+        client = ClaudeClient(api_key='sk-ant-test', retry_delay=1.0)
+        result = client.generate_docstring('test prompt')
+
+        # Verify both errors were retried and succeeded
+        assert result == '"""Success"""'
+        assert mock_client.messages.create.call_count == 3
 
 
 class TestMultiItemResponseDetection:
