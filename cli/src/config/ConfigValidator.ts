@@ -114,6 +114,68 @@ export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
     }
   }
 
+  // Validate claude configuration
+  if (userConfig.claude !== undefined) {
+    // Validate that claude is an object (not string, number, array, or null)
+    if (typeof userConfig.claude !== 'object' || userConfig.claude === null || Array.isArray(userConfig.claude)) {
+      throw new Error('claude must be an object');
+    }
+
+    if (userConfig.claude.timeout !== undefined) {
+      if (typeof userConfig.claude.timeout !== 'number' || userConfig.claude.timeout <= 0) {
+        throw new Error('claude.timeout must be a positive number');
+      }
+      if (!Number.isFinite(userConfig.claude.timeout)) {
+        throw new Error(
+          `claude.timeout must be a finite number (not Infinity or NaN). ` +
+          `Got: ${userConfig.claude.timeout}`
+        );
+      }
+      if (userConfig.claude.timeout > 600) {
+        console.warn(
+          `Warning: claude.timeout (${userConfig.claude.timeout}s) is very high. ` +
+          `Did you mean ${userConfig.claude.timeout / 60} minutes? ` +
+          `Recommended range: 5-600 seconds.`
+        );
+      }
+    }
+    if (userConfig.claude.maxRetries !== undefined) {
+      if (typeof userConfig.claude.maxRetries !== 'number') {
+        throw new Error('claude.maxRetries must be a number');
+      }
+      if (!Number.isFinite(userConfig.claude.maxRetries)) {
+        throw new Error(
+          `claude.maxRetries must be a finite number (not Infinity or NaN). ` +
+          `Got: ${userConfig.claude.maxRetries}`
+        );
+      }
+      if (!Number.isInteger(userConfig.claude.maxRetries)) {
+        throw new Error('claude.maxRetries must be an integer (not a decimal)');
+      }
+      if (userConfig.claude.maxRetries < 0) {
+        throw new Error('claude.maxRetries must be non-negative');
+      }
+    }
+    if (userConfig.claude.retryDelay !== undefined) {
+      if (typeof userConfig.claude.retryDelay !== 'number' || userConfig.claude.retryDelay <= 0) {
+        throw new Error('claude.retryDelay must be a positive number');
+      }
+      if (!Number.isFinite(userConfig.claude.retryDelay)) {
+        throw new Error(
+          `claude.retryDelay must be a finite number (not Infinity or NaN). ` +
+          `Got: ${userConfig.claude.retryDelay}`
+        );
+      }
+      if (userConfig.claude.retryDelay > 60) {
+        console.warn(
+          `Warning: claude.retryDelay (${userConfig.claude.retryDelay}s) is very high. ` +
+          `With exponential backoff, this may cause very long waits. ` +
+          `Recommended range: 0.5-60 seconds.`
+        );
+      }
+    }
+  }
+
   // Merge with defaults
   const config: IConfig = {
     styleGuides: {
@@ -131,6 +193,11 @@ export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
     },
     plugins: userConfig.plugins ?? defaultConfig.plugins,
     exclude: userConfig.exclude ?? defaultConfig.exclude,
+    audit: userConfig.audit ?? defaultConfig.audit,
+    claude: {
+      ...defaultConfig.claude!,
+      ...userConfig.claude,
+    },
   };
 
   return config;

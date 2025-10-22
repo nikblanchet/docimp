@@ -42,6 +42,12 @@ describe('ConfigLoader', () => {
       expect(Array.isArray(config.plugins)).toBe(true);
       expect(config.exclude).toBeDefined();
       expect(Array.isArray(config.exclude)).toBe(true);
+      expect(config.audit).toBeDefined();
+      expect(config.audit.showCode).toBeDefined();
+      expect(config.claude).toBeDefined();
+      expect(config.claude.timeout).toBe(30.0);
+      expect(config.claude.maxRetries).toBe(3);
+      expect(config.claude.retryDelay).toBe(1.0);
     });
   });
 

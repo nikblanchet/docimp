@@ -251,6 +251,214 @@ describe('ConfigValidator', () => {
     });
   });
 
+  describe('claude configuration validation', () => {
+    it('should merge partial claude config with defaults', () => {
+      const userConfig: Partial<IConfig> = {
+        claude: {
+          timeout: 60.0,
+        },
+      };
+
+      const config = validateAndMerge(userConfig);
+
+      expect(config.claude.timeout).toBe(60.0);
+      expect(config.claude.maxRetries).toBe(3);
+      expect(config.claude.retryDelay).toBe(1.0);
+    });
+
+    it('should accept custom claude configuration', () => {
+      const userConfig: Partial<IConfig> = {
+        claude: {
+          timeout: 45.0,
+          maxRetries: 5,
+          retryDelay: 2.0,
+        },
+      };
+
+      const config = validateAndMerge(userConfig);
+
+      expect(config.claude.timeout).toBe(45.0);
+      expect(config.claude.maxRetries).toBe(5);
+      expect(config.claude.retryDelay).toBe(2.0);
+    });
+
+    it('should use defaults when claude config is omitted', () => {
+      const config = validateAndMerge({});
+
+      expect(config.claude).toBeDefined();
+      expect(config.claude.timeout).toBe(30.0);
+      expect(config.claude.maxRetries).toBe(3);
+      expect(config.claude.retryDelay).toBe(1.0);
+    });
+
+    it('should reject negative timeout', () => {
+      expect(() => {
+        validateAndMerge({ claude: { timeout: -5 } } as any);
+      }).toThrow('claude.timeout must be a positive number');
+    });
+
+    it('should warn for very high timeout values', () => {
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      const userConfig: Partial<IConfig> = {
+        claude: {
+          timeout: 900, // 15 minutes
+        },
+      };
+
+      const config = validateAndMerge(userConfig);
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('claude.timeout (900s) is very high')
+      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Did you mean 15 minutes?')
+      );
+      expect(config.claude.timeout).toBe(900); // Should still accept the value
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('should accept maxRetries = 0 (no retries)', () => {
+      const userConfig: Partial<IConfig> = {
+        claude: {
+          maxRetries: 0,
+        },
+      };
+
+      const config = validateAndMerge(userConfig);
+
+      expect(config.claude.maxRetries).toBe(0);
+    });
+
+    it('should reject negative maxRetries', () => {
+      expect(() => {
+        validateAndMerge({ claude: { maxRetries: -1 } } as any);
+      }).toThrow('claude.maxRetries must be non-negative');
+    });
+
+    it('should reject non-integer maxRetries', () => {
+      expect(() => {
+        validateAndMerge({ claude: { maxRetries: 2.5 } } as any);
+      }).toThrow('claude.maxRetries must be an integer (not a decimal)');
+    });
+
+    it('should reject non-number maxRetries', () => {
+      expect(() => {
+        validateAndMerge({ claude: { maxRetries: 'three' } } as any);
+      }).toThrow('claude.maxRetries must be a number');
+    });
+
+    it('should reject negative retryDelay', () => {
+      expect(() => {
+        validateAndMerge({ claude: { retryDelay: -1.0 } } as any);
+      }).toThrow('claude.retryDelay must be a positive number');
+    });
+
+    it('should reject zero timeout', () => {
+      expect(() => {
+        validateAndMerge({ claude: { timeout: 0 } } as any);
+      }).toThrow('claude.timeout must be a positive number');
+    });
+
+    it('should reject zero retryDelay', () => {
+      expect(() => {
+        validateAndMerge({ claude: { retryDelay: 0 } } as any);
+      }).toThrow('claude.retryDelay must be a positive number');
+    });
+
+    it('should warn for very high retryDelay values', () => {
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      const userConfig: Partial<IConfig> = {
+        claude: {
+          retryDelay: 120, // 2 minutes
+        },
+      };
+
+      const config = validateAndMerge(userConfig);
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('claude.retryDelay (120s) is very high')
+      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('With exponential backoff, this may cause very long waits')
+      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Recommended range: 0.5-60 seconds')
+      );
+      expect(config.claude.retryDelay).toBe(120); // Should still accept the value
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('should reject claude config as string', () => {
+      expect(() => {
+        validateAndMerge({ claude: 'fast' } as any);
+      }).toThrow('claude must be an object');
+    });
+
+    it('should reject claude config as number', () => {
+      expect(() => {
+        validateAndMerge({ claude: 30 } as any);
+      }).toThrow('claude must be an object');
+    });
+
+    it('should reject claude config as array', () => {
+      expect(() => {
+        validateAndMerge({ claude: [30, 3, 1] } as any);
+      }).toThrow('claude must be an object');
+    });
+
+    it('should reject claude config as null', () => {
+      expect(() => {
+        validateAndMerge({ claude: null } as any);
+      }).toThrow('claude must be an object');
+    });
+
+    it('should reject timeout with NaN', () => {
+      expect(() => {
+        validateAndMerge({ claude: { timeout: NaN } } as any);
+      }).toThrow('claude.timeout must be a finite number (not Infinity or NaN)');
+    });
+
+    it('should reject timeout with Infinity', () => {
+      expect(() => {
+        validateAndMerge({ claude: { timeout: Infinity } } as any);
+      }).toThrow('claude.timeout must be a finite number (not Infinity or NaN)');
+    });
+
+    it('should reject timeout with -Infinity', () => {
+      expect(() => {
+        validateAndMerge({ claude: { timeout: -Infinity } } as any);
+      }).toThrow('claude.timeout must be a positive number');
+    });
+
+    it('should reject maxRetries with NaN', () => {
+      expect(() => {
+        validateAndMerge({ claude: { maxRetries: NaN } } as any);
+      }).toThrow('claude.maxRetries must be a finite number (not Infinity or NaN)');
+    });
+
+    it('should reject maxRetries with Infinity', () => {
+      expect(() => {
+        validateAndMerge({ claude: { maxRetries: Infinity } } as any);
+      }).toThrow('claude.maxRetries must be a finite number (not Infinity or NaN)');
+    });
+
+    it('should reject retryDelay with NaN', () => {
+      expect(() => {
+        validateAndMerge({ claude: { retryDelay: NaN } } as any);
+      }).toThrow('claude.retryDelay must be a finite number (not Infinity or NaN)');
+    });
+
+    it('should reject retryDelay with Infinity', () => {
+      expect(() => {
+        validateAndMerge({ claude: { retryDelay: Infinity } } as any);
+      }).toThrow('claude.retryDelay must be a finite number (not Infinity or NaN)');
+    });
+  });
+
   describe('complex configurations', () => {
     it('should validate and merge full configuration', () => {
       const userConfig: Partial<IConfig> = {
@@ -272,6 +480,11 @@ describe('ConfigValidator', () => {
         },
         plugins: ['./plugins/validate-types.js', './plugins/jsdoc-style.js'],
         exclude: ['**/test_*.py', '**/node_modules/**', '**/__pycache__/**'],
+        claude: {
+          timeout: 45.0,
+          maxRetries: 5,
+          retryDelay: 2.0,
+        },
       };
 
       const config = validateAndMerge(userConfig);
@@ -285,6 +498,9 @@ describe('ConfigValidator', () => {
       expect(config.impactWeights.quality).toBe(0.3);
       expect(config.plugins).toHaveLength(2);
       expect(config.exclude).toHaveLength(3);
+      expect(config.claude.timeout).toBe(45.0);
+      expect(config.claude.maxRetries).toBe(5);
+      expect(config.claude.retryDelay).toBe(2.0);
     });
   });
 });

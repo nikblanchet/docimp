@@ -61,6 +61,21 @@ class TestClaudeClientInitialization:
         client = ClaudeClient(api_key='sk-ant-test', timeout=60.0)
         assert client.timeout == 60.0
 
+    def test_full_custom_configuration(self):
+        """Test ClaudeClient with all custom configuration parameters."""
+        client = ClaudeClient(
+            api_key='sk-ant-test',
+            model='claude-opus-4-20250514',
+            timeout=45.0,
+            max_retries=5,
+            retry_delay=2.0
+        )
+        assert client.api_key == 'sk-ant-test'
+        assert client.model == 'claude-opus-4-20250514'
+        assert client.timeout == 45.0
+        assert client.max_retries == 5
+        assert client.retry_delay == 2.0
+
 
 class TestClaudeClientRetryBackoffHelper:
     """Test ClaudeClient retry backoff helper method."""

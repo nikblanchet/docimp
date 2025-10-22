@@ -246,6 +246,9 @@ export class InteractiveSession {
         target,
         styleGuide,
         tone: this.tone,
+        timeout: this.config.claude?.timeout,
+        maxRetries: this.config.claude?.maxRetries,
+        retryDelay: this.config.claude?.retryDelay,
       });
 
       return result.trim();
