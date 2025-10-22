@@ -180,8 +180,8 @@ export async function improveCommand(
       }
     }
 
-    // Create Python bridge
-    const pythonBridge = new PythonBridge();
+    // Create Python bridge with config for timeout settings
+    const pythonBridge = new PythonBridge(undefined, undefined, config);
 
     // Create interactive session
     const session = new InteractiveSession({
