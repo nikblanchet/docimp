@@ -73,8 +73,29 @@ let cacheStats = {
 
 /**
  * Shared document registry for efficient SourceFile reuse.
- * The registry manages SourceFile objects and allows multiple
- * LanguageService instances to share parsed files.
+ *
+ * The DocumentRegistry is TypeScript's built-in mechanism for sharing
+ * parsed SourceFile objects across multiple LanguageService instances.
+ * This is critical for memory efficiency because:
+ *
+ * 1. **Parsing is expensive**: Converting source text to an AST requires
+ *    significant CPU time and memory allocation.
+ *
+ * 2. **Library files are shared**: Multiple language services may reference
+ *    the same TypeScript library files (lib.d.ts, lib.es2022.d.ts, etc.).
+ *    The registry maintains a pool of SourceFiles keyed by content hash.
+ *
+ * 3. **Deduplication**: When a LanguageService requests a file, the registry
+ *    returns a cached SourceFile if the content matches, avoiding re-parsing.
+ *
+ * 4. **Memory multiplier**: Without a shared registry, each language service
+ *    would parse library files independently, multiplying memory usage by the
+ *    number of cached services (potentially 50x with MAX_CACHE_SIZE=50).
+ *
+ * The registry automatically manages SourceFile lifecycle and cleanup when
+ * language services are disposed.
+ *
+ * @see https://github.com/microsoft/TypeScript/wiki/Using-the-Language-Service-API#creating-the-language-service
  */
 let documentRegistry;
 try {
