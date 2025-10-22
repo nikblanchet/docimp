@@ -294,19 +294,31 @@ describe('ConfigValidator', () => {
     it('should reject negative timeout', () => {
       expect(() => {
         validateAndMerge({ claude: { timeout: -5 } } as any);
-      }).toThrow('timeout must be a positive number');
+      }).toThrow('claude.timeout must be a positive number');
+    });
+
+    it('should accept maxRetries = 0 (no retries)', () => {
+      const userConfig: Partial<IConfig> = {
+        claude: {
+          maxRetries: 0,
+        },
+      };
+
+      const config = validateAndMerge(userConfig);
+
+      expect(config.claude.maxRetries).toBe(0);
     });
 
     it('should reject negative maxRetries', () => {
       expect(() => {
         validateAndMerge({ claude: { maxRetries: -1 } } as any);
-      }).toThrow('maxRetries must be a positive integer');
+      }).toThrow('claude.maxRetries must be a non-negative integer');
     });
 
     it('should reject negative retryDelay', () => {
       expect(() => {
         validateAndMerge({ claude: { retryDelay: -1.0 } } as any);
-      }).toThrow('retryDelay must be a positive number');
+      }).toThrow('claude.retryDelay must be a positive number');
     });
   });
 

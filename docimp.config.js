@@ -149,6 +149,13 @@ export default {
   //
   // Controls timeout and retry behavior for Claude API requests.
   // These settings apply when using 'docimp improve' command.
+  //
+  // Use cases:
+  // - Slow connections: Increase timeout to 60.0 or higher
+  // - Rate-limited projects: Increase maxRetries to 5+ and retryDelay to 2.0
+  // - Fast failure for CI/CD: Decrease timeout to 15.0 and maxRetries to 1
+  // - Debugging API issues: Increase timeout to 120.0 to avoid false timeouts
+  // - No retries: Set maxRetries to 0 to fail immediately on first error
   claude: {
     // API request timeout in seconds.
     //
@@ -162,6 +169,7 @@ export default {
     //
     // Number of times to retry after rate-limit or timeout errors.
     // Uses exponential backoff between retries.
+    // Set to 0 to disable retries (fail immediately on first error).
     //
     // Default: 3
     maxRetries: 3,
