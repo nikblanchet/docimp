@@ -299,4 +299,63 @@ describe('PythonBridge Integration (Real Python Subprocess)', () => {
       expect(result).toHaveProperty('items');
     }, 30000);
   });
+
+  describe('Config Integration Tests', () => {
+    it('should apply custom timeout from config (verify no immediate timeout)', async () => {
+      // Create bridge with very long timeout - should NOT timeout during normal operation
+      const customConfig = {
+        styleGuides: {},
+        tone: 'concise' as const,
+        pythonBridge: {
+          defaultTimeout: 60000, // 60 seconds
+          suggestTimeout: 300000, // 5 minutes
+        },
+      };
+
+      const bridgeWithConfig = new PythonBridge(undefined, undefined, customConfig);
+
+      // This should complete normally without timing out
+      const result: AnalysisResult = await bridgeWithConfig.analyze({
+        path: examplesPath,
+        verbose: false,
+      });
+
+      expect(result).toBeDefined();
+      expect(result.total_items).toBeGreaterThan(0);
+    }, 30000);
+
+    it('should use default timeout when config not provided', async () => {
+      // Create bridge without config - should use defaults
+      const bridgeWithoutConfig = new PythonBridge();
+
+      // This should complete normally with default timeout (60s)
+      const result: AnalysisResult = await bridgeWithoutConfig.analyze({
+        path: examplesPath,
+        verbose: false,
+      });
+
+      expect(result).toBeDefined();
+      expect(result.total_items).toBeGreaterThan(0);
+    }, 30000);
+
+    it('should use default timeout when pythonBridge config section missing', async () => {
+      // Create bridge with config that lacks pythonBridge section
+      const configWithoutBridge = {
+        styleGuides: {},
+        tone: 'concise' as const,
+        // No pythonBridge section
+      };
+
+      const bridgeWithPartialConfig = new PythonBridge(undefined, undefined, configWithoutBridge);
+
+      // This should complete normally with default timeout
+      const result: AnalysisResult = await bridgeWithPartialConfig.analyze({
+        path: examplesPath,
+        verbose: false,
+      });
+
+      expect(result).toBeDefined();
+      expect(result.total_items).toBeGreaterThan(0);
+    }, 30000);
+  });
 });
