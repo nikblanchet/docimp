@@ -213,8 +213,13 @@ class DocumentationAnalyzer:
 
         try:
             return parser.parse_file(str(filepath)), None
-        except Exception as e:
-            # Handle parsing errors gracefully - capture first line of error
+        except (SyntaxError, ValueError, RuntimeError, FileNotFoundError, OSError) as e:
+            # Handle expected parsing errors gracefully - capture first line of error
             error_msg = str(e).split('\n')[0] or "Unknown parse error"
             print(f"Warning: Failed to parse {filepath}: {error_msg}", file=sys.stderr)
             return [], ParseFailure(filepath=str(filepath), error=error_msg)
+        except Exception as e:
+            # Unexpected errors indicate programming errors - log and re-raise
+            error_msg = str(e).split('\n')[0] or "Unknown error"
+            print(f"Error: Unexpected exception parsing {filepath}: {error_msg}", file=sys.stderr)
+            raise

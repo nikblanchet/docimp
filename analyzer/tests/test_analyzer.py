@@ -228,7 +228,8 @@ class TestDocumentationAnalyzer:
         from unittest.mock import Mock, patch
 
         # Create a custom exception with empty string representation
-        class EmptyException(Exception):
+        # Inherit from SyntaxError so it's caught as an expected exception
+        class EmptyException(SyntaxError):
             def __str__(self):
                 return ""
 
@@ -260,3 +261,70 @@ class TestDocumentationAnalyzer:
                     "Should use fallback message for empty error"
                 assert 'bad.py' in result.parse_failures[0].filepath, \
                     "Should capture the bad.py file"
+
+    def test_expected_exceptions_are_caught(self, analyzer):
+        """Test that expected parsing exceptions are caught and tracked."""
+        import tempfile
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+
+            # Create a valid file so analysis doesn't fail entirely
+            valid_file = temp_path / 'valid.py'
+            valid_file.write_text('def bar():\n    pass')
+
+            # Test each expected exception type
+            expected_exceptions = [
+                SyntaxError("syntax error"),
+                ValueError("value error"),
+                RuntimeError("runtime error"),
+                FileNotFoundError("file not found"),
+                OSError("os error"),
+            ]
+
+            for exc in expected_exceptions:
+                # Create a file for this test
+                test_file = temp_path / f'test_{exc.__class__.__name__}.py'
+                test_file.write_text('def foo():\n    pass')
+
+                # Mock parser to raise the exception
+                original_parse = analyzer.parsers['python'].parse_file
+                def mock_parse(filepath):
+                    if exc.__class__.__name__ in filepath:
+                        raise exc
+                    return original_parse(filepath)
+
+                with patch.object(analyzer.parsers['python'], 'parse_file', side_effect=mock_parse):
+                    # Should not raise - should capture in parse_failures
+                    result = analyzer.analyze(str(temp_path))
+
+                    # Should have captured at least one failure
+                    assert len(result.parse_failures) >= 1, \
+                        f"Should capture parse failure for {exc.__class__.__name__}"
+
+                # Clean up test file
+                test_file.unlink()
+
+    def test_unexpected_exceptions_are_reraised(self, analyzer):
+        """Test that unexpected exceptions are re-raised."""
+        import tempfile
+        from unittest.mock import patch
+
+        # Create a custom unexpected exception
+        class UnexpectedException(Exception):
+            pass
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+
+            # Create a test file
+            test_file = temp_path / 'test.py'
+            test_file.write_text('def foo():\n    pass')
+
+            # Mock parser to raise unexpected exception
+            with patch.object(analyzer.parsers['python'], 'parse_file',
+                            side_effect=UnexpectedException("unexpected")):
+                # Should re-raise the unexpected exception
+                with pytest.raises(UnexpectedException):
+                    analyzer.analyze(str(temp_path))
