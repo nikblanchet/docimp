@@ -552,12 +552,15 @@ export function getCacheStats() {
  * @returns {boolean} True if entry was removed, false if not in cache
  */
 export function clearCacheForFile(filepath) {
-  const hadEntry = languageServiceCache.has(filepath);
-  if (hadEntry) {
+  const entry = languageServiceCache.get(filepath);
+  if (entry) {
+    // Dispose the language service before removing from cache to prevent memory leaks
+    entry.service.dispose();
     languageServiceCache.delete(filepath);
     cacheAccessOrder.delete(filepath);
+    return true;
   }
-  return hadEntry;
+  return false;
 }
 
 /**
