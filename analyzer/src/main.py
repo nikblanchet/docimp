@@ -78,6 +78,13 @@ def format_json(result) -> str:
                 'module_system': item.module_system
             }
             for item in result.items
+        ],
+        'parse_failures': [
+            {
+                'filepath': failure.filepath,
+                'error': failure.error
+            }
+            for failure in result.parse_failures
         ]
     }
     return json.dumps(data, indent=2)
