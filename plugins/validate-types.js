@@ -231,7 +231,14 @@ function getCachedLanguageService(filepath, sourceCode) {
   if (cached) {
     // Content changed - invalidation
     // Dispose the old language service before creating a new one
-    cached.service.dispose();
+    try {
+      cached.service.dispose();
+    } catch (error) {
+      // Log but don't fail - disposal is best-effort cleanup
+      if (process.env.DEBUG_DOCIMP_CACHE) {
+        console.error(`[validate-types] Error disposing language service for ${filepath}:`, error);
+      }
+    }
     cacheStats.invalidations++;
     if (process.env.DEBUG_DOCIMP_CACHE) {
       console.error(`[validate-types] Cache INVALIDATE: ${filepath} (${cacheStats.invalidations} total invalidations)`);
@@ -255,7 +262,14 @@ function getCachedLanguageService(filepath, sourceCode) {
       // Dispose the language service to free memory
       const evictedEntry = languageServiceCache.get(lruPath);
       if (evictedEntry) {
-        evictedEntry.service.dispose();
+        try {
+          evictedEntry.service.dispose();
+        } catch (error) {
+          // Log but don't fail - disposal is best-effort cleanup
+          if (process.env.DEBUG_DOCIMP_CACHE) {
+            console.error(`[validate-types] Error disposing evicted language service for ${lruPath}:`, error);
+          }
+        }
       }
       languageServiceCache.delete(lruPath);
       cacheAccessOrder.delete(lruPath);
@@ -354,7 +368,20 @@ function validateWithCompiler(filepath, code) {
   const service = getCachedLanguageService(filepath, sourceCode);
 
   // Get semantic diagnostics (includes JSDoc validation)
-  const diagnostics = service.getSemanticDiagnostics(filepath);
+  let diagnostics = [];
+  try {
+    diagnostics = service.getSemanticDiagnostics(filepath);
+  } catch (error) {
+    // Return error as validation failure
+    if (perfStart !== null) {
+      const duration = (performance.now() - perfStart).toFixed(2);
+      console.error(`[validate-types] Validation failed after ${duration}ms for ${filepath}`);
+    }
+    return {
+      valid: false,
+      errors: [`TypeScript compiler error: ${error.message}`]
+    };
+  }
 
   // Format errors with line/column information
   const errors = diagnostics.map((d) => {
