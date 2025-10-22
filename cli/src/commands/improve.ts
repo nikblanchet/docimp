@@ -15,6 +15,12 @@ import { PluginManager } from '../plugins/PluginManager.js';
 import { TerminalDisplay } from '../display/TerminalDisplay.js';
 import { InteractiveSession } from '../session/InteractiveSession.js';
 import { StateManager } from '../utils/StateManager.js';
+import {
+  STYLE_GUIDE_CHOICES,
+  VALID_STYLE_GUIDES,
+  VALID_TONES,
+  TONE_CHOICES,
+} from '../constants/styleGuides.js';
 import type { PlanResult, SupportedLanguage } from '../types/analysis.js';
 import type { IConfig } from '../config/IConfig.js';
 
@@ -29,13 +35,46 @@ export async function improveCommand(
   options: {
     config?: string;
     planFile?: string;
+    pythonStyle?: string;
+    javascriptStyle?: string;
+    typescriptStyle?: string;
     tone?: string;
+    nonInteractive?: boolean;
     verbose?: boolean;
+    listStyles?: boolean;
   }
 ): Promise<void> {
   const display = new TerminalDisplay();
 
   try {
+    // Handle --list-styles flag (exit early without requiring API key or plan)
+    if (options.listStyles) {
+      display.showMessage(chalk.bold('\nAvailable style guides:\n'));
+
+      display.showMessage(chalk.cyan('Python:'));
+      VALID_STYLE_GUIDES.python.forEach(style => {
+        display.showMessage(`  - ${style}`);
+      });
+
+      display.showMessage(chalk.cyan('\nJavaScript:'));
+      VALID_STYLE_GUIDES.javascript.forEach(style => {
+        display.showMessage(`  - ${style}`);
+      });
+
+      display.showMessage(chalk.cyan('\nTypeScript:'));
+      VALID_STYLE_GUIDES.typescript.forEach(style => {
+        display.showMessage(`  - ${style}`);
+      });
+
+      display.showMessage(chalk.cyan('\nTones:'));
+      VALID_TONES.forEach(tone => {
+        display.showMessage(`  - ${tone}`);
+      });
+
+      display.showMessage('');
+      return;
+    }
+
     // Check for ANTHROPIC_API_KEY
     if (!process.env.ANTHROPIC_API_KEY) {
       display.showError(
@@ -84,28 +123,53 @@ export async function improveCommand(
     display.showMessage(chalk.bold('\n Interactive Documentation Improvement'));
     display.showMessage(chalk.dim('Using Claude AI with plugin validation\n'));
 
-    // Define style guide choices per language
-    const styleGuideChoices: Record<SupportedLanguage, Array<{ title: string; value: string }>> = {
-      python: [
-        { title: 'Google', value: 'google' },
-        { title: 'NumPy + reST', value: 'numpy-rest' },
-        { title: 'NumPy + Markdown', value: 'numpy-markdown' },
-        { title: 'Pure reST (Sphinx)', value: 'sphinx' },
-      ],
-      javascript: [
-        { title: 'JSDoc (Vanilla)', value: 'jsdoc-vanilla' },
-        { title: 'Google JSDoc', value: 'jsdoc-google' },
-        { title: 'Closure (JSDoc/Closure)', value: 'jsdoc-closure' },
-      ],
-      typescript: [
-        { title: 'TSDoc (TypeDoc)', value: 'tsdoc-typedoc' },
-        { title: 'TSDoc (API Extractor/AEDoc)', value: 'tsdoc-aedoc' },
-        { title: 'JSDoc-in-TS', value: 'jsdoc-ts' },
-      ],
-    };
+    // Validate CLI flag style guides
+    const cliStyleGuides: Partial<Record<SupportedLanguage, string>> = {};
+
+    if (options.pythonStyle) {
+      if (!VALID_STYLE_GUIDES.python.includes(options.pythonStyle)) {
+        display.showError(
+          `Invalid Python style guide: ${options.pythonStyle}\n` +
+          `Valid options: ${VALID_STYLE_GUIDES.python.join(', ')}`
+        );
+        process.exit(1);
+      }
+      cliStyleGuides.python = options.pythonStyle;
+    }
+
+    if (options.javascriptStyle) {
+      if (!VALID_STYLE_GUIDES.javascript.includes(options.javascriptStyle)) {
+        display.showError(
+          `Invalid JavaScript style guide: ${options.javascriptStyle}\n` +
+          `Valid options: ${VALID_STYLE_GUIDES.javascript.join(', ')}`
+        );
+        process.exit(1);
+      }
+      cliStyleGuides.javascript = options.javascriptStyle;
+    }
+
+    if (options.typescriptStyle) {
+      if (!VALID_STYLE_GUIDES.typescript.includes(options.typescriptStyle)) {
+        display.showError(
+          `Invalid TypeScript style guide: ${options.typescriptStyle}\n` +
+          `Valid options: ${VALID_STYLE_GUIDES.typescript.join(', ')}`
+        );
+        process.exit(1);
+      }
+      cliStyleGuides.typescript = options.typescriptStyle;
+    }
+
+    // Validate tone if provided via CLI
+    if (options.tone && !(VALID_TONES as readonly string[]).includes(options.tone)) {
+      display.showError(
+        `Invalid tone: ${options.tone}\n` +
+        `Valid options: ${VALID_TONES.join(', ')}`
+      );
+      process.exit(1);
+    }
 
     // Fail fast if plan contains unsupported languages
-    const unsupportedLanguages = detectedLanguages.filter(lang => !styleGuideChoices[lang]);
+    const unsupportedLanguages = detectedLanguages.filter(lang => !STYLE_GUIDE_CHOICES[lang]);
     if (unsupportedLanguages.length > 0) {
       display.showError(
         `Plan contains unsupported languages: ${unsupportedLanguages.join(', ')}\n` +
@@ -114,55 +178,130 @@ export async function improveCommand(
       process.exit(1);
     }
 
-    // Sequential prompts for each detected language
+    // Build style guides from CLI flags, config, or prompts
     const styleGuides: Partial<Record<SupportedLanguage, string>> = {};
 
-    for (const lang of detectedLanguages) {
-      const choices = styleGuideChoices[lang];
+    // In non-interactive mode, validate all required values are available
+    if (options.nonInteractive) {
+      const missingLanguages: string[] = [];
 
-      // Find initial selection from config
-      const configuredStyle = config.styleGuides?.[lang as SupportedLanguage];
-      const initialIndex = configuredStyle
-        ? choices.findIndex(choice => choice.value === configuredStyle)
-        : -1;
+      for (const lang of detectedLanguages) {
+        // Check CLI flag first, then config
+        const cliValue = cliStyleGuides[lang];
+        const configValue = config.styleGuides?.[lang];
 
-      const response = await prompts({
-        type: 'select',
-        name: 'styleGuide',
-        message: `Select documentation style guide for ${chalk.cyan(lang)}:`,
-        choices,
-        initial: initialIndex >= 0 ? initialIndex : 0,
-      });
+        if (cliValue) {
+          if (options.verbose) {
+            display.showMessage(chalk.dim(`Using CLI flag for ${lang}: ${cliValue}`));
+          }
+          styleGuides[lang] = cliValue;
+        } else if (configValue) {
+          if (options.verbose) {
+            display.showMessage(chalk.dim(`Using config value for ${lang}: ${configValue}`));
+          }
+          styleGuides[lang] = configValue;
+        } else {
+          missingLanguages.push(lang);
+        }
+      }
 
-      if (response.styleGuide) {
-        styleGuides[lang] = response.styleGuide;
-      } else {
-        display.showError('Style guide selection cancelled.');
-        process.exit(0);
+      if (missingLanguages.length > 0) {
+        display.showError(
+          `Non-interactive mode requires style guides for all detected languages.\n` +
+          `Missing configuration for: ${missingLanguages.join(', ')}\n\n` +
+          `Please either:\n` +
+          `  1. Add styleGuides.${missingLanguages[0]} to your docimp.config.js\n` +
+          `  2. Use CLI flags: --${missingLanguages[0]}-style <style>\n` +
+          `  3. Run without --non-interactive for interactive prompts`
+        );
+        process.exit(1);
+      }
+    } else {
+      // Interactive mode: prompt only for languages without CLI flags
+      for (const lang of detectedLanguages) {
+        // If CLI flag provided, use it and skip prompt
+        if (cliStyleGuides[lang]) {
+          if (options.verbose) {
+            display.showMessage(chalk.dim(`Using CLI flag for ${lang}: ${cliStyleGuides[lang]}`));
+          }
+          styleGuides[lang] = cliStyleGuides[lang];
+          continue;
+        }
+
+        // Otherwise, prompt with config as initial selection
+        const choices = STYLE_GUIDE_CHOICES[lang];
+        const configuredStyle = config.styleGuides?.[lang as SupportedLanguage];
+        const initialIndex = configuredStyle
+          ? choices.findIndex(choice => choice.value === configuredStyle)
+          : -1;
+
+        if (options.verbose && configuredStyle) {
+          display.showMessage(chalk.dim(`Config has ${lang} style guide: ${configuredStyle} (pre-selected)`));
+        }
+
+        const response = await prompts({
+          type: 'select',
+          name: 'styleGuide',
+          message: `Select documentation style guide for ${chalk.cyan(lang)}:`,
+          choices,
+          initial: initialIndex >= 0 ? initialIndex : 0,
+        });
+
+        if (response.styleGuide) {
+          if (options.verbose) {
+            display.showMessage(chalk.dim(`User selected ${lang} style guide: ${response.styleGuide}`));
+          }
+          styleGuides[lang] = response.styleGuide;
+        } else {
+          display.showError('Style guide selection cancelled.');
+          process.exit(0);
+        }
       }
     }
 
-    // Prompt for tone (applies to all languages)
-    const toneChoices = [
-      { title: 'Concise', value: 'concise' },
-      { title: 'Detailed', value: 'detailed' },
-      { title: 'Friendly', value: 'friendly' },
-    ];
+    // Determine tone from CLI flag, config, or prompt
+    let tone: string;
 
-    const toneInitialIndex = config.tone
-      ? toneChoices.findIndex(choice => choice.value === config.tone)
-      : -1;
+    if (options.tone) {
+      // CLI flag takes precedence
+      if (options.verbose) {
+        display.showMessage(chalk.dim(`Using CLI flag for tone: ${options.tone}`));
+      }
+      tone = options.tone;
+    } else if (options.nonInteractive) {
+      // Non-interactive mode: use config or default
+      tone = config.tone || 'concise';
+      if (options.verbose) {
+        const source = config.tone ? 'config' : 'default';
+        display.showMessage(chalk.dim(`Using ${source} value for tone: ${tone}`));
+      }
+    } else {
+      // Interactive mode: prompt with config as initial selection
+      const toneInitialIndex = config.tone
+        ? TONE_CHOICES.findIndex(choice => choice.value === config.tone)
+        : -1;
 
-    const toneResponse = await prompts({
-      type: 'select',
-      name: 'tone',
-      message: 'Select documentation tone (applies to all languages):',
-      choices: toneChoices,
-      initial: toneInitialIndex >= 0 ? toneInitialIndex : 0,
-    });
+      if (options.verbose && config.tone) {
+        display.showMessage(chalk.dim(`Config has tone: ${config.tone} (pre-selected)`));
+      }
 
-    // Use command-line override or user preference for tone
-    const tone = options.tone || toneResponse.tone || 'concise';
+      const toneResponse = await prompts({
+        type: 'select',
+        name: 'tone',
+        message: 'Select documentation tone (applies to all languages):',
+        choices: TONE_CHOICES,
+        initial: toneInitialIndex >= 0 ? toneInitialIndex : 0,
+      });
+
+      tone = toneResponse.tone || 'concise';
+      if (!toneResponse.tone) {
+        display.showError('Tone selection cancelled.');
+        process.exit(0);
+      }
+      if (options.verbose) {
+        display.showMessage(chalk.dim(`User selected tone: ${tone}`));
+      }
+    }
 
     // Load plugins
     const pluginManager = new PluginManager();

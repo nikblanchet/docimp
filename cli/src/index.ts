@@ -58,7 +58,14 @@ program
   .description('Interactively improve documentation with Claude AI')
   .argument('<path>', 'Path to file or directory to improve')
   .option('--config <path>', 'Path to configuration file')
-  .option('--plan <file>', `Plan file to load (default: ${StateManager.getPlanFile()})`)
+  .option('--plan-file <file>', `Plan file to load (default: ${StateManager.getPlanFile()})`)
+  .option('--python-style <style>', 'Python style guide (google, numpy-rest, numpy-markdown, sphinx)')
+  .option('--javascript-style <style>', 'JavaScript style guide (jsdoc-vanilla, jsdoc-google, jsdoc-closure)')
+  .option('--typescript-style <style>', 'TypeScript style guide (tsdoc-typedoc, tsdoc-aedoc, jsdoc-ts)')
+  .option('--tone <tone>', 'Documentation tone (concise, detailed, friendly)')
+  .option('--non-interactive', 'Skip prompts and use config/CLI flags only (for CI/CD)')
+  .option('--list-styles', 'List all available style guides and tones')
+  .option('--verbose', 'Enable verbose output')
   .action(improveCommand);
 
 program.parse(process.argv);
