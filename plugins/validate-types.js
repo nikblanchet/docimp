@@ -209,6 +209,14 @@ function getCachedLanguageService(filepath, sourceCode) {
     getCurrentDirectory: () => process.cwd(),
     getCompilationSettings: () => compilerOptions,
     getDefaultLibFileName: (options) => ts.getDefaultLibFilePath(options),
+    getProjectVersion: () => String(version),
+    getScriptKind: (fileName) => {
+      if (fileName.endsWith('.tsx')) return ts.ScriptKind.TSX;
+      if (fileName.endsWith('.jsx')) return ts.ScriptKind.JSX;
+      if (fileName.endsWith('.ts')) return ts.ScriptKind.TS;
+      return ts.ScriptKind.JS;
+    },
+    getNewLine: () => '\n',
     fileExists: (fileName) => fileName === filepath || ts.sys.fileExists(fileName),
     readFile: (fileName) => fileContents.get(fileName) || ts.sys.readFile(fileName),
     readDirectory: ts.sys.readDirectory,
