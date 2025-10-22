@@ -298,6 +298,18 @@ export class PythonBridge implements IPythonBridge {
       '--tone', options.tone,
     ];
 
+    if (options.timeout !== undefined) {
+      args.push('--timeout', String(options.timeout));
+    }
+
+    if (options.maxRetries !== undefined) {
+      args.push('--max-retries', String(options.maxRetries));
+    }
+
+    if (options.retryDelay !== undefined) {
+      args.push('--retry-delay', String(options.retryDelay));
+    }
+
     if (options.verbose) {
       args.push('--verbose');
     }

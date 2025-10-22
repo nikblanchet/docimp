@@ -405,7 +405,11 @@ def cmd_suggest(args: argparse.Namespace) -> int:
 
         # Create Claude client and prompt builder
         try:
-            client = ClaudeClient()
+            client = ClaudeClient(
+                timeout=args.timeout,
+                max_retries=args.max_retries,
+                retry_delay=args.retry_delay
+            )
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
             print("Please set the ANTHROPIC_API_KEY environment variable", file=sys.stderr)
@@ -660,6 +664,24 @@ def main(argv: Optional[list] = None) -> int:
         choices=['concise', 'detailed', 'friendly'],
         default='concise',
         help='Documentation tone (default: concise)'
+    )
+    suggest_parser.add_argument(
+        '--timeout',
+        type=float,
+        default=30.0,
+        help='Claude API request timeout in seconds (default: 30.0)'
+    )
+    suggest_parser.add_argument(
+        '--max-retries',
+        type=int,
+        default=3,
+        help='Maximum retry attempts for Claude API (default: 3)'
+    )
+    suggest_parser.add_argument(
+        '--retry-delay',
+        type=float,
+        default=1.0,
+        help='Base delay between retries in seconds (default: 1.0)'
     )
     suggest_parser.add_argument(
         '--verbose',

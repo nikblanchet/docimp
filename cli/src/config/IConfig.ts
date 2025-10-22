@@ -66,6 +66,11 @@ export interface IConfig {
    * Audit command configuration.
    */
   audit?: IAuditConfig;
+
+  /**
+   * Claude API configuration.
+   */
+  claude?: IClaudeConfig;
 }
 
 /**
@@ -144,6 +149,29 @@ export interface IAuditConfig {
 }
 
 /**
+ * Claude API configuration.
+ */
+export interface IClaudeConfig {
+  /**
+   * API request timeout in seconds.
+   * Default: 30.0
+   */
+  timeout?: number;
+
+  /**
+   * Maximum number of retry attempts for rate-limited or timed-out requests.
+   * Default: 3
+   */
+  maxRetries?: number;
+
+  /**
+   * Base delay in seconds between retries (uses exponential backoff).
+   * Default: 1.0
+   */
+  retryDelay?: number;
+}
+
+/**
  * Default configuration values.
  */
 export const defaultConfig: IConfig = {
@@ -182,5 +210,10 @@ export const defaultConfig: IConfig = {
       mode: 'truncated',
       maxLines: 20,
     },
+  },
+  claude: {
+    timeout: 30.0,
+    maxRetries: 3,
+    retryDelay: 1.0,
   },
 };
