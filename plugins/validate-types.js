@@ -246,6 +246,11 @@ function getCachedLanguageService(filepath, sourceCode) {
   if (!cached && languageServiceCache.size >= MAX_CACHE_SIZE) {
     const lruPath = cacheAccessOrder.shift();
     if (lruPath) {
+      // Dispose the language service to free memory
+      const evictedEntry = languageServiceCache.get(lruPath);
+      if (evictedEntry) {
+        evictedEntry.service.dispose();
+      }
       languageServiceCache.delete(lruPath);
       if (process.env.DEBUG_DOCIMP_CACHE) {
         console.error(`[validate-types] Cache EVICT (LRU): ${lruPath} (cache size: ${languageServiceCache.size})`);
