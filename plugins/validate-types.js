@@ -183,6 +183,10 @@ function getCachedLanguageService(filepath, sourceCode) {
   const cached = languageServiceCache.get(filepath);
 
   // Return cached service if content hasn't changed
+  // Note: Uses string equality for cache invalidation. For very large files
+  // (>10KB), hash-based comparison could be more efficient, but string
+  // comparison is simpler and sufficient for typical documentation files.
+  // V8's string comparison is highly optimized and fast for most use cases.
   if (cached && cached.content === sourceCode) {
     // Cache HIT
     cacheStats.hits++;
