@@ -14,6 +14,7 @@
  * - Uses cached TypeScript language services to prevent memory leaks
  * - Reuses programs across validations: ~50-200ms → <10ms (cache hits)
  * - Automatically invalidates cache when file content changes
+ * - LRU eviction prevents unbounded cache growth (max 50 entries)
  * - Shared document registry enables efficient SourceFile reuse
  *
  * @module plugins/validate-types
@@ -35,14 +36,30 @@ try {
 }
 
 /**
- * Cache for TypeScript language services.
+ * Maximum number of language services to cache.
+ * Prevents unbounded memory growth in long-running sessions.
+ * Can be overridden via config in future versions.
+ */
+const MAX_CACHE_SIZE = 50;
+
+/**
+ * Cache for TypeScript language services with LRU eviction.
  * Key: filepath
  * Value: { service: LanguageService, version: number, content: string }
  *
- * This cache prevents memory leaks by reusing TypeScript programs across
- * validation calls instead of creating new programs every time.
+ * This cache prevents memory leaks by:
+ * 1. Reusing TypeScript programs across validation calls
+ * 2. Limiting total cache size to prevent unbounded growth
+ * 3. Using LRU (Least Recently Used) eviction when cache is full
  */
 const languageServiceCache = new Map();
+
+/**
+ * LRU access order tracking.
+ * Tracks the order in which cache entries were accessed.
+ * Most recently used entries are at the end of the array.
+ */
+const cacheAccessOrder = [];
 
 /**
  * Shared document registry for efficient SourceFile reuse.
@@ -132,9 +149,10 @@ function extractFunctionSignature(code, functionName) {
 /**
  * Get or create a cached language service for a file.
  *
- * This function implements caching to prevent memory leaks from
+ * This function implements LRU caching to prevent memory leaks from
  * repeatedly creating TypeScript programs. It reuses language services
- * when file content hasn't changed.
+ * when file content hasn't changed and evicts least recently used
+ * entries when the cache reaches MAX_CACHE_SIZE.
  *
  * @param {string} filepath - Path to the file
  * @param {string} sourceCode - Source code content
@@ -146,11 +164,25 @@ function getCachedLanguageService(filepath, sourceCode) {
 
   // Return cached service if content hasn't changed
   if (cached && cached.content === sourceCode) {
+    // Move to end of access order (most recently used)
+    const index = cacheAccessOrder.indexOf(filepath);
+    if (index > -1) {
+      cacheAccessOrder.splice(index, 1);
+    }
+    cacheAccessOrder.push(filepath);
     return cached.service;
   }
 
   // Create or update the language service
   const version = cached ? cached.version + 1 : 0;
+
+  // Evict least recently used entry if cache is full
+  if (!cached && languageServiceCache.size >= MAX_CACHE_SIZE) {
+    const lruPath = cacheAccessOrder.shift();
+    if (lruPath) {
+      languageServiceCache.delete(lruPath);
+    }
+  }
 
   // Create compiler options with checkJs enabled
   const compilerOptions = {
@@ -193,6 +225,15 @@ function getCachedLanguageService(filepath, sourceCode) {
     version,
     content: sourceCode,
   });
+
+  // Update LRU access order
+  // Remove if already exists (for content updates)
+  const existingIndex = cacheAccessOrder.indexOf(filepath);
+  if (existingIndex > -1) {
+    cacheAccessOrder.splice(existingIndex, 1);
+  }
+  // Add to end (most recently used)
+  cacheAccessOrder.push(filepath);
 
   return service;
 }
@@ -379,6 +420,7 @@ async function beforeAccept(docstring, item, config) {
  */
 export function clearCache() {
   languageServiceCache.clear();
+  cacheAccessOrder.length = 0;
 }
 
 // Export the plugin
