@@ -211,19 +211,20 @@ export class PythonBridge implements IPythonBridge {
       args.push('--audit-file', absoluteAuditFile);
     }
 
-    return new Promise((resolve, reject) => {
-      const childProcess = spawn(this.pythonPath, args, {
-        cwd: this.analyzerModule,
-        env: { ...process.env },
-      });
+    const childProcess = spawn(this.pythonPath, args, {
+      cwd: this.analyzerModule,
+      env: { ...process.env },
+    });
 
-      // Setup timeout handling
-      const { cleanup, timeoutPromise } = this.setupProcessTimeout(
-        childProcess,
-        this.defaultTimeout,
-        'apply-audit'
-      );
+    // Setup timeout handling
+    const { cleanup, timeoutPromise } = this.setupProcessTimeout(
+      childProcess,
+      this.defaultTimeout,
+      'apply-audit'
+    );
 
+    // Create promise for normal process completion
+    const processPromise = new Promise<void>((resolve, reject) => {
       let stderr = '';
 
       // Send ratings as JSON via stdin
@@ -235,7 +236,6 @@ export class PythonBridge implements IPythonBridge {
       });
 
       childProcess.on('error', (error: Error) => {
-        cleanup();
         reject(
           new Error(
             `Failed to spawn Python process: ${error.message}\n` +
@@ -245,8 +245,6 @@ export class PythonBridge implements IPythonBridge {
       });
 
       childProcess.on('close', (code: number) => {
-        cleanup();
-
         if (code !== 0) {
           reject(
             new Error(
@@ -259,10 +257,14 @@ export class PythonBridge implements IPythonBridge {
 
         resolve();
       });
-
-      // Race between timeout and normal completion
-      timeoutPromise.catch(reject);
     });
+
+    // Race between timeout and normal completion, cleanup in finally
+    try {
+      return await Promise.race([processPromise, timeoutPromise]);
+    } finally {
+      cleanup();
+    }
   }
 
   /**
@@ -345,19 +347,20 @@ export class PythonBridge implements IPythonBridge {
       'apply',
     ];
 
-    return new Promise((resolve, reject) => {
-      const childProcess = spawn(this.pythonPath, args, {
-        cwd: this.analyzerModule,
-        env: { ...process.env },
-      });
+    const childProcess = spawn(this.pythonPath, args, {
+      cwd: this.analyzerModule,
+      env: { ...process.env },
+    });
 
-      // Setup timeout handling
-      const { cleanup, timeoutPromise } = this.setupProcessTimeout(
-        childProcess,
-        this.defaultTimeout,
-        'apply'
-      );
+    // Setup timeout handling
+    const { cleanup, timeoutPromise } = this.setupProcessTimeout(
+      childProcess,
+      this.defaultTimeout,
+      'apply'
+    );
 
+    // Create promise for normal process completion
+    const processPromise = new Promise<void>((resolve, reject) => {
       let stderr = '';
 
       // Send apply data as JSON via stdin
@@ -369,7 +372,6 @@ export class PythonBridge implements IPythonBridge {
       });
 
       childProcess.on('error', (error: Error) => {
-        cleanup();
         reject(
           new Error(
             `Failed to spawn Python process: ${error.message}\n` +
@@ -379,8 +381,6 @@ export class PythonBridge implements IPythonBridge {
       });
 
       childProcess.on('close', (code: number) => {
-        cleanup();
-
         if (code !== 0) {
           reject(
             new Error(
@@ -393,10 +393,14 @@ export class PythonBridge implements IPythonBridge {
 
         resolve();
       });
-
-      // Race between timeout and normal completion
-      timeoutPromise.catch(reject);
     });
+
+    // Race between timeout and normal completion, cleanup in finally
+    try {
+      return await Promise.race([processPromise, timeoutPromise]);
+    } finally {
+      cleanup();
+    }
   }
 
   /**
@@ -469,24 +473,25 @@ export class PythonBridge implements IPythonBridge {
     verbose: boolean = false,
     timeoutMs?: number
   ): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const childProcess = spawn(this.pythonPath, args, {
-        cwd: this.analyzerModule,
-        env: { ...process.env },
-      });
+    const childProcess = spawn(this.pythonPath, args, {
+      cwd: this.analyzerModule,
+      env: { ...process.env },
+    });
 
-      // Extract command name for timeout error messages
-      const commandName = args[2] || 'unknown';
-      // Default to suggestTimeout for suggest command, defaultTimeout otherwise
-      const timeout = timeoutMs ?? (commandName === 'suggest' ? this.suggestTimeout : this.defaultTimeout);
+    // Extract command name for timeout error messages
+    const commandName = args[2] || 'unknown';
+    // Default to suggestTimeout for suggest command, defaultTimeout otherwise
+    const timeout = timeoutMs ?? (commandName === 'suggest' ? this.suggestTimeout : this.defaultTimeout);
 
-      // Setup timeout handling
-      const { cleanup, timeoutPromise } = this.setupProcessTimeout(
-        childProcess,
-        timeout,
-        commandName
-      );
+    // Setup timeout handling
+    const { cleanup, timeoutPromise } = this.setupProcessTimeout(
+      childProcess,
+      timeout,
+      commandName
+    );
 
+    // Create promise for normal process completion
+    const processPromise = new Promise<string>((resolve, reject) => {
       let stdout = '';
       let stderr = '';
 
@@ -505,7 +510,6 @@ export class PythonBridge implements IPythonBridge {
       });
 
       childProcess.on('error', (error: Error) => {
-        cleanup();
         reject(
           new Error(
             `Failed to spawn Python process: ${error.message}\n` +
@@ -515,8 +519,6 @@ export class PythonBridge implements IPythonBridge {
       });
 
       childProcess.on('close', (code: number) => {
-        cleanup();
-
         if (code !== 0) {
           reject(
             new Error(
@@ -530,10 +532,14 @@ export class PythonBridge implements IPythonBridge {
 
         resolve(stdout);
       });
-
-      // Race between timeout and normal completion
-      timeoutPromise.catch(reject);
     });
+
+    // Race between timeout and normal completion, cleanup in finally
+    try {
+      return await Promise.race([processPromise, timeoutPromise]);
+    } finally {
+      cleanup();
+    }
   }
 
   /**
@@ -552,23 +558,24 @@ export class PythonBridge implements IPythonBridge {
     schema?: z.ZodType<T>,
     timeoutMs?: number
   ): Promise<T> {
-    return new Promise((resolve, reject) => {
-      const childProcess = spawn(this.pythonPath, args, {
-        cwd: this.analyzerModule,
-        env: { ...process.env },
-      });
+    const childProcess = spawn(this.pythonPath, args, {
+      cwd: this.analyzerModule,
+      env: { ...process.env },
+    });
 
-      // Extract command name for timeout error messages
-      const commandName = args[2] || 'unknown';
-      const timeout = timeoutMs ?? this.defaultTimeout;
+    // Extract command name for timeout error messages
+    const commandName = args[2] || 'unknown';
+    const timeout = timeoutMs ?? this.defaultTimeout;
 
-      // Setup timeout handling
-      const { cleanup, timeoutPromise } = this.setupProcessTimeout(
-        childProcess,
-        timeout,
-        commandName
-      );
+    // Setup timeout handling
+    const { cleanup, timeoutPromise } = this.setupProcessTimeout(
+      childProcess,
+      timeout,
+      commandName
+    );
 
+    // Create promise for normal process completion
+    const processPromise = new Promise<T>((resolve, reject) => {
       let stdout = '';
       let stderr = '';
 
@@ -587,7 +594,6 @@ export class PythonBridge implements IPythonBridge {
       });
 
       childProcess.on('error', (error: Error) => {
-        cleanup();
         reject(
           new Error(
             `Failed to spawn Python process: ${error.message}\n` +
@@ -597,8 +603,6 @@ export class PythonBridge implements IPythonBridge {
       });
 
       childProcess.on('close', (code: number) => {
-        cleanup();
-
         if (code !== 0) {
           reject(
             new Error(
@@ -642,9 +646,13 @@ export class PythonBridge implements IPythonBridge {
           );
         }
       });
-
-      // Race between timeout and normal completion
-      timeoutPromise.catch(reject);
     });
+
+    // Race between timeout and normal completion, cleanup in finally
+    try {
+      return await Promise.race([processPromise, timeoutPromise]);
+    } finally {
+      cleanup();
+    }
   }
 }
