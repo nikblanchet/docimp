@@ -83,6 +83,65 @@ The `docimp analyze` command returns a complete analysis of the codebase.
       "export_type": "default",
       "module_system": "esm"
     }
+  ],
+  "parse_failures": []
+}
+```
+
+### Example with Parse Failures
+
+```json
+{
+  "coverage_percent": 50.0,
+  "total_items": 2,
+  "documented_items": 1,
+  "by_language": {
+    "python": {
+      "language": "python",
+      "total_items": 2,
+      "documented_items": 1,
+      "coverage_percent": 50.0,
+      "avg_complexity": 7.5,
+      "avg_impact_score": 37.5
+    }
+  },
+  "items": [
+    {
+      "name": "calculate_score",
+      "type": "function",
+      "filepath": "/path/to/scorer.py",
+      "line_number": 45,
+      "end_line": 58,
+      "language": "python",
+      "complexity": 5,
+      "impact_score": 25.0,
+      "has_docs": true,
+      "export_type": "named",
+      "module_system": "esm"
+    },
+    {
+      "name": "process_data",
+      "type": "function",
+      "filepath": "/path/to/processor.py",
+      "line_number": 102,
+      "end_line": 150,
+      "language": "python",
+      "complexity": 10,
+      "impact_score": 50.0,
+      "has_docs": false,
+      "export_type": "named",
+      "module_system": "esm"
+    }
+  ],
+  "parse_failures": [
+    {
+      "filepath": "/path/to/broken_file.py",
+      "error": "invalid syntax (<unknown>, line 5)"
+    },
+    {
+      "filepath": "/path/to/another_broken.ts",
+      "error": "Unexpected token '}'"
+    }
   ]
 }
 ```
@@ -98,6 +157,14 @@ The `docimp analyze` command returns a complete analysis of the codebase.
 | `documented_items` | integer | Number of items with documentation | >= 0 |
 | `by_language` | object | Metrics broken down by language | `Record<string, LanguageMetrics>` |
 | `items` | array | All parsed code items | `Array<CodeItem>` |
+| `parse_failures` | array | Files that failed to parse | `Array<ParseFailure>` (always present, may be empty) |
+
+#### ParseFailure Fields
+
+| Field | Type | Description | Constraints |
+|-------|------|-------------|-------------|
+| `filepath` | string | Absolute path to the file that failed to parse | Non-empty string |
+| `error` | string | First line of the error message from the exception | Non-empty string |
 
 #### LanguageMetrics Fields
 
