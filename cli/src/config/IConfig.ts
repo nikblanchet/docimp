@@ -165,6 +165,14 @@ export interface IPythonBridgeConfig {
    * Default: 300000 (300 seconds / 5 minutes)
    */
   suggestTimeout?: number;
+
+  /**
+   * Time to wait between SIGTERM and SIGKILL when terminating subprocess.
+   * After timeout, subprocess receives SIGTERM for graceful shutdown.
+   * If process doesn't exit within this delay, it receives SIGKILL.
+   * Default: 5000 (5 seconds)
+   */
+  killEscalationDelay?: number;
 }
 
 /**
@@ -208,7 +216,8 @@ export const defaultConfig: IConfig = {
     },
   },
   pythonBridge: {
-    defaultTimeout: 60000,  // 60 seconds
-    suggestTimeout: 300000, // 5 minutes
+    defaultTimeout: 60000,      // 60 seconds
+    suggestTimeout: 300000,     // 5 minutes
+    killEscalationDelay: 5000,  // 5 seconds
   },
 };

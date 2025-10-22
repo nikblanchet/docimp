@@ -103,6 +103,7 @@ export class PythonBridge implements IPythonBridge {
   private readonly analyzerModule: string;
   private readonly defaultTimeout: number;
   private readonly suggestTimeout: number;
+  private readonly killEscalationDelay: number;
 
   /**
    * Create a new Python bridge.
@@ -129,6 +130,7 @@ export class PythonBridge implements IPythonBridge {
     // Load timeout settings from config or use defaults
     this.defaultTimeout = config?.pythonBridge?.defaultTimeout ?? defaultConfig.pythonBridge!.defaultTimeout!;
     this.suggestTimeout = config?.pythonBridge?.suggestTimeout ?? defaultConfig.pythonBridge!.suggestTimeout!;
+    this.killEscalationDelay = config?.pythonBridge?.killEscalationDelay ?? defaultConfig.pythonBridge!.killEscalationDelay!;
 
     // Validate timeout values
     if (this.defaultTimeout <= 0) {
@@ -153,6 +155,18 @@ export class PythonBridge implements IPythonBridge {
       throw new Error(
         `Invalid pythonBridge.suggestTimeout: ${this.suggestTimeout}. ` +
         `Timeout must be a finite number (not Infinity or NaN).`
+      );
+    }
+    if (this.killEscalationDelay <= 0) {
+      throw new Error(
+        `Invalid pythonBridge.killEscalationDelay: ${this.killEscalationDelay}. ` +
+        `Delay must be a positive number (milliseconds).`
+      );
+    }
+    if (!Number.isFinite(this.killEscalationDelay)) {
+      throw new Error(
+        `Invalid pythonBridge.killEscalationDelay: ${this.killEscalationDelay}. ` +
+        `Delay must be a finite number (not Infinity or NaN).`
       );
     }
   }
@@ -432,7 +446,7 @@ export class PythonBridge implements IPythonBridge {
   /**
    * Setup timeout handling for a child process.
    *
-   * Implements graceful shutdown: SIGTERM -> wait 5s -> SIGKILL
+   * Implements graceful shutdown: SIGTERM -> wait -> SIGKILL
    *
    * @param childProcess - The child process to monitor
    * @param timeoutMs - Timeout in milliseconds
@@ -464,12 +478,12 @@ export class PythonBridge implements IPythonBridge {
         // Try graceful shutdown first (SIGTERM)
         childProcess.kill('SIGTERM');
 
-        // If process doesn't exit in 5 seconds, force kill (SIGKILL)
+        // If process doesn't exit within configured delay, force kill (SIGKILL)
         killTimeoutId = setTimeout(() => {
           if (childProcess.exitCode === null) {
             childProcess.kill('SIGKILL');
           }
-        }, 5000);
+        }, this.killEscalationDelay);
         /* eslint-enable no-undef */
 
         reject(
