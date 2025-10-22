@@ -829,4 +829,88 @@ describe('improve command', () => {
       );
     });
   });
+
+  describe('--list-styles flag', () => {
+    it('should display all style guides and exit without requiring API key', async () => {
+      delete process.env.ANTHROPIC_API_KEY;
+
+      await improveCommand('./test', { listStyles: true });
+
+      // Should not attempt to load config or plan
+      expect(mockConfigLoader.load).not.toHaveBeenCalled();
+      expect(mockReadFileSync).not.toHaveBeenCalled();
+      expect(mockPrompts).not.toHaveBeenCalled();
+      // Note: TerminalDisplay is instantiated but session is not created
+    });
+
+    it('should display all style guides without requiring plan file', async () => {
+      await improveCommand('./test', { listStyles: true });
+
+      // Should not load plan file
+      expect(mockReadFileSync).not.toHaveBeenCalled();
+      expect(mockPrompts).not.toHaveBeenCalled();
+    });
+
+    it('should return early after displaying styles', async () => {
+      await improveCommand('./test', { listStyles: true });
+
+      // Should not create interactive session
+      expect(mockSession.run).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('verbose logging', () => {
+    it('should work in non-interactive mode with verbose flag', async () => {
+      await improveCommand('./test', {
+        nonInteractive: true,
+        verbose: true,
+      });
+
+      // Verify session was created with correct config
+      expect(MockInteractiveSession).toHaveBeenCalled();
+      expect(mockSession.run).toHaveBeenCalled();
+    });
+
+    it('should work with CLI flag in verbose mode', async () => {
+      await improveCommand('./test', {
+        nonInteractive: true,
+        javascriptStyle: 'jsdoc-google',
+        verbose: true,
+      });
+
+      // Verify CLI flag was used
+      expect(MockInteractiveSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          styleGuides: { javascript: 'jsdoc-google' },
+        })
+      );
+    });
+
+    it('should work in interactive mode with verbose flag', async () => {
+      mockPrompts
+        .mockResolvedValueOnce({ styleGuide: 'jsdoc-vanilla' })
+        .mockResolvedValueOnce({ tone: 'concise' });
+
+      await improveCommand('./test', { verbose: true });
+
+      // Verify prompts were called and session created
+      expect(mockPrompts).toHaveBeenCalled();
+      expect(MockInteractiveSession).toHaveBeenCalled();
+    });
+
+    it('should accept verbose flag with other options', async () => {
+      await improveCommand('./test', {
+        nonInteractive: true,
+        verbose: true,
+        tone: 'detailed',
+      });
+
+      // Verify all options passed correctly
+      expect(MockInteractiveSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tone: 'detailed',
+        })
+      );
+    });
+  });
 });
