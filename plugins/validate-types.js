@@ -51,6 +51,20 @@ const MAX_CACHE_SIZE = 50;
  * 1. Reusing TypeScript programs across validation calls
  * 2. Limiting total cache size to prevent unbounded growth
  * 3. Using LRU (Least Recently Used) eviction when cache is full
+ *
+ * Thread Safety: NOT thread-safe. Assumes single-threaded Node.js event loop.
+ * Cache operations (Map updates, LRU tracking) are not atomic. Async operations
+ * are assumed not to interleave cache mutations. If adding worker thread support
+ * or parallel validation, add synchronization (locks or queue).
+ *
+ * Example race condition (theoretical in current usage):
+ *   // Two validations start simultaneously when cache.size === 49:
+ *   // Validation A checks: cache.size >= 50? No, proceed
+ *   // Validation B checks: cache.size >= 50? No, proceed
+ *   // Validation A adds entry (size = 50)
+ *   // Validation B adds entry (size = 51) <- exceeds MAX_CACHE_SIZE
+ *
+ * This is acceptable given Node.js's single-threaded event loop model.
  */
 const languageServiceCache = new Map();
 
