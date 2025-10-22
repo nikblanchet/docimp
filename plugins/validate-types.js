@@ -55,11 +55,17 @@ const MAX_CACHE_SIZE = 50;
 const languageServiceCache = new Map();
 
 /**
- * LRU access order tracking.
- * Tracks the order in which cache entries were accessed.
- * Most recently used entries are at the end of the array.
+ * LRU access order tracking using Map's insertion order.
+ *
+ * Maps maintain insertion order, so we can leverage this for O(1) LRU tracking:
+ * - To mark as recently used: delete then re-set (moves to end)
+ * - To get LRU: get first key via iterator (oldest entry)
+ * - No need for O(n) indexOf/splice operations
+ *
+ * Key: filepath
+ * Value: true (only used for tracking, actual data is in languageServiceCache)
  */
-const cacheAccessOrder = [];
+const cacheAccessOrder = new Map();
 
 /**
  * Cache statistics for debugging and monitoring.
@@ -215,12 +221,9 @@ function getCachedLanguageService(filepath, sourceCode) {
       console.error(`[validate-types] Cache HIT: ${filepath} (${cacheStats.hits} total hits)`);
     }
 
-    // Move to end of access order (most recently used)
-    const index = cacheAccessOrder.indexOf(filepath);
-    if (index > -1) {
-      cacheAccessOrder.splice(index, 1);
-    }
-    cacheAccessOrder.push(filepath);
+    // Move to end of access order (most recently used) - O(1) operation
+    cacheAccessOrder.delete(filepath);
+    cacheAccessOrder.set(filepath, true);
     return cached.service;
   }
 
@@ -246,7 +249,8 @@ function getCachedLanguageService(filepath, sourceCode) {
 
   // Evict least recently used entry if cache is full
   if (!cached && languageServiceCache.size >= MAX_CACHE_SIZE) {
-    const lruPath = cacheAccessOrder.shift();
+    // Get the first (oldest) entry from the Map - O(1) operation
+    const lruPath = cacheAccessOrder.keys().next().value;
     if (lruPath) {
       // Dispose the language service to free memory
       const evictedEntry = languageServiceCache.get(lruPath);
@@ -254,6 +258,7 @@ function getCachedLanguageService(filepath, sourceCode) {
         evictedEntry.service.dispose();
       }
       languageServiceCache.delete(lruPath);
+      cacheAccessOrder.delete(lruPath);
       if (process.env.DEBUG_DOCIMP_CACHE) {
         console.error(`[validate-types] Cache EVICT (LRU): ${lruPath} (cache size: ${languageServiceCache.size})`);
       }
@@ -310,14 +315,10 @@ function getCachedLanguageService(filepath, sourceCode) {
     content: sourceCode,
   });
 
-  // Update LRU access order
-  // Remove if already exists (for content updates)
-  const existingIndex = cacheAccessOrder.indexOf(filepath);
-  if (existingIndex > -1) {
-    cacheAccessOrder.splice(existingIndex, 1);
-  }
-  // Add to end (most recently used)
-  cacheAccessOrder.push(filepath);
+  // Update LRU access order - O(1) operation
+  // Delete then re-set to move to end (most recently used)
+  cacheAccessOrder.delete(filepath);
+  cacheAccessOrder.set(filepath, true);
 
   return service;
 }
@@ -511,7 +512,7 @@ async function beforeAccept(docstring, item, config) {
  */
 export function clearCache() {
   languageServiceCache.clear();
-  cacheAccessOrder.length = 0;
+  cacheAccessOrder.clear();
   cacheStats = { hits: 0, misses: 0, invalidations: 0 };
 }
 
@@ -548,10 +549,7 @@ export function clearCacheForFile(filepath) {
   const hadEntry = languageServiceCache.has(filepath);
   if (hadEntry) {
     languageServiceCache.delete(filepath);
-    const index = cacheAccessOrder.indexOf(filepath);
-    if (index > -1) {
-      cacheAccessOrder.splice(index, 1);
-    }
+    cacheAccessOrder.delete(filepath);
   }
   return hadEntry;
 }
