@@ -63,6 +63,5 @@ CLAUDE_CONTEXT.md
 # - Developer security training
 # See: https://docs.github.com/en/code-security/secret-scanning
 
-# Temporary implementation and test files (for issue tracking)
+# Temporary implementation notes (for issue tracking)
 IMPLEMENTATION_SUMMARY.md
-test-cache-performance.js
