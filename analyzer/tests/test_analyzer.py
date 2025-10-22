@@ -146,3 +146,78 @@ class TestDocumentationAnalyzer:
             for item in result.items:
                 assert str(real_dir) in item.filepath, \
                     "Filepath should be resolved from symlink"
+
+    def test_parse_failure_tracking(self, analyzer):
+        """Test that syntax errors are captured in parse_failures."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+
+            # Create a valid file so analysis doesn't fail entirely
+            valid_file = temp_path / 'valid.py'
+            valid_file.write_text('def bar():\n    pass')
+
+            # Create a file with syntax error
+            broken_file = temp_path / 'broken.py'
+            broken_file.write_text('def foo(\n    # Missing closing paren')
+
+            # Analyze should not crash
+            result = analyzer.analyze(str(temp_path))
+
+            # Should have captured the parse failure
+            assert len(result.parse_failures) == 1, "Should capture one parse failure"
+            assert str(broken_file) in result.parse_failures[0].filepath
+            assert len(result.parse_failures[0].error) > 0, "Error message should not be empty"
+
+    def test_analysis_continues_after_failures(self, analyzer):
+        """Test that analysis continues after encountering parse failures."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+
+            # Create a valid file
+            valid_file = temp_path / 'valid.py'
+            valid_file.write_text('def good_function():\n    """A good function."""\n    pass')
+
+            # Create a file with syntax error
+            broken_file = temp_path / 'broken.py'
+            broken_file.write_text('def bad(\n    # Syntax error')
+
+            # Analyze should process both files
+            result = analyzer.analyze(str(temp_path))
+
+            # Should have one successful parse
+            assert len(result.items) >= 1, "Should parse valid file"
+            assert any('good_function' in item.name for item in result.items)
+
+            # Should have one failure
+            assert len(result.parse_failures) == 1, "Should capture parse failure"
+            assert str(broken_file) in result.parse_failures[0].filepath
+
+    def test_total_parse_failure_raises_error(self, analyzer):
+        """Test that ValueError is raised when all files fail to parse."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+
+            # Create only broken files
+            broken1 = temp_path / 'broken1.py'
+            broken1.write_text('def bad1(\n    # Syntax error')
+
+            broken2 = temp_path / 'broken2.py'
+            broken2.write_text('class Bad2\n    # Missing colon')
+
+            # Should raise ValueError when all files fail
+            with pytest.raises(ValueError, match="Failed to parse all"):
+                analyzer.analyze(str(temp_path))
+
+    def test_parse_failures_empty_by_default(self, analyzer, examples_dir):
+        """Test that parse_failures is empty when all files parse successfully."""
+        result = analyzer.analyze(examples_dir)
+
+        # All example files should parse successfully
+        assert isinstance(result.parse_failures, list), "parse_failures should be a list"
+        assert len(result.parse_failures) == 0, "Should have no parse failures for valid files"
