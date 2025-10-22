@@ -306,6 +306,8 @@ function getCachedLanguageService(filepath, sourceCode) {
  * @returns {{valid: boolean, errors: string[]}} Validation result
  */
 function validateWithCompiler(filepath, code) {
+  const perfStart = process.env.DEBUG_DOCIMP_PERF ? performance.now() : null;
+
   // If no code provided, try to read the file
   const sourceCode = code || (function() {
     try {
@@ -336,6 +338,11 @@ function validateWithCompiler(filepath, code) {
       : '';
     return `${message}${location}`;
   });
+
+  if (perfStart !== null) {
+    const duration = (performance.now() - perfStart).toFixed(2);
+    console.error(`[validate-types] Validation took ${duration}ms for ${filepath}`);
+  }
 
   return {
     valid: errors.length === 0,
