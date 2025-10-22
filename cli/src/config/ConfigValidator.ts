@@ -143,6 +143,13 @@ export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
       if (typeof userConfig.claude.retryDelay !== 'number' || userConfig.claude.retryDelay <= 0) {
         throw new Error('claude.retryDelay must be a positive number');
       }
+      if (userConfig.claude.retryDelay > 60) {
+        console.warn(
+          `Warning: claude.retryDelay (${userConfig.claude.retryDelay}s) is very high. ` +
+          `With exponential backoff, this may cause very long waits. ` +
+          `Recommended range: 0.5-60 seconds.`
+        );
+      }
     }
   }
 

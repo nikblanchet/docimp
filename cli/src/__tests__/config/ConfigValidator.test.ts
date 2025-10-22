@@ -366,6 +366,31 @@ describe('ConfigValidator', () => {
         validateAndMerge({ claude: { retryDelay: 0 } } as any);
       }).toThrow('claude.retryDelay must be a positive number');
     });
+
+    it('should warn for very high retryDelay values', () => {
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      const userConfig: Partial<IConfig> = {
+        claude: {
+          retryDelay: 120, // 2 minutes
+        },
+      };
+
+      const config = validateAndMerge(userConfig);
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('claude.retryDelay (120s) is very high')
+      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('With exponential backoff, this may cause very long waits')
+      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Recommended range: 0.5-60 seconds')
+      );
+      expect(config.claude.retryDelay).toBe(120); // Should still accept the value
+
+      consoleWarnSpy.mockRestore();
+    });
   });
 
   describe('complex configurations', () => {
