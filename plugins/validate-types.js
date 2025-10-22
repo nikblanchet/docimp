@@ -62,6 +62,16 @@ const languageServiceCache = new Map();
 const cacheAccessOrder = [];
 
 /**
+ * Cache statistics for debugging and monitoring.
+ * Tracks hits, misses, and invalidations to measure cache effectiveness.
+ */
+let cacheStats = {
+  hits: 0,
+  misses: 0,
+  invalidations: 0,
+};
+
+/**
  * Shared document registry for efficient SourceFile reuse.
  * The registry manages SourceFile objects and allows multiple
  * LanguageService instances to share parsed files.
@@ -164,6 +174,12 @@ function getCachedLanguageService(filepath, sourceCode) {
 
   // Return cached service if content hasn't changed
   if (cached && cached.content === sourceCode) {
+    // Cache HIT
+    cacheStats.hits++;
+    if (process.env.DEBUG_DOCIMP_CACHE) {
+      console.error(`[validate-types] Cache HIT: ${filepath} (${cacheStats.hits} total hits)`);
+    }
+
     // Move to end of access order (most recently used)
     const index = cacheAccessOrder.indexOf(filepath);
     if (index > -1) {
@@ -171,6 +187,21 @@ function getCachedLanguageService(filepath, sourceCode) {
     }
     cacheAccessOrder.push(filepath);
     return cached.service;
+  }
+
+  // Cache MISS or INVALIDATION
+  if (cached) {
+    // Content changed - invalidation
+    cacheStats.invalidations++;
+    if (process.env.DEBUG_DOCIMP_CACHE) {
+      console.error(`[validate-types] Cache INVALIDATE: ${filepath} (${cacheStats.invalidations} total invalidations)`);
+    }
+  } else {
+    // New file - miss
+    cacheStats.misses++;
+    if (process.env.DEBUG_DOCIMP_CACHE) {
+      console.error(`[validate-types] Cache MISS: ${filepath} (${cacheStats.misses} total misses)`);
+    }
   }
 
   // Create or update the language service
@@ -181,6 +212,9 @@ function getCachedLanguageService(filepath, sourceCode) {
     const lruPath = cacheAccessOrder.shift();
     if (lruPath) {
       languageServiceCache.delete(lruPath);
+      if (process.env.DEBUG_DOCIMP_CACHE) {
+        console.error(`[validate-types] Cache EVICT (LRU): ${lruPath} (cache size: ${languageServiceCache.size})`);
+      }
     }
   }
 
@@ -429,6 +463,25 @@ async function beforeAccept(docstring, item, config) {
 export function clearCache() {
   languageServiceCache.clear();
   cacheAccessOrder.length = 0;
+  cacheStats = { hits: 0, misses: 0, invalidations: 0 };
+}
+
+/**
+ * Get cache statistics.
+ *
+ * Returns metrics about cache performance including hit/miss rates
+ * and current cache size. Useful for debugging and monitoring.
+ *
+ * Usage: DEBUG_DOCIMP_CACHE=1 docimp improve ./src
+ *
+ * @returns {{hits: number, misses: number, invalidations: number, size: number, maxSize: number}} Cache statistics
+ */
+export function getCacheStats() {
+  return {
+    ...cacheStats,
+    size: languageServiceCache.size,
+    maxSize: MAX_CACHE_SIZE,
+  };
 }
 
 // Export the plugin
