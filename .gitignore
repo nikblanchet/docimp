@@ -62,3 +62,6 @@ CLAUDE_CONTEXT.md
 # - Pre-commit hooks (e.g., detect-secrets, gitleaks)
 # - Developer security training
 # See: https://docs.github.com/en/code-security/secret-scanning
+
+# Temporary implementation notes (for issue tracking)
+IMPLEMENTATION_SUMMARY.md

@@ -6,6 +6,27 @@ from .code_item import CodeItem
 
 
 @dataclass
+class ParseFailure:
+    """Represents a file that failed to parse.
+
+    Attributes:
+        filepath: Absolute path to the file that failed to parse.
+        error: First line of the error message from the exception.
+    """
+
+    filepath: str
+    error: str
+
+    def to_dict(self) -> dict:
+        """Serialize ParseFailure to a JSON-compatible dictionary.
+
+        Returns:
+            Dictionary representation of the ParseFailure.
+        """
+        return asdict(self)
+
+
+@dataclass
 class LanguageMetrics:
     """Documentation coverage metrics for a specific programming language.
 
@@ -47,6 +68,7 @@ class AnalysisResult:
         total_items: Total number of code elements analyzed.
         documented_items: Number of elements with documentation.
         by_language: Dictionary mapping language names to their metrics.
+        parse_failures: List of files that failed to parse.
     """
 
     items: List[CodeItem]
@@ -54,6 +76,7 @@ class AnalysisResult:
     total_items: int
     documented_items: int
     by_language: Dict[str, LanguageMetrics] = field(default_factory=dict)
+    parse_failures: List[ParseFailure] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         """Serialize AnalysisResult to a JSON-compatible dictionary.
@@ -69,6 +92,8 @@ class AnalysisResult:
             lang: metrics.to_dict() if hasattr(metrics, 'to_dict') else metrics
             for lang, metrics in self.by_language.items()
         }
+        result['parse_failures'] = [failure.to_dict() if hasattr(failure, 'to_dict') else failure
+                                   for failure in self.parse_failures]
         return result
 
     def get_undocumented_items(self) -> List[CodeItem]:

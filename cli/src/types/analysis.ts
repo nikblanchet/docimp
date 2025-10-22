@@ -55,6 +55,17 @@ export interface CodeItem {
 }
 
 /**
+ * Represents a file that failed to parse.
+ */
+export interface ParseFailure {
+  /** Absolute path to the file that failed to parse */
+  filepath: string;
+
+  /** First line of the error message from the exception */
+  error: string;
+}
+
+/**
  * Language-specific metrics.
  */
 export interface LanguageMetrics {
@@ -95,6 +106,9 @@ export interface AnalysisResult {
 
   /** All parsed code items */
   items: CodeItem[];
+
+  /** Files that failed to parse */
+  parse_failures: ParseFailure[];
 }
 
 /**

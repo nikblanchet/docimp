@@ -9,7 +9,7 @@ import chalk from 'chalk';
 import Table from 'cli-table3';
 import ora, { Ora } from 'ora';
 import type { IDisplay } from './IDisplay.js';
-import type { AnalysisResult, CodeItem, LanguageMetrics, AuditSummary } from '../types/analysis.js';
+import type { AnalysisResult, CodeItem, LanguageMetrics, AuditSummary, ParseFailure } from '../types/analysis.js';
 
 /**
  * Terminal display implementation with rich formatting.
@@ -61,6 +61,11 @@ export class TerminalDisplay implements IDisplay {
     const undocumented = result.items.filter((item) => !item.has_docs);
     if (undocumented.length > 0) {
       this.showTopUndocumented(undocumented);
+    }
+
+    // Parse failures (if any)
+    if (result.parse_failures && result.parse_failures.length > 0) {
+      this.showParseFailures(result.parse_failures);
     }
 
     console.log(chalk.bold.blue('═'.repeat(70)));
@@ -152,6 +157,20 @@ export class TerminalDisplay implements IDisplay {
 
     if (undocumented.length > 10) {
       console.log(chalk.gray(`  ... and ${undocumented.length - 10} more undocumented items`));
+    }
+    console.log('');
+  }
+
+  /**
+   * Display parse failures with file paths and error messages.
+   */
+  private showParseFailures(failures: ParseFailure[]): void {
+    console.log(chalk.yellow('⚠ Parse Failures: ') + chalk.bold(`${failures.length} ${failures.length === 1 ? 'file' : 'files'}`));
+    console.log('');
+
+    for (const failure of failures) {
+      const relativePath = this.getRelativePath(failure.filepath);
+      console.log(`  ${chalk.red('•')} ${chalk.gray(relativePath)}: ${failure.error}`);
     }
     console.log('');
   }

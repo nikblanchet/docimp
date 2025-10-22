@@ -33,6 +33,15 @@ export const CodeItemSchema = z.object({
 }).passthrough();
 
 /**
+ * Schema for ParseFailure.
+ * Represents a file that failed to parse.
+ */
+export const ParseFailureSchema = z.object({
+  filepath: z.string(),
+  error: z.string(),
+}).passthrough();
+
+/**
  * Schema for LanguageMetrics.
  * Language-specific metrics for documentation coverage.
  */
@@ -55,6 +64,7 @@ export const AnalysisResultSchema = z.object({
   documented_items: z.number().int().nonnegative(),
   by_language: z.record(z.string(), LanguageMetricsSchema),
   items: z.array(CodeItemSchema),
+  parse_failures: z.array(ParseFailureSchema),
 }).passthrough();
 
 /**
