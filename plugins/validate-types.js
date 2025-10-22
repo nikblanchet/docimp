@@ -511,6 +511,12 @@ async function beforeAccept(docstring, item, config) {
  * @returns {void}
  */
 export function clearCache() {
+  // Dispose all language services before clearing to prevent memory leaks
+  for (const entry of languageServiceCache.values()) {
+    if (entry && entry.service) {
+      entry.service.dispose();
+    }
+  }
   languageServiceCache.clear();
   cacheAccessOrder.clear();
   cacheStats = { hits: 0, misses: 0, invalidations: 0 };
