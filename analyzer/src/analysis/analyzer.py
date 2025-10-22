@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 from ..models.code_item import CodeItem
-from ..models.analysis_result import AnalysisResult
+from ..models.analysis_result import AnalysisResult, ParseFailure
 from ..parsers.base_parser import BaseParser
 from ..scoring.impact_scorer import ImpactScorer
 from .coverage_calculator import CoverageCalculator
@@ -110,14 +110,24 @@ class DocumentationAnalyzer:
 
         # Parse all files
         all_items: List[CodeItem] = []
+        parse_failures: List[ParseFailure] = []
         for i, filepath in enumerate(files, 1):
             if verbose and len(files) > 10:
                 # Show progress for large codebases
                 if i % 10 == 0 or i == len(files):
                     print(f"Progress: {i}/{len(files)} files parsed", file=sys.stderr)
 
-            items = self._parse_file(filepath)
+            items, failure = self._parse_file(filepath)
             all_items.extend(items)
+            if failure:
+                parse_failures.append(failure)
+
+        # Check for total parse failure
+        if len(all_items) == 0 and len(parse_failures) > 0:
+            raise ValueError(
+                f"Failed to parse all {len(parse_failures)} files. "
+                f"No code items could be analyzed. Check file syntax and parser compatibility."
+            )
 
         # Calculate impact scores for all items
         for item in all_items:
@@ -133,7 +143,8 @@ class DocumentationAnalyzer:
             coverage_percent=coverage,
             total_items=len(all_items),
             documented_items=documented_count,
-            by_language=by_language
+            by_language=by_language,
+            parse_failures=parse_failures
         )
 
     def _discover_files(self, path: Path) -> List[Path]:
@@ -176,32 +187,34 @@ class DocumentationAnalyzer:
         """
         return filepath.suffix in self.EXTENSION_MAP
 
-    def _parse_file(self, filepath: Path) -> List[CodeItem]:
+    def _parse_file(self, filepath: Path) -> tuple[List[CodeItem], Optional[ParseFailure]]:
         """Parse a single file using the appropriate language parser.
 
         Args:
             filepath: Path object to parse.
 
         Returns:
-            List of CodeItem objects extracted from the file.
-            Returns empty list if parsing fails or no parser available.
+            Tuple of (items, failure) where:
+            - items: List of CodeItem objects extracted from the file
+            - failure: ParseFailure object if parsing failed, None otherwise
         """
         # Determine language from extension
         extension = filepath.suffix
         language = self.EXTENSION_MAP.get(extension)
 
         if not language:
-            return []
+            return [], None
 
         # Get appropriate parser
         parser = self.parsers.get(language)
         if not parser:
             # No parser available for this language
-            return []
+            return [], None
 
         try:
-            return parser.parse_file(str(filepath))
+            return parser.parse_file(str(filepath)), None
         except Exception as e:
-            # Handle parsing errors gracefully
-            print(f"Warning: Failed to parse {filepath}: {e}", file=sys.stderr)
-            return []
+            # Handle parsing errors gracefully - capture first line of error
+            error_msg = str(e).split('\n')[0]
+            print(f"Warning: Failed to parse {filepath}: {error_msg}", file=sys.stderr)
+            return [], ParseFailure(filepath=str(filepath), error=error_msg)
