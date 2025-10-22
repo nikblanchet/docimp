@@ -225,7 +225,7 @@ class TestDocumentationAnalyzer:
     def test_empty_error_message_fallback(self, analyzer):
         """Test that empty error messages get fallback text."""
         import tempfile
-        from unittest.mock import Mock, patch
+        from unittest.mock import patch
 
         # Create a custom exception with empty string representation
         # Inherit from SyntaxError so it's caught as an expected exception
