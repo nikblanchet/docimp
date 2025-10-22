@@ -221,3 +221,42 @@ class TestDocumentationAnalyzer:
         # All example files should parse successfully
         assert isinstance(result.parse_failures, list), "parse_failures should be a list"
         assert len(result.parse_failures) == 0, "Should have no parse failures for valid files"
+
+    def test_empty_error_message_fallback(self, analyzer):
+        """Test that empty error messages get fallback text."""
+        import tempfile
+        from unittest.mock import Mock, patch
+
+        # Create a custom exception with empty string representation
+        class EmptyException(Exception):
+            def __str__(self):
+                return ""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+
+            # Create a valid file so analysis doesn't fail entirely
+            valid_file = temp_path / 'valid.py'
+            valid_file.write_text('def bar():\n    pass')
+
+            # Create a file that will trigger the empty error
+            bad_file = temp_path / 'bad.py'
+            bad_file.write_text('def foo():\n    pass')
+
+            # Create a mock that raises EmptyException only for bad.py
+            original_parse = analyzer.parsers['python'].parse_file
+            def mock_parse(filepath):
+                if 'bad.py' in filepath:
+                    raise EmptyException()
+                return original_parse(filepath)
+
+            # Mock the parser to raise exception with empty string for bad.py only
+            with patch.object(analyzer.parsers['python'], 'parse_file', side_effect=mock_parse):
+                result = analyzer.analyze(str(temp_path))
+
+                # Should have captured the parse failure with fallback message
+                assert len(result.parse_failures) == 1, "Should capture one parse failure"
+                assert result.parse_failures[0].error == "Unknown parse error", \
+                    "Should use fallback message for empty error"
+                assert 'bad.py' in result.parse_failures[0].filepath, \
+                    "Should capture the bad.py file"

@@ -215,6 +215,6 @@ class DocumentationAnalyzer:
             return parser.parse_file(str(filepath)), None
         except Exception as e:
             # Handle parsing errors gracefully - capture first line of error
-            error_msg = str(e).split('\n')[0]
+            error_msg = str(e).split('\n')[0] or "Unknown parse error"
             print(f"Warning: Failed to parse {filepath}: {error_msg}", file=sys.stderr)
             return [], ParseFailure(filepath=str(filepath), error=error_msg)
