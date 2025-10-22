@@ -136,19 +136,23 @@ function extractJSDocParamNames(docstring) {
 /**
  * Extract function signature from source code.
  *
- * @param {string} code - Source code containing the function
+ * This function reuses the SourceFile from a language service instead of
+ * creating an ephemeral one. This avoids duplicate parsing and reduces
+ * memory pressure.
+ *
+ * @param {import('typescript').LanguageService} service - TypeScript language service
+ * @param {string} filepath - Path to the file
  * @param {string} functionName - Name of the function to find
  * @returns {{params: string[], isAsync: boolean} | null} Function info or null
  */
-function extractFunctionSignature(code, functionName) {
-  // Create a TypeScript source file for parsing
-  const sourceFile = ts.createSourceFile(
-    'temp.js',
-    code,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.JS
-  );
+function extractFunctionSignature(service, filepath, functionName) {
+  // Get the SourceFile from the language service's program
+  const program = service.getProgram();
+  const sourceFile = program?.getSourceFile(filepath);
+
+  if (!sourceFile) {
+    return null;
+  }
 
   let functionInfo = null;
 
@@ -463,10 +467,13 @@ async function beforeAccept(docstring, item, config) {
   // Extract parameter names from JSDoc
   const jsdocParams = extractJSDocParamNames(docstring);
 
-  // Extract actual function signature
-  const functionInfo = item.code
-    ? extractFunctionSignature(item.code, item.name)
-    : null;
+  // Get language service for signature extraction and validation
+  // This will be cached and reused by validateWithCompiler
+  let functionInfo = null;
+  if (item.code && item.filepath) {
+    const service = getCachedLanguageService(item.filepath, item.code);
+    functionInfo = extractFunctionSignature(service, item.filepath, item.name);
+  }
 
   // Validate parameter names match
   if (functionInfo && item.parameters) {
