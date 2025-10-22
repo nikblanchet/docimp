@@ -8,6 +8,7 @@
 import { PythonBridge } from '../python-bridge/PythonBridge.js';
 import { TerminalDisplay } from '../display/TerminalDisplay.js';
 import { StateManager } from '../utils/StateManager.js';
+import { ConfigLoader } from '../config/ConfigLoader.js';
 import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
 import type { IDisplay } from '../display/IDisplay.js';
 
@@ -30,9 +31,15 @@ export async function planCore(
   bridge?: IPythonBridge,
   display?: IDisplay
 ): Promise<void> {
-  // Create dependencies if not injected (dependency injection pattern)
-  const pythonBridge = bridge ?? new PythonBridge();
+  // Create display dependency (needed before loading config)
   const terminalDisplay = display ?? new TerminalDisplay();
+
+  // Load configuration for timeout settings
+  const configLoader = new ConfigLoader();
+  const config = await configLoader.load();
+
+  // Create Python bridge with config for timeout settings (after config loaded)
+  const pythonBridge = bridge ?? new PythonBridge(undefined, undefined, config);
 
   // Use StateManager defaults if not provided
   const auditFile = options.auditFile ?? StateManager.getAuditFile();

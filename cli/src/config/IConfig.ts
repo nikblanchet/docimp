@@ -66,6 +66,11 @@ export interface IConfig {
    * Audit command configuration.
    */
   audit?: IAuditConfig;
+
+  /**
+   * Python bridge configuration.
+   */
+  pythonBridge?: IPythonBridgeConfig;
 }
 
 /**
@@ -144,6 +149,33 @@ export interface IAuditConfig {
 }
 
 /**
+ * Python bridge configuration.
+ */
+export interface IPythonBridgeConfig {
+  /**
+   * Default timeout for Python subprocess operations in milliseconds.
+   * Used for analyze, audit, plan, apply, and applyAudit commands.
+   * Default: 60000 (60 seconds)
+   */
+  defaultTimeout?: number;
+
+  /**
+   * Timeout for suggest command (Claude API calls) in milliseconds.
+   * Claude API calls may take longer, so this has a higher default.
+   * Default: 300000 (300 seconds / 5 minutes)
+   */
+  suggestTimeout?: number;
+
+  /**
+   * Time to wait between SIGTERM and SIGKILL when terminating subprocess.
+   * After timeout, subprocess receives SIGTERM for graceful shutdown.
+   * If process doesn't exit within this delay, it receives SIGKILL.
+   * Default: 5000 (5 seconds)
+   */
+  killEscalationDelay?: number;
+}
+
+/**
  * Default configuration values.
  */
 export const defaultConfig: IConfig = {
@@ -182,5 +214,10 @@ export const defaultConfig: IConfig = {
       mode: 'truncated',
       maxLines: 20,
     },
+  },
+  pythonBridge: {
+    defaultTimeout: 60000,      // 60 seconds
+    suggestTimeout: 300000,     // 5 minutes
+    killEscalationDelay: 5000,  // 5 seconds
   },
 };

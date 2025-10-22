@@ -33,8 +33,7 @@ export async function analyzeCore(
   bridge?: IPythonBridge,
   display?: IDisplay
 ): Promise<void> {
-  // Create dependencies if not injected (dependency injection pattern)
-  const pythonBridge = bridge ?? new PythonBridge();
+  // Create display dependency (needed before loading config)
   const terminalDisplay = display ?? new TerminalDisplay();
 
   // Ensure state directory exists
@@ -55,6 +54,9 @@ export async function analyzeCore(
   // Load configuration
   const configLoader = new ConfigLoader();
   const config = await configLoader.load(options.config);
+
+  // Create Python bridge with config for timeout settings (after config loaded)
+  const pythonBridge = bridge ?? new PythonBridge(undefined, undefined, config);
 
   if (options.verbose) {
     terminalDisplay.showConfig({

@@ -88,8 +88,7 @@ export async function auditCore(
   display?: IDisplay,
   config?: IConfig
 ): Promise<void> {
-  // Create dependencies if not injected (dependency injection pattern)
-  const pythonBridge = bridge ?? new PythonBridge();
+  // Create display dependency (needed before loading config)
   const terminalDisplay = display ?? new TerminalDisplay();
 
   // Load config if not injected
@@ -98,6 +97,9 @@ export async function auditCore(
     const configLoader = new ConfigLoader();
     loadedConfig = await configLoader.load();
   }
+
+  // Create Python bridge with config for timeout settings (after config loaded)
+  const pythonBridge = bridge ?? new PythonBridge(undefined, undefined, loadedConfig);
 
   // Extract audit.showCode settings with defaults
   const showCodeMode = loadedConfig.audit?.showCode?.mode ?? 'truncated';
