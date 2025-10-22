@@ -5,27 +5,22 @@
 import { TerminalDisplay } from '../display/TerminalDisplay';
 import type { AuditSummary } from '../types/analysis';
 
-// Mock ESM modules
-jest.mock('chalk', () => ({
-  default: {
-    bold: (str: string) => str,
-    dim: (str: string) => str,
-    green: (str: string) => str,
-    yellow: (str: string) => str,
-    red: (str: string) => str,
-    blue: (str: string) => str,
-    cyan: (str: string) => str,
-    gray: (str: string) => str,
-  },
-  bold: (str: string) => str,
-  dim: (str: string) => str,
-  green: (str: string) => str,
-  yellow: (str: string) => str,
-  red: (str: string) => str,
-  blue: (str: string) => str,
-  cyan: (str: string) => str,
-  gray: (str: string) => str,
-}));
+// Mock ESM modules - create chainable chalk mock inline
+jest.mock('chalk', () => {
+  const mock: any = (str: string) => str;
+  mock.bold = mock;
+  mock.dim = mock;
+  mock.green = mock;
+  mock.yellow = mock;
+  mock.red = mock;
+  mock.blue = mock;
+  mock.cyan = mock;
+  mock.gray = mock;
+
+  return {
+    default: mock,
+  };
+});
 jest.mock('ora', () => ({
   default: () => ({
     start: () => ({ stop: () => {}, succeed: () => {}, fail: () => {} }),
@@ -560,5 +555,150 @@ describe('TerminalDisplay.showSignature', () => {
     // Verify empty line exists
     expect(loggedLines[1]).toBe('');
     expect(loggedLines[2]).toContain('Full code:');
+  });
+});
+
+describe('TerminalDisplay.showAnalysisResult with parse failures', () => {
+  let display: TerminalDisplay;
+  let consoleLogSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    display = new TerminalDisplay();
+    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+  });
+
+  afterEach(() => {
+    consoleLogSpy.mockRestore();
+  });
+
+  it('displays parse failures when present', () => {
+    const result = {
+      coverage_percent: 50.0,
+      total_items: 2,
+      documented_items: 1,
+      by_language: {},
+      items: [],
+      parse_failures: [
+        {
+          filepath: '/path/to/broken.py',
+          error: 'invalid syntax (<unknown>, line 5)',
+        },
+        {
+          filepath: '/path/to/another_broken.ts',
+          error: 'Unexpected token \'}\'',
+        },
+      ],
+    };
+
+    display.showAnalysisResult(result, 'summary');
+
+    const loggedLines = consoleLogSpy.mock.calls.map((call) => call[0]);
+
+    // Verify parse failures section is displayed
+    expect(loggedLines.some((line) => line.includes('⚠ Parse Failures:'))).toBe(true);
+    expect(loggedLines.some((line) => line.includes('2 files'))).toBe(true);
+    expect(loggedLines.some((line) => line.includes('broken.py'))).toBe(true);
+    expect(loggedLines.some((line) => line.includes('invalid syntax'))).toBe(true);
+    expect(loggedLines.some((line) => line.includes('another_broken.ts'))).toBe(true);
+    expect(loggedLines.some((line) => line.includes('Unexpected token'))).toBe(true);
+  });
+
+  it('does not display parse failures section when empty', () => {
+    const result = {
+      coverage_percent: 50.0,
+      total_items: 2,
+      documented_items: 1,
+      by_language: {},
+      items: [],
+      parse_failures: [],
+    };
+
+    display.showAnalysisResult(result, 'summary');
+
+    const loggedLines = consoleLogSpy.mock.calls.map((call) => call[0]);
+
+    // Verify parse failures section is NOT displayed
+    expect(loggedLines.some((line) => line.includes('Parse Failures'))).toBe(false);
+  });
+
+  it('uses singular "file" when only one failure', () => {
+    const result = {
+      coverage_percent: 50.0,
+      total_items: 2,
+      documented_items: 1,
+      by_language: {},
+      items: [],
+      parse_failures: [
+        {
+          filepath: '/path/to/broken.py',
+          error: 'invalid syntax',
+        },
+      ],
+    };
+
+    display.showAnalysisResult(result, 'summary');
+
+    const loggedLines = consoleLogSpy.mock.calls.map((call) => call[0]);
+
+    // Verify singular "file" is used
+    expect(loggedLines.some((line) => line.includes('1 file'))).toBe(true);
+    expect(loggedLines.some((line) => line.includes('1 files'))).toBe(false);
+  });
+
+  it('displays relative paths in parse failures', () => {
+    // Mock process.cwd to make paths relative
+    const originalCwd = process.cwd;
+    process.cwd = jest.fn(() => '/path/to');
+
+    const result = {
+      coverage_percent: 50.0,
+      total_items: 2,
+      documented_items: 1,
+      by_language: {},
+      items: [],
+      parse_failures: [
+        {
+          filepath: '/path/to/project/broken.py',
+          error: 'syntax error',
+        },
+      ],
+    };
+
+    display.showAnalysisResult(result, 'summary');
+
+    const loggedLines = consoleLogSpy.mock.calls.map((call) => call[0]);
+
+    // Verify relative path is shown
+    expect(loggedLines.some((line) => line.includes('project/broken.py'))).toBe(true);
+
+    // Restore original cwd
+    process.cwd = originalCwd;
+  });
+
+  it('includes parse failures in JSON format', () => {
+    const result = {
+      coverage_percent: 50.0,
+      total_items: 2,
+      documented_items: 1,
+      by_language: {},
+      items: [],
+      parse_failures: [
+        {
+          filepath: '/path/to/broken.py',
+          error: 'invalid syntax',
+        },
+      ],
+    };
+
+    display.showAnalysisResult(result, 'json');
+
+    const loggedOutput = consoleLogSpy.mock.calls.map((call) => call[0]).join('\n');
+    const jsonResult = JSON.parse(loggedOutput);
+
+    // Verify parse_failures is included in JSON
+    expect(jsonResult.parse_failures).toBeDefined();
+    expect(jsonResult.parse_failures.length).toBe(1);
+    expect(jsonResult.parse_failures[0].filepath).toBe('/path/to/broken.py');
+    expect(jsonResult.parse_failures[0].error).toBe('invalid syntax');
   });
 });
