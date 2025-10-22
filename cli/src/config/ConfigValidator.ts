@@ -120,6 +120,12 @@ export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
       if (typeof userConfig.claude.timeout !== 'number' || userConfig.claude.timeout <= 0) {
         throw new Error('claude.timeout must be a positive number');
       }
+      if (!Number.isFinite(userConfig.claude.timeout)) {
+        throw new Error(
+          `claude.timeout must be a finite number (not Infinity or NaN). ` +
+          `Got: ${userConfig.claude.timeout}`
+        );
+      }
       if (userConfig.claude.timeout > 600) {
         console.warn(
           `Warning: claude.timeout (${userConfig.claude.timeout}s) is very high. ` +
@@ -132,6 +138,12 @@ export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
       if (typeof userConfig.claude.maxRetries !== 'number') {
         throw new Error('claude.maxRetries must be a number');
       }
+      if (!Number.isFinite(userConfig.claude.maxRetries)) {
+        throw new Error(
+          `claude.maxRetries must be a finite number (not Infinity or NaN). ` +
+          `Got: ${userConfig.claude.maxRetries}`
+        );
+      }
       if (!Number.isInteger(userConfig.claude.maxRetries)) {
         throw new Error('claude.maxRetries must be an integer (not a decimal)');
       }
@@ -142,6 +154,12 @@ export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
     if (userConfig.claude.retryDelay !== undefined) {
       if (typeof userConfig.claude.retryDelay !== 'number' || userConfig.claude.retryDelay <= 0) {
         throw new Error('claude.retryDelay must be a positive number');
+      }
+      if (!Number.isFinite(userConfig.claude.retryDelay)) {
+        throw new Error(
+          `claude.retryDelay must be a finite number (not Infinity or NaN). ` +
+          `Got: ${userConfig.claude.retryDelay}`
+        );
       }
       if (userConfig.claude.retryDelay > 60) {
         console.warn(
