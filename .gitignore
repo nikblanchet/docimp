@@ -61,5 +61,8 @@ CLAUDE_CONTEXT.md
 # - GitHub's secret scanning (enabled by default on public repos)
 # - Pre-commit hooks (e.g., detect-secrets, gitleaks)
 # - Developer security training
-# See: https://docs.github.com/en/code-security/secret-scanningIMPLEMENTATION_SUMMARY.md
+# See: https://docs.github.com/en/code-security/secret-scanning
+
+# Temporary implementation and test files (for issue tracking)
+IMPLEMENTATION_SUMMARY.md
 test-cache-performance.js
