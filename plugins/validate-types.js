@@ -490,19 +490,53 @@ export function clearCache() {
 /**
  * Get cache statistics.
  *
- * Returns metrics about cache performance including hit/miss rates
- * and current cache size. Useful for debugging and monitoring.
+ * Returns metrics about cache performance including hit/miss rates,
+ * current cache size, and list of cached files. Useful for debugging
+ * and monitoring.
  *
  * Usage: DEBUG_DOCIMP_CACHE=1 docimp improve ./src
  *
- * @returns {{hits: number, misses: number, invalidations: number, size: number, maxSize: number}} Cache statistics
+ * @returns {{hits: number, misses: number, invalidations: number, size: number, maxSize: number, files: string[]}} Cache statistics
  */
 export function getCacheStats() {
   return {
     ...cacheStats,
     size: languageServiceCache.size,
     maxSize: MAX_CACHE_SIZE,
+    files: Array.from(languageServiceCache.keys()),
   };
+}
+
+/**
+ * Clear cache entry for a specific file.
+ *
+ * Removes the cached language service for a single file, useful when
+ * you know a specific file has changed outside of normal validation.
+ *
+ * @param {string} filepath - Path to the file to remove from cache
+ * @returns {boolean} True if entry was removed, false if not in cache
+ */
+export function clearCacheForFile(filepath) {
+  const hadEntry = languageServiceCache.has(filepath);
+  if (hadEntry) {
+    languageServiceCache.delete(filepath);
+    const index = cacheAccessOrder.indexOf(filepath);
+    if (index > -1) {
+      cacheAccessOrder.splice(index, 1);
+    }
+  }
+  return hadEntry;
+}
+
+/**
+ * Get current cache size.
+ *
+ * Returns the number of files currently cached.
+ *
+ * @returns {number} Number of cached language services
+ */
+export function getCacheSize() {
+  return languageServiceCache.size;
 }
 
 // Export the plugin
