@@ -227,6 +227,8 @@ function getCachedLanguageService(filepath, sourceCode) {
   // Cache MISS or INVALIDATION
   if (cached) {
     // Content changed - invalidation
+    // Dispose the old language service before creating a new one
+    cached.service.dispose();
     cacheStats.invalidations++;
     if (process.env.DEBUG_DOCIMP_CACHE) {
       console.error(`[validate-types] Cache INVALIDATE: ${filepath} (${cacheStats.invalidations} total invalidations)`);
