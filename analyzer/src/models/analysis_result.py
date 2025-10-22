@@ -6,6 +6,27 @@ from .code_item import CodeItem
 
 
 @dataclass
+class ParseFailure:
+    """Represents a file that failed to parse.
+
+    Attributes:
+        filepath: Absolute path to the file that failed to parse.
+        error: First line of the error message from the exception.
+    """
+
+    filepath: str
+    error: str
+
+    def to_dict(self) -> dict:
+        """Serialize ParseFailure to a JSON-compatible dictionary.
+
+        Returns:
+            Dictionary representation of the ParseFailure.
+        """
+        return asdict(self)
+
+
+@dataclass
 class LanguageMetrics:
     """Documentation coverage metrics for a specific programming language.
 
