@@ -312,7 +312,19 @@ describe('ConfigValidator', () => {
     it('should reject negative maxRetries', () => {
       expect(() => {
         validateAndMerge({ claude: { maxRetries: -1 } } as any);
-      }).toThrow('claude.maxRetries must be a non-negative integer');
+      }).toThrow('claude.maxRetries must be non-negative');
+    });
+
+    it('should reject non-integer maxRetries', () => {
+      expect(() => {
+        validateAndMerge({ claude: { maxRetries: 2.5 } } as any);
+      }).toThrow('claude.maxRetries must be an integer (not a decimal)');
+    });
+
+    it('should reject non-number maxRetries', () => {
+      expect(() => {
+        validateAndMerge({ claude: { maxRetries: 'three' } } as any);
+      }).toThrow('claude.maxRetries must be a number');
     });
 
     it('should reject negative retryDelay', () => {

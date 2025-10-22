@@ -122,8 +122,14 @@ export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
       }
     }
     if (userConfig.claude.maxRetries !== undefined) {
-      if (typeof userConfig.claude.maxRetries !== 'number' || userConfig.claude.maxRetries < 0 || !Number.isInteger(userConfig.claude.maxRetries)) {
-        throw new Error('claude.maxRetries must be a non-negative integer');
+      if (typeof userConfig.claude.maxRetries !== 'number') {
+        throw new Error('claude.maxRetries must be a number');
+      }
+      if (!Number.isInteger(userConfig.claude.maxRetries)) {
+        throw new Error('claude.maxRetries must be an integer (not a decimal)');
+      }
+      if (userConfig.claude.maxRetries < 0) {
+        throw new Error('claude.maxRetries must be non-negative');
       }
     }
     if (userConfig.claude.retryDelay !== undefined) {
