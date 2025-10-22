@@ -635,4 +635,114 @@ describe('InteractiveSession', () => {
       expect(allCalls).not.toMatch(/Quit at item/);
     });
   });
+
+  describe('claude configuration integration (Issue #243)', () => {
+    it('should pass claude config values through to PythonBridge', async () => {
+      // Create config with custom claude settings
+      const customConfig: IConfig = {
+        ...mockConfig,
+        claude: {
+          timeout: 45.0,
+          maxRetries: 5,
+          retryDelay: 2.0,
+        },
+      };
+
+      // Create session with custom config
+      const customSession = new InteractiveSession({
+        config: customConfig,
+        pythonBridge: mockPythonBridge,
+        pluginManager: mockPluginManager,
+        styleGuides: {
+          javascript: 'jsdoc-vanilla',
+          python: 'google',
+          typescript: 'tsdoc-typedoc',
+        },
+        tone: 'concise',
+        basePath: process.cwd(),
+      });
+
+      mockPrompts.mockResolvedValueOnce({ action: 'accept' });
+
+      await customSession.run([mockPlanItem]);
+
+      // Verify suggest was called with claude config values
+      expect(mockPythonBridge.suggest).toHaveBeenCalledWith({
+        target: 'test.js:testFunction',
+        styleGuide: 'jsdoc-vanilla',
+        tone: 'concise',
+        timeout: 45.0,
+        maxRetries: 5,
+        retryDelay: 2.0,
+      });
+    });
+
+    it('should use default claude config when not specified', async () => {
+      // Config without claude section - should use defaults
+      const defaultSession = new InteractiveSession({
+        config: mockConfig,
+        pythonBridge: mockPythonBridge,
+        pluginManager: mockPluginManager,
+        styleGuides: {
+          javascript: 'jsdoc-vanilla',
+          python: 'google',
+          typescript: 'tsdoc-typedoc',
+        },
+        tone: 'concise',
+        basePath: process.cwd(),
+      });
+
+      mockPrompts.mockResolvedValueOnce({ action: 'accept' });
+
+      await defaultSession.run([mockPlanItem]);
+
+      // Verify suggest was called with undefined values (Python CLI will use defaults)
+      expect(mockPythonBridge.suggest).toHaveBeenCalledWith({
+        target: 'test.js:testFunction',
+        styleGuide: 'jsdoc-vanilla',
+        tone: 'concise',
+        timeout: undefined,
+        maxRetries: undefined,
+        retryDelay: undefined,
+      });
+    });
+
+    it('should pass partial claude config correctly', async () => {
+      // Config with only some claude fields specified
+      const partialConfig: IConfig = {
+        ...mockConfig,
+        claude: {
+          timeout: 60.0,
+          // maxRetries and retryDelay not specified
+        },
+      };
+
+      const partialSession = new InteractiveSession({
+        config: partialConfig,
+        pythonBridge: mockPythonBridge,
+        pluginManager: mockPluginManager,
+        styleGuides: {
+          javascript: 'jsdoc-vanilla',
+          python: 'google',
+          typescript: 'tsdoc-typedoc',
+        },
+        tone: 'concise',
+        basePath: process.cwd(),
+      });
+
+      mockPrompts.mockResolvedValueOnce({ action: 'accept' });
+
+      await partialSession.run([mockPlanItem]);
+
+      // Verify suggest was called with only timeout specified
+      expect(mockPythonBridge.suggest).toHaveBeenCalledWith({
+        target: 'test.js:testFunction',
+        styleGuide: 'jsdoc-vanilla',
+        tone: 'concise',
+        timeout: 60.0,
+        maxRetries: undefined,
+        retryDelay: undefined,
+      });
+    });
+  });
 });
