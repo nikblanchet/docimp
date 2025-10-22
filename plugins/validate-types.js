@@ -76,7 +76,17 @@ let cacheStats = {
  * The registry manages SourceFile objects and allows multiple
  * LanguageService instances to share parsed files.
  */
-const documentRegistry = ts.createDocumentRegistry();
+let documentRegistry;
+try {
+  documentRegistry = ts.createDocumentRegistry();
+} catch (error) {
+  throw new Error(
+    `Failed to create TypeScript document registry. ` +
+    `Ensure TypeScript is installed in cli/node_modules. ` +
+    `Run 'cd cli && npm install' to install dependencies. ` +
+    `Error: ${error.message}`
+  );
+}
 
 /**
  * Extract parameter names from a JSDoc comment.
