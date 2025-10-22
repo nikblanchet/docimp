@@ -6,26 +6,27 @@ import { TerminalDisplay } from '../display/TerminalDisplay';
 import type { AuditSummary } from '../types/analysis';
 
 // Mock ESM modules
-jest.mock('chalk', () => ({
-  default: {
-    bold: (str: string) => str,
-    dim: (str: string) => str,
-    green: (str: string) => str,
-    yellow: (str: string) => str,
-    red: (str: string) => str,
-    blue: (str: string) => str,
-    cyan: (str: string) => str,
-    gray: (str: string) => str,
-  },
-  bold: (str: string) => str,
-  dim: (str: string) => str,
-  green: (str: string) => str,
-  yellow: (str: string) => str,
-  red: (str: string) => str,
-  blue: (str: string) => str,
-  cyan: (str: string) => str,
-  gray: (str: string) => str,
-}));
+// Create chainable chalk mock to support calls like chalk.bold.blue('text')
+jest.mock('chalk', () => {
+  const createChainableChalk = (): any => {
+    // Create a function that returns the input string unchanged
+    const chalkMock: any = (str: string) => str;
+
+    // Add all color/style methods that return the mock itself for chaining
+    const methods = ['bold', 'dim', 'green', 'yellow', 'red', 'blue', 'cyan', 'gray'];
+    methods.forEach(method => {
+      chalkMock[method] = chalkMock;
+    });
+
+    return chalkMock;
+  };
+
+  const chalk = createChainableChalk();
+  return {
+    default: chalk,
+    ...chalk,
+  };
+});
 jest.mock('ora', () => ({
   default: () => ({
     start: () => ({ stop: () => {}, succeed: () => {}, fail: () => {} }),
@@ -563,10 +564,7 @@ describe('TerminalDisplay.showSignature', () => {
   });
 });
 
-// TODO: Fix chalk mock to support chained calls (chalk.bold.blue()) for these tests
-// The functionality works correctly, but the mock doesn't support the chaining pattern
-// See: Display tests need chalk mock fix for chained calls
-describe.skip('TerminalDisplay.showAnalysisResult with parse failures', () => {
+describe('TerminalDisplay.showAnalysisResult with parse failures', () => {
   let display: TerminalDisplay;
   let consoleLogSpy: jest.SpyInstance;
 
