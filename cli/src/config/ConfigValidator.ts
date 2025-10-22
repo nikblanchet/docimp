@@ -116,6 +116,11 @@ export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
 
   // Validate claude configuration
   if (userConfig.claude !== undefined) {
+    // Validate that claude is an object (not string, number, array, or null)
+    if (typeof userConfig.claude !== 'object' || userConfig.claude === null || Array.isArray(userConfig.claude)) {
+      throw new Error('claude must be an object');
+    }
+
     if (userConfig.claude.timeout !== undefined) {
       if (typeof userConfig.claude.timeout !== 'number' || userConfig.claude.timeout <= 0) {
         throw new Error('claude.timeout must be a positive number');
