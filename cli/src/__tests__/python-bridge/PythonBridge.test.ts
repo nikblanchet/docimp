@@ -111,6 +111,7 @@ describe('PythonBridge JSON Validation', () => {
             module_system: 'unknown',
           },
         ],
+        parse_failures: [],
       };
 
       mockSuccessfulProcess(JSON.stringify(validResult));
@@ -189,6 +190,7 @@ describe('PythonBridge JSON Validation', () => {
         documented_items: 75,
         by_language: {},
         items: [],
+        parse_failures: [],
         // Extra field added in future Python version
         future_field: 'some value',
       };
@@ -582,6 +584,7 @@ describe('PythonBridge Timeout Handling', () => {
         documented_items: 75,
         by_language: {},
         items: [],
+        parse_failures: [],
       };
 
       const mockProcess = mockSuccessfulProcessWithDelay(JSON.stringify(validResult), 100);
