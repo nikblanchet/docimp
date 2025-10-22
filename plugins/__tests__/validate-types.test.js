@@ -839,4 +839,202 @@ describe('validate-types plugin', () => {
       expect(removed).toBe(false);
     });
   });
+
+  describe('dispose() verification', () => {
+    it('should call dispose() when evicting LRU entry', async () => {
+      // Create a spy on the dispose method
+      let disposeCallCount = 0;
+      const originalDispose = Object.getPrototypeOf(
+        (await import('typescript')).default.createLanguageService({
+          getScriptFileNames: () => [],
+          getScriptVersion: () => '0',
+          getScriptSnapshot: () => undefined,
+          getCurrentDirectory: () => process.cwd(),
+          getCompilationSettings: () => ({}),
+          getDefaultLibFileName: () => 'lib.d.ts',
+        })
+      ).dispose;
+
+      // Mock dispose to track calls
+      const disposeSpy = jest.fn(function() {
+        disposeCallCount++;
+        return originalDispose.call(this);
+      });
+
+      // Patch the prototype
+      const ts = (await import('typescript')).default;
+      const proto = Object.getPrototypeOf(ts.createLanguageService({
+        getScriptFileNames: () => [],
+        getScriptVersion: () => '0',
+        getScriptSnapshot: () => undefined,
+        getCurrentDirectory: () => process.cwd(),
+        getCompilationSettings: () => ({}),
+        getDefaultLibFileName: () => 'lib.d.ts',
+      }));
+      const originalProtoDispose = proto.dispose;
+      proto.dispose = disposeSpy;
+
+      try {
+        const config = {
+          styleGuide: 'jsdoc',
+          tone: 'concise',
+          jsdocStyle: {
+            enforceTypes: true,
+          },
+        };
+
+        const docstring = `/**
+ * Test function.
+ * @param {number} x - Parameter
+ * @returns {number} Result
+ */`;
+
+        // Create 51 entries to trigger one eviction (MAX_CACHE_SIZE = 50)
+        for (let i = 0; i < 51; i++) {
+          const item = {
+            name: `func${i}`,
+            filepath: `dispose-test-${i}.js`,
+            language: 'javascript',
+            code: `function func${i}(x) { return x; }`,
+            parameters: ['x'],
+            type: 'function',
+            line_number: 1,
+            complexity: 1,
+            export_type: 'named',
+          };
+          await validateTypesPlugin.hooks.beforeAccept(docstring, item, config);
+        }
+
+        // At least one dispose should have been called (for the evicted entry)
+        expect(disposeSpy).toHaveBeenCalled();
+        expect(disposeSpy.mock.calls.length).toBeGreaterThanOrEqual(1);
+      } finally {
+        // Restore original dispose
+        proto.dispose = originalProtoDispose;
+      }
+    });
+
+    it('should call dispose() on all services when clearCache() is called', async () => {
+      let disposeCallCount = 0;
+      const ts = (await import('typescript')).default;
+      const proto = Object.getPrototypeOf(ts.createLanguageService({
+        getScriptFileNames: () => [],
+        getScriptVersion: () => '0',
+        getScriptSnapshot: () => undefined,
+        getCurrentDirectory: () => process.cwd(),
+        getCompilationSettings: () => ({}),
+        getDefaultLibFileName: () => 'lib.d.ts',
+      }));
+      const originalDispose = proto.dispose;
+      const disposeSpy = jest.fn(function() {
+        disposeCallCount++;
+        return originalDispose.call(this);
+      });
+      proto.dispose = disposeSpy;
+
+      try {
+        const config = {
+          styleGuide: 'jsdoc',
+          tone: 'concise',
+          jsdocStyle: {
+            enforceTypes: true,
+          },
+        };
+
+        const docstring = `/**
+ * Test function.
+ * @param {number} x - Parameter
+ * @returns {number} Result
+ */`;
+
+        // Create 3 cache entries
+        for (let i = 0; i < 3; i++) {
+          const item = {
+            name: `func${i}`,
+            filepath: `clear-all-test-${i}.js`,
+            language: 'javascript',
+            code: `function func${i}(x) { return x; }`,
+            parameters: ['x'],
+            type: 'function',
+            line_number: 1,
+            complexity: 1,
+            export_type: 'named',
+          };
+          await validateTypesPlugin.hooks.beforeAccept(docstring, item, config);
+        }
+
+        // Reset spy count before clearCache
+        disposeSpy.mockClear();
+
+        // Clear the cache
+        clearCache();
+
+        // All 3 services should be disposed
+        expect(disposeSpy).toHaveBeenCalledTimes(3);
+      } finally {
+        // Restore original dispose
+        proto.dispose = originalDispose;
+      }
+    });
+
+    it('should call dispose() when clearCacheForFile() is called', async () => {
+      const ts = (await import('typescript')).default;
+      const proto = Object.getPrototypeOf(ts.createLanguageService({
+        getScriptFileNames: () => [],
+        getScriptVersion: () => '0',
+        getScriptSnapshot: () => undefined,
+        getCurrentDirectory: () => process.cwd(),
+        getCompilationSettings: () => ({}),
+        getDefaultLibFileName: () => 'lib.d.ts',
+      }));
+      const originalDispose = proto.dispose;
+      const disposeSpy = jest.fn(function() {
+        return originalDispose.call(this);
+      });
+      proto.dispose = disposeSpy;
+
+      try {
+        const config = {
+          styleGuide: 'jsdoc',
+          tone: 'concise',
+          jsdocStyle: {
+            enforceTypes: true,
+          },
+        };
+
+        const docstring = `/**
+ * Test function.
+ * @param {number} x - Parameter
+ * @returns {number} Result
+ */`;
+
+        const item = {
+          name: 'testFunc',
+          filepath: 'clear-one-test.js',
+          language: 'javascript',
+          code: 'function testFunc(x) { return x; }',
+          parameters: ['x'],
+          type: 'function',
+          line_number: 1,
+          complexity: 1,
+          export_type: 'named',
+        };
+
+        // Add to cache
+        await validateTypesPlugin.hooks.beforeAccept(docstring, item, config);
+
+        // Reset spy
+        disposeSpy.mockClear();
+
+        // Clear the specific file
+        clearCacheForFile('clear-one-test.js');
+
+        // One dispose should be called
+        expect(disposeSpy).toHaveBeenCalledTimes(1);
+      } finally {
+        // Restore original dispose
+        proto.dispose = originalDispose;
+      }
+    });
+  });
 });
