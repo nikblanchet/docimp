@@ -118,17 +118,17 @@ export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
   if (userConfig.claude !== undefined) {
     if (userConfig.claude.timeout !== undefined) {
       if (typeof userConfig.claude.timeout !== 'number' || userConfig.claude.timeout <= 0) {
-        throw new Error('timeout must be a positive number');
+        throw new Error('claude.timeout must be a positive number');
       }
     }
     if (userConfig.claude.maxRetries !== undefined) {
       if (typeof userConfig.claude.maxRetries !== 'number' || userConfig.claude.maxRetries < 0 || !Number.isInteger(userConfig.claude.maxRetries)) {
-        throw new Error('maxRetries must be a positive integer');
+        throw new Error('claude.maxRetries must be a non-negative integer');
       }
     }
     if (userConfig.claude.retryDelay !== undefined) {
       if (typeof userConfig.claude.retryDelay !== 'number' || userConfig.claude.retryDelay <= 0) {
-        throw new Error('retryDelay must be a positive number');
+        throw new Error('claude.retryDelay must be a positive number');
       }
     }
   }

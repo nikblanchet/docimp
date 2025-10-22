@@ -150,22 +150,38 @@ export interface IAuditConfig {
 
 /**
  * Claude API configuration.
+ *
+ * All fields are optional in user configuration files.
+ * Defaults are applied during validation via ConfigValidator.validateAndMerge(),
+ * ensuring all fields have values at runtime.
  */
 export interface IClaudeConfig {
   /**
    * API request timeout in seconds.
+   *
+   * How long to wait for Claude API response before timing out.
+   * Increase for slow connections, decrease for faster failure detection.
+   *
    * Default: 30.0
    */
   timeout?: number;
 
   /**
    * Maximum number of retry attempts for rate-limited or timed-out requests.
+   *
+   * Uses exponential backoff between retries. Setting to 0 disables retries
+   * (fail immediately on first error).
+   *
    * Default: 3
    */
   maxRetries?: number;
 
   /**
    * Base delay in seconds between retries (uses exponential backoff).
+   *
+   * Initial delay before first retry. Subsequent retries use exponential
+   * backoff: delay * 2^attempt.
+   *
    * Default: 1.0
    */
   retryDelay?: number;
