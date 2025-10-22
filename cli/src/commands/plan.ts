@@ -17,6 +17,10 @@ import type { IDisplay } from '../display/IDisplay.js';
  *
  * @param path - Path to file or directory to analyze
  * @param options - Command options
+ * @param options.auditFile - Path to audit file containing quality ratings
+ * @param options.planFile - Path to plan file for saving improvement plan
+ * @param options.qualityThreshold - Quality threshold for filtering items
+ * @param options.verbose - Enable verbose output
  * @param bridge - Python bridge instance (injected for testing)
  * @param display - Display instance (injected for testing)
  */
@@ -109,6 +113,10 @@ export async function planCore(
  *
  * @param path - Path to file or directory to analyze
  * @param options - Command options
+ * @param options.auditFile - Path to audit file containing quality ratings
+ * @param options.planFile - Path to plan file for saving improvement plan
+ * @param options.qualityThreshold - Quality threshold for filtering items
+ * @param options.verbose - Enable verbose output
  */
 export async function planCommand(
   path: string,
