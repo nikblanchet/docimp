@@ -120,6 +120,13 @@ export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
       if (typeof userConfig.claude.timeout !== 'number' || userConfig.claude.timeout <= 0) {
         throw new Error('claude.timeout must be a positive number');
       }
+      if (userConfig.claude.timeout > 600) {
+        console.warn(
+          `Warning: claude.timeout (${userConfig.claude.timeout}s) is very high. ` +
+          `Did you mean ${userConfig.claude.timeout / 60} minutes? ` +
+          `Recommended range: 5-600 seconds.`
+        );
+      }
     }
     if (userConfig.claude.maxRetries !== undefined) {
       if (typeof userConfig.claude.maxRetries !== 'number') {

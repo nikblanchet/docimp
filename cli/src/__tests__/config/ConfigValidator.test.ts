@@ -297,6 +297,28 @@ describe('ConfigValidator', () => {
       }).toThrow('claude.timeout must be a positive number');
     });
 
+    it('should warn for very high timeout values', () => {
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      const userConfig: Partial<IConfig> = {
+        claude: {
+          timeout: 900, // 15 minutes
+        },
+      };
+
+      const config = validateAndMerge(userConfig);
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('claude.timeout (900s) is very high')
+      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Did you mean 15 minutes?')
+      );
+      expect(config.claude.timeout).toBe(900); // Should still accept the value
+
+      consoleWarnSpy.mockRestore();
+    });
+
     it('should accept maxRetries = 0 (no retries)', () => {
       const userConfig: Partial<IConfig> = {
         claude: {
