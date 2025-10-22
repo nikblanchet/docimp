@@ -70,6 +70,15 @@ export interface SuggestOptions {
   /** Documentation tone */
   tone: string;
 
+  /** Claude API timeout in seconds */
+  timeout?: number;
+
+  /** Maximum retry attempts for Claude API */
+  maxRetries?: number;
+
+  /** Base retry delay in seconds */
+  retryDelay?: number;
+
   /** Enable verbose output */
   verbose?: boolean;
 }

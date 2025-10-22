@@ -251,6 +251,65 @@ describe('ConfigValidator', () => {
     });
   });
 
+  describe('claude configuration validation', () => {
+    it('should merge partial claude config with defaults', () => {
+      const userConfig: Partial<IConfig> = {
+        claude: {
+          timeout: 60.0,
+        },
+      };
+
+      const config = validateAndMerge(userConfig);
+
+      expect(config.claude.timeout).toBe(60.0);
+      expect(config.claude.maxRetries).toBe(3);
+      expect(config.claude.retryDelay).toBe(1.0);
+    });
+
+    it('should accept custom claude configuration', () => {
+      const userConfig: Partial<IConfig> = {
+        claude: {
+          timeout: 45.0,
+          maxRetries: 5,
+          retryDelay: 2.0,
+        },
+      };
+
+      const config = validateAndMerge(userConfig);
+
+      expect(config.claude.timeout).toBe(45.0);
+      expect(config.claude.maxRetries).toBe(5);
+      expect(config.claude.retryDelay).toBe(2.0);
+    });
+
+    it('should use defaults when claude config is omitted', () => {
+      const config = validateAndMerge({});
+
+      expect(config.claude).toBeDefined();
+      expect(config.claude.timeout).toBe(30.0);
+      expect(config.claude.maxRetries).toBe(3);
+      expect(config.claude.retryDelay).toBe(1.0);
+    });
+
+    it('should reject negative timeout', () => {
+      expect(() => {
+        validateAndMerge({ claude: { timeout: -5 } } as any);
+      }).toThrow('timeout must be a positive number');
+    });
+
+    it('should reject negative maxRetries', () => {
+      expect(() => {
+        validateAndMerge({ claude: { maxRetries: -1 } } as any);
+      }).toThrow('maxRetries must be a positive integer');
+    });
+
+    it('should reject negative retryDelay', () => {
+      expect(() => {
+        validateAndMerge({ claude: { retryDelay: -1.0 } } as any);
+      }).toThrow('retryDelay must be a positive number');
+    });
+  });
+
   describe('complex configurations', () => {
     it('should validate and merge full configuration', () => {
       const userConfig: Partial<IConfig> = {
@@ -272,6 +331,11 @@ describe('ConfigValidator', () => {
         },
         plugins: ['./plugins/validate-types.js', './plugins/jsdoc-style.js'],
         exclude: ['**/test_*.py', '**/node_modules/**', '**/__pycache__/**'],
+        claude: {
+          timeout: 45.0,
+          maxRetries: 5,
+          retryDelay: 2.0,
+        },
       };
 
       const config = validateAndMerge(userConfig);
@@ -285,6 +349,9 @@ describe('ConfigValidator', () => {
       expect(config.impactWeights.quality).toBe(0.3);
       expect(config.plugins).toHaveLength(2);
       expect(config.exclude).toHaveLength(3);
+      expect(config.claude.timeout).toBe(45.0);
+      expect(config.claude.maxRetries).toBe(5);
+      expect(config.claude.retryDelay).toBe(2.0);
     });
   });
 });

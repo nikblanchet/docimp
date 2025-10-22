@@ -114,6 +114,25 @@ export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
     }
   }
 
+  // Validate claude configuration
+  if (userConfig.claude !== undefined) {
+    if (userConfig.claude.timeout !== undefined) {
+      if (typeof userConfig.claude.timeout !== 'number' || userConfig.claude.timeout <= 0) {
+        throw new Error('timeout must be a positive number');
+      }
+    }
+    if (userConfig.claude.maxRetries !== undefined) {
+      if (typeof userConfig.claude.maxRetries !== 'number' || userConfig.claude.maxRetries < 0 || !Number.isInteger(userConfig.claude.maxRetries)) {
+        throw new Error('maxRetries must be a positive integer');
+      }
+    }
+    if (userConfig.claude.retryDelay !== undefined) {
+      if (typeof userConfig.claude.retryDelay !== 'number' || userConfig.claude.retryDelay <= 0) {
+        throw new Error('retryDelay must be a positive number');
+      }
+    }
+  }
+
   // Merge with defaults
   const config: IConfig = {
     styleGuides: {
@@ -131,6 +150,11 @@ export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
     },
     plugins: userConfig.plugins ?? defaultConfig.plugins,
     exclude: userConfig.exclude ?? defaultConfig.exclude,
+    audit: userConfig.audit ?? defaultConfig.audit,
+    claude: {
+      ...defaultConfig.claude!,
+      ...userConfig.claude,
+    },
   };
 
   return config;
