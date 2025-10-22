@@ -5,13 +5,15 @@
  * and parses JSON responses from stdout.
  */
 
-import { spawn, spawnSync } from 'child_process';
+import { spawn, spawnSync, ChildProcess } from 'child_process';
 import { resolve, dirname, join } from 'path';
 import { existsSync } from 'fs';
 import { z } from 'zod';
 import type { IPythonBridge, AnalyzeOptions, AuditOptions, PlanOptions, SuggestOptions, ApplyData } from './IPythonBridge.js';
 import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult } from '../types/analysis.js';
 import { AnalysisResultSchema, AuditListResultSchema, PlanResultSchema, formatValidationError } from './schemas.js';
+import type { IConfig } from '../config/IConfig.js';
+import { defaultConfig } from '../config/IConfig.js';
 
 /**
  * Find the analyzer directory by searching upwards from a starting directory.
@@ -46,6 +48,8 @@ function findAnalyzerDir(startDir: string): string {
  * Detect available Python executable.
  * Checks GitHub Actions pythonLocation first, then DOCIMP_PYTHON_PATH,
  * then tries python3, python, and py.
+ *
+ * @returns Path to Python executable
  */
 function detectPythonExecutable(): string {
   // GitHub Actions sets pythonLocation env var (e.g., /opt/hostedtoolcache/Python/3.13.8/x64)
@@ -97,16 +101,20 @@ function detectPythonExecutable(): string {
 export class PythonBridge implements IPythonBridge {
   private readonly pythonPath: string;
   private readonly analyzerModule: string;
+  private readonly defaultTimeout: number;
+  private readonly suggestTimeout: number;
 
   /**
    * Create a new Python bridge.
    *
    * @param pythonPath - Path to Python executable (default: auto-detected)
    * @param analyzerPath - Path to analyzer module (default: auto-detected)
+   * @param config - Configuration with timeout settings (optional)
    */
   constructor(
     pythonPath?: string,
-    analyzerPath?: string
+    analyzerPath?: string,
+    config?: IConfig
   ) {
     this.pythonPath = pythonPath || detectPythonExecutable();
 
@@ -117,6 +125,10 @@ export class PythonBridge implements IPythonBridge {
     } else {
       this.analyzerModule = analyzerPath;
     }
+
+    // Load timeout settings from config or use defaults
+    this.defaultTimeout = config?.pythonBridge?.defaultTimeout ?? defaultConfig.pythonBridge!.defaultTimeout!;
+    this.suggestTimeout = config?.pythonBridge?.suggestTimeout ?? defaultConfig.pythonBridge!.suggestTimeout!;
   }
 
   /**
@@ -205,6 +217,13 @@ export class PythonBridge implements IPythonBridge {
         env: { ...process.env },
       });
 
+      // Setup timeout handling
+      const { cleanup, timeoutPromise } = this.setupProcessTimeout(
+        childProcess,
+        this.defaultTimeout,
+        'apply-audit'
+      );
+
       let stderr = '';
 
       // Send ratings as JSON via stdin
@@ -216,6 +235,7 @@ export class PythonBridge implements IPythonBridge {
       });
 
       childProcess.on('error', (error: Error) => {
+        cleanup();
         reject(
           new Error(
             `Failed to spawn Python process: ${error.message}\n` +
@@ -225,6 +245,8 @@ export class PythonBridge implements IPythonBridge {
       });
 
       childProcess.on('close', (code: number) => {
+        cleanup();
+
         if (code !== 0) {
           reject(
             new Error(
@@ -237,6 +259,9 @@ export class PythonBridge implements IPythonBridge {
 
         resolve();
       });
+
+      // Race between timeout and normal completion
+      timeoutPromise.catch(reject);
     });
   }
 
@@ -326,6 +351,13 @@ export class PythonBridge implements IPythonBridge {
         env: { ...process.env },
       });
 
+      // Setup timeout handling
+      const { cleanup, timeoutPromise } = this.setupProcessTimeout(
+        childProcess,
+        this.defaultTimeout,
+        'apply'
+      );
+
       let stderr = '';
 
       // Send apply data as JSON via stdin
@@ -337,6 +369,7 @@ export class PythonBridge implements IPythonBridge {
       });
 
       childProcess.on('error', (error: Error) => {
+        cleanup();
         reject(
           new Error(
             `Failed to spawn Python process: ${error.message}\n` +
@@ -346,6 +379,8 @@ export class PythonBridge implements IPythonBridge {
       });
 
       childProcess.on('close', (code: number) => {
+        cleanup();
+
         if (code !== 0) {
           reject(
             new Error(
@@ -358,7 +393,66 @@ export class PythonBridge implements IPythonBridge {
 
         resolve();
       });
+
+      // Race between timeout and normal completion
+      timeoutPromise.catch(reject);
     });
+  }
+
+  /**
+   * Setup timeout handling for a child process.
+   *
+   * Implements graceful shutdown: SIGTERM -> wait 5s -> SIGKILL
+   *
+   * @param childProcess - The child process to monitor
+   * @param timeoutMs - Timeout in milliseconds
+   * @param commandName - Name of command for error messages
+   * @returns Object with cleanup function and timeout promise
+   */
+  private setupProcessTimeout(
+    childProcess: ChildProcess,
+    timeoutMs: number,
+    commandName: string
+  ): { cleanup: () => void; timeoutPromise: Promise<never> } {
+    /* eslint-disable no-undef */
+    let timeoutId: NodeJS.Timeout | null = null;
+    let killTimeoutId: NodeJS.Timeout | null = null;
+
+    const cleanup = () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      if (killTimeoutId) {
+        clearTimeout(killTimeoutId);
+        killTimeoutId = null;
+      }
+    };
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        // Try graceful shutdown first (SIGTERM)
+        childProcess.kill('SIGTERM');
+
+        // If process doesn't exit in 5 seconds, force kill (SIGKILL)
+        killTimeoutId = setTimeout(() => {
+          if (childProcess.exitCode === null) {
+            childProcess.kill('SIGKILL');
+          }
+        }, 5000);
+        /* eslint-enable no-undef */
+
+        reject(
+          new Error(
+            `Python ${commandName} command timed out after ${timeoutMs}ms.\n` +
+            `The Python process may be frozen or the operation is taking too long.\n` +
+            `Consider increasing the timeout in your docimp.config.js file.`
+          )
+        );
+      }, timeoutMs);
+    });
+
+    return { cleanup, timeoutPromise };
   }
 
   /**
@@ -366,18 +460,32 @@ export class PythonBridge implements IPythonBridge {
    *
    * @param args - Command-line arguments for Python
    * @param verbose - Whether to show verbose output
+   * @param timeoutMs - Timeout in milliseconds (default: this.suggestTimeout for suggest, this.defaultTimeout otherwise)
    * @returns Promise resolving to text output
    * @throws Error if process fails
    */
   private async executePythonText(
     args: string[],
-    verbose: boolean = false
+    verbose: boolean = false,
+    timeoutMs?: number
   ): Promise<string> {
     return new Promise((resolve, reject) => {
       const childProcess = spawn(this.pythonPath, args, {
         cwd: this.analyzerModule,
         env: { ...process.env },
       });
+
+      // Extract command name for timeout error messages
+      const commandName = args[2] || 'unknown';
+      // Default to suggestTimeout for suggest command, defaultTimeout otherwise
+      const timeout = timeoutMs ?? (commandName === 'suggest' ? this.suggestTimeout : this.defaultTimeout);
+
+      // Setup timeout handling
+      const { cleanup, timeoutPromise } = this.setupProcessTimeout(
+        childProcess,
+        timeout,
+        commandName
+      );
 
       let stdout = '';
       let stderr = '';
@@ -397,6 +505,7 @@ export class PythonBridge implements IPythonBridge {
       });
 
       childProcess.on('error', (error: Error) => {
+        cleanup();
         reject(
           new Error(
             `Failed to spawn Python process: ${error.message}\n` +
@@ -406,6 +515,8 @@ export class PythonBridge implements IPythonBridge {
       });
 
       childProcess.on('close', (code: number) => {
+        cleanup();
+
         if (code !== 0) {
           reject(
             new Error(
@@ -419,6 +530,9 @@ export class PythonBridge implements IPythonBridge {
 
         resolve(stdout);
       });
+
+      // Race between timeout and normal completion
+      timeoutPromise.catch(reject);
     });
   }
 
@@ -428,19 +542,32 @@ export class PythonBridge implements IPythonBridge {
    * @param args - Command-line arguments for Python
    * @param verbose - Whether to show verbose output
    * @param schema - Optional Zod schema for runtime validation
+   * @param timeoutMs - Timeout in milliseconds (default: this.defaultTimeout)
    * @returns Promise resolving to parsed and validated JSON result
    * @throws Error if process fails, JSON is invalid, or validation fails
    */
   private async executePython<T>(
     args: string[],
     verbose: boolean = false,
-    schema?: z.ZodType<T>
+    schema?: z.ZodType<T>,
+    timeoutMs?: number
   ): Promise<T> {
     return new Promise((resolve, reject) => {
       const childProcess = spawn(this.pythonPath, args, {
         cwd: this.analyzerModule,
         env: { ...process.env },
       });
+
+      // Extract command name for timeout error messages
+      const commandName = args[2] || 'unknown';
+      const timeout = timeoutMs ?? this.defaultTimeout;
+
+      // Setup timeout handling
+      const { cleanup, timeoutPromise } = this.setupProcessTimeout(
+        childProcess,
+        timeout,
+        commandName
+      );
 
       let stdout = '';
       let stderr = '';
@@ -460,6 +587,7 @@ export class PythonBridge implements IPythonBridge {
       });
 
       childProcess.on('error', (error: Error) => {
+        cleanup();
         reject(
           new Error(
             `Failed to spawn Python process: ${error.message}\n` +
@@ -469,6 +597,8 @@ export class PythonBridge implements IPythonBridge {
       });
 
       childProcess.on('close', (code: number) => {
+        cleanup();
+
         if (code !== 0) {
           reject(
             new Error(
@@ -512,6 +642,9 @@ export class PythonBridge implements IPythonBridge {
           );
         }
       });
+
+      // Race between timeout and normal completion
+      timeoutPromise.catch(reject);
     });
   }
 }
