@@ -354,6 +354,18 @@ describe('ConfigValidator', () => {
         validateAndMerge({ claude: { retryDelay: -1.0 } } as any);
       }).toThrow('claude.retryDelay must be a positive number');
     });
+
+    it('should reject zero timeout', () => {
+      expect(() => {
+        validateAndMerge({ claude: { timeout: 0 } } as any);
+      }).toThrow('claude.timeout must be a positive number');
+    });
+
+    it('should reject zero retryDelay', () => {
+      expect(() => {
+        validateAndMerge({ claude: { retryDelay: 0 } } as any);
+      }).toThrow('claude.retryDelay must be a positive number');
+    });
   });
 
   describe('complex configurations', () => {
