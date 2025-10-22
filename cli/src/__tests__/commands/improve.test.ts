@@ -510,4 +510,323 @@ describe('improve command', () => {
       expect(mockSession.run).toHaveBeenCalled();
     });
   });
+
+  describe('CLI style guide flags', () => {
+    it('should use CLI flag and skip prompt when --python-style provided', async () => {
+      mockReadFileSync.mockReturnValueOnce(JSON.stringify({
+        items: [{
+          name: 'pyFunc',
+          type: 'function',
+          filepath: 'test.py',
+          line_number: 10,
+          language: 'python',
+          complexity: 5,
+          impact_score: 75,
+          reason: 'reason',
+          export_type: 'named',
+          module_system: 'unknown',
+          parameters: [],
+          has_docs: false,
+          docstring: null,
+          audit_rating: null,
+        }],
+      }));
+
+      mockPrompts.mockResolvedValueOnce({ tone: 'concise' });
+
+      await improveCommand('./test', { pythonStyle: 'numpy-rest' });
+
+      // Should only prompt for tone, not python style
+      expect(mockPrompts).toHaveBeenCalledTimes(1);
+      expect(mockPrompts).toHaveBeenCalledWith(expect.objectContaining({ name: 'tone' }));
+
+      // Session should receive CLI flag value
+      expect(MockInteractiveSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          styleGuides: { python: 'numpy-rest' },
+        })
+      );
+    });
+
+    it('should use multiple CLI flags and skip all prompts except tone', async () => {
+      mockReadFileSync.mockReturnValueOnce(JSON.stringify({
+        items: [
+          {
+            name: 'pyFunc',
+            type: 'function',
+            filepath: 'test.py',
+            line_number: 10,
+            language: 'python',
+            complexity: 5,
+            impact_score: 75,
+            reason: 'reason',
+            export_type: 'named',
+            module_system: 'unknown',
+            parameters: [],
+            has_docs: false,
+            docstring: null,
+            audit_rating: null,
+          },
+          {
+            name: 'jsFunc',
+            type: 'function',
+            filepath: 'test.js',
+            line_number: 20,
+            language: 'javascript',
+            complexity: 3,
+            impact_score: 50,
+            reason: 'reason',
+            export_type: 'named',
+            module_system: 'esm',
+            parameters: [],
+            has_docs: false,
+            docstring: null,
+            audit_rating: null,
+          },
+        ],
+      }));
+
+      mockPrompts.mockResolvedValueOnce({ tone: 'detailed' });
+
+      await improveCommand('./test', {
+        pythonStyle: 'google',
+        javascriptStyle: 'jsdoc-google',
+      });
+
+      // Should only prompt for tone
+      expect(mockPrompts).toHaveBeenCalledTimes(1);
+      expect(MockInteractiveSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          styleGuides: { python: 'google', javascript: 'jsdoc-google' },
+        })
+      );
+    });
+
+    it('should reject invalid python style guide', async () => {
+      await expect(async () => {
+        await improveCommand('./test', { pythonStyle: 'invalid-style' });
+      }).rejects.toThrow('process.exit called with 1');
+
+      expect(exitSpy).toHaveBeenCalledWith(1);
+    });
+
+    it('should reject invalid javascript style guide', async () => {
+      await expect(async () => {
+        await improveCommand('./test', { javascriptStyle: 'invalid-style' });
+      }).rejects.toThrow('process.exit called with 1');
+
+      expect(exitSpy).toHaveBeenCalledWith(1);
+    });
+
+    it('should reject invalid typescript style guide', async () => {
+      await expect(async () => {
+        await improveCommand('./test', { typescriptStyle: 'invalid-style' });
+      }).rejects.toThrow('process.exit called with 1');
+
+      expect(exitSpy).toHaveBeenCalledWith(1);
+    });
+
+    it('should reject invalid tone', async () => {
+      await expect(async () => {
+        await improveCommand('./test', { tone: 'invalid-tone' });
+      }).rejects.toThrow('process.exit called with 1');
+
+      expect(exitSpy).toHaveBeenCalledWith(1);
+    });
+  });
+
+  describe('non-interactive mode', () => {
+    it('should use config values without prompting when --non-interactive', async () => {
+      await improveCommand('./test', { nonInteractive: true });
+
+      // Should not prompt at all
+      expect(mockPrompts).not.toHaveBeenCalled();
+
+      // Should use config values
+      expect(MockInteractiveSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          styleGuides: { javascript: 'jsdoc-vanilla' },
+          tone: 'concise',
+        })
+      );
+    });
+
+    it('should use CLI flags over config in non-interactive mode', async () => {
+      await improveCommand('./test', {
+        nonInteractive: true,
+        javascriptStyle: 'jsdoc-google',
+        tone: 'detailed',
+      });
+
+      expect(mockPrompts).not.toHaveBeenCalled();
+      expect(MockInteractiveSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          styleGuides: { javascript: 'jsdoc-google' },
+          tone: 'detailed',
+        })
+      );
+    });
+
+    it('should fail in non-interactive mode when config missing for detected language', async () => {
+      mockReadFileSync.mockReturnValueOnce(JSON.stringify({
+        items: [{
+          name: 'pyFunc',
+          type: 'function',
+          filepath: 'test.py',
+          line_number: 10,
+          language: 'python',
+          complexity: 5,
+          impact_score: 75,
+          reason: 'reason',
+          export_type: 'named',
+          module_system: 'unknown',
+          parameters: [],
+          has_docs: false,
+          docstring: null,
+          audit_rating: null,
+        }],
+      }));
+
+      // Config only has javascript, but plan needs python
+      mockConfigLoader.load.mockResolvedValueOnce({
+        styleGuides: { javascript: 'jsdoc-vanilla' },
+        tone: 'concise',
+        plugins: [],
+        exclude: [],
+      });
+
+      await expect(async () => {
+        await improveCommand('./test', { nonInteractive: true });
+      }).rejects.toThrow('process.exit called with 1');
+
+      expect(exitSpy).toHaveBeenCalledWith(1);
+      expect(mockPrompts).not.toHaveBeenCalled();
+    });
+
+    it('should succeed in non-interactive mode with CLI flag for missing config', async () => {
+      mockReadFileSync.mockReturnValueOnce(JSON.stringify({
+        items: [{
+          name: 'pyFunc',
+          type: 'function',
+          filepath: 'test.py',
+          line_number: 10,
+          language: 'python',
+          complexity: 5,
+          impact_score: 75,
+          reason: 'reason',
+          export_type: 'named',
+          module_system: 'unknown',
+          parameters: [],
+          has_docs: false,
+          docstring: null,
+          audit_rating: null,
+        }],
+      }));
+
+      // Config missing python, but CLI flag provides it
+      mockConfigLoader.load.mockResolvedValueOnce({
+        styleGuides: { javascript: 'jsdoc-vanilla' },
+        tone: 'concise',
+        plugins: [],
+        exclude: [],
+      });
+
+      await improveCommand('./test', {
+        nonInteractive: true,
+        pythonStyle: 'google',
+      });
+
+      expect(mockPrompts).not.toHaveBeenCalled();
+      expect(MockInteractiveSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          styleGuides: { python: 'google' },
+        })
+      );
+    });
+
+    it('should use default tone in non-interactive mode when not configured', async () => {
+      mockConfigLoader.load.mockResolvedValueOnce({
+        styleGuides: { javascript: 'jsdoc-vanilla' },
+        tone: undefined as any,
+        plugins: [],
+        exclude: [],
+      });
+
+      await improveCommand('./test', { nonInteractive: true });
+
+      expect(MockInteractiveSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tone: 'concise',
+        })
+      );
+    });
+  });
+
+  describe('mixed interactive and CLI flags', () => {
+    it('should skip prompt for language with CLI flag, prompt for others', async () => {
+      mockReadFileSync.mockReturnValueOnce(JSON.stringify({
+        items: [
+          {
+            name: 'pyFunc',
+            type: 'function',
+            filepath: 'test.py',
+            line_number: 10,
+            language: 'python',
+            complexity: 5,
+            impact_score: 75,
+            reason: 'reason',
+            export_type: 'named',
+            module_system: 'unknown',
+            parameters: [],
+            has_docs: false,
+            docstring: null,
+            audit_rating: null,
+          },
+          {
+            name: 'jsFunc',
+            type: 'function',
+            filepath: 'test.js',
+            line_number: 20,
+            language: 'javascript',
+            complexity: 3,
+            impact_score: 50,
+            reason: 'reason',
+            export_type: 'named',
+            module_system: 'esm',
+            parameters: [],
+            has_docs: false,
+            docstring: null,
+            audit_rating: null,
+          },
+        ],
+      }));
+
+      mockPrompts
+        .mockResolvedValueOnce({ styleGuide: 'jsdoc-vanilla' }) // JavaScript prompt
+        .mockResolvedValueOnce({ tone: 'concise' });            // Tone prompt
+
+      await improveCommand('./test', { pythonStyle: 'google' });
+
+      // Should prompt for javascript (no flag) and tone
+      expect(mockPrompts).toHaveBeenCalledTimes(2);
+      expect(MockInteractiveSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          styleGuides: { python: 'google', javascript: 'jsdoc-vanilla' },
+        })
+      );
+    });
+
+    it('should skip tone prompt when --tone flag provided', async () => {
+      await improveCommand('./test', { tone: 'friendly' });
+
+      // Should only prompt for javascript style, not tone
+      expect(mockPrompts).toHaveBeenCalledTimes(1);
+      expect(mockPrompts).toHaveBeenCalledWith(expect.objectContaining({ name: 'styleGuide' }));
+      expect(MockInteractiveSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tone: 'friendly',
+        })
+      );
+    });
+  });
 });
