@@ -751,5 +751,80 @@ describe('PythonBridge Timeout Handling', () => {
       // Bridge should be created with defaults
       expect(bridgeWithPartialConfig).toBeDefined();
     });
+
+    it('should throw error for negative defaultTimeout', () => {
+      const invalidConfig: IConfig = {
+        styleGuides: {},
+        tone: 'concise',
+        pythonBridge: {
+          defaultTimeout: -1000, // Invalid: negative
+          suggestTimeout: 5000,
+        },
+      };
+
+      expect(() => {
+        new PythonBridge('python3', '/mock/analyzer', invalidConfig);
+      }).toThrow(/Invalid pythonBridge.defaultTimeout.*must be a positive number/);
+    });
+
+    it('should throw error for zero defaultTimeout', () => {
+      const invalidConfig: IConfig = {
+        styleGuides: {},
+        tone: 'concise',
+        pythonBridge: {
+          defaultTimeout: 0, // Invalid: zero
+          suggestTimeout: 5000,
+        },
+      };
+
+      expect(() => {
+        new PythonBridge('python3', '/mock/analyzer', invalidConfig);
+      }).toThrow(/Invalid pythonBridge.defaultTimeout.*must be a positive number/);
+    });
+
+    it('should throw error for Infinity timeout', () => {
+      const invalidConfig: IConfig = {
+        styleGuides: {},
+        tone: 'concise',
+        pythonBridge: {
+          defaultTimeout: Infinity, // Invalid: Infinity
+          suggestTimeout: 5000,
+        },
+      };
+
+      expect(() => {
+        new PythonBridge('python3', '/mock/analyzer', invalidConfig);
+      }).toThrow(/Invalid pythonBridge.defaultTimeout.*must be a finite number/);
+    });
+
+    it('should throw error for NaN timeout', () => {
+      const invalidConfig: IConfig = {
+        styleGuides: {},
+        tone: 'concise',
+        pythonBridge: {
+          defaultTimeout: NaN, // Invalid: NaN
+          suggestTimeout: 5000,
+        },
+      };
+
+      expect(() => {
+        new PythonBridge('python3', '/mock/analyzer', invalidConfig);
+      }).toThrow(/Invalid pythonBridge.defaultTimeout/);
+    });
+
+    it('should throw error for negative suggestTimeout', () => {
+      const invalidConfig: IConfig = {
+        styleGuides: {},
+        tone: 'concise',
+        pythonBridge: {
+          defaultTimeout: 5000,
+          suggestTimeout: -1000, // Invalid: negative
+        },
+      };
+
+      expect(() => {
+        new PythonBridge('python3', '/mock/analyzer', invalidConfig);
+      }).toThrow(/Invalid pythonBridge.suggestTimeout.*must be a positive number/);
+    });
   });
 });

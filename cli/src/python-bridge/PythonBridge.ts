@@ -129,6 +129,32 @@ export class PythonBridge implements IPythonBridge {
     // Load timeout settings from config or use defaults
     this.defaultTimeout = config?.pythonBridge?.defaultTimeout ?? defaultConfig.pythonBridge!.defaultTimeout!;
     this.suggestTimeout = config?.pythonBridge?.suggestTimeout ?? defaultConfig.pythonBridge!.suggestTimeout!;
+
+    // Validate timeout values
+    if (this.defaultTimeout <= 0) {
+      throw new Error(
+        `Invalid pythonBridge.defaultTimeout: ${this.defaultTimeout}. ` +
+        `Timeout must be a positive number (milliseconds).`
+      );
+    }
+    if (this.suggestTimeout <= 0) {
+      throw new Error(
+        `Invalid pythonBridge.suggestTimeout: ${this.suggestTimeout}. ` +
+        `Timeout must be a positive number (milliseconds).`
+      );
+    }
+    if (!Number.isFinite(this.defaultTimeout)) {
+      throw new Error(
+        `Invalid pythonBridge.defaultTimeout: ${this.defaultTimeout}. ` +
+        `Timeout must be a finite number (not Infinity or NaN).`
+      );
+    }
+    if (!Number.isFinite(this.suggestTimeout)) {
+      throw new Error(
+        `Invalid pythonBridge.suggestTimeout: ${this.suggestTimeout}. ` +
+        `Timeout must be a finite number (not Infinity or NaN).`
+      );
+    }
   }
 
   /**
