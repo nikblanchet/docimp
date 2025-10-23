@@ -29,6 +29,15 @@ import type { IConfig } from '../config/IConfig.js';
  *
  * @param path - Path to file or directory to improve
  * @param options - Command options
+ * @param options.config - Path to configuration file
+ * @param options.planFile - Path to plan file containing improvement items
+ * @param options.pythonStyle - Python documentation style guide
+ * @param options.javascriptStyle - JavaScript documentation style guide
+ * @param options.typescriptStyle - TypeScript documentation style guide
+ * @param options.tone - Documentation tone (concise, friendly, technical)
+ * @param options.nonInteractive - Run in non-interactive mode
+ * @param options.verbose - Enable verbose output
+ * @param options.listStyles - List available style guides and exit
  */
 export async function improveCommand(
   path: string,

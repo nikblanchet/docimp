@@ -19,6 +19,10 @@ import type { IDisplay } from '../display/IDisplay.js';
  *
  * @param path - Path to file or directory to analyze
  * @param options - Command options
+ * @param options.format - Output format (json or summary)
+ * @param options.config - Path to configuration file
+ * @param options.verbose - Enable verbose output
+ * @param options.keepOldReports - Preserve existing audit and plan files
  * @param bridge - Python bridge instance (injected for testing)
  * @param display - Display instance (injected for testing)
  */
@@ -107,6 +111,10 @@ export async function analyzeCore(
  *
  * @param path - Path to file or directory to analyze
  * @param options - Command options
+ * @param options.format - Output format (json or summary)
+ * @param options.config - Path to configuration file
+ * @param options.verbose - Enable verbose output
+ * @param options.keepOldReports - Preserve existing audit and plan files
  */
 export async function analyzeCommand(
   path: string,

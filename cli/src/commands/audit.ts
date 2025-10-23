@@ -74,6 +74,8 @@ export function calculateAuditSummary(
  *
  * @param path - Path to file or directory to audit
  * @param options - Command options
+ * @param options.auditFile - Path to audit file for storing ratings
+ * @param options.verbose - Enable verbose output
  * @param bridge - Python bridge instance (injected for testing)
  * @param display - Display instance (injected for testing)
  * @param config - Config instance (injected for testing)
@@ -358,6 +360,8 @@ export async function auditCore(
  *
  * @param path - Path to file or directory to audit
  * @param options - Command options
+ * @param options.auditFile - Path to audit file for storing ratings
+ * @param options.verbose - Enable verbose output
  */
 export async function auditCommand(
   path: string,
