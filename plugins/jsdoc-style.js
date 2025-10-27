@@ -18,15 +18,27 @@
  * Uses the comment-parser library to properly handle multi-line content,
  * code examples, and complex JSDoc patterns without losing formatting.
  *
+ * IMPORTANT: This function requires comment-parser to be injected. There is
+ * no fallback parser because the previous fallback had the same bug that
+ * Issue #95 reported (concatenating multi-line content with spaces, destroying
+ * formatting). Having a broken fallback is worse than requiring the dependency.
+ *
  * @param {string} docstring - JSDoc comment text
  * @param {object} commentParser - Injected comment-parser dependency
  * @returns {{description: string, tags: Array<{name: string, text: string}>}}
  */
 function parseJSDoc(docstring, commentParser) {
-  // Use comment-parser if available (dependency injection)
-  if (commentParser && commentParser.parse) {
+  // Require comment-parser - no fallback to prevent silent failures
+  if (!commentParser || !commentParser.parse) {
+    console.warn('[jsdoc-style] comment-parser not available, returning empty parse result');
+    return { description: '', tags: [] };
+  }
+
+  try {
     const parsed = commentParser.parse(docstring);
+
     if (!parsed || parsed.length === 0) {
+      console.warn('[jsdoc-style] comment-parser returned empty results for docstring');
       return { description: '', tags: [] };
     }
 
@@ -42,38 +54,10 @@ function parseJSDoc(docstring, commentParser) {
     }));
 
     return { description, tags };
+  } catch (error) {
+    console.error('[jsdoc-style] comment-parser failed to parse docstring:', error.message);
+    return { description: '', tags: [] };
   }
-
-  // Fallback: simple parsing (should not be used in production)
-  // This fallback exists for backward compatibility but is not recommended
-  const lines = docstring
-    .split('\n')
-    .map((line) => line.replace(/^\s*\*\s?/, '').trim())
-    .filter((line) => line !== '/**' && line !== '*/');
-
-  const tags = [];
-  let description = '';
-  let currentTag = null;
-
-  for (const line of lines) {
-    const tagMatch = line.match(/^@(\w+)\s*(.*)/);
-    if (tagMatch) {
-      if (currentTag) {
-        tags.push(currentTag);
-      }
-      currentTag = { name: tagMatch[1], text: tagMatch[2] };
-    } else if (currentTag) {
-      currentTag.text += ' ' + line;
-    } else {
-      description += (description ? ' ' : '') + line;
-    }
-  }
-
-  if (currentTag) {
-    tags.push(currentTag);
-  }
-
-  return { description: description.trim(), tags };
 }
 
 /**
@@ -247,12 +231,19 @@ async function beforeAccept(docstring, item, config, dependencies) {
     return { accept: true };
   }
 
+  // Validate that required dependencies are available
+  if (!dependencies?.commentParser) {
+    return {
+      accept: false,
+      reason: 'comment-parser dependency not available. This plugin requires comment-parser to be injected by the PluginManager.',
+    };
+  }
+
   const jsdocStyle = config.jsdocStyle || {};
   const violations = [];
 
   // Parse the JSDoc with injected comment-parser
-  const commentParser = dependencies?.commentParser;
-  const parsed = parseJSDoc(docstring, commentParser);
+  const parsed = parseJSDoc(docstring, dependencies.commentParser);
 
   // Check tag aliases
   if (jsdocStyle.preferredTags) {

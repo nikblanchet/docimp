@@ -466,7 +466,7 @@ describe('jsdoc-style plugin', () => {
     });
   });
 
-  describe('fallback parsing without dependencies', () => {
+  describe('dependency requirement validation', () => {
     const config = {
       jsdocStyle: {
         requireDescriptions: false,
@@ -483,18 +483,37 @@ describe('jsdoc-style plugin', () => {
       export_type: 'named',
     };
 
-    it('should work with fallback parser when no dependencies provided', async () => {
+    it('should reject when no dependencies provided', async () => {
       const docstring = `/**
  * Simple function.
  * @param {number} x - Input
  * @returns {number} Output
  */`;
 
-      // Call without dependencies
+      // Call without dependencies - should now reject
       const result = await jsdocStylePlugin.hooks.beforeAccept(
         docstring,
         item,
         config
+      );
+
+      expect(result.accept).toBe(false);
+      expect(result.reason).toContain('comment-parser dependency not available');
+    });
+
+    it('should accept when dependencies are provided', async () => {
+      const docstring = `/**
+ * Simple function.
+ * @param {number} x - Input
+ * @returns {number} Output
+ */`;
+
+      // Call with dependencies - should accept
+      const result = await jsdocStylePlugin.hooks.beforeAccept(
+        docstring,
+        item,
+        config,
+        dependencies
       );
 
       expect(result.accept).toBe(true);
