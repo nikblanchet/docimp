@@ -73,14 +73,28 @@ class TypeScriptParser(BaseParser):
             try:
                 items_data = json.loads(result.stdout if result.stdout else result.stderr)
             except json.JSONDecodeError as e:
-                # If we can't parse JSON and there was an error, report it
+                # Log subprocess output for debugging
+                stdout_preview = (result.stdout[:200] + '...') if len(result.stdout) > 200 else result.stdout
+                stderr_preview = (result.stderr[:200] + '...') if len(result.stderr) > 200 else result.stderr
+
+                # If we can't parse JSON and there was an error, this is a parser infrastructure issue
                 if result.returncode != 0:
                     error_msg = result.stderr or result.stdout or "TypeScript parser helper failed"
                     raise RuntimeError(
-                        f"Failed to run TypeScript parser. Error: {error_msg}\n"
+                        f"Failed to run TypeScript parser helper (returncode={result.returncode}).\n"
+                        f"Error: {error_msg}\n"
+                        f"Stdout: {stdout_preview}\n"
+                        f"Stderr: {stderr_preview}\n"
                         f"Make sure Node.js is installed and the TypeScript helper is compiled."
                     )
-                raise SyntaxError(f"Failed to parse output from TypeScript parser: {e}\nOutput: {result.stdout}")
+                # Returncode is 0 but JSON is malformed - this is also an infrastructure issue
+                raise RuntimeError(
+                    f"TypeScript parser helper returned invalid JSON (returncode=0).\n"
+                    f"JSONDecodeError: {e}\n"
+                    f"Stdout: {stdout_preview}\n"
+                    f"Stderr: {stderr_preview}\n"
+                    f"This indicates a problem with the parser helper, not the source code."
+                )
 
             # Check for error response
             if isinstance(items_data, dict) and 'error' in items_data:
