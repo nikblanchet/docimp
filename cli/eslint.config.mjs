@@ -15,6 +15,7 @@ export default [
       },
       globals: {
         // Node.js globals
+        NodeJS: 'readonly',
         process: 'readonly',
         console: 'readonly',
         Buffer: 'readonly',

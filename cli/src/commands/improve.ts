@@ -313,11 +313,15 @@ export async function improveCommand(
     }
 
     // Load plugins
-    const pluginManager = new PluginManager();
-    if (config.plugins && config.plugins.length > 0) {
+    const pluginManager = new PluginManager(config);
+    const pluginPaths = Array.isArray(config.plugins)
+      ? config.plugins
+      : config.plugins?.paths ?? [];
+
+    if (pluginPaths.length > 0) {
       display.showMessage(chalk.dim(`Loading plugins...`));
       try {
-        await pluginManager.loadPlugins(config.plugins);
+        await pluginManager.loadPlugins(pluginPaths);
         const loadedPlugins = pluginManager.getLoadedPlugins();
         display.showMessage(chalk.green(`Loaded ${loadedPlugins.length} plugin(s): ${loadedPlugins.join(', ')}`));
       } catch (error) {
