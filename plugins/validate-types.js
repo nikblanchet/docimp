@@ -35,9 +35,10 @@ try {
   ts = require('typescript');
 }
 
-// Try to load comment-parser from cli/node_modules
+// Load comment-parser (runtime dependency in cli/package.json)
 let parseJSDoc;
 try {
+  // Try to load from CLI's node_modules first (standard location)
   const commentParser = require('../cli/node_modules/comment-parser');
   parseJSDoc = commentParser.parse;
 } catch {
@@ -162,6 +163,20 @@ try {
  *
  * @param {string} docstring - JSDoc comment text
  * @returns {string[]} Array of parameter names
+ * @example
+ * // Optional parameter with default value
+ * extractJSDocParamNames('/** @param {string} [name="default"] - User name *\/')
+ * // Returns: ['name']
+ *
+ * @example
+ * // Rest parameter
+ * extractJSDocParamNames('/** @param {...number} args - Numbers to sum *\/')
+ * // Returns: ['args']
+ *
+ * @example
+ * // Destructured parameter
+ * extractJSDocParamNames('/** @param {{x: number, y: number}} coords - Point coordinates *\/')
+ * // Returns: ['coords']
  */
 function extractJSDocParamNames(docstring) {
   try {

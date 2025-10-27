@@ -767,6 +767,67 @@ describe('validate-types plugin', () => {
 
       expect(result.accept).toBe(true);
     });
+
+    it('should handle malformed empty bracket patterns gracefully', async () => {
+      // Edge case: malformed JSDoc with empty brackets or invalid syntax
+      const docstring = `/**
+ * Test function with malformed JSDoc.
+ * @param {string} [] - Empty bracket parameter (malformed)
+ * @param {number} validParam - Valid parameter
+ * @returns {void}
+ */`;
+
+      const item = {
+        name: 'testMalformed',
+        type: 'function',
+        filepath: 'test-malformed.js',
+        line_number: 1,
+        language: 'javascript',
+        complexity: 1,
+        export_type: 'named',
+        parameters: ['validParam'],
+        code: 'function testMalformed(validParam) { }',
+      };
+
+      const result = await validateTypesPlugin.hooks.beforeAccept(
+        docstring,
+        item,
+        config
+      );
+
+      // Should reject due to parameter mismatch (malformed param doesn't extract properly)
+      expect(result.accept).toBe(false);
+      expect(result.reason).toContain('Parameter name mismatch');
+    });
+
+    it('should handle parameters with default values containing brackets', async () => {
+      // Edge case: default value is an array or contains brackets
+      const docstring = `/**
+ * Create array with default.
+ * @param {Array} [items=[1, 2, 3]] - Items with array default
+ * @returns {Array} Resulting array
+ */`;
+
+      const item = {
+        name: 'createArray',
+        type: 'function',
+        filepath: 'test-array-default.js',
+        line_number: 1,
+        language: 'javascript',
+        complexity: 1,
+        export_type: 'named',
+        parameters: ['items'],
+        code: 'function createArray(items = [1, 2, 3]) { return items; }',
+      };
+
+      const result = await validateTypesPlugin.hooks.beforeAccept(
+        docstring,
+        item,
+        config
+      );
+
+      expect(result.accept).toBe(true);
+    });
   });
 
   describe('LRU cache eviction', () => {
