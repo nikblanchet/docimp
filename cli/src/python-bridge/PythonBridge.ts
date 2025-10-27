@@ -48,22 +48,26 @@ function findAnalyzerDir(): string {
   // Get the directory containing this file
   // In production: cli/dist/python-bridge/PythonBridge.js
   // In development: cli/src/python-bridge/PythonBridge.ts
-  // Note: import.meta.url is not available in Jest/test environment,
-  // so we use process.cwd() as fallback (tests provide explicit analyzerPath anyway)
+  //
+  // IMPORTANT: Jest doesn't support import.meta at parse time, so we use eval() to hide
+  // it from the parser. This is safe because we're just getting the module URL.
+
   let analyzerPath: string;
   let moduleInfo: string;
 
-  if (typeof import.meta !== 'undefined' && import.meta.url) {
-    const currentFileUrl = import.meta.url;
+  try {
+    // Use eval to prevent Jest from parsing import.meta
+    // eslint-disable-next-line no-eval
+    const currentFileUrl = eval('import.meta.url');
     const currentFilePath = fileURLToPath(currentFileUrl);
     const currentDir = dirname(currentFilePath);
 
     // Go up 3 levels to repo root: python-bridge -> src|dist -> cli -> root
-    // Then into analyzer/
     analyzerPath = resolve(currentDir, '..', '..', '..', 'analyzer');
     moduleInfo = currentFilePath;
-  } else {
+  } catch {
     // Fallback for Jest/test environment: assume running from repo root
+    // Tests provide explicit analyzerPath parameter anyway
     analyzerPath = resolve(process.cwd(), 'analyzer');
     moduleInfo = '(test environment)';
   }
