@@ -131,6 +131,39 @@ def test_export_arrow_function(writer):
     assert 'power' in result, "Original code not found"
 
 
+def test_arrow_function_without_parens(writer):
+    """Test writing JSDoc for arrow function without parentheses (single parameter)."""
+    code = "const double = x => x * 2;"
+    jsdoc = "Double a number"
+
+    result = write_and_check(writer, code, jsdoc, "double", "function")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'double' in result, "Original code not found"
+
+
+def test_arrow_function_without_parens_async(writer):
+    """Test writing JSDoc for async arrow function without parentheses."""
+    code = "const fetchData = async id => await api.get(id);"
+    jsdoc = "Fetch data by ID"
+
+    result = write_and_check(writer, code, jsdoc, "fetchData", "function")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'fetchData' in result, "Original code not found"
+
+
+def test_export_arrow_function_without_parens(writer):
+    """Test writing JSDoc for exported arrow function without parentheses."""
+    code = "export const triple = x => x * 3;"
+    jsdoc = "Triple a number"
+
+    result = write_and_check(writer, code, jsdoc, "triple", "function")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'triple' in result, "Original code not found"
+
+
 def test_class(writer):
     """Test writing JSDoc for class."""
     code = "export class Calculator {\n  add(a, b) {\n    return a + b;\n  }\n}"

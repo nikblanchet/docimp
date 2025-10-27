@@ -512,8 +512,14 @@ class DocstringWriter:
             # Arrow function (const/let/var)
             patterns.append(re.compile(rf'\b(const|let|var)\s+{escaped_name}\s*=\s*(async\s*)?\('))
 
+            # Arrow function without parentheses (single parameter)
+            patterns.append(re.compile(rf'\b(const|let|var)\s+{escaped_name}\s*=\s*(async\s+)?\w+\s*=>'))
+
             # Export arrow function
             patterns.append(re.compile(rf'\bexport\s+(const|let|var)\s+{escaped_name}\s*=\s*(async\s*)?\('))
+
+            # Export arrow function without parentheses (single parameter)
+            patterns.append(re.compile(rf'\bexport\s+(const|let|var)\s+{escaped_name}\s*=\s*(async\s+)?\w+\s*=>'))
 
             # Method in object literal or class
             patterns.append(re.compile(rf'\b(static\s+)?(async\s+)?(get\s+|set\s+)?{escaped_name}\s*\('))
