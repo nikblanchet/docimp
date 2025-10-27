@@ -131,6 +131,39 @@ def test_export_arrow_function(writer):
     assert 'power' in result, "Original code not found"
 
 
+def test_arrow_function_without_parens(writer):
+    """Test writing JSDoc for arrow function without parentheses (single parameter)."""
+    code = "const double = x => x * 2;"
+    jsdoc = "Double a number"
+
+    result = write_and_check(writer, code, jsdoc, "double", "function")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'double' in result, "Original code not found"
+
+
+def test_arrow_function_without_parens_async(writer):
+    """Test writing JSDoc for async arrow function without parentheses."""
+    code = "const fetchData = async id => await api.get(id);"
+    jsdoc = "Fetch data by ID"
+
+    result = write_and_check(writer, code, jsdoc, "fetchData", "function")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'fetchData' in result, "Original code not found"
+
+
+def test_export_arrow_function_without_parens(writer):
+    """Test writing JSDoc for exported arrow function without parentheses."""
+    code = "export const triple = x => x * 3;"
+    jsdoc = "Triple a number"
+
+    result = write_and_check(writer, code, jsdoc, "triple", "function")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'triple' in result, "Original code not found"
+
+
 def test_class(writer):
     """Test writing JSDoc for class."""
     code = "export class Calculator {\n  add(a, b) {\n    return a + b;\n  }\n}"
@@ -151,6 +184,138 @@ def test_class_method(writer):
 
     assert '/**' in result, "JSDoc not found in output"
     assert 'sum' in result, "Original code not found"
+
+
+def test_private_method(writer):
+    """Test writing JSDoc for private class method."""
+    code = "class Database {\n  #connect() {\n    return this.connection;\n  }\n}"
+    jsdoc = "Establish database connection"
+
+    result = write_and_check(writer, code, jsdoc, "#connect", "method")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert '#connect' in result, "Original code not found"
+
+
+def test_private_method_async(writer):
+    """Test writing JSDoc for async private class method."""
+    code = "class API {\n  async #fetchData() {\n    return await fetch('/api/data');\n  }\n}"
+    jsdoc = "Fetch data from API"
+
+    result = write_and_check(writer, code, jsdoc, "#fetchData", "method")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert '#fetchData' in result, "Original code not found"
+
+
+def test_private_method_static(writer):
+    """Test writing JSDoc for static private class method."""
+    code = "class Utils {\n  static #helper() {\n    return true;\n  }\n}"
+    jsdoc = "Internal helper function"
+
+    result = write_and_check(writer, code, jsdoc, "#helper", "method")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert '#helper' in result, "Original code not found"
+
+
+def test_typescript_public_method(writer):
+    """Test writing JSDoc for TypeScript public method."""
+    code = "class API {\n  public getData() {\n    return this.data;\n  }\n}"
+    jsdoc = "Get the data"
+
+    result = write_and_check(writer, code, jsdoc, "getData", "method")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'getData' in result, "Original code not found"
+
+
+def test_typescript_private_method(writer):
+    """Test writing JSDoc for TypeScript private method."""
+    code = "class Service {\n  private helper() {\n    return true;\n  }\n}"
+    jsdoc = "Helper function"
+
+    result = write_and_check(writer, code, jsdoc, "helper", "method")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'helper' in result, "Original code not found"
+
+
+def test_typescript_protected_async_method(writer):
+    """Test writing JSDoc for TypeScript protected async method."""
+    code = "class Base {\n  protected async validate() {\n    return await this.check();\n  }\n}"
+    jsdoc = "Validate the input"
+
+    result = write_and_check(writer, code, jsdoc, "validate", "method")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'validate' in result, "Original code not found"
+
+
+def test_typescript_private_static_method(writer):
+    """Test writing JSDoc for TypeScript private static method."""
+    code = "class Factory {\n  private static create() {\n    return new Factory();\n  }\n}"
+    jsdoc = "Create instance"
+
+    result = write_and_check(writer, code, jsdoc, "create", "method")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'create' in result, "Original code not found"
+
+
+def test_method_name_starting_with_visibility_keyword(writer):
+    """Test that method names starting with visibility keywords don't falsely match."""
+    code = "class Utils {\n  publicity() {\n    return 'public relations';\n  }\n}"
+    jsdoc = "Handle publicity"
+
+    result = write_and_check(writer, code, jsdoc, "publicity", "method")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'publicity' in result, "Original code not found"
+
+
+def test_method_name_starting_with_private_keyword(writer):
+    """Test that method names starting with 'private' don't falsely match."""
+    code = "class Auth {\n  privatize() {\n    return 'make private';\n  }\n}"
+    jsdoc = "Privatize data"
+
+    result = write_and_check(writer, code, jsdoc, "privatize", "method")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'privatize' in result, "Original code not found"
+
+
+def test_method_name_starting_with_protected_keyword(writer):
+    """Test that method names starting with 'protected' don't falsely match."""
+    code = "class Security {\n  protection() {\n    return 'protect';\n  }\n}"
+    jsdoc = "Provide protection"
+
+    result = write_and_check(writer, code, jsdoc, "protection", "method")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'protection' in result, "Original code not found"
+
+
+def test_arrow_function_with_underscore_param(writer):
+    """Test arrow function with underscore-prefixed parameter."""
+    code = "const increment = _val => _val + 1;"
+    jsdoc = "Increment value"
+
+    result = write_and_check(writer, code, jsdoc, "increment", "function")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'increment' in result, "Original code not found"
+
+
+def test_arrow_function_with_dollar_param(writer):
+    """Test arrow function with dollar-prefixed parameter."""
+    code = "const transform = $data => $data.toUpperCase();"
+    jsdoc = "Transform data"
+
+    result = write_and_check(writer, code, jsdoc, "transform", "function")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'transform' in result, "Original code not found"
 
 
 def test_backup_cleanup_on_successful_write(writer):

@@ -512,11 +512,26 @@ class DocstringWriter:
             # Arrow function (const/let/var)
             patterns.append(re.compile(rf'\b(const|let|var)\s+{escaped_name}\s*=\s*(async\s*)?\('))
 
+            # Arrow function without parentheses (single parameter)
+            # Matches simple identifiers: letter/underscore/$ followed by word chars or $
+            patterns.append(re.compile(rf'\b(const|let|var)\s+{escaped_name}\s*=\s*(async\s+)?[a-zA-Z_$][\w$]*\s*=>'))
+
             # Export arrow function
             patterns.append(re.compile(rf'\bexport\s+(const|let|var)\s+{escaped_name}\s*=\s*(async\s*)?\('))
 
-            # Method in object literal or class
-            patterns.append(re.compile(rf'\b(static\s+)?(async\s+)?(get\s+|set\s+)?{escaped_name}\s*\('))
+            # Export arrow function without parentheses (single parameter)
+            # Matches simple identifiers: letter/underscore/$ followed by word chars or $
+            patterns.append(re.compile(rf'\bexport\s+(const|let|var)\s+{escaped_name}\s*=\s*(async\s+)?[a-zA-Z_$][\w$]*\s*=>'))
+
+            # Check if this is a private method (name starts with #)
+            if item_name.startswith('#'):
+                # Private method: escaped_name already includes the #
+                # No leading \b because # itself is distinctive and \b doesn't work before #
+                patterns.append(re.compile(rf'(static\s+)?(async\s+)?(get\s+|set\s+)?{escaped_name}\s*\('))
+            else:
+                # Regular method in object literal or class
+                # Supports TypeScript visibility modifiers (public, private, protected)
+                patterns.append(re.compile(rf'\b((public|private|protected)\s+)?(static\s+)?(async\s+)?(get\s+|set\s+)?{escaped_name}\s*\('))
 
             # CommonJS exports
             patterns.append(re.compile(rf'\b(module\.)?exports\.{escaped_name}\s*='))
