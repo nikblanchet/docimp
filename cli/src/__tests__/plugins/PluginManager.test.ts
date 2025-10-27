@@ -336,7 +336,7 @@ describe('PluginManager', () => {
   });
 
   describe('path validation', () => {
-    const testDir = resolve(process.cwd(), '.test-plugin-validation');
+    const testDir = resolve('.test-plugin-validation');
     const pluginsDir = resolve(testDir, 'plugins');
     const srcDir = resolve(testDir, 'src');
     const nodeModulesDir = resolve(testDir, 'node_modules');
