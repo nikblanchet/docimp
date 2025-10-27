@@ -674,7 +674,7 @@ describe('PluginManager', () => {
         expect(results[0].reason).toContain('50ms'); // Should use plugin timeout
       });
 
-      it('should fall back to 10s default when no config provided', async () => {
+      it('should allow plugin to complete successfully when using default 10s timeout', async () => {
         // PluginManager without config
         const managerWithoutConfig = new PluginManager();
 

@@ -18,6 +18,7 @@ import type {
   PluginDependencies,
 } from './IPlugin.js';
 import type { IConfig } from '../config/IConfig.js';
+import { isPluginConfig } from '../config/IConfig.js';
 
 // Import dependencies to inject into plugins
 import * as typescript from 'typescript';
@@ -251,7 +252,7 @@ export class PluginManager {
    * @returns Default timeout in milliseconds
    */
   private getDefaultTimeout(): number {
-    if (this.config?.plugins && typeof this.config.plugins === 'object' && 'timeout' in this.config.plugins) {
+    if (isPluginConfig(this.config?.plugins)) {
       return this.config.plugins.timeout ?? 10000;
     }
     return 10000;
@@ -285,6 +286,24 @@ export class PluginManager {
     return Promise.race([promise, timeoutPromise]).finally(() => {
       clearTimeout(timerId);
     });
+  }
+
+  /**
+   * Format plugin error message for consistent error reporting.
+   *
+   * Distinguishes between timeout errors (which already include plugin name and details)
+   * and plugin exceptions (which need to be prefixed with context).
+   *
+   * @param pluginName - Name of the plugin that threw the error
+   * @param error - Error thrown by the plugin
+   * @returns Formatted error message
+   */
+  private formatPluginError(pluginName: string, error: unknown): string {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isTimeout = errorMessage.includes('timed out after');
+    return isTimeout
+      ? errorMessage // Timeout error already includes plugin name and details
+      : `Plugin ${pluginName} threw an error: ${errorMessage}`;
   }
 
   /**
@@ -336,14 +355,9 @@ export class PluginManager {
         results.push(result);
       } catch (error) {
         // Error isolation: convert exceptions to rejection results
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        const isTimeout = errorMessage.includes('timed out after');
         results.push({
           accept: false,
-          reason: isTimeout
-            ? errorMessage // Timeout error already includes plugin name and details
-            : `Plugin ${plugin.name} threw an error: ${errorMessage}`,
+          reason: this.formatPluginError(plugin.name, error),
         });
       }
     }
@@ -393,14 +407,9 @@ export class PluginManager {
         results.push(result);
       } catch (error) {
         // Error isolation: convert exceptions to rejection results
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        const isTimeout = errorMessage.includes('timed out after');
         results.push({
           accept: false,
-          reason: isTimeout
-            ? errorMessage // Timeout error already includes plugin name and details
-            : `Plugin ${plugin.name} threw an error: ${errorMessage}`,
+          reason: this.formatPluginError(plugin.name, error),
         });
       }
     }
