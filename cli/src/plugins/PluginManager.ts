@@ -236,6 +236,32 @@ export class PluginManager {
   }
 
   /**
+   * Wrap a promise with a timeout.
+   *
+   * If the promise doesn't resolve within the timeout period, it will be
+   * rejected with a timeout error.
+   *
+   * @param promise - Promise to wrap with timeout
+   * @param timeoutMs - Timeout in milliseconds
+   * @param pluginName - Plugin name (for error messages)
+   * @returns Promise that rejects if timeout is exceeded
+   */
+  private withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    pluginName: string
+  ): Promise<T> {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(
+        () => reject(new Error(`Plugin ${pluginName} timed out after ${timeoutMs}ms`)),
+        timeoutMs
+      );
+    });
+
+    return Promise.race([promise, timeoutPromise]);
+  }
+
+  /**
    * Run beforeAccept hooks for all loaded plugins.
    *
    * Executes all beforeAccept hooks in sequence. If any plugin rejects,
@@ -243,6 +269,9 @@ export class PluginManager {
    *
    * Error isolation: If a plugin throws an exception, it's caught and
    * returned as a rejection with error details.
+   *
+   * Timeout protection: Each plugin has a configurable timeout (default 10s).
+   * If a plugin exceeds its timeout, it's treated as a rejection.
    *
    * @param docstring - Generated documentation string
    * @param item - Code item metadata
@@ -264,11 +293,16 @@ export class PluginManager {
       }
 
       try {
-        const result = await plugin.hooks.beforeAccept(
-          docstring,
-          item,
-          config,
-          dependencies
+        const timeoutMs = plugin.timeout ?? 10000; // Default 10 seconds
+        const result = await this.withTimeout(
+          plugin.hooks.beforeAccept(
+            docstring,
+            item,
+            config,
+            dependencies
+          ),
+          timeoutMs,
+          plugin.name
         );
         results.push(result);
       } catch (error) {
@@ -293,6 +327,9 @@ export class PluginManager {
    * Error isolation: If a plugin throws an exception, it's caught and
    * returned as a rejection with error details.
    *
+   * Timeout protection: Each plugin has a configurable timeout (default 10s).
+   * If a plugin exceeds its timeout, it's treated as a rejection.
+   *
    * @param filepath - Path to the file that was written
    * @param item - Code item metadata
    * @returns Array of results (one per plugin)
@@ -311,7 +348,12 @@ export class PluginManager {
       }
 
       try {
-        const result = await plugin.hooks.afterWrite(filepath, item, dependencies);
+        const timeoutMs = plugin.timeout ?? 10000; // Default 10 seconds
+        const result = await this.withTimeout(
+          plugin.hooks.afterWrite(filepath, item, dependencies),
+          timeoutMs,
+          plugin.name
+        );
         results.push(result);
       } catch (error) {
         // Error isolation: convert exceptions to rejection results
