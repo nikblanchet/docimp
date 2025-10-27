@@ -336,6 +336,14 @@ describe('PluginManager', () => {
   });
 
   describe('timeout protection', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
     describe('beforeAccept with timeout', () => {
       it('should allow plugins that complete within timeout', async () => {
         const plugin: IPlugin = {
@@ -352,7 +360,7 @@ describe('PluginManager', () => {
 
         (pluginManager as any).plugins.push(plugin);
 
-        const results = await pluginManager.runBeforeAccept(
+        const resultPromise = pluginManager.runBeforeAccept(
           '/** Test */',
           {
             name: 'testFunc',
@@ -365,6 +373,10 @@ describe('PluginManager', () => {
           defaultConfig
         );
 
+        // Advance past the plugin delay but not past timeout
+        await jest.advanceTimersByTimeAsync(10);
+
+        const results = await resultPromise;
         expect(results).toHaveLength(1);
         expect(results[0].accept).toBe(true);
       });
@@ -384,7 +396,7 @@ describe('PluginManager', () => {
 
         (pluginManager as any).plugins.push(plugin);
 
-        const results = await pluginManager.runBeforeAccept(
+        const resultPromise = pluginManager.runBeforeAccept(
           '/** Test */',
           {
             name: 'testFunc',
@@ -397,6 +409,10 @@ describe('PluginManager', () => {
           defaultConfig
         );
 
+        // Advance past timeout (100ms) but not past plugin delay (200ms)
+        await jest.advanceTimersByTimeAsync(100);
+
+        const results = await resultPromise;
         expect(results).toHaveLength(1);
         expect(results[0].accept).toBe(false);
         expect(results[0].reason).toContain('slow-plugin');
@@ -418,7 +434,7 @@ describe('PluginManager', () => {
 
         (pluginManager as any).plugins.push(plugin);
 
-        const results = await pluginManager.runBeforeAccept(
+        const resultPromise = pluginManager.runBeforeAccept(
           '/** Test */',
           {
             name: 'testFunc',
@@ -431,6 +447,10 @@ describe('PluginManager', () => {
           defaultConfig
         );
 
+        // Advance past plugin delay
+        await jest.advanceTimersByTimeAsync(10);
+
+        const results = await resultPromise;
         // Should complete successfully with default timeout
         expect(results).toHaveLength(1);
         expect(results[0].accept).toBe(true);
@@ -461,7 +481,7 @@ describe('PluginManager', () => {
 
         (pluginManager as any).plugins.push(slowPlugin, fastPlugin);
 
-        const results = await pluginManager.runBeforeAccept(
+        const resultPromise = pluginManager.runBeforeAccept(
           '/** Test */',
           {
             name: 'testFunc',
@@ -474,6 +494,10 @@ describe('PluginManager', () => {
           defaultConfig
         );
 
+        // Advance past first plugin's timeout (100ms)
+        await jest.advanceTimersByTimeAsync(100);
+
+        const results = await resultPromise;
         // Should have results from both plugins
         expect(results).toHaveLength(2);
         // First plugin timed out
@@ -500,7 +524,7 @@ describe('PluginManager', () => {
 
         (pluginManager as any).plugins.push(plugin);
 
-        const results = await pluginManager.runAfterWrite('test.js', {
+        const resultPromise = pluginManager.runAfterWrite('test.js', {
           name: 'testFunc',
           type: 'function',
           filepath: 'test.js',
@@ -509,6 +533,10 @@ describe('PluginManager', () => {
           complexity: 1,
         });
 
+        // Advance past plugin delay
+        await jest.advanceTimersByTimeAsync(10);
+
+        const results = await resultPromise;
         expect(results).toHaveLength(1);
         expect(results[0].accept).toBe(true);
       });
@@ -528,7 +556,7 @@ describe('PluginManager', () => {
 
         (pluginManager as any).plugins.push(plugin);
 
-        const results = await pluginManager.runAfterWrite('test.js', {
+        const resultPromise = pluginManager.runAfterWrite('test.js', {
           name: 'testFunc',
           type: 'function',
           filepath: 'test.js',
@@ -537,6 +565,10 @@ describe('PluginManager', () => {
           complexity: 1,
         });
 
+        // Advance past timeout
+        await jest.advanceTimersByTimeAsync(100);
+
+        const results = await resultPromise;
         expect(results).toHaveLength(1);
         expect(results[0].accept).toBe(false);
         expect(results[0].reason).toContain('slow-afterwrite');
