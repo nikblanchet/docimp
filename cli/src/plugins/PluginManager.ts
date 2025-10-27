@@ -251,14 +251,18 @@ export class PluginManager {
     timeoutMs: number,
     pluginName: string
   ): Promise<T> {
+    let timerId: NodeJS.Timeout;
+
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(
+      timerId = setTimeout(
         () => reject(new Error(`Plugin ${pluginName} timed out after ${timeoutMs}ms`)),
         timeoutMs
       );
     });
 
-    return Promise.race([promise, timeoutPromise]);
+    return Promise.race([promise, timeoutPromise]).finally(() => {
+      clearTimeout(timerId);
+    });
   }
 
   /**
@@ -309,9 +313,12 @@ export class PluginManager {
         // Error isolation: convert exceptions to rejection results
         const errorMessage =
           error instanceof Error ? error.message : String(error);
+        const isTimeout = errorMessage.includes('timed out after');
         results.push({
           accept: false,
-          reason: `Plugin ${plugin.name} threw an error: ${errorMessage}`,
+          reason: isTimeout
+            ? errorMessage // Timeout error already includes plugin name and details
+            : `Plugin ${plugin.name} threw an error: ${errorMessage}`,
         });
       }
     }
@@ -359,9 +366,12 @@ export class PluginManager {
         // Error isolation: convert exceptions to rejection results
         const errorMessage =
           error instanceof Error ? error.message : String(error);
+        const isTimeout = errorMessage.includes('timed out after');
         results.push({
           accept: false,
-          reason: `Plugin ${plugin.name} threw an error: ${errorMessage}`,
+          reason: isTimeout
+            ? errorMessage // Timeout error already includes plugin name and details
+            : `Plugin ${plugin.name} threw an error: ${errorMessage}`,
         });
       }
     }
