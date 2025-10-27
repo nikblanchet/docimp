@@ -174,7 +174,7 @@ def cmd_analyze(args: argparse.Namespace) -> int:
         if args.verbose:
             print(f"Analyzing: {args.path}", file=sys.stderr)
 
-        result = analyzer.analyze(args.path, verbose=args.verbose)
+        result = analyzer.analyze(args.path, verbose=args.verbose, strict=args.strict)
 
         # Save analysis result to state directory
         with open(analyze_file, 'w') as f:
@@ -578,6 +578,11 @@ def main(argv: Optional[list] = None) -> int:
         '--verbose',
         action='store_true',
         help='Enable verbose output'
+    )
+    analyze_parser.add_argument(
+        '--strict',
+        action='store_true',
+        help='Fail immediately on first parse error (for CI/CD and debugging)'
     )
 
     # Audit command
