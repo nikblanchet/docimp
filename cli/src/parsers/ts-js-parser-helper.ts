@@ -34,6 +34,7 @@ interface CodeItem {
  *
  * Cyclomatic complexity = number of decision points + 1
  * Decision points: if, else if, for, while, case, catch, &&, ||, ?
+ * @returns Cyclomatic complexity value.
  */
 function calculateComplexity(node: ts.Node): number {
     let complexity = 1; // Base complexity
@@ -69,6 +70,7 @@ function calculateComplexity(node: ts.Node): number {
 
 /**
  * Extract JSDoc comment from a node
+ * @returns JSDoc comment string or null if not found.
  */
 function getDocstring(node: ts.Node, sourceFile: ts.SourceFile): string | null {
     const fullText = sourceFile.getFullText();
@@ -84,6 +86,7 @@ function getDocstring(node: ts.Node, sourceFile: ts.SourceFile): string | null {
 
 /**
  * Check if node has JSDoc documentation
+ * @returns True if node has JSDoc comments.
  */
 function hasDocumentation(node: ts.Node): boolean {
     return ts.getJSDocCommentsAndTags(node).length > 0;
@@ -91,6 +94,7 @@ function hasDocumentation(node: ts.Node): boolean {
 
 /**
  * Extract parameter names from function/method
+ * @returns Array of parameter names.
  */
 function extractParameters(node: ts.FunctionLikeDeclaration): string[] {
     return node.parameters.map(param => {
@@ -105,6 +109,7 @@ function extractParameters(node: ts.FunctionLikeDeclaration): string[] {
 
 /**
  * Extract return type annotation if present
+ * @returns Return type as string or null if not present.
  */
 function extractReturnType(node: ts.FunctionLikeDeclaration): string | null {
     if (node.type) {
@@ -115,6 +120,7 @@ function extractReturnType(node: ts.FunctionLikeDeclaration): string | null {
 
 /**
  * Determine export type for a node
+ * @returns Export type: 'named', 'default', or 'internal'.
  */
 function getExportType(node: ts.Node): 'named' | 'default' | 'internal' {
     // Check if node has export modifier
@@ -143,6 +149,7 @@ function getExportType(node: ts.Node): 'named' | 'default' | 'internal' {
 
 /**
  * Detect module system used in the file
+ * @returns Module system: 'esm', 'commonjs', or 'unknown'.
  */
 function detectModuleSystem(sourceFile: ts.SourceFile): 'esm' | 'commonjs' | 'unknown' {
     let hasEsmExport = false;
@@ -207,6 +214,7 @@ function detectModuleSystem(sourceFile: ts.SourceFile): 'esm' | 'commonjs' | 'un
 
 /**
  * Parse a TypeScript or JavaScript file and extract code items
+ * @returns Array of extracted code items.
  */
 function parseFile(filepath: string): CodeItem[] {
     const items: CodeItem[] = [];

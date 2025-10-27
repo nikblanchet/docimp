@@ -859,20 +859,7 @@ DocImp was built entirely using **[Claude Code](https://claude.com/code)**, demo
 - **Progressive context**: Built complexity incrementally
 - **Test-first**: Validation at each step
 
-### Lessons Learned
-
-See `CLAUDE_CODE_PLAYBOOK.md` for:
-- Five key patterns for effective AI-assisted development
-- Five anti-patterns to avoid
-- Prompt patterns and examples
-- Real examples from DocImp's development
-
-### Artifacts
-
-- `DEVELOPMENT.md`: Instance-by-instance development log
-- `DOGFOODING.md`: Using DocImp to document itself
-- `CASE_STUDY.md`: Applying DocImp to open-source projects
-- Terminal recordings demonstrating workflows
+Development artifacts including methodology playbook, instance-by-instance development logs, case studies, and terminal recordings are planned for future releases.
 
 ---
 
@@ -1090,11 +1077,11 @@ DocImp is dual-licensed under **AGPL-3.0** (for open-source use) or a **Commerci
 - **CI/CD Pipelines**: GitHub Actions, GitLab CI integration
 - **Multi-file Context**: Include related files in Claude prompts
 
-**Roadmap**:
-- [ ] v1.0.0: Core functionality stable
-- [ ] v1.1.0: Save/resume, progress tracking
-- [ ] v1.2.0: Pattern detection, advanced scoring
-- [ ] v2.0.0: Additional languages, IDE integrations
+**Planned Releases**:
+- **v1.0.0**: Core functionality (current MVP scope)
+- **v1.1.0**: Save/resume sessions, progress tracking
+- **v1.2.0**: Pattern detection, advanced scoring algorithms
+- **v2.0.0**: Additional languages, IDE integrations
 
 ---
 
@@ -1102,7 +1089,7 @@ DocImp is dual-licensed under **AGPL-3.0** (for open-source use) or a **Commerci
 
 - **Issues**: [GitHub Issues](https://github.com/USERNAME/docimp/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/USERNAME/docimp/discussions)
-- **Documentation**: [Full docs](https://docimp.readthedocs.io) (coming soon)
+- **Documentation**: See README.md and inline documentation for complete usage guide
 
 ---
 

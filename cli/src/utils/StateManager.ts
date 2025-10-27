@@ -12,12 +12,12 @@ import { resolve, join } from 'path';
  * Manages the .docimp/ state directory for working files.
  *
  * The state directory structure:
- *     .docimp/
- *     ├── session-reports/    # Current session data (ephemeral)
- *     │   ├── audit.json
- *     │   ├── plan.json
- *     │   └── analyze-latest.json
- *     └── history/            # Long-term data (future feature)
+ * .docimp/
+ * ├── session-reports/    # Current session data (ephemeral)
+ * │   ├── audit.json
+ * │   ├── plan.json
+ * │   └── analyze-latest.json
+ * └── history/            # Long-term data (future feature)
  *
  * All methods return absolute paths resolved from the current working directory.
  */
