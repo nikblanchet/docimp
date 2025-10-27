@@ -114,14 +114,14 @@ export interface PluginHooks {
    * @param docstring - Generated documentation string
    * @param item - Metadata about the code item being documented
    * @param config - User configuration
-   * @param dependencies - Injected dependencies (TypeScript, comment-parser, etc.)
+   * @param dependencies - Injected dependencies (TypeScript, comment-parser, etc.). Required as of v0.2.0.
    * @returns Promise resolving to validation result
    */
   beforeAccept?: (
     docstring: string,
     item: CodeItemMetadata,
     config: IConfig,
-    dependencies?: PluginDependencies
+    dependencies: PluginDependencies
   ) => Promise<PluginResult>;
 
   /**
@@ -135,13 +135,13 @@ export interface PluginHooks {
    *
    * @param filepath - Path to the file that was modified
    * @param item - Metadata about the code item that was documented
-   * @param dependencies - Injected dependencies (TypeScript, comment-parser, etc.)
+   * @param dependencies - Injected dependencies (TypeScript, comment-parser, etc.). Required as of v0.2.0.
    * @returns Promise resolving to validation result
    */
   afterWrite?: (
     filepath: string,
     item: CodeItemMetadata,
-    dependencies?: PluginDependencies
+    dependencies: PluginDependencies
   ) => Promise<PluginResult>;
 }
 
