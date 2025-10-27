@@ -6,7 +6,7 @@
  */
 
 import { spawn, spawnSync, ChildProcess } from 'child_process';
-import { resolve, dirname, join } from 'path';
+import { resolve, dirname } from 'path';
 import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { z } from 'zod';
