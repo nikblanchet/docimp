@@ -9,6 +9,24 @@
 import type { SupportedLanguage } from '../types/analysis.js';
 
 /**
+ * Plugin configuration options.
+ */
+export interface IPluginConfig {
+  /**
+   * Paths to validation plugins.
+   * Plugins are JavaScript files that export validation hooks.
+   */
+  paths?: string[];
+
+  /**
+   * Default timeout for plugin execution in milliseconds.
+   * Individual plugins can override this with their own timeout field.
+   * Default: 10000 (10 seconds)
+   */
+  timeout?: number;
+}
+
+/**
  * Main configuration interface.
  */
 export interface IConfig {
@@ -54,8 +72,9 @@ export interface IConfig {
   /**
    * Paths to validation plugins.
    * Plugins are JavaScript files that export validation hooks.
+   * Can be either an array of paths or a plugin configuration object.
    */
-  plugins?: string[];
+  plugins?: string[] | IPluginConfig;
 
   /**
    * Glob patterns for files to exclude from analysis.

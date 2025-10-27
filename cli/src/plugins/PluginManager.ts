@@ -29,6 +29,16 @@ import { parse as commentParserParse } from 'comment-parser';
 export class PluginManager {
   private plugins: IPlugin[] = [];
   private loadedPaths: Set<string> = new Set();
+  private config?: IConfig;
+
+  /**
+   * Create a new PluginManager.
+   *
+   * @param config - Optional configuration containing global plugin timeout
+   */
+  constructor(config?: IConfig) {
+    this.config = config;
+  }
 
   /**
    * Load plugins from file paths.
@@ -236,6 +246,18 @@ export class PluginManager {
   }
 
   /**
+   * Get the default timeout from config, or fall back to 10 seconds.
+   *
+   * @returns Default timeout in milliseconds
+   */
+  private getDefaultTimeout(): number {
+    if (this.config?.plugins && typeof this.config.plugins === 'object' && 'timeout' in this.config.plugins) {
+      return this.config.plugins.timeout ?? 10000;
+    }
+    return 10000;
+  }
+
+  /**
    * Wrap a promise with a timeout.
    *
    * If the promise doesn't resolve within the timeout period, it will be
@@ -297,7 +319,7 @@ export class PluginManager {
       }
 
       try {
-        const timeoutMs = plugin.timeout ?? 10000; // Default 10 seconds
+        const timeoutMs = plugin.timeout ?? this.getDefaultTimeout();
         const result = await this.withTimeout(
           plugin.hooks.beforeAccept(
             docstring,
@@ -355,7 +377,7 @@ export class PluginManager {
       }
 
       try {
-        const timeoutMs = plugin.timeout ?? 10000; // Default 10 seconds
+        const timeoutMs = plugin.timeout ?? this.getDefaultTimeout();
         const result = await this.withTimeout(
           plugin.hooks.afterWrite(filepath, item, dependencies),
           timeoutMs,

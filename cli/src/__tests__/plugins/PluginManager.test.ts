@@ -576,6 +576,143 @@ describe('PluginManager', () => {
         expect(results[0].reason).toContain('100ms');
       });
     });
+
+    describe('global timeout configuration', () => {
+      it('should use global timeout from config when plugin timeout not specified', async () => {
+        const configWithTimeout: IConfig = {
+          ...defaultConfig,
+          plugins: {
+            paths: [],
+            timeout: 50, // 50ms global timeout
+          },
+        };
+
+        const managerWithConfig = new PluginManager(configWithTimeout);
+
+        const plugin: IPlugin = {
+          name: 'plugin-without-timeout',
+          version: '1.0.0',
+          // No timeout specified - should use global timeout
+          hooks: {
+            beforeAccept: async () => {
+              await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay
+              return { accept: true };
+            },
+          },
+        };
+
+        (managerWithConfig as any).plugins.push(plugin);
+
+        const resultPromise = managerWithConfig.runBeforeAccept(
+          '/** Test */',
+          {
+            name: 'testFunc',
+            type: 'function',
+            filepath: 'test.js',
+            line_number: 1,
+            language: 'javascript',
+            complexity: 1,
+          },
+          configWithTimeout
+        );
+
+        // Advance past global timeout (50ms)
+        await jest.advanceTimersByTimeAsync(50);
+
+        const results = await resultPromise;
+        expect(results).toHaveLength(1);
+        expect(results[0].accept).toBe(false);
+        expect(results[0].reason).toContain('timed out');
+        expect(results[0].reason).toContain('50ms'); // Should use global timeout
+      });
+
+      it('should prioritize plugin timeout over global timeout', async () => {
+        const configWithTimeout: IConfig = {
+          ...defaultConfig,
+          plugins: {
+            paths: [],
+            timeout: 200, // 200ms global timeout
+          },
+        };
+
+        const managerWithConfig = new PluginManager(configWithTimeout);
+
+        const plugin: IPlugin = {
+          name: 'plugin-with-own-timeout',
+          version: '1.0.0',
+          timeout: 50, // 50ms plugin-specific timeout (should override global)
+          hooks: {
+            beforeAccept: async () => {
+              await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay
+              return { accept: true };
+            },
+          },
+        };
+
+        (managerWithConfig as any).plugins.push(plugin);
+
+        const resultPromise = managerWithConfig.runBeforeAccept(
+          '/** Test */',
+          {
+            name: 'testFunc',
+            type: 'function',
+            filepath: 'test.js',
+            line_number: 1,
+            language: 'javascript',
+            complexity: 1,
+          },
+          configWithTimeout
+        );
+
+        // Advance past plugin timeout (50ms) but not global timeout (200ms)
+        await jest.advanceTimersByTimeAsync(50);
+
+        const results = await resultPromise;
+        expect(results).toHaveLength(1);
+        expect(results[0].accept).toBe(false);
+        expect(results[0].reason).toContain('timed out');
+        expect(results[0].reason).toContain('50ms'); // Should use plugin timeout
+      });
+
+      it('should fall back to 10s default when no config provided', async () => {
+        // PluginManager without config
+        const managerWithoutConfig = new PluginManager();
+
+        const plugin: IPlugin = {
+          name: 'plugin-no-timeout-no-config',
+          version: '1.0.0',
+          hooks: {
+            beforeAccept: async () => {
+              await new Promise(resolve => setTimeout(resolve, 10));
+              return { accept: true };
+            },
+          },
+        };
+
+        (managerWithoutConfig as any).plugins.push(plugin);
+
+        const resultPromise = managerWithoutConfig.runBeforeAccept(
+          '/** Test */',
+          {
+            name: 'testFunc',
+            type: 'function',
+            filepath: 'test.js',
+            line_number: 1,
+            language: 'javascript',
+            complexity: 1,
+          },
+          defaultConfig
+        );
+
+        // Advance past plugin delay
+        await jest.advanceTimersByTimeAsync(10);
+
+        const results = await resultPromise;
+        expect(results).toHaveLength(1);
+        expect(results[0].accept).toBe(true);
+        // Should complete successfully with default 10s timeout
+      });
+    });
   });
 
   describe('path validation', () => {
