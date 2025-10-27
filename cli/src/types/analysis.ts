@@ -44,14 +44,23 @@ export interface CodeItem {
   /** Whether item has documentation */
   has_docs: boolean;
 
+  /** Parameter names */
+  parameters: string[];
+
+  /** Return type annotation if available */
+  return_type: string | null;
+
+  /** Existing documentation string if present */
+  docstring: string | null;
+
   /** Export type for JavaScript/TypeScript */
   export_type: 'named' | 'default' | 'commonjs' | 'internal';
 
   /** Module system for JavaScript */
   module_system: 'esm' | 'commonjs' | 'unknown';
 
-  /** Optional audit quality rating (1-4, or undefined if not audited) */
-  audit_rating?: number;
+  /** Optional audit quality rating (1-4, or null if not audited) */
+  audit_rating: number | null;
 }
 
 /**

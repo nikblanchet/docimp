@@ -48,8 +48,9 @@ CLAUDE_CONTEXT.md
 .scratch
 .planning
 
-# Project-specific skills (symlinked to external repo)
+# Project-specific skills and agents (symlinked to external repo)
 .claude/skills
+.claude/agents
 
 # State directory (working files, session reports, history)
 .docimp/
