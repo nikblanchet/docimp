@@ -218,6 +218,9 @@ describe('PythonBridge Integration (Real Python Subprocess)', () => {
           complexity: 5,
           impact_score: 25,
           has_docs: false,
+          parameters: [],
+          return_type: null,
+          docstring: null,
           export_type: 'named',
           module_system: 'esm',
           // Intentionally omitting: audit_rating (optional in CodeItemSchema)

@@ -74,6 +74,9 @@ def format_json(result) -> str:
                 'complexity': item.complexity,
                 'impact_score': item.impact_score,
                 'has_docs': item.has_docs,
+                'parameters': item.parameters,
+                'return_type': item.return_type,
+                'docstring': item.docstring,
                 'export_type': item.export_type,
                 'module_system': item.module_system
             }

@@ -44,6 +44,15 @@ export interface CodeItem {
   /** Whether item has documentation */
   has_docs: boolean;
 
+  /** Parameter names */
+  parameters: string[];
+
+  /** Return type annotation if available */
+  return_type: string | null;
+
+  /** Existing documentation string if present */
+  docstring: string | null;
+
   /** Export type for JavaScript/TypeScript */
   export_type: 'named' | 'default' | 'commonjs' | 'internal';
 
