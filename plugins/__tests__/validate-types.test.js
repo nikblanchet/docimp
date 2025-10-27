@@ -739,6 +739,34 @@ describe('validate-types plugin', () => {
       expect(result.reason).toContain('wrongArgs');
       expect(result.reason).toContain('numbers');
     });
+
+    it('should accept mixed destructuring and optional parameters (edge case)', async () => {
+      const docstring = `/**
+ * Create a point with optional configuration.
+ * @param {{x: number, y?: number}} [config={x: 0}] - Optional config with optional property
+ * @returns {{x: number, y: number}} Point object
+ */`;
+
+      const item = {
+        name: 'createPoint',
+        type: 'function',
+        filepath: 'test-mixed-edge-case.js',
+        line_number: 1,
+        language: 'javascript',
+        complexity: 2,
+        export_type: 'named',
+        parameters: ['config'],
+        code: 'function createPoint(config = {x: 0}) { return { x: config.x, y: config.y || 0 }; }',
+      };
+
+      const result = await validateTypesPlugin.hooks.beforeAccept(
+        docstring,
+        item,
+        config
+      );
+
+      expect(result.accept).toBe(true);
+    });
   });
 
   describe('LRU cache eviction', () => {

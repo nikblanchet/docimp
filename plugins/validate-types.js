@@ -208,6 +208,10 @@ function extractJSDocParamNames(docstring) {
   } catch (error) {
     // Fallback to empty array if parsing fails
     // This ensures the function doesn't crash on malformed JSDoc
+    // In development, log the error for debugging
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[validate-types] Failed to parse JSDoc:', error.message);
+    }
     return [];
   }
 }
