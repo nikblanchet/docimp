@@ -23,6 +23,8 @@ class TypeScriptParser(BaseParser):
     - Export type detection (named, default, commonjs)
     """
 
+    MAX_SUBPROCESS_OUTPUT_LEN = 200
+
     def __init__(self):
         """Initialize the TypeScript parser and locate the Node.js CLI script."""
         # Find the compiled JavaScript CLI entry point
@@ -36,6 +38,20 @@ class TypeScriptParser(BaseParser):
                 f"TypeScript parser CLI not found at {self.helper_path}. "
                 "Run 'cd cli && npm install && npm run build' to compile the TypeScript parser."
             )
+
+    def _truncate_output(self, text: str) -> str:
+        """Truncate subprocess output for error messages.
+
+        Args:
+            text: The text to truncate.
+
+        Returns:
+            Truncated text with ellipsis if longer than MAX_SUBPROCESS_OUTPUT_LEN,
+            or original text if shorter.
+        """
+        if len(text) > self.MAX_SUBPROCESS_OUTPUT_LEN:
+            return text[:self.MAX_SUBPROCESS_OUTPUT_LEN] + '...'
+        return text
 
     def parse_file(self, filepath: str) -> List[CodeItem]:
         """
@@ -74,8 +90,8 @@ class TypeScriptParser(BaseParser):
                 items_data = json.loads(result.stdout if result.stdout else result.stderr)
             except json.JSONDecodeError as e:
                 # Log subprocess output for debugging
-                stdout_preview = (result.stdout[:200] + '...') if len(result.stdout) > 200 else result.stdout
-                stderr_preview = (result.stderr[:200] + '...') if len(result.stderr) > 200 else result.stderr
+                stdout_preview = self._truncate_output(result.stdout)
+                stderr_preview = self._truncate_output(result.stderr)
 
                 # If we can't parse JSON and there was an error, this is a parser infrastructure issue
                 if result.returncode != 0:
