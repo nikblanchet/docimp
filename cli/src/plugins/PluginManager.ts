@@ -15,8 +15,13 @@ import type {
   IPlugin,
   PluginResult,
   CodeItemMetadata,
+  PluginDependencies,
 } from './IPlugin.js';
 import type { IConfig } from '../config/IConfig.js';
+
+// Import dependencies to inject into plugins
+import * as typescript from 'typescript';
+import { parse as commentParserParse } from 'comment-parser';
 
 /**
  * Manages plugin loading and execution.
@@ -217,6 +222,20 @@ export class PluginManager {
   }
 
   /**
+   * Prepare dependencies to inject into plugin hooks.
+   *
+   * @returns Dependencies object with TypeScript compiler and other utilities
+   */
+  private prepareDependencies(): PluginDependencies {
+    return {
+      typescript,
+      commentParser: {
+        parse: commentParserParse,
+      },
+    };
+  }
+
+  /**
    * Run beforeAccept hooks for all loaded plugins.
    *
    * Executes all beforeAccept hooks in sequence. If any plugin rejects,
@@ -236,6 +255,7 @@ export class PluginManager {
     config: IConfig
   ): Promise<PluginResult[]> {
     const results: PluginResult[] = [];
+    const dependencies = this.prepareDependencies();
 
     for (const plugin of this.plugins) {
       // Skip plugins without beforeAccept hook
@@ -247,7 +267,8 @@ export class PluginManager {
         const result = await plugin.hooks.beforeAccept(
           docstring,
           item,
-          config
+          config,
+          dependencies
         );
         results.push(result);
       } catch (error) {
@@ -281,6 +302,7 @@ export class PluginManager {
     item: CodeItemMetadata
   ): Promise<PluginResult[]> {
     const results: PluginResult[] = [];
+    const dependencies = this.prepareDependencies();
 
     for (const plugin of this.plugins) {
       // Skip plugins without afterWrite hook
@@ -289,7 +311,7 @@ export class PluginManager {
       }
 
       try {
-        const result = await plugin.hooks.afterWrite(filepath, item);
+        const result = await plugin.hooks.afterWrite(filepath, item, dependencies);
         results.push(result);
       } catch (error) {
         // Error isolation: convert exceptions to rejection results

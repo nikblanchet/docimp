@@ -20,32 +20,18 @@
  * @module plugins/validate-types
  */
 
-import { createRequire } from 'module';
 import { readFileSync } from 'fs';
 
-// Resolve dependencies from CLI's node_modules
-const require = createRequire(import.meta.url);
-
-// Try to load TypeScript from cli/node_modules
+/**
+ * Global references to injected dependencies.
+ * These are set by the beforeAccept hook when dependencies are provided.
+ * This allows the rest of the plugin code to use these dependencies without
+ * passing them through every function call.
+ *
+ * Dependencies are injected by the PluginManager to avoid fragile path resolution.
+ */
 let ts;
-try {
-  ts = require('../cli/node_modules/typescript/lib/typescript.js');
-} catch {
-  // Fallback to standard require (if typescript is in plugin's node_modules)
-  ts = require('typescript');
-}
-
-// Load comment-parser (runtime dependency in cli/package.json)
 let parseJSDoc;
-try {
-  // Try to load from CLI's node_modules first (standard location)
-  const commentParser = require('../cli/node_modules/comment-parser');
-  parseJSDoc = commentParser.parse;
-} catch {
-  // Fallback to standard require (if comment-parser is in plugin's node_modules)
-  const commentParser = require('comment-parser');
-  parseJSDoc = commentParser.parse;
-}
 
 /**
  * Maximum number of language services to cache.
@@ -139,19 +125,11 @@ let cacheStats = {
  * The registry automatically manages SourceFile lifecycle and cleanup when
  * language services are disposed.
  *
+ * Initialized lazily when dependencies are injected.
+ *
  * @see https://github.com/microsoft/TypeScript/wiki/Using-the-Language-Service-API#creating-the-language-service
  */
 let documentRegistry;
-try {
-  documentRegistry = ts.createDocumentRegistry();
-} catch (error) {
-  throw new Error(
-    `Failed to create TypeScript document registry. ` +
-    `Ensure TypeScript is installed in cli/node_modules. ` +
-    `Run 'cd cli && npm install' to install dependencies. ` +
-    `Error: ${error.message}`
-  );
-}
 
 /**
  * Extract parameter names from a JSDoc comment.
@@ -547,9 +525,38 @@ function generateParameterFix(docstring, jsdocParams, actualParams) {
  * @param {string} docstring - Generated JSDoc comment
  * @param {object} item - Code item metadata
  * @param {object} config - User configuration
+ * @param {object} dependencies - Injected dependencies (TypeScript, comment-parser)
  * @returns {Promise<{accept: boolean, reason?: string, autoFix?: string}>}
  */
-async function beforeAccept(docstring, item, config) {
+async function beforeAccept(docstring, item, config, dependencies) {
+  // Initialize dependencies if provided
+  if (dependencies) {
+    if (dependencies.typescript) {
+      ts = dependencies.typescript;
+      // Initialize document registry lazily when TypeScript is available
+      if (!documentRegistry) {
+        documentRegistry = ts.createDocumentRegistry();
+      }
+    }
+    if (dependencies.commentParser) {
+      parseJSDoc = dependencies.commentParser.parse;
+    }
+  }
+
+  // Validate that required dependencies are available
+  if (!ts) {
+    return {
+      accept: false,
+      reason: 'TypeScript dependency not available. This plugin requires TypeScript to be injected by the PluginManager.',
+    };
+  }
+  if (!parseJSDoc) {
+    return {
+      accept: false,
+      reason: 'comment-parser dependency not available. This plugin requires comment-parser to be injected by the PluginManager.',
+    };
+  }
+
   // Only validate JavaScript/TypeScript files
   if (item.language !== 'javascript' && item.language !== 'typescript') {
     return { accept: true };
