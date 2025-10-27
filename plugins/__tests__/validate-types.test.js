@@ -527,6 +527,220 @@ describe('validate-types plugin', () => {
     });
   });
 
+  describe('JSDoc parameter patterns (Issue #92)', () => {
+    const config = {
+      styleGuide: 'jsdoc',
+      tone: 'concise',
+      jsdocStyle: {
+        enforceTypes: true,
+      },
+    };
+
+    it('should accept optional parameters with default values', async () => {
+      const docstring = `/**
+ * Greet a user.
+ * @param {string} [name='unknown'] - User name with default
+ * @returns {string} Greeting
+ */`;
+
+      const item = {
+        name: 'greet',
+        type: 'function',
+        filepath: 'test-optional.js',
+        line_number: 1,
+        language: 'javascript',
+        complexity: 1,
+        export_type: 'named',
+        parameters: ['name'],
+        code: "function greet(name = 'unknown') { return `Hello, ${name}`; }",
+      };
+
+      const result = await validateTypesPlugin.hooks.beforeAccept(
+        docstring,
+        item,
+        config
+      );
+
+      expect(result.accept).toBe(true);
+    });
+
+    it('should accept rest parameters', async () => {
+      const docstring = `/**
+ * Sum all numbers.
+ * @param {...number} args - Numbers to sum
+ * @returns {number} Total
+ */`;
+
+      const item = {
+        name: 'sum',
+        type: 'function',
+        filepath: 'test-rest.js',
+        line_number: 1,
+        language: 'javascript',
+        complexity: 2,
+        export_type: 'named',
+        parameters: ['args'],
+        code: 'function sum(...args) { return args.reduce((a, b) => a + b, 0); }',
+      };
+
+      const result = await validateTypesPlugin.hooks.beforeAccept(
+        docstring,
+        item,
+        config
+      );
+
+      expect(result.accept).toBe(true);
+    });
+
+    it('should accept destructured object parameters', async () => {
+      const docstring = `/**
+ * Create point.
+ * @param {{x: number, y: number}} coords - Coordinates
+ * @returns {{x: number, y: number}} Point
+ */`;
+
+      const item = {
+        name: 'createPoint',
+        type: 'function',
+        filepath: 'test-destructure.js',
+        line_number: 1,
+        language: 'javascript',
+        complexity: 1,
+        export_type: 'named',
+        parameters: ['coords'],
+        code: 'function createPoint({ x, y }) { return { x, y }; }',
+      };
+
+      const result = await validateTypesPlugin.hooks.beforeAccept(
+        docstring,
+        item,
+        config
+      );
+
+      expect(result.accept).toBe(true);
+    });
+
+    it('should accept combination of optional and rest parameters', async () => {
+      const docstring = `/**
+ * Format message.
+ * @param {string} [template='Default: %s'] - Message template
+ * @param {...any} args - Arguments to format
+ * @returns {string} Formatted message
+ */`;
+
+      const item = {
+        name: 'format',
+        type: 'function',
+        filepath: 'test-combo.js',
+        line_number: 1,
+        language: 'javascript',
+        complexity: 2,
+        export_type: 'named',
+        parameters: ['template', 'args'],
+        code: "function format(template = 'Default: %s', ...args) { return template.replace(/%s/g, () => args.shift()); }",
+      };
+
+      const result = await validateTypesPlugin.hooks.beforeAccept(
+        docstring,
+        item,
+        config
+      );
+
+      expect(result.accept).toBe(true);
+    });
+
+    it('should accept optional parameters without default values', async () => {
+      const docstring = `/**
+ * Get user info.
+ * @param {string} id - User ID
+ * @param {string} [email] - Optional email
+ * @returns {Object} User info
+ */`;
+
+      const item = {
+        name: 'getUserInfo',
+        type: 'function',
+        filepath: 'test-optional-no-default.js',
+        line_number: 1,
+        language: 'javascript',
+        complexity: 2,
+        export_type: 'named',
+        parameters: ['id', 'email'],
+        code: 'function getUserInfo(id, email) { return { id, email }; }',
+      };
+
+      const result = await validateTypesPlugin.hooks.beforeAccept(
+        docstring,
+        item,
+        config
+      );
+
+      expect(result.accept).toBe(true);
+    });
+
+    it('should reject when optional param name does not match function signature', async () => {
+      const docstring = `/**
+ * Test function.
+ * @param {string} [wrongName='default'] - Wrong parameter name
+ * @returns {string} Result
+ */`;
+
+      const item = {
+        name: 'test',
+        type: 'function',
+        filepath: 'test-optional-mismatch.js',
+        line_number: 1,
+        language: 'javascript',
+        complexity: 1,
+        export_type: 'named',
+        parameters: ['correctName'],
+        code: "function test(correctName = 'default') { return correctName; }",
+      };
+
+      const result = await validateTypesPlugin.hooks.beforeAccept(
+        docstring,
+        item,
+        config
+      );
+
+      expect(result.accept).toBe(false);
+      expect(result.reason).toContain('Parameter name mismatch');
+      expect(result.reason).toContain('wrongName');
+      expect(result.reason).toContain('correctName');
+    });
+
+    it('should reject when rest param name does not match function signature', async () => {
+      const docstring = `/**
+ * Multiply numbers.
+ * @param {...number} wrongArgs - Wrong rest param name
+ * @returns {number} Product
+ */`;
+
+      const item = {
+        name: 'multiply',
+        type: 'function',
+        filepath: 'test-rest-mismatch.js',
+        line_number: 1,
+        language: 'javascript',
+        complexity: 2,
+        export_type: 'named',
+        parameters: ['numbers'],
+        code: 'function multiply(...numbers) { return numbers.reduce((a, b) => a * b, 1); }',
+      };
+
+      const result = await validateTypesPlugin.hooks.beforeAccept(
+        docstring,
+        item,
+        config
+      );
+
+      expect(result.accept).toBe(false);
+      expect(result.reason).toContain('Parameter name mismatch');
+      expect(result.reason).toContain('wrongArgs');
+      expect(result.reason).toContain('numbers');
+    });
+  });
+
   describe('LRU cache eviction', () => {
     it('should evict least recently used entry when cache exceeds MAX_CACHE_SIZE', async () => {
       // MAX_CACHE_SIZE is 50, so we'll create 51 unique files

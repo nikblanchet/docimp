@@ -23,7 +23,7 @@
 import { createRequire } from 'module';
 import { readFileSync } from 'fs';
 
-// Resolve TypeScript from CLI's node_modules
+// Resolve dependencies from CLI's node_modules
 const require = createRequire(import.meta.url);
 
 // Try to load TypeScript from cli/node_modules
@@ -33,6 +33,17 @@ try {
 } catch {
   // Fallback to standard require (if typescript is in plugin's node_modules)
   ts = require('typescript');
+}
+
+// Try to load comment-parser from cli/node_modules
+let parseJSDoc;
+try {
+  const commentParser = require('../cli/node_modules/comment-parser');
+  parseJSDoc = commentParser.parse;
+} catch {
+  // Fallback to standard require (if comment-parser is in plugin's node_modules)
+  const commentParser = require('comment-parser');
+  parseJSDoc = commentParser.parse;
 }
 
 /**
@@ -144,19 +155,61 @@ try {
 /**
  * Extract parameter names from a JSDoc comment.
  *
+ * Uses comment-parser to properly handle JSDoc parameter patterns including:
+ * - Optional parameters: @param {string} [name='default']
+ * - Rest parameters: @param {...any} args
+ * - Destructured parameters: @param {{x: number, y: number}} options
+ *
  * @param {string} docstring - JSDoc comment text
  * @returns {string[]} Array of parameter names
  */
 function extractJSDocParamNames(docstring) {
-  const paramPattern = /@param\s+\{[^}]+\}\s+(\w+)/g;
-  const names = [];
-  let match;
+  try {
+    // Parse JSDoc comment using comment-parser
+    const parsed = parseJSDoc(docstring);
 
-  while ((match = paramPattern.exec(docstring)) !== null) {
-    names.push(match[1]);
+    if (!parsed || parsed.length === 0) {
+      return [];
+    }
+
+    // Extract @param tags from the first comment block
+    const paramTags = parsed[0].tags.filter(tag => tag.tag === 'param');
+
+    // Extract parameter names, handling special patterns
+    return paramTags.map(tag => {
+      let paramName = tag.name;
+
+      // Handle optional parameters: [name], [name='default']
+      // Extract the base parameter name from brackets
+      if (paramName.startsWith('[') && paramName.includes(']')) {
+        // Extract name from [name] or [name='default']
+        const match = paramName.match(/^\[([^\]=]+)/);
+        if (match) {
+          paramName = match[1];
+        }
+      }
+
+      // Handle rest parameters: ...args
+      // Remove the rest operator
+      if (paramName.startsWith('...')) {
+        paramName = paramName.substring(3);
+      }
+
+      // Handle destructured parameters: {x, y} or options.x
+      // For destructured params, we want the root parameter name
+      // comment-parser gives us something like "options" or "options.x"
+      // We want just "options"
+      if (paramName.includes('.')) {
+        paramName = paramName.split('.')[0];
+      }
+
+      return paramName;
+    });
+  } catch (error) {
+    // Fallback to empty array if parsing fails
+    // This ensures the function doesn't crash on malformed JSDoc
+    return [];
   }
-
-  return names;
 }
 
 /**

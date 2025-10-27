@@ -22,13 +22,25 @@ export default {
         },
       },
     ],
+    '^.+\\.js$': [
+      'ts-jest',
+      {
+        useESM: true,
+        tsconfig: {
+          module: 'esnext',
+          allowJs: true,
+        },
+      },
+    ],
   },
   transformIgnorePatterns: [
     'node_modules/(?!(chalk|cli-table3|ora|prompts|ansi-regex|strip-ansi|ansi-styles|#ansi-styles)/)',
   ],
   testMatch: [
     '**/__tests__/**/*.test.ts',
+    '**/__tests__/**/*.test.js',
     '**/?(*.)+(spec|test).ts',
+    '**/?(*.)+(spec|test).js',
   ],
   collectCoverageFrom: [
     'src/**/*.ts',
