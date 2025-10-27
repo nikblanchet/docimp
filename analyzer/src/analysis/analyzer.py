@@ -81,12 +81,14 @@ class DocumentationAnalyzer:
         if exclude_patterns:
             self.exclude_patterns.update(exclude_patterns)
 
-    def analyze(self, path: str, verbose: bool = False) -> AnalysisResult:
+    def analyze(self, path: str, verbose: bool = False, strict: bool = False) -> AnalysisResult:
         """Analyze documentation coverage for a codebase.
 
         Args:
             path: Path to a file or directory to analyze.
             verbose: If True, print progress information to stderr.
+            strict: If True, fail immediately on first parse error instead of
+                   collecting failures and continuing.
 
         Returns:
             AnalysisResult containing all parsed items and metrics.
@@ -94,6 +96,8 @@ class DocumentationAnalyzer:
         Raises:
             FileNotFoundError: If the specified path does not exist.
             ValueError: If the path resolves to an invalid location.
+            SyntaxError: If strict=True and a file has syntax errors.
+            RuntimeError: If strict=True and a parser infrastructure fails.
         """
         # Resolve path to absolute form (handles symlinks and relative paths)
         # This prevents issues with path traversal and ensures consistent paths
@@ -117,7 +121,7 @@ class DocumentationAnalyzer:
                 if i % 10 == 0 or i == len(files):
                     print(f"Progress: {i}/{len(files)} files parsed", file=sys.stderr)
 
-            items, failure = self._parse_file(filepath)
+            items, failure = self._parse_file(filepath, strict=strict)
             all_items.extend(items)
             if failure:
                 parse_failures.append(failure)
@@ -187,16 +191,23 @@ class DocumentationAnalyzer:
         """
         return filepath.suffix in self.EXTENSION_MAP
 
-    def _parse_file(self, filepath: Path) -> tuple[List[CodeItem], Optional[ParseFailure]]:
+    def _parse_file(self, filepath: Path, strict: bool = False) -> tuple[List[CodeItem], Optional[ParseFailure]]:
         """Parse a single file using the appropriate language parser.
 
         Args:
             filepath: Path object to parse.
+            strict: If True, raise exceptions on parse errors instead of
+                   collecting them as failures.
 
         Returns:
             Tuple of (items, failure) where:
             - items: List of CodeItem objects extracted from the file
             - failure: ParseFailure object if parsing failed, None otherwise
+
+        Raises:
+            SyntaxError: If strict=True and file has syntax errors.
+            RuntimeError: If strict=True and parser infrastructure fails.
+            FileNotFoundError: If strict=True and file is not found.
         """
         # Determine language from extension
         extension = filepath.suffix
@@ -214,6 +225,9 @@ class DocumentationAnalyzer:
         try:
             return parser.parse_file(str(filepath)), None
         except (SyntaxError, ValueError, RuntimeError, FileNotFoundError, OSError) as e:
+            # In strict mode, fail immediately on parse errors
+            if strict:
+                raise
             # Handle expected parsing errors gracefully - capture first line of error
             error_msg = str(e).split('\n')[0] or "Unknown parse error"
             print(f"Warning: Failed to parse {filepath}: {error_msg}", file=sys.stderr)
