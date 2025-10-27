@@ -280,6 +280,7 @@ export class TerminalDisplay implements IDisplay {
 
   /**
    * Start a progress spinner.
+   * @returns A function to stop the spinner.
    */
   public startSpinner(message: string): () => void {
     this.spinner = ora(message).start();
@@ -313,6 +314,7 @@ export class TerminalDisplay implements IDisplay {
 
   /**
    * Get color function based on coverage percentage.
+   * @returns Chalk color function.
    */
   private getCoverageColor(percent: number): typeof chalk {
     if (percent >= 80) return chalk.green;
@@ -322,6 +324,7 @@ export class TerminalDisplay implements IDisplay {
 
   /**
    * Get color function based on impact score.
+   * @returns Chalk color function.
    */
   private getImpactColor(score: number): typeof chalk {
     if (score >= 75) return chalk.red;
@@ -331,6 +334,7 @@ export class TerminalDisplay implements IDisplay {
 
   /**
    * Create a visual progress bar.
+   * @returns Visual progress bar string.
    */
   private createProgressBar(percent: number, width: number = 30): string {
     const filled = Math.round((percent / 100) * width);
@@ -342,6 +346,7 @@ export class TerminalDisplay implements IDisplay {
 
   /**
    * Capitalize language name.
+   * @returns Capitalized language name.
    */
   private capitalizeLanguage(lang: string): string {
     if (lang === 'javascript') return 'JavaScript';
@@ -352,6 +357,7 @@ export class TerminalDisplay implements IDisplay {
 
   /**
    * Get relative path from current directory.
+   * @returns Relative path string.
    */
   private getRelativePath(filepath: string): string {
     const cwd = process.cwd();
@@ -363,6 +369,7 @@ export class TerminalDisplay implements IDisplay {
 
   /**
    * Truncate string to specified length.
+   * @returns Truncated string with ellipsis if needed.
    */
   private truncate(str: string, maxLength: number): string {
     if (str.length <= maxLength) return str;
@@ -427,6 +434,7 @@ export class TerminalDisplay implements IDisplay {
 
   /**
    * Pad string to center it within specified width.
+   * @returns Centered and padded string.
    */
   private padCenter(str: string, width: number): string {
     const strippedLength = this.stripAnsiLength(str);
@@ -438,6 +446,7 @@ export class TerminalDisplay implements IDisplay {
 
   /**
    * Pad string to left-align it within specified width.
+   * @returns Left-aligned and padded string.
    */
   private padLeft(str: string, width: number, hasColor: boolean = false): string {
     const strippedLength = hasColor ? this.stripAnsiLength(str) : str.length;
@@ -451,6 +460,7 @@ export class TerminalDisplay implements IDisplay {
 
   /**
    * Get length of string excluding ANSI color codes.
+   * @returns String length without ANSI codes.
    */
   private stripAnsiLength(str: string): number {
     // Remove ANSI escape codes to get true display length
@@ -461,6 +471,7 @@ export class TerminalDisplay implements IDisplay {
 
   /**
    * Pluralize a word based on count.
+   * @returns Singular or plural form of the word.
    */
   private pluralize(count: number, singular: string, plural: string): string {
     return count === 1 ? singular : plural;
