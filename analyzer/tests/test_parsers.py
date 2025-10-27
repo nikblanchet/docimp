@@ -610,3 +610,106 @@ class LargerClass:
         # inner: lines 5-7
         assert inner.line_number == 5
         assert inner.end_line == 7
+
+
+class TestTypeScriptParserErrorHandling:
+    """Test suite for TypeScriptParser error handling (Issue #69)."""
+
+    @pytest.fixture
+    def parser(self):
+        """Create a TypeScriptParser instance."""
+        from src.parsers.typescript_parser import TypeScriptParser
+        return TypeScriptParser()
+
+    def test_malformed_json_with_nonzero_returncode_raises_runtimeerror(self, parser):
+        """Test that malformed JSON with nonzero returncode raises RuntimeError."""
+        import tempfile
+        from unittest.mock import patch
+        import subprocess
+
+        with tempfile.NamedTemporaryFile(suffix='.ts', delete=False) as tmp:
+            tmp.write(b'function test() {}')
+            tmp_path = tmp.name
+
+        try:
+            # Mock subprocess.run to return malformed JSON with nonzero returncode
+            mock_result = subprocess.CompletedProcess(
+                args=['node', 'parser.js'],
+                returncode=1,
+                stdout='not valid json',
+                stderr='some error'
+            )
+
+            with patch('subprocess.run', return_value=mock_result):
+                with pytest.raises(RuntimeError) as exc_info:
+                    parser.parse_file(tmp_path)
+
+                # Check error message includes returncode and subprocess output
+                assert 'returncode=1' in str(exc_info.value)
+                assert 'some error' in str(exc_info.value)
+                assert 'not valid json' in str(exc_info.value)
+        finally:
+            Path(tmp_path).unlink()
+
+    def test_malformed_json_with_zero_returncode_raises_runtimeerror(self, parser):
+        """Test that malformed JSON with returncode=0 raises RuntimeError (not SyntaxError)."""
+        import tempfile
+        from unittest.mock import patch
+        import subprocess
+
+        with tempfile.NamedTemporaryFile(suffix='.ts', delete=False) as tmp:
+            tmp.write(b'function test() {}')
+            tmp_path = tmp.name
+
+        try:
+            # Mock subprocess.run to return malformed JSON with returncode=0
+            # This simulates a crash or bug in the parser helper
+            mock_result = subprocess.CompletedProcess(
+                args=['node', 'parser.js'],
+                returncode=0,
+                stdout='not valid json',
+                stderr=''
+            )
+
+            with patch('subprocess.run', return_value=mock_result):
+                # Should raise RuntimeError (infrastructure issue), not SyntaxError (user code issue)
+                with pytest.raises(RuntimeError) as exc_info:
+                    parser.parse_file(tmp_path)
+
+                # Check error message clearly indicates this is a parser helper issue
+                assert 'returncode=0' in str(exc_info.value)
+                assert 'invalid JSON' in str(exc_info.value)
+                assert 'parser helper' in str(exc_info.value).lower()
+                assert 'not valid json' in str(exc_info.value)
+        finally:
+            Path(tmp_path).unlink()
+
+    def test_error_messages_include_subprocess_output(self, parser):
+        """Test that error messages include subprocess stdout/stderr for debugging."""
+        import tempfile
+        from unittest.mock import patch
+        import subprocess
+
+        with tempfile.NamedTemporaryFile(suffix='.ts', delete=False) as tmp:
+            tmp.write(b'function test() {}')
+            tmp_path = tmp.name
+
+        try:
+            # Mock subprocess.run to return malformed JSON
+            mock_result = subprocess.CompletedProcess(
+                args=['node', 'parser.js'],
+                returncode=1,
+                stdout='stdout content',
+                stderr='stderr content'
+            )
+
+            with patch('subprocess.run', return_value=mock_result):
+                with pytest.raises(RuntimeError) as exc_info:
+                    parser.parse_file(tmp_path)
+
+                # Error message should include both stdout and stderr
+                error_msg = str(exc_info.value)
+                assert 'stdout content' in error_msg
+                assert 'stderr content' in error_msg
+        finally:
+            Path(tmp_path).unlink()
