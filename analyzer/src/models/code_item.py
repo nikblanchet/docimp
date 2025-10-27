@@ -65,7 +65,7 @@ class CodeItem:
 
     def __repr__(self) -> str:
         """Human-readable representation for debugging."""
-        docs_indicator = "📝" if self.has_docs else "❌"
+        docs_indicator = "[+]" if self.has_docs else "[-]"
         return (
             f"CodeItem({docs_indicator} {self.type} '{self.name}' "
             f"@ {self.filepath}:{self.line_number}, "

@@ -223,8 +223,7 @@ describe('PythonBridge Integration (Real Python Subprocess)', () => {
           docstring: null,
           export_type: 'named',
           module_system: 'esm',
-          // Intentionally omitting: audit_rating (optional in CodeItemSchema)
-          // Note: Real Python output includes all fields, but Zod should handle omission
+          audit_rating: null,
         }],
         coverage_percent: 0,
         total_items: 1,
@@ -237,7 +236,7 @@ describe('PythonBridge Integration (Real Python Subprocess)', () => {
       const result = AnalysisResultSchema.parse(minimalJson);
 
       expect(result.items[0].name).toBe('minimal_function');
-      expect(result.items[0]).not.toHaveProperty('audit_rating');
+      expect(result.items[0].audit_rating).toBeNull();
 
       // Verify required fields are present
       expect(result.items[0]).toHaveProperty('name');

@@ -32,7 +32,7 @@ export const CodeItemSchema = z.object({
   docstring: z.string().nullable(),
   export_type: z.enum(['named', 'default', 'commonjs', 'internal']),
   module_system: z.enum(['esm', 'commonjs', 'unknown']),
-  audit_rating: z.number().int().min(1).max(4).optional(),
+  audit_rating: z.number().int().min(1).max(4).nullable(),
 }).passthrough();
 
 /**

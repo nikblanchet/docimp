@@ -59,8 +59,8 @@ export interface CodeItem {
   /** Module system for JavaScript */
   module_system: 'esm' | 'commonjs' | 'unknown';
 
-  /** Optional audit quality rating (1-4, or undefined if not audited) */
-  audit_rating?: number;
+  /** Optional audit quality rating (1-4, or null if not audited) */
+  audit_rating: number | null;
 }
 
 /**

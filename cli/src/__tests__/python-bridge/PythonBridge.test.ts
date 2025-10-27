@@ -112,6 +112,7 @@ describe('PythonBridge JSON Validation', () => {
             docstring: 'Test function documentation',
             export_type: 'internal',
             module_system: 'unknown',
+            audit_rating: null,
           },
         ],
         parse_failures: [],

@@ -78,7 +78,8 @@ def format_json(result) -> str:
                 'return_type': item.return_type,
                 'docstring': item.docstring,
                 'export_type': item.export_type,
-                'module_system': item.module_system
+                'module_system': item.module_system,
+                'audit_rating': item.audit_rating
             }
             for item in result.items
         ],
