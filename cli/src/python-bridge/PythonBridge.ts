@@ -57,19 +57,32 @@ function findAnalyzerDir(): string {
 
   try {
     // Use eval to prevent Jest from parsing import.meta
-    // eslint-disable-next-line no-eval
-    const currentFileUrl = eval('import.meta.url');
-    const currentFilePath = fileURLToPath(currentFileUrl);
-    const currentDir = dirname(currentFilePath);
+    // Note: eval doesn't work for import.meta because it evaluates in global scope
+    // So we use __filename as a detection mechanism
+    //
+    // In ESM (production), __filename is not defined
+    // In Jest/CommonJS, __filename is defined
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (typeof (global as any).__filename === 'undefined') {
+      // Production ESM: use new Function to access import.meta in module scope
+      // This is the only way to access import.meta without Jest seeing it
+      const getUrl = new Function('return import.meta.url');
+      const currentFileUrl = getUrl();
+      const currentFilePath = fileURLToPath(currentFileUrl);
+      const currentDir = dirname(currentFilePath);
 
-    // Go up 3 levels to repo root: python-bridge -> src|dist -> cli -> root
-    analyzerPath = resolve(currentDir, '..', '..', '..', 'analyzer');
-    moduleInfo = currentFilePath;
+      // Go up 3 levels to repo root: python-bridge -> src|dist -> cli -> root
+      analyzerPath = resolve(currentDir, '..', '..', '..', 'analyzer');
+      moduleInfo = currentFilePath;
+    } else {
+      // Jest/CommonJS: use process.cwd fallback
+      analyzerPath = resolve(process.cwd(), '..', 'analyzer');
+      moduleInfo = '(test environment)';
+    }
   } catch {
-    // Fallback for Jest/test environment
-    // Tests run from cli/ directory, so go up one level to find analyzer/
+    // Final fallback: use process.cwd relative path
     analyzerPath = resolve(process.cwd(), '..', 'analyzer');
-    moduleInfo = '(test environment)';
+    moduleInfo = '(fallback)';
   }
 
   if (existsSync(analyzerPath)) {
