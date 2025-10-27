@@ -8,6 +8,7 @@
 import { spawn, spawnSync, ChildProcess } from 'child_process';
 import { resolve, dirname, join } from 'path';
 import { existsSync } from 'fs';
+import { fileURLToPath } from 'url';
 import { z } from 'zod';
 import type { IPythonBridge, AnalyzeOptions, AuditOptions, PlanOptions, SuggestOptions, ApplyData } from './IPythonBridge.js';
 import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult } from '../types/analysis.js';
@@ -16,31 +17,54 @@ import type { IConfig } from '../config/IConfig.js';
 import { defaultConfig } from '../config/IConfig.js';
 
 /**
- * Find the analyzer directory by searching upwards from a starting directory.
+ * Find the analyzer directory relative to this module's location.
  *
  * This works regardless of:
  * - User's current working directory
  * - Whether code is in src/ or dist/
- * - Whether running in ES modules or CommonJS (Jest)
+ * - Whether CLI is installed globally or locally
+ * - Whether running in development or production
  *
- * @param startDir - Directory to start searching from
+ * Resolution order:
+ * 1. DOCIMP_ANALYZER_PATH environment variable (for custom setups)
+ * 2. Relative to this module: ../../../analyzer (works for both src/ and dist/)
+ *
  * @returns Path to analyzer directory
  * @throws Error if analyzer directory not found
  */
-function findAnalyzerDir(startDir: string): string {
-  let currentDir = startDir;
-  const root = resolve('/');
-
-  while (currentDir !== root) {
-    const analyzerPath = join(currentDir, 'analyzer');
-    if (existsSync(analyzerPath)) {
-      return analyzerPath;
+function findAnalyzerDir(): string {
+  // Check environment variable first (allows custom installations)
+  const envPath = process.env.DOCIMP_ANALYZER_PATH;
+  if (envPath) {
+    if (existsSync(envPath)) {
+      return resolve(envPath);
     }
-    currentDir = dirname(currentDir);
+    throw new Error(
+      `DOCIMP_ANALYZER_PATH is set to "${envPath}" but directory does not exist.\n` +
+      `Please check the path or unset the environment variable.`
+    );
+  }
+
+  // Get the directory containing this file
+  // In production: cli/dist/python-bridge/PythonBridge.js
+  // In development: cli/src/python-bridge/PythonBridge.ts
+  const currentFileUrl = import.meta.url;
+  const currentFilePath = fileURLToPath(currentFileUrl);
+  const currentDir = dirname(currentFilePath);
+
+  // Go up 3 levels to repo root: python-bridge -> src|dist -> cli -> root
+  // Then into analyzer/
+  const analyzerPath = resolve(currentDir, '..', '..', '..', 'analyzer');
+
+  if (existsSync(analyzerPath)) {
+    return analyzerPath;
   }
 
   throw new Error(
-    `Could not find analyzer directory. Searched upwards from: ${startDir}`
+    `Could not find analyzer directory.\n` +
+    `Expected location: ${analyzerPath}\n` +
+    `Current module: ${currentFilePath}\n` +
+    `If you have a custom installation, set DOCIMP_ANALYZER_PATH environment variable.`
   );
 }
 
@@ -119,10 +143,10 @@ export class PythonBridge implements IPythonBridge {
   ) {
     this.pythonPath = pythonPath || detectPythonExecutable();
 
-    // Auto-detect analyzer path by searching upwards from current working directory
-    // This works regardless of where docimp is invoked from
+    // Auto-detect analyzer path relative to module location
+    // This works regardless of user's cwd, global install, or directory structure
     if (!analyzerPath) {
-      this.analyzerModule = findAnalyzerDir(process.cwd());
+      this.analyzerModule = findAnalyzerDir();
     } else {
       this.analyzerModule = analyzerPath;
     }
