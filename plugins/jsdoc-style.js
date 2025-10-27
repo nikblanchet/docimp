@@ -18,17 +18,23 @@
  * Uses the comment-parser library to properly handle multi-line content,
  * code examples, and complex JSDoc patterns without losing formatting.
  *
- * IMPORTANT: This function requires comment-parser to be injected. There is
- * no fallback parser because the previous fallback had the same bug that
- * Issue #95 reported (concatenating multi-line content with spaces, destroying
- * formatting). Having a broken fallback is worse than requiring the dependency.
+ * IMPORTANT: This function requires comment-parser to be injected.
+ *
+ * The defensive check below should never trigger in practice because
+ * beforeAccept() validates dependencies before calling this function.
+ * However, we include it as a safety net to return empty results rather
+ * than throwing if called incorrectly.
+ *
+ * Note: Issue #95 was caused by the previous custom parser concatenating
+ * multi-line content with spaces, destroying formatting. We removed that
+ * broken fallback and now use comment-parser to properly preserve formatting.
  *
  * @param {string} docstring - JSDoc comment text
  * @param {object} commentParser - Injected comment-parser dependency
  * @returns {{description: string, tags: Array<{name: string, text: string}>}}
  */
 function parseJSDoc(docstring, commentParser) {
-  // Require comment-parser - no fallback to prevent silent failures
+  // Defensive check: return empty result if dependencies missing (should never happen)
   if (!commentParser || !commentParser.parse) {
     console.warn('[jsdoc-style] comment-parser not available, returning empty parse result');
     return { description: '', tags: [] };
