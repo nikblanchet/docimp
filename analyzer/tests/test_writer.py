@@ -263,6 +263,61 @@ def test_typescript_private_static_method(writer):
     assert 'create' in result, "Original code not found"
 
 
+def test_method_name_starting_with_visibility_keyword(writer):
+    """Test that method names starting with visibility keywords don't falsely match."""
+    code = "class Utils {\n  publicity() {\n    return 'public relations';\n  }\n}"
+    jsdoc = "Handle publicity"
+
+    result = write_and_check(writer, code, jsdoc, "publicity", "method")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'publicity' in result, "Original code not found"
+
+
+def test_method_name_starting_with_private_keyword(writer):
+    """Test that method names starting with 'private' don't falsely match."""
+    code = "class Auth {\n  privatize() {\n    return 'make private';\n  }\n}"
+    jsdoc = "Privatize data"
+
+    result = write_and_check(writer, code, jsdoc, "privatize", "method")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'privatize' in result, "Original code not found"
+
+
+def test_method_name_starting_with_protected_keyword(writer):
+    """Test that method names starting with 'protected' don't falsely match."""
+    code = "class Security {\n  protection() {\n    return 'protect';\n  }\n}"
+    jsdoc = "Provide protection"
+
+    result = write_and_check(writer, code, jsdoc, "protection", "method")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'protection' in result, "Original code not found"
+
+
+def test_arrow_function_with_underscore_param(writer):
+    """Test arrow function with underscore-prefixed parameter."""
+    code = "const increment = _val => _val + 1;"
+    jsdoc = "Increment value"
+
+    result = write_and_check(writer, code, jsdoc, "increment", "function")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'increment' in result, "Original code not found"
+
+
+def test_arrow_function_with_dollar_param(writer):
+    """Test arrow function with dollar-prefixed parameter."""
+    code = "const transform = $data => $data.toUpperCase();"
+    jsdoc = "Transform data"
+
+    result = write_and_check(writer, code, jsdoc, "transform", "function")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'transform' in result, "Original code not found"
+
+
 def test_backup_cleanup_on_successful_write(writer):
     """Test that backup files are deleted after successful writes."""
     code = "function test() {\n  return true;\n}"
