@@ -13,13 +13,39 @@
  */
 
 /**
- * Parse JSDoc comment into structured tags.
+ * Parse JSDoc comment into structured tags using comment-parser.
+ *
+ * Uses the comment-parser library to properly handle multi-line content,
+ * code examples, and complex JSDoc patterns without losing formatting.
  *
  * @param {string} docstring - JSDoc comment text
+ * @param {object} commentParser - Injected comment-parser dependency
  * @returns {{description: string, tags: Array<{name: string, text: string}>}}
  */
-function parseJSDoc(docstring) {
-  // Remove comment delimiters and leading asterisks
+function parseJSDoc(docstring, commentParser) {
+  // Use comment-parser if available (dependency injection)
+  if (commentParser && commentParser.parse) {
+    const parsed = commentParser.parse(docstring);
+    if (!parsed || parsed.length === 0) {
+      return { description: '', tags: [] };
+    }
+
+    const block = parsed[0];
+
+    // Extract description (preserves formatting)
+    const description = block.description || '';
+
+    // Extract tags with preserved multi-line content
+    const tags = block.tags.map((tag) => ({
+      name: tag.tag,
+      text: tag.description || '', // Preserves multi-line content
+    }));
+
+    return { description, tags };
+  }
+
+  // Fallback: simple parsing (should not be used in production)
+  // This fallback exists for backward compatibility but is not recommended
   const lines = docstring
     .split('\n')
     .map((line) => line.replace(/^\s*\*\s?/, '').trim())
@@ -30,38 +56,24 @@ function parseJSDoc(docstring) {
   let currentTag = null;
 
   for (const line of lines) {
-    // Check if line starts with a tag
     const tagMatch = line.match(/^@(\w+)\s*(.*)/);
-
     if (tagMatch) {
-      // Save previous tag if any
       if (currentTag) {
         tags.push(currentTag);
       }
-
-      // Start new tag
-      currentTag = {
-        name: tagMatch[1],
-        text: tagMatch[2],
-      };
+      currentTag = { name: tagMatch[1], text: tagMatch[2] };
     } else if (currentTag) {
-      // Continue previous tag
       currentTag.text += ' ' + line;
     } else {
-      // Part of description
       description += (description ? ' ' : '') + line;
     }
   }
 
-  // Save last tag
   if (currentTag) {
     tags.push(currentTag);
   }
 
-  return {
-    description: description.trim(),
-    tags,
-  };
+  return { description: description.trim(), tags };
 }
 
 /**
@@ -198,50 +210,23 @@ function generateTagAliasFix(docstring, preferredTags) {
 /**
  * Generate auto-fix for description punctuation.
  *
+ * DISABLED: Auto-fix for punctuation is disabled to prevent corruption of
+ * descriptions containing code blocks, lists, or other formatted content.
+ * The plugin will only report punctuation violations without offering auto-fix.
+ *
+ * Issue #96: The previous heuristic-based approach could add periods in wrong
+ * places (after blank lines, after code, in lists). Proper detection requires
+ * sophisticated parsing that understands JSDoc structure, which is beyond the
+ * scope of this simple fix.
+ *
  * @param {string} docstring - Original JSDoc
  * @param {string} description - Parsed description text
- * @returns {string | null} Fixed JSDoc or null
+ * @returns {string | null} Always returns null (auto-fix disabled)
  */
 function generatePunctuationFix(docstring, description) {
-  if (!description || /[.!?]$/.test(description)) {
-    return null; // Already has punctuation or no description
-  }
-
-  // Find the description in the docstring and add a period
-  // This is a simple heuristic - add period after first line before first tag
-  const lines = docstring.split('\n');
-  let fixed = '';
-  let descriptionFound = false;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmed = line.replace(/^\s*\*\s?/, '').trim();
-
-    // Check if this is a tag line
-    const isTag = /^@\w+/.test(trimmed);
-
-    // If we haven't found description end yet and hit a tag or empty line
-    if (!descriptionFound && (isTag || (!trimmed && i > 0))) {
-      // Add period to previous line if it needs one
-      if (i > 0 && fixed) {
-        fixed = fixed.trimEnd();
-        if (!/[.!?]$/.test(fixed)) {
-          fixed += '.';
-        }
-        fixed += '\n';
-      }
-      descriptionFound = true;
-    }
-
-    fixed += line + (i < lines.length - 1 ? '\n' : '');
-  }
-
-  // If description goes to end of comment
-  if (!descriptionFound && fixed && !/[.!?]$/.test(fixed.trimEnd())) {
-    fixed = fixed.trimEnd() + '.';
-  }
-
-  return fixed !== docstring ? fixed : null;
+  // Auto-fix disabled to prevent corruption (Issue #96)
+  // Users must manually add punctuation to avoid incorrect placements
+  return null;
 }
 
 /**
@@ -253,9 +238,10 @@ function generatePunctuationFix(docstring, description) {
  * @param {string} docstring - Generated JSDoc comment
  * @param {object} item - Code item metadata
  * @param {object} config - User configuration
+ * @param {object} dependencies - Injected dependencies (comment-parser)
  * @returns {Promise<{accept: boolean, reason?: string, autoFix?: string}>}
  */
-async function beforeAccept(docstring, item, config) {
+async function beforeAccept(docstring, item, config, dependencies) {
   // Only validate JavaScript/TypeScript files
   if (item.language !== 'javascript' && item.language !== 'typescript') {
     return { accept: true };
@@ -264,8 +250,9 @@ async function beforeAccept(docstring, item, config) {
   const jsdocStyle = config.jsdocStyle || {};
   const violations = [];
 
-  // Parse the JSDoc
-  const parsed = parseJSDoc(docstring);
+  // Parse the JSDoc with injected comment-parser
+  const commentParser = dependencies?.commentParser;
+  const parsed = parseJSDoc(docstring, commentParser);
 
   // Check tag aliases
   if (jsdocStyle.preferredTags) {
