@@ -335,6 +335,217 @@ describe('PluginManager', () => {
     });
   });
 
+  describe('timeout protection', () => {
+    describe('beforeAccept with timeout', () => {
+      it('should allow plugins that complete within timeout', async () => {
+        const plugin: IPlugin = {
+          name: 'fast-plugin',
+          version: '1.0.0',
+          timeout: 100, // 100ms timeout
+          hooks: {
+            beforeAccept: async () => {
+              await new Promise(resolve => setTimeout(resolve, 10)); // 10ms delay
+              return { accept: true };
+            },
+          },
+        };
+
+        (pluginManager as any).plugins.push(plugin);
+
+        const results = await pluginManager.runBeforeAccept(
+          '/** Test */',
+          {
+            name: 'testFunc',
+            type: 'function',
+            filepath: 'test.js',
+            line_number: 1,
+            language: 'javascript',
+            complexity: 1,
+          },
+          defaultConfig
+        );
+
+        expect(results).toHaveLength(1);
+        expect(results[0].accept).toBe(true);
+      });
+
+      it('should reject plugins that exceed timeout', async () => {
+        const plugin: IPlugin = {
+          name: 'slow-plugin',
+          version: '1.0.0',
+          timeout: 100, // 100ms timeout
+          hooks: {
+            beforeAccept: async () => {
+              await new Promise(resolve => setTimeout(resolve, 200)); // 200ms delay (exceeds timeout)
+              return { accept: true };
+            },
+          },
+        };
+
+        (pluginManager as any).plugins.push(plugin);
+
+        const results = await pluginManager.runBeforeAccept(
+          '/** Test */',
+          {
+            name: 'testFunc',
+            type: 'function',
+            filepath: 'test.js',
+            line_number: 1,
+            language: 'javascript',
+            complexity: 1,
+          },
+          defaultConfig
+        );
+
+        expect(results).toHaveLength(1);
+        expect(results[0].accept).toBe(false);
+        expect(results[0].reason).toContain('slow-plugin');
+        expect(results[0].reason).toContain('timed out');
+        expect(results[0].reason).toContain('100ms');
+      });
+
+      it('should use default 10s timeout when not specified', async () => {
+        const plugin: IPlugin = {
+          name: 'no-timeout-plugin',
+          version: '1.0.0',
+          hooks: {
+            beforeAccept: async () => {
+              await new Promise(resolve => setTimeout(resolve, 10)); // 10ms delay
+              return { accept: true };
+            },
+          },
+        };
+
+        (pluginManager as any).plugins.push(plugin);
+
+        const results = await pluginManager.runBeforeAccept(
+          '/** Test */',
+          {
+            name: 'testFunc',
+            type: 'function',
+            filepath: 'test.js',
+            line_number: 1,
+            language: 'javascript',
+            complexity: 1,
+          },
+          defaultConfig
+        );
+
+        // Should complete successfully with default timeout
+        expect(results).toHaveLength(1);
+        expect(results[0].accept).toBe(true);
+      });
+
+      it('should continue running other plugins after one times out', async () => {
+        const slowPlugin: IPlugin = {
+          name: 'slow-plugin',
+          version: '1.0.0',
+          timeout: 100,
+          hooks: {
+            beforeAccept: async () => {
+              await new Promise(resolve => setTimeout(resolve, 200)); // Exceeds timeout
+              return { accept: true };
+            },
+          },
+        };
+
+        const fastPlugin: IPlugin = {
+          name: 'fast-plugin',
+          version: '1.0.0',
+          hooks: {
+            beforeAccept: async () => {
+              return { accept: true };
+            },
+          },
+        };
+
+        (pluginManager as any).plugins.push(slowPlugin, fastPlugin);
+
+        const results = await pluginManager.runBeforeAccept(
+          '/** Test */',
+          {
+            name: 'testFunc',
+            type: 'function',
+            filepath: 'test.js',
+            line_number: 1,
+            language: 'javascript',
+            complexity: 1,
+          },
+          defaultConfig
+        );
+
+        // Should have results from both plugins
+        expect(results).toHaveLength(2);
+        // First plugin timed out
+        expect(results[0].accept).toBe(false);
+        expect(results[0].reason).toContain('timed out');
+        // Second plugin completed successfully
+        expect(results[1].accept).toBe(true);
+      });
+    });
+
+    describe('afterWrite with timeout', () => {
+      it('should allow plugins that complete within timeout', async () => {
+        const plugin: IPlugin = {
+          name: 'fast-afterwrite',
+          version: '1.0.0',
+          timeout: 100,
+          hooks: {
+            afterWrite: async () => {
+              await new Promise(resolve => setTimeout(resolve, 10)); // 10ms delay
+              return { accept: true };
+            },
+          },
+        };
+
+        (pluginManager as any).plugins.push(plugin);
+
+        const results = await pluginManager.runAfterWrite('test.js', {
+          name: 'testFunc',
+          type: 'function',
+          filepath: 'test.js',
+          line_number: 1,
+          language: 'javascript',
+          complexity: 1,
+        });
+
+        expect(results).toHaveLength(1);
+        expect(results[0].accept).toBe(true);
+      });
+
+      it('should reject plugins that exceed timeout', async () => {
+        const plugin: IPlugin = {
+          name: 'slow-afterwrite',
+          version: '1.0.0',
+          timeout: 100,
+          hooks: {
+            afterWrite: async () => {
+              await new Promise(resolve => setTimeout(resolve, 200)); // Exceeds timeout
+              return { accept: true };
+            },
+          },
+        };
+
+        (pluginManager as any).plugins.push(plugin);
+
+        const results = await pluginManager.runAfterWrite('test.js', {
+          name: 'testFunc',
+          type: 'function',
+          filepath: 'test.js',
+          line_number: 1,
+          language: 'javascript',
+          complexity: 1,
+        });
+
+        expect(results).toHaveLength(1);
+        expect(results[0].accept).toBe(false);
+        expect(results[0].reason).toContain('slow-afterwrite');
+        expect(results[0].reason).toContain('timed out');
+        expect(results[0].reason).toContain('100ms');
+      });
+    });
+  });
+
   describe('path validation', () => {
     const testDir = resolve('.test-plugin-validation');
     const pluginsDir = resolve(testDir, 'plugins');
