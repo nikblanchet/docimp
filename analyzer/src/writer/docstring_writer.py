@@ -521,8 +521,14 @@ class DocstringWriter:
             # Export arrow function without parentheses (single parameter)
             patterns.append(re.compile(rf'\bexport\s+(const|let|var)\s+{escaped_name}\s*=\s*(async\s+)?\w+\s*=>'))
 
-            # Method in object literal or class
-            patterns.append(re.compile(rf'\b(static\s+)?(async\s+)?(get\s+|set\s+)?{escaped_name}\s*\('))
+            # Check if this is a private method (name starts with #)
+            if item_name.startswith('#'):
+                # Private method: escaped_name already includes the #
+                # No leading \b because # itself is distinctive and \b doesn't work before #
+                patterns.append(re.compile(rf'(static\s+)?(async\s+)?(get\s+|set\s+)?{escaped_name}\s*\('))
+            else:
+                # Regular method in object literal or class
+                patterns.append(re.compile(rf'\b(static\s+)?(async\s+)?(get\s+|set\s+)?{escaped_name}\s*\('))
 
             # CommonJS exports
             patterns.append(re.compile(rf'\b(module\.)?exports\.{escaped_name}\s*='))

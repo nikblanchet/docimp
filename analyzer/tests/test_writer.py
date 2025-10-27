@@ -186,6 +186,39 @@ def test_class_method(writer):
     assert 'sum' in result, "Original code not found"
 
 
+def test_private_method(writer):
+    """Test writing JSDoc for private class method."""
+    code = "class Database {\n  #connect() {\n    return this.connection;\n  }\n}"
+    jsdoc = "Establish database connection"
+
+    result = write_and_check(writer, code, jsdoc, "#connect", "method")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert '#connect' in result, "Original code not found"
+
+
+def test_private_method_async(writer):
+    """Test writing JSDoc for async private class method."""
+    code = "class API {\n  async #fetchData() {\n    return await fetch('/api/data');\n  }\n}"
+    jsdoc = "Fetch data from API"
+
+    result = write_and_check(writer, code, jsdoc, "#fetchData", "method")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert '#fetchData' in result, "Original code not found"
+
+
+def test_private_method_static(writer):
+    """Test writing JSDoc for static private class method."""
+    code = "class Utils {\n  static #helper() {\n    return true;\n  }\n}"
+    jsdoc = "Internal helper function"
+
+    result = write_and_check(writer, code, jsdoc, "#helper", "method")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert '#helper' in result, "Original code not found"
+
+
 def test_backup_cleanup_on_successful_write(writer):
     """Test that backup files are deleted after successful writes."""
     code = "function test() {\n  return true;\n}"
