@@ -196,6 +196,10 @@ export class PythonBridge implements IPythonBridge {
       args.push('--verbose');
     }
 
+    if (options.strict) {
+      args.push('--strict');
+    }
+
     return this.executePython<AnalysisResult>(args, options.verbose, AnalysisResultSchema);
   }
 

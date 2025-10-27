@@ -328,3 +328,52 @@ class TestDocumentationAnalyzer:
                 # Should re-raise the unexpected exception
                 with pytest.raises(UnexpectedException):
                     analyzer.analyze(str(temp_path))
+
+    def test_strict_mode_fails_on_first_parse_error(self, analyzer):
+        """Test that strict=True raises exception on first parse error."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+
+            # Create a valid file
+            valid_file = temp_path / 'valid.py'
+            valid_file.write_text('def good_function():\n    """A good function."""\n    pass')
+
+            # Create a file with syntax error
+            broken_file = temp_path / 'broken.py'
+            broken_file.write_text('def bad_function(\n    # Syntax error - missing closing paren')
+
+            # In strict mode, should raise SyntaxError immediately
+            with pytest.raises(SyntaxError):
+                analyzer.analyze(str(temp_path), strict=True)
+
+    def test_non_strict_mode_collects_all_parse_errors(self, analyzer):
+        """Test that strict=False (default) collects all parse errors without raising."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+
+            # Create a valid file
+            valid_file = temp_path / 'valid.py'
+            valid_file.write_text('def good_function():\n    """A good function."""\n    pass')
+
+            # Create two files with syntax errors
+            broken1 = temp_path / 'broken1.py'
+            broken1.write_text('def bad1(\n    # Missing closing paren')
+
+            broken2 = temp_path / 'broken2.py'
+            broken2.write_text('class Bad2\n    # Missing colon')
+
+            # In non-strict mode (default), should collect all failures
+            result = analyzer.analyze(str(temp_path), strict=False)
+
+            # Should have two parse failures
+            assert len(result.parse_failures) == 2, "Should capture both parse failures"
+            assert any('broken1.py' in f.filepath for f in result.parse_failures)
+            assert any('broken2.py' in f.filepath for f in result.parse_failures)
+
+            # Should still have parsed the valid file
+            assert len(result.items) >= 1, "Should parse valid file"
+            assert any('good_function' in item.name for item in result.items)

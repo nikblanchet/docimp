@@ -21,6 +21,9 @@ export interface AnalyzeOptions {
 
   /** Enable verbose output */
   verbose?: boolean;
+
+  /** Fail immediately on first parse error */
+  strict?: boolean;
 }
 
 /**

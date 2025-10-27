@@ -23,6 +23,8 @@ class TypeScriptParser(BaseParser):
     - Export type detection (named, default, commonjs)
     """
 
+    MAX_SUBPROCESS_OUTPUT_LEN = 200
+
     def __init__(self):
         """Initialize the TypeScript parser and locate the Node.js CLI script."""
         # Find the compiled JavaScript CLI entry point
@@ -36,6 +38,20 @@ class TypeScriptParser(BaseParser):
                 f"TypeScript parser CLI not found at {self.helper_path}. "
                 "Run 'cd cli && npm install && npm run build' to compile the TypeScript parser."
             )
+
+    def _truncate_output(self, text: str) -> str:
+        """Truncate subprocess output for error messages.
+
+        Args:
+            text: The text to truncate.
+
+        Returns:
+            Truncated text with ellipsis if longer than MAX_SUBPROCESS_OUTPUT_LEN,
+            or original text if shorter.
+        """
+        if len(text) > self.MAX_SUBPROCESS_OUTPUT_LEN:
+            return text[:self.MAX_SUBPROCESS_OUTPUT_LEN] + '...'
+        return text
 
     def parse_file(self, filepath: str) -> List[CodeItem]:
         """
@@ -73,14 +89,28 @@ class TypeScriptParser(BaseParser):
             try:
                 items_data = json.loads(result.stdout if result.stdout else result.stderr)
             except json.JSONDecodeError as e:
-                # If we can't parse JSON and there was an error, report it
+                # Log subprocess output for debugging
+                stdout_preview = self._truncate_output(result.stdout)
+                stderr_preview = self._truncate_output(result.stderr)
+
+                # If we can't parse JSON and there was an error, this is a parser infrastructure issue
                 if result.returncode != 0:
                     error_msg = result.stderr or result.stdout or "TypeScript parser helper failed"
                     raise RuntimeError(
-                        f"Failed to run TypeScript parser. Error: {error_msg}\n"
+                        f"Failed to run TypeScript parser helper (returncode={result.returncode}).\n"
+                        f"Error: {error_msg}\n"
+                        f"Stdout: {stdout_preview}\n"
+                        f"Stderr: {stderr_preview}\n"
                         f"Make sure Node.js is installed and the TypeScript helper is compiled."
                     )
-                raise SyntaxError(f"Failed to parse output from TypeScript parser: {e}\nOutput: {result.stdout}")
+                # Returncode is 0 but JSON is malformed - this is also an infrastructure issue
+                raise RuntimeError(
+                    f"TypeScript parser helper returned invalid JSON (returncode=0).\n"
+                    f"JSONDecodeError: {e}\n"
+                    f"Stdout: {stdout_preview}\n"
+                    f"Stderr: {stderr_preview}\n"
+                    f"This indicates a problem with the parser helper, not the source code."
+                )
 
             # Check for error response
             if isinstance(items_data, dict) and 'error' in items_data:
