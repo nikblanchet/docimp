@@ -290,14 +290,17 @@ export class PluginManager {
   /**
    * Run beforeAccept hooks for all loaded plugins.
    *
-   * Executes all beforeAccept hooks in sequence. If any plugin rejects,
-   * returns the first rejection. Otherwise, returns acceptance.
+   * Sequential execution: Plugins run one after another, not in parallel.
+   * This means a slow plugin (even under timeout) will block subsequent plugins.
+   * For example, if plugin A takes 9s and plugin B takes 9s, total time is 18s
+   * (both under the 10s timeout individually, but not concurrent).
    *
    * Error isolation: If a plugin throws an exception, it's caught and
-   * returned as a rejection with error details.
+   * returned as a rejection with error details. Other plugins continue running.
    *
-   * Timeout protection: Each plugin has a configurable timeout (default 10s).
-   * If a plugin exceeds its timeout, it's treated as a rejection.
+   * Timeout protection: Each plugin has a configurable timeout.
+   * Timeout precedence: plugin.timeout > config.plugins.timeout > 10000ms default.
+   * If a plugin exceeds its timeout, it's rejected with a timeout error.
    *
    * @param docstring - Generated documentation string
    * @param item - Code item metadata
@@ -351,13 +354,17 @@ export class PluginManager {
   /**
    * Run afterWrite hooks for all loaded plugins.
    *
-   * Executes all afterWrite hooks in sequence. Collects all results.
+   * Sequential execution: Plugins run one after another, not in parallel.
+   * This means a slow plugin (even under timeout) will block subsequent plugins.
+   * For example, if plugin A takes 9s and plugin B takes 9s, total time is 18s
+   * (both under the 10s timeout individually, but not concurrent).
    *
    * Error isolation: If a plugin throws an exception, it's caught and
-   * returned as a rejection with error details.
+   * returned as a rejection with error details. Other plugins continue running.
    *
-   * Timeout protection: Each plugin has a configurable timeout (default 10s).
-   * If a plugin exceeds its timeout, it's treated as a rejection.
+   * Timeout protection: Each plugin has a configurable timeout.
+   * Timeout precedence: plugin.timeout > config.plugins.timeout > 10000ms default.
+   * If a plugin exceeds its timeout, it's rejected with a timeout error.
    *
    * @param filepath - Path to the file that was written
    * @param item - Code item metadata
