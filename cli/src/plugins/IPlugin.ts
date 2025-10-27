@@ -14,6 +14,28 @@
 import type { IConfig } from '../config/IConfig.js';
 
 /**
+ * Dependencies injected into plugin hooks.
+ *
+ * This allows plugins to use external modules without hardcoded imports,
+ * making them more portable and testable.
+ */
+export interface PluginDependencies {
+  /**
+   * TypeScript compiler API.
+   * Injected from cli/node_modules/typescript to avoid fragile path resolution.
+   */
+  typescript?: typeof import('typescript');
+
+  /**
+   * comment-parser library for JSDoc parsing.
+   * Injected from cli/node_modules/comment-parser.
+   */
+  commentParser?: {
+    parse: (source: string, options?: Record<string, unknown>) => unknown[];
+  };
+}
+
+/**
  * Result returned by plugin validation hooks.
  */
 export interface PluginResult {
@@ -92,12 +114,14 @@ export interface PluginHooks {
    * @param docstring - Generated documentation string
    * @param item - Metadata about the code item being documented
    * @param config - User configuration
+   * @param dependencies - Injected dependencies (TypeScript, comment-parser, etc.). Required as of v0.2.0.
    * @returns Promise resolving to validation result
    */
   beforeAccept?: (
     docstring: string,
     item: CodeItemMetadata,
-    config: IConfig
+    config: IConfig,
+    dependencies: PluginDependencies
   ) => Promise<PluginResult>;
 
   /**
@@ -111,11 +135,13 @@ export interface PluginHooks {
    *
    * @param filepath - Path to the file that was modified
    * @param item - Metadata about the code item that was documented
+   * @param dependencies - Injected dependencies (TypeScript, comment-parser, etc.). Required as of v0.2.0.
    * @returns Promise resolving to validation result
    */
   afterWrite?: (
     filepath: string,
-    item: CodeItemMetadata
+    item: CodeItemMetadata,
+    dependencies: PluginDependencies
   ) => Promise<PluginResult>;
 }
 

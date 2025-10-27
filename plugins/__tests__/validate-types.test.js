@@ -11,6 +11,16 @@ import validateTypesPlugin, {
   getCacheSize,
   clearCacheForFile
 } from '../validate-types.js';
+import * as typescript from 'typescript';
+import { parse as commentParserParse } from 'comment-parser';
+
+// Create dependencies object to inject into plugin hooks
+const dependencies = {
+  typescript,
+  commentParser: {
+    parse: commentParserParse,
+  },
+};
 
 describe('validate-types plugin', () => {
   beforeEach(() => {
@@ -61,7 +71,8 @@ describe('validate-types plugin', () => {
       const result = await validateTypesPlugin.hooks.beforeAccept(
         docstring,
         item,
-        config
+        config,
+        dependencies
       );
 
       expect(result.accept).toBe(true);
@@ -99,7 +110,8 @@ describe('validate-types plugin', () => {
       const result = await validateTypesPlugin.hooks.beforeAccept(
         docstring,
         item,
-        config
+        config,
+        dependencies
       );
 
       expect(result.accept).toBe(false);
@@ -139,7 +151,8 @@ describe('validate-types plugin', () => {
       const result = await validateTypesPlugin.hooks.beforeAccept(
         docstring,
         item,
-        config
+        config,
+        dependencies
       );
 
       expect(result.accept).toBe(false);
@@ -169,7 +182,8 @@ describe('validate-types plugin', () => {
       const result = await validateTypesPlugin.hooks.beforeAccept(
         docstring,
         item,
-        config
+        config,
+        dependencies
       );
 
       expect(result.accept).toBe(true);
@@ -205,7 +219,8 @@ describe('validate-types plugin', () => {
       const result = await validateTypesPlugin.hooks.beforeAccept(
         docstring,
         item,
-        config
+        config,
+        dependencies
       );
 
       expect(result.accept).toBe(true);
@@ -241,7 +256,8 @@ describe('validate-types plugin', () => {
       const result = await validateTypesPlugin.hooks.beforeAccept(
         docstring,
         item,
-        config
+        config,
+        dependencies
       );
 
       expect(result.accept).toBe(false);
@@ -290,7 +306,8 @@ describe('validate-types plugin', () => {
       const result = await validateTypesPlugin.hooks.beforeAccept(
         docstring,
         item,
-        config
+        config,
+        dependencies
       );
 
       expect(result.accept).toBe(true);
@@ -336,7 +353,8 @@ describe('validate-types plugin', () => {
       const result = await validateTypesPlugin.hooks.beforeAccept(
         docstring,
         item,
-        config
+        config,
+        dependencies
       );
 
       expect(result.accept).toBe(true);
@@ -372,7 +390,8 @@ describe('validate-types plugin', () => {
       const result = await validateTypesPlugin.hooks.beforeAccept(
         docstring,
         item,
-        config
+        config,
+        dependencies
       );
 
       expect(result.accept).toBe(true);
@@ -408,7 +427,8 @@ describe('validate-types plugin', () => {
       const result = await validateTypesPlugin.hooks.beforeAccept(
         docstring,
         item,
-        config
+        config,
+        dependencies
       );
 
       expect(result.accept).toBe(true);
@@ -447,7 +467,8 @@ describe('validate-types plugin', () => {
       const result = await validateTypesPlugin.hooks.beforeAccept(
         docstring,
         item,
-        config
+        config,
+        dependencies
       );
 
       expect(result).toBeDefined();
@@ -483,7 +504,8 @@ describe('validate-types plugin', () => {
       const result = await validateTypesPlugin.hooks.beforeAccept(
         docstring,
         item,
-        config
+        config,
+        dependencies
       );
 
       expect(result.accept).toBe(true);
@@ -519,7 +541,8 @@ describe('validate-types plugin', () => {
       const result = await validateTypesPlugin.hooks.beforeAccept(
         docstring,
         item,
-        config
+        config,
+        dependencies
       );
 
       expect(result).toBeDefined();
@@ -558,7 +581,8 @@ describe('validate-types plugin', () => {
       const result = await validateTypesPlugin.hooks.beforeAccept(
         docstring,
         item,
-        config
+        config,
+        dependencies
       );
 
       expect(result.accept).toBe(true);
@@ -586,7 +610,8 @@ describe('validate-types plugin', () => {
       const result = await validateTypesPlugin.hooks.beforeAccept(
         docstring,
         item,
-        config
+        config,
+        dependencies
       );
 
       expect(result.accept).toBe(true);
@@ -614,7 +639,8 @@ describe('validate-types plugin', () => {
       const result = await validateTypesPlugin.hooks.beforeAccept(
         docstring,
         item,
-        config
+        config,
+        dependencies
       );
 
       expect(result.accept).toBe(true);
@@ -643,7 +669,8 @@ describe('validate-types plugin', () => {
       const result = await validateTypesPlugin.hooks.beforeAccept(
         docstring,
         item,
-        config
+        config,
+        dependencies
       );
 
       expect(result.accept).toBe(true);
@@ -672,7 +699,8 @@ describe('validate-types plugin', () => {
       const result = await validateTypesPlugin.hooks.beforeAccept(
         docstring,
         item,
-        config
+        config,
+        dependencies
       );
 
       expect(result.accept).toBe(true);
@@ -700,7 +728,8 @@ describe('validate-types plugin', () => {
       const result = await validateTypesPlugin.hooks.beforeAccept(
         docstring,
         item,
-        config
+        config,
+        dependencies
       );
 
       expect(result.accept).toBe(false);
@@ -731,7 +760,8 @@ describe('validate-types plugin', () => {
       const result = await validateTypesPlugin.hooks.beforeAccept(
         docstring,
         item,
-        config
+        config,
+        dependencies
       );
 
       expect(result.accept).toBe(false);
@@ -762,7 +792,8 @@ describe('validate-types plugin', () => {
       const result = await validateTypesPlugin.hooks.beforeAccept(
         docstring,
         item,
-        config
+        config,
+        dependencies
       );
 
       expect(result.accept).toBe(true);
@@ -792,7 +823,8 @@ describe('validate-types plugin', () => {
       const result = await validateTypesPlugin.hooks.beforeAccept(
         docstring,
         item,
-        config
+        config,
+        dependencies
       );
 
       // Should reject due to parameter mismatch (malformed param doesn't extract properly)
@@ -823,7 +855,8 @@ describe('validate-types plugin', () => {
       const result = await validateTypesPlugin.hooks.beforeAccept(
         docstring,
         item,
-        config
+        config,
+        dependencies
       );
 
       expect(result.accept).toBe(true);
@@ -861,7 +894,7 @@ describe('validate-types plugin', () => {
           code: `function func${i}(x) { return x; }`,
         };
 
-        await validateTypesPlugin.hooks.beforeAccept(docstring, item, config);
+        await validateTypesPlugin.hooks.beforeAccept(docstring, item, config, dependencies);
       }
 
       const stats = getCacheStats();
@@ -905,7 +938,7 @@ describe('validate-types plugin', () => {
           complexity: 1,
           export_type: 'named',
         };
-        await validateTypesPlugin.hooks.beforeAccept(docstring, item, config);
+        await validateTypesPlugin.hooks.beforeAccept(docstring, item, config, dependencies);
       }
 
       // Access test0.js again (should move it to end of LRU order)
@@ -1088,7 +1121,7 @@ describe('validate-types plugin', () => {
           complexity: 1,
           export_type: 'named',
         };
-        await validateTypesPlugin.hooks.beforeAccept(docstring, item, config);
+        await validateTypesPlugin.hooks.beforeAccept(docstring, item, config, dependencies);
       }
 
       expect(getCacheSize()).toBe(3);
@@ -1205,7 +1238,7 @@ describe('validate-types plugin', () => {
             complexity: 1,
             export_type: 'named',
           };
-          await validateTypesPlugin.hooks.beforeAccept(docstring, item, config);
+          await validateTypesPlugin.hooks.beforeAccept(docstring, item, config, dependencies);
         }
 
         // At least one dispose should have been called (for the evicted entry)
@@ -1263,7 +1296,7 @@ describe('validate-types plugin', () => {
             complexity: 1,
             export_type: 'named',
           };
-          await validateTypesPlugin.hooks.beforeAccept(docstring, item, config);
+          await validateTypesPlugin.hooks.beforeAccept(docstring, item, config, dependencies);
         }
 
         // Reset spy count before clearCache
@@ -1324,7 +1357,7 @@ describe('validate-types plugin', () => {
         };
 
         // Add to cache
-        await validateTypesPlugin.hooks.beforeAccept(docstring, item, config);
+        await validateTypesPlugin.hooks.beforeAccept(docstring, item, config, dependencies);
 
         // Reset spy
         disposeSpy.mockClear();
@@ -1338,6 +1371,114 @@ describe('validate-types plugin', () => {
         // Restore original dispose
         proto.dispose = originalDispose;
       }
+    });
+  });
+
+  describe('dependency injection', () => {
+    it('should reject when TypeScript dependency is not provided', async () => {
+      const docstring = `/**
+ * Test function.
+ * @param {number} x - Parameter
+ * @returns {number} Result
+ */`;
+
+      const item = {
+        name: 'test',
+        type: 'function',
+        filepath: 'test.js',
+        line_number: 1,
+        language: 'javascript',
+        complexity: 1,
+        export_type: 'named',
+        parameters: ['x'],
+        code: 'function test(x) { return x; }',
+      };
+
+      const config = {
+        styleGuide: 'jsdoc',
+        tone: 'concise',
+        jsdocStyle: {
+          enforceTypes: true,
+        },
+      };
+
+      // Call without dependencies
+      const result = await validateTypesPlugin.hooks.beforeAccept(
+        docstring,
+        item,
+        config
+      );
+
+      expect(result.accept).toBe(false);
+      expect(result.reason).toContain('TypeScript dependency not available');
+    });
+
+    it('should work correctly when dependencies are provided', async () => {
+      const docstring = `/**
+ * Add two numbers.
+ * @param {number} a - First number
+ * @param {number} b - Second number
+ * @returns {number} Sum
+ */`;
+
+      const item = {
+        name: 'add',
+        type: 'function',
+        filepath: 'test-di.js',
+        line_number: 1,
+        language: 'javascript',
+        complexity: 2,
+        export_type: 'named',
+        parameters: ['a', 'b'],
+        code: 'function add(a, b) { return a + b; }',
+      };
+
+      const config = {
+        styleGuide: 'jsdoc',
+        tone: 'concise',
+        jsdocStyle: {
+          enforceTypes: true,
+        },
+      };
+
+      // Call with dependencies (imported at top of file)
+      const result = await validateTypesPlugin.hooks.beforeAccept(
+        docstring,
+        item,
+        config,
+        dependencies
+      );
+
+      expect(result.accept).toBe(true);
+    });
+
+    it('should skip validation for non-JavaScript/TypeScript files', async () => {
+      const docstring = '"""Python docstring"""';
+
+      const item = {
+        name: 'test',
+        type: 'function',
+        filepath: 'test.py',
+        line_number: 1,
+        language: 'python',
+        complexity: 1,
+        parameters: ['x'],
+      };
+
+      const config = {
+        styleGuide: 'google',
+        tone: 'concise',
+      };
+
+      // Python files should be skipped regardless of dependencies
+      const result = await validateTypesPlugin.hooks.beforeAccept(
+        docstring,
+        item,
+        config,
+        dependencies
+      );
+
+      expect(result.accept).toBe(true);
     });
   });
 });
