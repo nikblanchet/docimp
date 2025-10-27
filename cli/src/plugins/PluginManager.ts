@@ -9,7 +9,8 @@
  */
 
 import { pathToFileURL } from 'node:url';
-import { resolve } from 'node:path';
+import { resolve, sep, extname } from 'node:path';
+import { existsSync, realpathSync } from 'node:fs';
 import type {
   IPlugin,
   PluginResult,
@@ -29,17 +30,19 @@ export class PluginManager {
    *
    * @param pluginPaths - Array of paths to plugin files
    * @param projectRoot - Project root directory (for relative path resolution)
+   * @param additionalAllowedDirs - Additional directories to allow plugin loading from (for testing only)
    * @throws Error if plugin loading fails
    */
   async loadPlugins(
     pluginPaths: string[],
-    projectRoot?: string
+    projectRoot?: string,
+    additionalAllowedDirs?: string[]
   ): Promise<void> {
     const root = projectRoot || process.cwd();
 
     for (const pluginPath of pluginPaths) {
       try {
-        await this.loadPlugin(pluginPath, root);
+        await this.loadPlugin(pluginPath, root, additionalAllowedDirs);
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
@@ -55,13 +58,18 @@ export class PluginManager {
    *
    * @param pluginPath - Path to plugin file (relative or absolute)
    * @param projectRoot - Project root directory
+   * @param additionalAllowedDirs - Additional directories to allow plugin loading from (for testing only)
    */
   private async loadPlugin(
     pluginPath: string,
-    projectRoot: string
+    projectRoot: string,
+    additionalAllowedDirs?: string[]
   ): Promise<void> {
     // Resolve relative paths from project root
     const absolutePath = resolve(projectRoot, pluginPath);
+
+    // Validate path is safe before loading
+    this.validatePluginPath(absolutePath, projectRoot, pluginPath, additionalAllowedDirs);
 
     // Prevent duplicate loading
     if (this.loadedPaths.has(absolutePath)) {
@@ -83,6 +91,73 @@ export class PluginManager {
     // Register the plugin
     this.plugins.push(plugin);
     this.loadedPaths.add(absolutePath);
+  }
+
+  /**
+   * Validate that a plugin path is safe to load.
+   *
+   * Security restrictions:
+   * - Only allows plugins from ./plugins/ or node_modules/ directories
+   * - Resolves symlinks to prevent path traversal attacks
+   * - Validates file exists and has correct extension
+   *
+   * @param absolutePath - Absolute path to plugin file
+   * @param projectRoot - Project root directory
+   * @param originalPath - Original path from config (for error messages)
+   * @param additionalAllowedDirs - Additional directories to allow (for testing only)
+   * @throws Error if plugin path is unsafe or invalid
+   */
+  private validatePluginPath(
+    absolutePath: string,
+    projectRoot: string,
+    originalPath: string,
+    additionalAllowedDirs?: string[]
+  ): void {
+    // Check if file exists
+    if (!existsSync(absolutePath)) {
+      throw new Error(
+        `Plugin file does not exist: ${originalPath}`
+      );
+    }
+
+    // Resolve symlinks to get canonical path
+    let canonicalPath: string;
+    try {
+      canonicalPath = realpathSync(absolutePath);
+    } catch (error) {
+      throw new Error(
+        `Failed to resolve plugin path ${originalPath}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+
+    // Validate file extension
+    const ext = extname(canonicalPath);
+    const validExtensions = ['.js', '.mjs', '.cjs'];
+    if (!validExtensions.includes(ext)) {
+      throw new Error(
+        `Plugin file must have .js, .mjs, or .cjs extension. Got: ${ext} (${originalPath})`
+      );
+    }
+
+    // Define allowed directories (whitelist)
+    const allowedDirs = [
+      resolve(projectRoot, 'plugins'),
+      resolve(projectRoot, 'node_modules'),
+      ...(additionalAllowedDirs || []),
+    ];
+
+    // Check if canonical path is within allowed directories
+    const isAllowed = allowedDirs.some((dir) =>
+      canonicalPath.startsWith(dir + sep)
+    );
+
+    if (!isAllowed) {
+      throw new Error(
+        `Plugin path ${originalPath} is outside allowed directories. ` +
+        `Resolved to: ${canonicalPath}. ` +
+        `Plugins must be in ./plugins/ or node_modules/`
+      );
+    }
   }
 
   /**
