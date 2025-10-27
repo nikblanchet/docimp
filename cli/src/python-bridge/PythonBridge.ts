@@ -55,34 +55,24 @@ function findAnalyzerDir(): string {
   let analyzerPath: string;
   let moduleInfo: string;
 
+  // Try module-relative resolution (production ESM)
   try {
-    // Use eval to prevent Jest from parsing import.meta
-    // Note: eval doesn't work for import.meta because it evaluates in global scope
-    // So we use __filename as a detection mechanism
-    //
-    // In ESM (production), __filename is not defined
-    // In Jest/CommonJS, __filename is defined
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (typeof (global as any).__filename === 'undefined') {
-      // Production ESM: use new Function to access import.meta in module scope
-      // This is the only way to access import.meta without Jest seeing it
-      const getUrl = new Function('return import.meta.url');
-      const currentFileUrl = getUrl();
-      const currentFilePath = fileURLToPath(currentFileUrl);
-      const currentDir = dirname(currentFilePath);
+    // Use new Function to access import.meta without Jest seeing it
+    // This works in production ESM but will throw in Jest/CommonJS
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval
+    const getUrl = new Function('return import.meta.url');
+    const currentFileUrl = getUrl();
+    const currentFilePath = fileURLToPath(currentFileUrl);
+    const currentDir = dirname(currentFilePath);
 
-      // Go up 3 levels to repo root: python-bridge -> src|dist -> cli -> root
-      analyzerPath = resolve(currentDir, '..', '..', '..', 'analyzer');
-      moduleInfo = currentFilePath;
-    } else {
-      // Jest/CommonJS: use process.cwd fallback
-      analyzerPath = resolve(process.cwd(), '..', 'analyzer');
-      moduleInfo = '(test environment)';
-    }
+    // Go up 3 levels to repo root: python-bridge -> src|dist -> cli -> root
+    analyzerPath = resolve(currentDir, '..', '..', '..', 'analyzer');
+    moduleInfo = currentFilePath;
   } catch {
-    // Final fallback: use process.cwd relative path
+    // Fallback for Jest/test environment or when import.meta not available
+    // Tests run from cli/ directory, so go up one level to find analyzer/
     analyzerPath = resolve(process.cwd(), '..', 'analyzer');
-    moduleInfo = '(fallback)';
+    moduleInfo = '(test environment)';
   }
 
   if (existsSync(analyzerPath)) {
