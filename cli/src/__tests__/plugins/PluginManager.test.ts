@@ -6,6 +6,8 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { resolve } from 'node:path';
+import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { PluginManager } from '../../plugins/PluginManager.js';
 import { defaultConfig } from '../../config/IConfig.js';
 import type { IPlugin } from '../../plugins/IPlugin.js';
@@ -330,6 +332,193 @@ describe('PluginManager', () => {
 
       pluginManager.clear();
       expect(pluginManager.getLoadedPlugins()).toHaveLength(0);
+    });
+  });
+
+  describe('path validation', () => {
+    const testDir = resolve(process.cwd(), '.test-plugin-validation');
+    const pluginsDir = resolve(testDir, 'plugins');
+    const srcDir = resolve(testDir, 'src');
+    const nodeModulesDir = resolve(testDir, 'node_modules');
+
+    /**
+     * Helper to test path validation by directly calling the private method.
+     * This bypasses file loading to test validation logic in isolation.
+     */
+    function testValidatePath(
+      absolutePath: string,
+      projectRoot: string,
+      originalPath: string
+    ): void {
+      (pluginManager as any).validatePluginPath(
+        absolutePath,
+        projectRoot,
+        originalPath
+      );
+    }
+
+    beforeEach(() => {
+      // Create test directory structure
+      mkdirSync(pluginsDir, { recursive: true });
+      mkdirSync(srcDir, { recursive: true });
+      mkdirSync(nodeModulesDir, { recursive: true });
+
+      // Create test files
+      writeFileSync(resolve(pluginsDir, 'valid.js'), '// valid plugin');
+      writeFileSync(resolve(pluginsDir, 'invalid.sh'), '#!/bin/sh');
+      writeFileSync(resolve(srcDir, 'disallowed.js'), '// not a plugin');
+      writeFileSync(resolve(nodeModulesDir, 'package-plugin.js'), '// npm plugin');
+    });
+
+    afterEach(() => {
+      // Clean up test directory
+      try {
+        rmSync(testDir, { recursive: true, force: true });
+      } catch (error) {
+        // Ignore cleanup errors
+      }
+    });
+
+    describe('file existence', () => {
+      it('should reject non-existent files', () => {
+        expect(() => {
+          testValidatePath(
+            resolve(pluginsDir, 'nonexistent.js'),
+            testDir,
+            './plugins/nonexistent.js'
+          );
+        }).toThrow('Plugin file does not exist');
+      });
+
+      it('should include original path in error message', () => {
+        expect(() => {
+          testValidatePath(
+            resolve(pluginsDir, 'nonexistent.js'),
+            testDir,
+            './plugins/nonexistent.js'
+          );
+        }).toThrow('./plugins/nonexistent.js');
+      });
+    });
+
+    describe('file extension validation', () => {
+      it('should reject files without .js, .mjs, or .cjs extension', () => {
+        expect(() => {
+          testValidatePath(
+            resolve(pluginsDir, 'invalid.sh'),
+            testDir,
+            './plugins/invalid.sh'
+          );
+        }).toThrow('Plugin file must have .js, .mjs, or .cjs extension');
+      });
+
+      it('should include the actual extension in error message', () => {
+        expect(() => {
+          testValidatePath(
+            resolve(pluginsDir, 'invalid.sh'),
+            testDir,
+            './plugins/invalid.sh'
+          );
+        }).toThrow('.sh');
+      });
+
+      it('should accept .js files', () => {
+        expect(() => {
+          testValidatePath(
+            resolve(pluginsDir, 'valid.js'),
+            testDir,
+            './plugins/valid.js'
+          );
+        }).not.toThrow();
+      });
+    });
+
+    describe('directory whitelist', () => {
+      it('should accept plugins from ./plugins/ directory', () => {
+        expect(() => {
+          testValidatePath(
+            resolve(pluginsDir, 'valid.js'),
+            testDir,
+            './plugins/valid.js'
+          );
+        }).not.toThrow();
+      });
+
+      it('should accept plugins from node_modules/ directory', () => {
+        expect(() => {
+          testValidatePath(
+            resolve(nodeModulesDir, 'package-plugin.js'),
+            testDir,
+            './node_modules/package-plugin.js'
+          );
+        }).not.toThrow();
+      });
+
+      it('should reject plugins outside allowed directories', () => {
+        expect(() => {
+          testValidatePath(
+            resolve(srcDir, 'disallowed.js'),
+            testDir,
+            './src/disallowed.js'
+          );
+        }).toThrow('Plugin path');
+        expect(() => {
+          testValidatePath(
+            resolve(srcDir, 'disallowed.js'),
+            testDir,
+            './src/disallowed.js'
+          );
+        }).toThrow('outside allowed directories');
+      });
+
+      it('should reject absolute paths outside project', () => {
+        expect(() => {
+          testValidatePath(
+            '/tmp/malicious.js',
+            testDir,
+            '/tmp/malicious.js'
+          );
+        }).toThrow('Plugin file does not exist');
+      });
+
+      it('should provide clear error message for disallowed paths', () => {
+        expect(() => {
+          testValidatePath(
+            resolve(srcDir, 'disallowed.js'),
+            testDir,
+            './src/disallowed.js'
+          );
+        }).toThrow('Plugins must be in ./plugins/ or node_modules/');
+      });
+    });
+
+    describe('integration with loadPlugin', () => {
+      it('should reject loading plugin from disallowed directory', async () => {
+        await expect(
+          pluginManager.loadPlugins(
+            ['./src/disallowed.js'],
+            testDir
+          )
+        ).rejects.toThrow('outside allowed directories');
+      });
+
+      it('should reject loading non-existent plugin', async () => {
+        await expect(
+          pluginManager.loadPlugins(
+            ['./plugins/nonexistent.js'],
+            testDir
+          )
+        ).rejects.toThrow('Plugin file does not exist');
+      });
+
+      it('should reject loading file with wrong extension', async () => {
+        await expect(
+          pluginManager.loadPlugins(
+            ['./plugins/invalid.sh'],
+            testDir
+          )
+        ).rejects.toThrow('Plugin file must have .js, .mjs, or .cjs extension');
+      });
     });
   });
 });
