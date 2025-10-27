@@ -9,7 +9,8 @@
  */
 
 import { pathToFileURL } from 'node:url';
-import { resolve } from 'node:path';
+import { resolve, sep, extname } from 'node:path';
+import { existsSync, realpathSync } from 'node:fs';
 import type {
   IPlugin,
   PluginResult,
@@ -63,6 +64,9 @@ export class PluginManager {
     // Resolve relative paths from project root
     const absolutePath = resolve(projectRoot, pluginPath);
 
+    // Validate path is safe before loading
+    this.validatePluginPath(absolutePath, projectRoot, pluginPath);
+
     // Prevent duplicate loading
     if (this.loadedPaths.has(absolutePath)) {
       return;
@@ -83,6 +87,69 @@ export class PluginManager {
     // Register the plugin
     this.plugins.push(plugin);
     this.loadedPaths.add(absolutePath);
+  }
+
+  /**
+   * Validate that a plugin path is safe to load.
+   *
+   * Security restrictions:
+   * - Only allows plugins from ./plugins/ or node_modules/ directories
+   * - Resolves symlinks to prevent path traversal attacks
+   * - Validates file exists and has correct extension
+   *
+   * @param absolutePath - Absolute path to plugin file
+   * @param projectRoot - Project root directory
+   * @param originalPath - Original path from config (for error messages)
+   * @throws Error if plugin path is unsafe or invalid
+   */
+  private validatePluginPath(
+    absolutePath: string,
+    projectRoot: string,
+    originalPath: string
+  ): void {
+    // Check if file exists
+    if (!existsSync(absolutePath)) {
+      throw new Error(
+        `Plugin file does not exist: ${originalPath}`
+      );
+    }
+
+    // Resolve symlinks to get canonical path
+    let canonicalPath: string;
+    try {
+      canonicalPath = realpathSync(absolutePath);
+    } catch (error) {
+      throw new Error(
+        `Failed to resolve plugin path ${originalPath}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+
+    // Validate file extension
+    const ext = extname(canonicalPath);
+    const validExtensions = ['.js', '.mjs', '.cjs'];
+    if (!validExtensions.includes(ext)) {
+      throw new Error(
+        `Plugin file must have .js, .mjs, or .cjs extension. Got: ${ext} (${originalPath})`
+      );
+    }
+
+    // Define allowed directories (whitelist)
+    const allowedDirs = [
+      resolve(projectRoot, 'plugins'),
+      resolve(projectRoot, 'node_modules'),
+    ];
+
+    // Check if canonical path is within allowed directories
+    const isAllowed = allowedDirs.some((dir) =>
+      canonicalPath.startsWith(dir + sep)
+    );
+
+    if (!isAllowed) {
+      throw new Error(
+        `Plugin path ${originalPath} is outside allowed directories. ` +
+        `Plugins must be in ./plugins/ or node_modules/`
+      );
+    }
   }
 
   /**
