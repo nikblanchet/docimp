@@ -594,6 +594,28 @@ module.exports = { /* config */ };
 export default { /* config */ };
 ```
 
+### Environment Variables
+
+DocImp supports several environment variables for configuration and customization:
+
+| Variable | Purpose | Required | Example |
+|----------|---------|----------|---------|
+| `ANTHROPIC_API_KEY` | Claude AI API key for `improve` command | Yes (for `improve`) | `sk-ant-...` |
+| `DOCIMP_ANALYZER_PATH` | Override analyzer directory location | No | `/custom/path/to/analyzer` |
+| `DOCIMP_PYTHON_PATH` | Override Python executable detection | No | `/usr/local/bin/python3.13` |
+
+**DOCIMP_ANALYZER_PATH** is useful for:
+- Custom installations where the analyzer is in a non-standard location
+- Development setups with modified project structure
+- Troubleshooting path resolution issues
+
+**Example**:
+```bash
+# Set analyzer path for custom installation
+export DOCIMP_ANALYZER_PATH=/opt/docimp/analyzer
+docimp analyze ./src
+```
+
 ---
 
 ## Plugin System
