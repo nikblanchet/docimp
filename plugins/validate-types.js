@@ -29,6 +29,13 @@ import { readFileSync } from 'fs';
  * passing them through every function call.
  *
  * Dependencies are injected by the PluginManager to avoid fragile path resolution.
+ *
+ * IMPORTANT: These are module-level singletons. Once set, they persist for the
+ * lifetime of the Node.js process. This design is acceptable because:
+ * - Dependencies don't change during a session
+ * - Node.js is single-threaded (no race conditions)
+ * - Simplifies function signatures throughout the plugin
+ * - All plugin hooks receive the same dependencies from PluginManager
  */
 let ts;
 let parseJSDoc;
@@ -535,7 +542,15 @@ async function beforeAccept(docstring, item, config, dependencies) {
       ts = dependencies.typescript;
       // Initialize document registry lazily when TypeScript is available
       if (!documentRegistry) {
-        documentRegistry = ts.createDocumentRegistry();
+        try {
+          documentRegistry = ts.createDocumentRegistry();
+        } catch (error) {
+          return {
+            accept: false,
+            reason: `Failed to initialize TypeScript document registry: ${error.message}. ` +
+                    `Ensure TypeScript is properly installed and compatible.`,
+          };
+        }
       }
     }
     if (dependencies.commentParser) {
