@@ -874,8 +874,8 @@ describe('PythonBridge Analyzer Path Resolution', () => {
   describe('DOCIMP_ANALYZER_PATH environment variable', () => {
     it('should respect DOCIMP_ANALYZER_PATH when set to valid directory', () => {
       // Set environment variable to the actual analyzer directory
-      // Tests run from repo root, so analyzer is at ./analyzer
-      const actualAnalyzerPath = resolve(process.cwd(), 'analyzer');
+      // Tests run from cli/ directory, so analyzer is at ../analyzer
+      const actualAnalyzerPath = resolve(process.cwd(), '..', 'analyzer');
       process.env.DOCIMP_ANALYZER_PATH = actualAnalyzerPath;
 
       const bridge = new PythonBridge('python3');

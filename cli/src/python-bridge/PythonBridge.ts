@@ -66,9 +66,9 @@ function findAnalyzerDir(): string {
     analyzerPath = resolve(currentDir, '..', '..', '..', 'analyzer');
     moduleInfo = currentFilePath;
   } catch {
-    // Fallback for Jest/test environment: assume running from repo root
-    // Tests provide explicit analyzerPath parameter anyway
-    analyzerPath = resolve(process.cwd(), 'analyzer');
+    // Fallback for Jest/test environment
+    // Tests run from cli/ directory, so go up one level to find analyzer/
+    analyzerPath = resolve(process.cwd(), '..', 'analyzer');
     moduleInfo = '(test environment)';
   }
 
