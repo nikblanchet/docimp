@@ -530,4 +530,4 @@ When contributing new plugins:
 
 ## License
 
-All built-in plugins are licensed under the same license as DocImp (MIT).
+All built-in plugins are licensed under the same license as DocImp (AGPL-3.0 or Commercial).
