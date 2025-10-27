@@ -219,6 +219,50 @@ def test_private_method_static(writer):
     assert '#helper' in result, "Original code not found"
 
 
+def test_typescript_public_method(writer):
+    """Test writing JSDoc for TypeScript public method."""
+    code = "class API {\n  public getData() {\n    return this.data;\n  }\n}"
+    jsdoc = "Get the data"
+
+    result = write_and_check(writer, code, jsdoc, "getData", "method")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'getData' in result, "Original code not found"
+
+
+def test_typescript_private_method(writer):
+    """Test writing JSDoc for TypeScript private method."""
+    code = "class Service {\n  private helper() {\n    return true;\n  }\n}"
+    jsdoc = "Helper function"
+
+    result = write_and_check(writer, code, jsdoc, "helper", "method")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'helper' in result, "Original code not found"
+
+
+def test_typescript_protected_async_method(writer):
+    """Test writing JSDoc for TypeScript protected async method."""
+    code = "class Base {\n  protected async validate() {\n    return await this.check();\n  }\n}"
+    jsdoc = "Validate the input"
+
+    result = write_and_check(writer, code, jsdoc, "validate", "method")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'validate' in result, "Original code not found"
+
+
+def test_typescript_private_static_method(writer):
+    """Test writing JSDoc for TypeScript private static method."""
+    code = "class Factory {\n  private static create() {\n    return new Factory();\n  }\n}"
+    jsdoc = "Create instance"
+
+    result = write_and_check(writer, code, jsdoc, "create", "method")
+
+    assert '/**' in result, "JSDoc not found in output"
+    assert 'create' in result, "Original code not found"
+
+
 def test_backup_cleanup_on_successful_write(writer):
     """Test that backup files are deleted after successful writes."""
     code = "function test() {\n  return true;\n}"

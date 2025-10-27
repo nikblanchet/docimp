@@ -528,7 +528,8 @@ class DocstringWriter:
                 patterns.append(re.compile(rf'(static\s+)?(async\s+)?(get\s+|set\s+)?{escaped_name}\s*\('))
             else:
                 # Regular method in object literal or class
-                patterns.append(re.compile(rf'\b(static\s+)?(async\s+)?(get\s+|set\s+)?{escaped_name}\s*\('))
+                # Supports TypeScript visibility modifiers (public, private, protected)
+                patterns.append(re.compile(rf'\b(public|private|protected\s+)?(static\s+)?(async\s+)?(get\s+|set\s+)?{escaped_name}\s*\('))
 
             # CommonJS exports
             patterns.append(re.compile(rf'\b(module\.)?exports\.{escaped_name}\s*='))
