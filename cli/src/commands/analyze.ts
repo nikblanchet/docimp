@@ -23,6 +23,7 @@ import type { IDisplay } from '../display/IDisplay.js';
  * @param options.config - Path to configuration file
  * @param options.verbose - Enable verbose output
  * @param options.keepOldReports - Preserve existing audit and plan files
+ * @param options.strict - Fail immediately on first parse error
  * @param bridge - Python bridge instance (injected for testing)
  * @param display - Display instance (injected for testing)
  */
@@ -33,6 +34,7 @@ export async function analyzeCore(
     config?: string;
     verbose?: boolean;
     keepOldReports?: boolean;
+    strict?: boolean;
   },
   bridge?: IPythonBridge,
   display?: IDisplay
@@ -84,6 +86,7 @@ export async function analyzeCore(
       path,
       config,
       verbose: options.verbose,
+      strict: options.strict,
     });
 
     stopSpinner();
@@ -115,6 +118,7 @@ export async function analyzeCore(
  * @param options.config - Path to configuration file
  * @param options.verbose - Enable verbose output
  * @param options.keepOldReports - Preserve existing audit and plan files
+ * @param options.strict - Fail immediately on first parse error
  */
 export async function analyzeCommand(
   path: string,
@@ -123,6 +127,7 @@ export async function analyzeCommand(
     config?: string;
     verbose?: boolean;
     keepOldReports?: boolean;
+    strict?: boolean;
   }
 ): Promise<void> {
   const display = new TerminalDisplay();

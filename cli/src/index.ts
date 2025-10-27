@@ -30,6 +30,7 @@ program
   .option('--config <path>', 'Path to configuration file')
   .option('--verbose', 'Enable verbose output')
   .option('--keep-old-reports', 'Preserve existing audit and plan files')
+  .option('--strict', 'Fail immediately on first parse error (for CI/CD and debugging)')
   .action(analyzeCommand);
 
 // Audit command
