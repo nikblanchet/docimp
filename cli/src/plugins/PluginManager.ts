@@ -30,17 +30,19 @@ export class PluginManager {
    *
    * @param pluginPaths - Array of paths to plugin files
    * @param projectRoot - Project root directory (for relative path resolution)
+   * @param additionalAllowedDirs - Additional directories to allow plugin loading from (for testing only)
    * @throws Error if plugin loading fails
    */
   async loadPlugins(
     pluginPaths: string[],
-    projectRoot?: string
+    projectRoot?: string,
+    additionalAllowedDirs?: string[]
   ): Promise<void> {
     const root = projectRoot || process.cwd();
 
     for (const pluginPath of pluginPaths) {
       try {
-        await this.loadPlugin(pluginPath, root);
+        await this.loadPlugin(pluginPath, root, additionalAllowedDirs);
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
@@ -56,16 +58,18 @@ export class PluginManager {
    *
    * @param pluginPath - Path to plugin file (relative or absolute)
    * @param projectRoot - Project root directory
+   * @param additionalAllowedDirs - Additional directories to allow plugin loading from (for testing only)
    */
   private async loadPlugin(
     pluginPath: string,
-    projectRoot: string
+    projectRoot: string,
+    additionalAllowedDirs?: string[]
   ): Promise<void> {
     // Resolve relative paths from project root
     const absolutePath = resolve(projectRoot, pluginPath);
 
     // Validate path is safe before loading
-    this.validatePluginPath(absolutePath, projectRoot, pluginPath);
+    this.validatePluginPath(absolutePath, projectRoot, pluginPath, additionalAllowedDirs);
 
     // Prevent duplicate loading
     if (this.loadedPaths.has(absolutePath)) {
@@ -100,12 +104,14 @@ export class PluginManager {
    * @param absolutePath - Absolute path to plugin file
    * @param projectRoot - Project root directory
    * @param originalPath - Original path from config (for error messages)
+   * @param additionalAllowedDirs - Additional directories to allow (for testing only)
    * @throws Error if plugin path is unsafe or invalid
    */
   private validatePluginPath(
     absolutePath: string,
     projectRoot: string,
-    originalPath: string
+    originalPath: string,
+    additionalAllowedDirs?: string[]
   ): void {
     // Check if file exists
     if (!existsSync(absolutePath)) {
@@ -137,6 +143,7 @@ export class PluginManager {
     const allowedDirs = [
       resolve(projectRoot, 'plugins'),
       resolve(projectRoot, 'node_modules'),
+      ...(additionalAllowedDirs || []),
     ];
 
     // Check if canonical path is within allowed directories
@@ -147,6 +154,7 @@ export class PluginManager {
     if (!isAllowed) {
       throw new Error(
         `Plugin path ${originalPath} is outside allowed directories. ` +
+        `Resolved to: ${canonicalPath}. ` +
         `Plugins must be in ./plugins/ or node_modules/`
       );
     }

@@ -490,6 +490,46 @@ describe('PluginManager', () => {
           );
         }).toThrow('Plugins must be in ./plugins/ or node_modules/');
       });
+
+      it('should accept plugins from nested plugin directory', () => {
+        // Create nested directory structure
+        const nestedDir = resolve(pluginsDir, 'validators');
+        mkdirSync(nestedDir, { recursive: true });
+        writeFileSync(resolve(nestedDir, 'nested.js'), '// nested plugin');
+
+        expect(() => {
+          testValidatePath(
+            resolve(nestedDir, 'nested.js'),
+            testDir,
+            './plugins/validators/nested.js'
+          );
+        }).not.toThrow();
+      });
+
+      it('should accept scoped packages from node_modules', () => {
+        // Create scoped package structure
+        const scopedDir = resolve(nodeModulesDir, '@myorg', 'myplugin');
+        mkdirSync(scopedDir, { recursive: true });
+        writeFileSync(resolve(scopedDir, 'plugin.js'), '// scoped plugin');
+
+        expect(() => {
+          testValidatePath(
+            resolve(scopedDir, 'plugin.js'),
+            testDir,
+            './node_modules/@myorg/myplugin/plugin.js'
+          );
+        }).not.toThrow();
+      });
+
+      it('should include canonical path in error message', () => {
+        expect(() => {
+          testValidatePath(
+            resolve(srcDir, 'disallowed.js'),
+            testDir,
+            './src/disallowed.js'
+          );
+        }).toThrow('Resolved to:');
+      });
     });
 
     describe('integration with loadPlugin', () => {

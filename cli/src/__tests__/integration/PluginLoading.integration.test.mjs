@@ -30,7 +30,8 @@ describe('PluginManager - File Loading Integration', () => {
     test('can load valid ESM plugin from file', async () => {
       const pluginPath = resolve(FIXTURES_DIR, 'valid-before-accept.mjs');
 
-      await manager.loadPlugins([pluginPath]);
+      // Pass FIXTURES_DIR as additional allowed directory for testing
+      await manager.loadPlugins([pluginPath], undefined, [FIXTURES_DIR]);
 
       const loadedPlugins = manager.getLoadedPlugins();
       assert.equal(loadedPlugins.length, 1);
@@ -40,7 +41,8 @@ describe('PluginManager - File Loading Integration', () => {
     test('can load valid CommonJS plugin from file', async () => {
       const pluginPath = resolve(FIXTURES_DIR, 'valid-before-accept.cjs');
 
-      await manager.loadPlugins([pluginPath]);
+      // Pass FIXTURES_DIR as additional allowed directory for testing
+      await manager.loadPlugins([pluginPath], undefined, [FIXTURES_DIR]);
 
       const loadedPlugins = manager.getLoadedPlugins();
       assert.equal(loadedPlugins.length, 1);
@@ -53,7 +55,8 @@ describe('PluginManager - File Loading Integration', () => {
         resolve(FIXTURES_DIR, 'valid-after-write.mjs'),
       ];
 
-      await manager.loadPlugins(pluginPaths);
+      // Pass FIXTURES_DIR as additional allowed directory for testing
+      await manager.loadPlugins(pluginPaths, undefined, [FIXTURES_DIR]);
 
       const loadedPlugins = manager.getLoadedPlugins();
       assert.equal(loadedPlugins.length, 2);
@@ -64,7 +67,8 @@ describe('PluginManager - File Loading Integration', () => {
     test('can load plugin with both hooks', async () => {
       const pluginPath = resolve(FIXTURES_DIR, 'valid-both-hooks.mjs');
 
-      await manager.loadPlugins([pluginPath]);
+      // Pass FIXTURES_DIR as additional allowed directory for testing
+      await manager.loadPlugins([pluginPath], undefined, [FIXTURES_DIR]);
 
       const loadedPlugins = manager.getLoadedPlugins();
       assert.equal(loadedPlugins.length, 1);
@@ -76,7 +80,8 @@ describe('PluginManager - File Loading Integration', () => {
     test('handles absolute paths', async () => {
       const absolutePath = resolve(FIXTURES_DIR, 'valid-before-accept.mjs');
 
-      await manager.loadPlugins([absolutePath]);
+      // Pass FIXTURES_DIR as additional allowed directory for testing
+      await manager.loadPlugins([absolutePath], undefined, [FIXTURES_DIR]);
 
       const loadedPlugins = manager.getLoadedPlugins();
       assert.equal(loadedPlugins.length, 1);
@@ -85,7 +90,8 @@ describe('PluginManager - File Loading Integration', () => {
     test('handles relative paths with project root', async () => {
       const relativePath = 'valid-before-accept.mjs';
 
-      await manager.loadPlugins([relativePath], FIXTURES_DIR);
+      // Pass FIXTURES_DIR as additional allowed directory for testing
+      await manager.loadPlugins([relativePath], FIXTURES_DIR, [FIXTURES_DIR]);
 
       const loadedPlugins = manager.getLoadedPlugins();
       assert.equal(loadedPlugins.length, 1);
@@ -96,8 +102,9 @@ describe('PluginManager - File Loading Integration', () => {
     test('prevents loading same plugin twice via same path', async () => {
       const pluginPath = resolve(FIXTURES_DIR, 'valid-before-accept.mjs');
 
-      await manager.loadPlugins([pluginPath]);
-      await manager.loadPlugins([pluginPath]); // Load again
+      // Pass FIXTURES_DIR as additional allowed directory for testing
+      await manager.loadPlugins([pluginPath], undefined, [FIXTURES_DIR]);
+      await manager.loadPlugins([pluginPath], undefined, [FIXTURES_DIR]); // Load again
 
       const loadedPlugins = manager.getLoadedPlugins();
       assert.equal(
@@ -111,8 +118,9 @@ describe('PluginManager - File Loading Integration', () => {
       const absolutePath = resolve(FIXTURES_DIR, 'valid-before-accept.mjs');
       const relativePath = 'valid-before-accept.mjs';
 
-      await manager.loadPlugins([absolutePath]);
-      await manager.loadPlugins([relativePath], FIXTURES_DIR);
+      // Pass FIXTURES_DIR as additional allowed directory for testing
+      await manager.loadPlugins([absolutePath], undefined, [FIXTURES_DIR]);
+      await manager.loadPlugins([relativePath], FIXTURES_DIR, [FIXTURES_DIR]);
 
       const loadedPlugins = manager.getLoadedPlugins();
       assert.equal(
@@ -129,7 +137,8 @@ describe('PluginManager - File Loading Integration', () => {
 
       await assert.rejects(
         async () => {
-          await manager.loadPlugins([pluginPath]);
+          // Pass FIXTURES_DIR as additional allowed directory for testing
+          await manager.loadPlugins([pluginPath], undefined, [FIXTURES_DIR]);
         },
         {
           message: /must have a 'name' property/,
@@ -142,7 +151,8 @@ describe('PluginManager - File Loading Integration', () => {
 
       await assert.rejects(
         async () => {
-          await manager.loadPlugins([pluginPath]);
+          // Pass FIXTURES_DIR as additional allowed directory for testing
+          await manager.loadPlugins([pluginPath], undefined, [FIXTURES_DIR]);
         },
         {
           message: /must have a 'version' property/,
@@ -155,7 +165,8 @@ describe('PluginManager - File Loading Integration', () => {
 
       await assert.rejects(
         async () => {
-          await manager.loadPlugins([pluginPath]);
+          // Pass FIXTURES_DIR as additional allowed directory for testing
+          await manager.loadPlugins([pluginPath], undefined, [FIXTURES_DIR]);
         },
         {
           message: /must have a 'hooks' property/,
@@ -168,7 +179,8 @@ describe('PluginManager - File Loading Integration', () => {
 
       await assert.rejects(
         async () => {
-          await manager.loadPlugins([pluginPath]);
+          // Pass FIXTURES_DIR as additional allowed directory for testing
+          await manager.loadPlugins([pluginPath], undefined, [FIXTURES_DIR]);
         },
         {
           message: /must implement at least one hook/,
@@ -184,7 +196,8 @@ describe('PluginManager - File Loading Integration', () => {
 
       await assert.rejects(
         async () => {
-          await manager.loadPlugins([pluginPath]);
+          // Pass FIXTURES_DIR as additional allowed directory for testing
+          await manager.loadPlugins([pluginPath], undefined, [FIXTURES_DIR]);
         },
         {
           message: /beforeAccept hook must be a function/,
@@ -200,7 +213,8 @@ describe('PluginManager - File Loading Integration', () => {
 
       await assert.rejects(
         async () => {
-          await manager.loadPlugins([pluginPath]);
+          // Pass FIXTURES_DIR as additional allowed directory for testing
+          await manager.loadPlugins([pluginPath], undefined, [FIXTURES_DIR]);
         },
         {
           message: /afterWrite hook must be a function/,
@@ -213,7 +227,8 @@ describe('PluginManager - File Loading Integration', () => {
 
       await assert.rejects(
         async () => {
-          await manager.loadPlugins([pluginPath]);
+          // Pass FIXTURES_DIR as additional allowed directory for testing
+          await manager.loadPlugins([pluginPath], undefined, [FIXTURES_DIR]);
         },
         {
           message: /must export an object/,
@@ -244,7 +259,8 @@ describe('PluginManager - File Loading Integration', () => {
     test('loaded plugin hooks can be executed', async () => {
       const pluginPath = resolve(FIXTURES_DIR, 'valid-before-accept.mjs');
 
-      await manager.loadPlugins([pluginPath]);
+      // Pass FIXTURES_DIR as additional allowed directory for testing
+      await manager.loadPlugins([pluginPath], undefined, [FIXTURES_DIR]);
 
       // Execute the loaded plugin's hook
       const results = await manager.runBeforeAccept(
@@ -260,7 +276,8 @@ describe('PluginManager - File Loading Integration', () => {
     test('loaded plugin can reject documentation', async () => {
       const pluginPath = resolve(FIXTURES_DIR, 'plugin-rejects.mjs');
 
-      await manager.loadPlugins([pluginPath]);
+      // Pass FIXTURES_DIR as additional allowed directory for testing
+      await manager.loadPlugins([pluginPath], undefined, [FIXTURES_DIR]);
 
       const results = await manager.runBeforeAccept(
         '/** Bad docstring */',
