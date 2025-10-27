@@ -27,6 +27,23 @@ export interface IPluginConfig {
 }
 
 /**
+ * Type guard to check if plugins config is IPluginConfig object.
+ *
+ * @param plugins - The plugins configuration (array or object)
+ * @returns True if plugins is IPluginConfig, false otherwise
+ */
+export function isPluginConfig(
+  plugins: string[] | IPluginConfig | undefined
+): plugins is IPluginConfig {
+  return (
+    typeof plugins === 'object' &&
+    plugins !== null &&
+    !Array.isArray(plugins) &&
+    ('paths' in plugins || 'timeout' in plugins)
+  );
+}
+
+/**
  * Main configuration interface.
  */
 export interface IConfig {

@@ -23,6 +23,7 @@ import {
 } from '../constants/styleGuides.js';
 import type { PlanResult, SupportedLanguage } from '../types/analysis.js';
 import type { IConfig } from '../config/IConfig.js';
+import { isPluginConfig } from '../config/IConfig.js';
 
 /**
  * Execute the improve command.
@@ -314,9 +315,9 @@ export async function improveCommand(
 
     // Load plugins
     const pluginManager = new PluginManager(config);
-    const pluginPaths = Array.isArray(config.plugins)
-      ? config.plugins
-      : config.plugins?.paths ?? [];
+    const pluginPaths = isPluginConfig(config.plugins)
+      ? config.plugins.paths ?? []
+      : config.plugins ?? [];
 
     if (pluginPaths.length > 0) {
       display.showMessage(chalk.dim(`Loading plugins...`));
