@@ -48,13 +48,25 @@ function findAnalyzerDir(): string {
   // Get the directory containing this file
   // In production: cli/dist/python-bridge/PythonBridge.js
   // In development: cli/src/python-bridge/PythonBridge.ts
-  const currentFileUrl = import.meta.url;
-  const currentFilePath = fileURLToPath(currentFileUrl);
-  const currentDir = dirname(currentFilePath);
+  // Note: import.meta.url is not available in Jest/test environment,
+  // so we use process.cwd() as fallback (tests provide explicit analyzerPath anyway)
+  let analyzerPath: string;
+  let moduleInfo: string;
 
-  // Go up 3 levels to repo root: python-bridge -> src|dist -> cli -> root
-  // Then into analyzer/
-  const analyzerPath = resolve(currentDir, '..', '..', '..', 'analyzer');
+  if (typeof import.meta !== 'undefined' && import.meta.url) {
+    const currentFileUrl = import.meta.url;
+    const currentFilePath = fileURLToPath(currentFileUrl);
+    const currentDir = dirname(currentFilePath);
+
+    // Go up 3 levels to repo root: python-bridge -> src|dist -> cli -> root
+    // Then into analyzer/
+    analyzerPath = resolve(currentDir, '..', '..', '..', 'analyzer');
+    moduleInfo = currentFilePath;
+  } else {
+    // Fallback for Jest/test environment: assume running from repo root
+    analyzerPath = resolve(process.cwd(), 'analyzer');
+    moduleInfo = '(test environment)';
+  }
 
   if (existsSync(analyzerPath)) {
     return analyzerPath;
@@ -63,7 +75,7 @@ function findAnalyzerDir(): string {
   throw new Error(
     `Could not find analyzer directory.\n` +
     `Expected location: ${analyzerPath}\n` +
-    `Current module: ${currentFilePath}\n` +
+    `Current module: ${moduleInfo}\n` +
     `If you have a custom installation, set DOCIMP_ANALYZER_PATH environment variable.`
   );
 }
