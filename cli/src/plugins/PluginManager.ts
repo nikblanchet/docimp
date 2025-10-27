@@ -18,6 +18,7 @@ import type {
   PluginDependencies,
 } from './IPlugin.js';
 import type { IConfig } from '../config/IConfig.js';
+import { isPluginConfig } from '../config/IConfig.js';
 
 // Import dependencies to inject into plugins
 import * as typescript from 'typescript';
@@ -29,6 +30,16 @@ import { parse as commentParserParse } from 'comment-parser';
 export class PluginManager {
   private plugins: IPlugin[] = [];
   private loadedPaths: Set<string> = new Set();
+  private config?: IConfig;
+
+  /**
+   * Create a new PluginManager.
+   *
+   * @param config - Optional configuration containing global plugin timeout
+   */
+  constructor(config?: IConfig) {
+    this.config = config;
+  }
 
   /**
    * Load plugins from file paths.
@@ -236,13 +247,79 @@ export class PluginManager {
   }
 
   /**
+   * Get the default timeout from config, or fall back to 10 seconds.
+   *
+   * @returns Default timeout in milliseconds
+   */
+  private getDefaultTimeout(): number {
+    if (isPluginConfig(this.config?.plugins)) {
+      return this.config.plugins.timeout ?? 10000;
+    }
+    return 10000;
+  }
+
+  /**
+   * Wrap a promise with a timeout.
+   *
+   * If the promise doesn't resolve within the timeout period, it will be
+   * rejected with a timeout error.
+   *
+   * @param promise - Promise to wrap with timeout
+   * @param timeoutMs - Timeout in milliseconds
+   * @param pluginName - Plugin name (for error messages)
+   * @returns Promise that rejects if timeout is exceeded
+   */
+  private withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    pluginName: string
+  ): Promise<T> {
+    let timerId: NodeJS.Timeout;
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timerId = setTimeout(
+        () => reject(new Error(`Plugin ${pluginName} timed out after ${timeoutMs}ms`)),
+        timeoutMs
+      );
+    });
+
+    return Promise.race([promise, timeoutPromise]).finally(() => {
+      clearTimeout(timerId);
+    });
+  }
+
+  /**
+   * Format plugin error message for consistent error reporting.
+   *
+   * Distinguishes between timeout errors (which already include plugin name and details)
+   * and plugin exceptions (which need to be prefixed with context).
+   *
+   * @param pluginName - Name of the plugin that threw the error
+   * @param error - Error thrown by the plugin
+   * @returns Formatted error message
+   */
+  private formatPluginError(pluginName: string, error: unknown): string {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isTimeout = errorMessage.includes('timed out after');
+    return isTimeout
+      ? errorMessage // Timeout error already includes plugin name and details
+      : `Plugin ${pluginName} threw an error: ${errorMessage}`;
+  }
+
+  /**
    * Run beforeAccept hooks for all loaded plugins.
    *
-   * Executes all beforeAccept hooks in sequence. If any plugin rejects,
-   * returns the first rejection. Otherwise, returns acceptance.
+   * Sequential execution: Plugins run one after another, not in parallel.
+   * This means a slow plugin (even under timeout) will block subsequent plugins.
+   * For example, if plugin A takes 9s and plugin B takes 9s, total time is 18s
+   * (both under the 10s timeout individually, but not concurrent).
    *
    * Error isolation: If a plugin throws an exception, it's caught and
-   * returned as a rejection with error details.
+   * returned as a rejection with error details. Other plugins continue running.
+   *
+   * Timeout protection: Each plugin has a configurable timeout.
+   * Timeout precedence: plugin.timeout > config.plugins.timeout > 10000ms default.
+   * If a plugin exceeds its timeout, it's rejected with a timeout error.
    *
    * @param docstring - Generated documentation string
    * @param item - Code item metadata
@@ -264,20 +341,23 @@ export class PluginManager {
       }
 
       try {
-        const result = await plugin.hooks.beforeAccept(
-          docstring,
-          item,
-          config,
-          dependencies
+        const timeoutMs = plugin.timeout ?? this.getDefaultTimeout();
+        const result = await this.withTimeout(
+          plugin.hooks.beforeAccept(
+            docstring,
+            item,
+            config,
+            dependencies
+          ),
+          timeoutMs,
+          plugin.name
         );
         results.push(result);
       } catch (error) {
         // Error isolation: convert exceptions to rejection results
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
         results.push({
           accept: false,
-          reason: `Plugin ${plugin.name} threw an error: ${errorMessage}`,
+          reason: this.formatPluginError(plugin.name, error),
         });
       }
     }
@@ -288,10 +368,17 @@ export class PluginManager {
   /**
    * Run afterWrite hooks for all loaded plugins.
    *
-   * Executes all afterWrite hooks in sequence. Collects all results.
+   * Sequential execution: Plugins run one after another, not in parallel.
+   * This means a slow plugin (even under timeout) will block subsequent plugins.
+   * For example, if plugin A takes 9s and plugin B takes 9s, total time is 18s
+   * (both under the 10s timeout individually, but not concurrent).
    *
    * Error isolation: If a plugin throws an exception, it's caught and
-   * returned as a rejection with error details.
+   * returned as a rejection with error details. Other plugins continue running.
+   *
+   * Timeout protection: Each plugin has a configurable timeout.
+   * Timeout precedence: plugin.timeout > config.plugins.timeout > 10000ms default.
+   * If a plugin exceeds its timeout, it's rejected with a timeout error.
    *
    * @param filepath - Path to the file that was written
    * @param item - Code item metadata
@@ -311,15 +398,18 @@ export class PluginManager {
       }
 
       try {
-        const result = await plugin.hooks.afterWrite(filepath, item, dependencies);
+        const timeoutMs = plugin.timeout ?? this.getDefaultTimeout();
+        const result = await this.withTimeout(
+          plugin.hooks.afterWrite(filepath, item, dependencies),
+          timeoutMs,
+          plugin.name
+        );
         results.push(result);
       } catch (error) {
         // Error isolation: convert exceptions to rejection results
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
         results.push({
           accept: false,
-          reason: `Plugin ${plugin.name} threw an error: ${errorMessage}`,
+          reason: this.formatPluginError(plugin.name, error),
         });
       }
     }

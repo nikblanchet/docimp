@@ -160,4 +160,11 @@ export interface IPlugin {
 
   /** Validation hooks */
   hooks: PluginHooks;
+
+  /**
+   * Timeout for plugin execution in milliseconds.
+   * If a plugin hook takes longer than this, it will be rejected.
+   * Default: 10000ms (10 seconds)
+   */
+  timeout?: number;
 }

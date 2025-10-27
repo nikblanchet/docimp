@@ -14,7 +14,8 @@ export default [
         sourceType: 'module',
       },
       globals: {
-        // Node.js globals
+        // Node.js runtime globals and timer functions
+        NodeJS: 'readonly',
         process: 'readonly',
         console: 'readonly',
         Buffer: 'readonly',
@@ -24,6 +25,10 @@ export default [
         require: 'readonly',
         exports: 'readonly',
         global: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
         // Jest globals (for test files)
         describe: 'readonly',
         test: 'readonly',

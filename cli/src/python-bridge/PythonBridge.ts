@@ -470,7 +470,6 @@ export class PythonBridge implements IPythonBridge {
     timeoutMs: number,
     commandName: string
   ): { cleanup: () => void; timeoutPromise: Promise<never> } {
-    /* eslint-disable no-undef */
     let timeoutId: NodeJS.Timeout | null = null;
     let killTimeoutId: NodeJS.Timeout | null = null;
 
@@ -496,7 +495,6 @@ export class PythonBridge implements IPythonBridge {
             childProcess.kill('SIGKILL');
           }
         }, this.killEscalationDelay);
-        /* eslint-enable no-undef */
 
         reject(
           new Error(
