@@ -233,6 +233,37 @@ export default {
   // Security note: Plugins have full Node.js access (no sandboxing).
   // Only load plugins you trust.
   //
+  // Format options:
+  //
+  // Option 1: Simple array of paths (uses default 10s timeout)
+  // plugins: [
+  //   './plugins/validate-types.js',
+  //   './plugins/jsdoc-style.js',
+  // ],
+  //
+  // Option 2: Object with paths and global timeout
+  // plugins: {
+  //   paths: [
+  //     './plugins/validate-types.js',
+  //     './plugins/jsdoc-style.js',
+  //   ],
+  //   timeout: 15000, // 15 seconds default for all plugins
+  // },
+  //
+  // Timeout behavior:
+  // - Default timeout: 10000ms (10 seconds)
+  // - Global timeout: config.plugins.timeout (applies to all plugins)
+  // - Per-plugin timeout: plugin.timeout field (overrides global)
+  // - Precedence: plugin.timeout > config.plugins.timeout > 10000ms
+  //
+  // Example: Plugin with custom timeout
+  // export default {
+  //   name: 'slow-validator',
+  //   version: '1.0.0',
+  //   timeout: 30000, // 30 seconds for this plugin specifically
+  //   hooks: { ... },
+  // };
+  //
   // Default: []
   plugins: [
     './plugins/validate-types.js',
