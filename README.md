@@ -609,6 +609,16 @@ DocImp supports several environment variables for configuration and customizatio
 - Development setups with modified project structure
 - Troubleshooting path resolution issues
 
+**Path Resolution Order**:
+
+When `DOCIMP_ANALYZER_PATH` is NOT set, DocImp uses fallback strategies based on `process.cwd()`:
+
+1. `<cwd>/../analyzer` - Running from `cli/` directory (development, tests)
+2. `<cwd>/analyzer` - Running from repository root
+3. `<cwd>/../../analyzer` - Global npm install scenario
+
+If all strategies fail, set `DOCIMP_ANALYZER_PATH` explicitly.
+
 **Example**:
 ```bash
 # Set analyzer path for custom installation

@@ -16,20 +16,22 @@ import type { IConfig } from '../config/IConfig.js';
 import { defaultConfig } from '../config/IConfig.js';
 
 /**
- * Find the analyzer directory relative to this module's location.
+ * Find the analyzer directory.
  *
- * This works regardless of:
- * - User's current working directory
- * - Whether code is in src/ or dist/
- * - Whether CLI is installed globally or locally
- * - Whether running in development or production
+ * Path Resolution Order:
+ * 1. DOCIMP_ANALYZER_PATH environment variable (if set) - for custom installations
+ * 2. Fallback strategies using process.cwd() (tried in order):
+ *    a. <cwd>/../analyzer - when running from cli/ directory (development, Jest tests)
+ *    b. <cwd>/analyzer - when running from repo root
+ *    c. <cwd>/../../analyzer - when installed globally via npm
  *
- * Resolution order:
- * 1. DOCIMP_ANALYZER_PATH environment variable (for custom setups)
- * 2. Relative to this module: ../../../analyzer (works for both src/ and dist/)
+ * Note: We cannot use import.meta.url for module-relative resolution because Jest
+ * (CommonJS test environment) parses the entire file and rejects any 'import.meta'
+ * reference, even in conditional branches. The only solution is to use process.cwd()
+ * fallback strategies and require DOCIMP_ANALYZER_PATH for special setups.
  *
- * @returns Path to analyzer directory
- * @throws Error if analyzer directory not found
+ * @returns Absolute path to analyzer directory
+ * @throws Error if analyzer directory not found in any location
  */
 function findAnalyzerDir(): string {
   // Check environment variable first (allows custom installations)
@@ -45,46 +47,25 @@ function findAnalyzerDir(): string {
   }
 
   // Fallback path resolution when DOCIMP_ANALYZER_PATH is not set
-  //
-  // IMPORTANT: We cannot use import.meta.url here because:
-  // 1. Jest (CommonJS test environment) parses the entire file and rejects any 'import.meta' reference
-  // 2. Even conditional branches or new Function() don't work (Jest parses before execution)
-  // 3. The only solution is to NOT reference import.meta in the source code at all
-  //
-  // Instead, we use process.cwd() as a best-effort fallback:
-  // - In development: Works when running from repo root or cli/ directory
-  // - In production: Works when installed normally via npm
-  // - In CI/special setups: Set DOCIMP_ANALYZER_PATH explicitly (see CI workflows)
-  // - In Jest tests: DOCIMP_ANALYZER_PATH is set in setup.ts
+  // Try multiple strategies based on common deployment scenarios
+  const strategies = [
+    { path: resolve(process.cwd(), '..', 'analyzer'), context: 'cli/ directory (development/tests)' },
+    { path: resolve(process.cwd(), 'analyzer'), context: 'repo root' },
+    { path: resolve(process.cwd(), '..', '..', 'analyzer'), context: 'global npm install' },
+  ];
 
-  let analyzerPath: string;
-  let moduleInfo: string;
-
-  // Try multiple fallback strategies
-  // Strategy 1: Assume running from cli/ directory (Jest tests, local dev)
-  analyzerPath = resolve(process.cwd(), '..', 'analyzer');
-
-  if (!existsSync(analyzerPath)) {
-    // Strategy 2: Assume running from repo root
-    analyzerPath = resolve(process.cwd(), 'analyzer');
+  for (const strategy of strategies) {
+    if (existsSync(strategy.path)) {
+      return strategy.path;
+    }
   }
 
-  if (!existsSync(analyzerPath)) {
-    // Strategy 3: Try relative to cli/dist (npm global install)
-    // This won't work perfectly but provides better error message
-    analyzerPath = resolve(process.cwd(), '..', '..', 'analyzer');
-  }
-
-  moduleInfo = `(fallback from cwd: ${process.cwd()})`;
-
-  if (existsSync(analyzerPath)) {
-    return analyzerPath;
-  }
-
+  // If all strategies fail, provide helpful error with attempted paths
+  const attemptedPaths = strategies.map((s) => `  - ${s.path} (${s.context})`).join('\n');
   throw new Error(
     `Could not find analyzer directory.\n` +
-    `Expected location: ${analyzerPath}\n` +
-    `Current module: ${moduleInfo}\n` +
+    `Attempted paths:\n${attemptedPaths}\n` +
+    `Current working directory: ${process.cwd()}\n\n` +
     `If you have a custom installation, set DOCIMP_ANALYZER_PATH environment variable.`
   );
 }
