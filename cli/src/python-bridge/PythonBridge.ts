@@ -6,9 +6,8 @@
  */
 
 import { spawn, spawnSync, ChildProcess } from 'child_process';
-import { resolve, dirname } from 'path';
+import { resolve } from 'path';
 import { existsSync } from 'fs';
-import { fileURLToPath } from 'url';
 import { z } from 'zod';
 import type { IPythonBridge, AnalyzeOptions, AuditOptions, PlanOptions, SuggestOptions, ApplyData } from './IPythonBridge.js';
 import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult } from '../types/analysis.js';
@@ -45,50 +44,38 @@ function findAnalyzerDir(): string {
     );
   }
 
-  // Get the directory containing this file
-  // In production: cli/dist/python-bridge/PythonBridge.js
-  // In development: cli/src/python-bridge/PythonBridge.ts
+  // Fallback path resolution when DOCIMP_ANALYZER_PATH is not set
   //
-  // IMPORTANT: Jest/CommonJS compatibility
-  // - Jest parses the ENTIRE file and fails if it sees 'import.meta' anywhere
-  // - We MUST hide import.meta from Jest's parser using new Function()
-  // - We detect Jest via JEST_WORKER_ID to ensure new Function() only runs in production
-  // - This is a known limitation of mixing ESM (import.meta) with Jest (CommonJS)
+  // IMPORTANT: We cannot use import.meta.url here because:
+  // 1. Jest (CommonJS test environment) parses the entire file and rejects any 'import.meta' reference
+  // 2. Even conditional branches or new Function() don't work (Jest parses before execution)
+  // 3. The only solution is to NOT reference import.meta in the source code at all
+  //
+  // Instead, we use process.cwd() as a best-effort fallback:
+  // - In development: Works when running from repo root or cli/ directory
+  // - In production: Works when installed normally via npm
+  // - In CI/special setups: Set DOCIMP_ANALYZER_PATH explicitly (see CI workflows)
+  // - In Jest tests: DOCIMP_ANALYZER_PATH is set in setup.ts
 
   let analyzerPath: string;
   let moduleInfo: string;
 
-  // Detect if we're in a Jest/test environment
-  // Jest sets JEST_WORKER_ID when running tests
-  const isJestEnvironment = process.env.JEST_WORKER_ID !== undefined;
+  // Try multiple fallback strategies
+  // Strategy 1: Assume running from cli/ directory (Jest tests, local dev)
+  analyzerPath = resolve(process.cwd(), '..', 'analyzer');
 
-  if (isJestEnvironment) {
-    // Jest/test environment: Tests run from cli/ directory
-    // Go up one level to repo root, then into analyzer/
-    analyzerPath = resolve(process.cwd(), '..', 'analyzer');
-    moduleInfo = '(test environment)';
-  } else {
-    // Production/development: Use import.meta.url for module-relative resolution
-    //
-    // NOTE: new Function() is necessary here to hide import.meta from Jest's parser.
-    // Jest parses the entire file even if this branch doesn't execute, so we cannot
-    // reference import.meta directly anywhere in the source code.
-    //
-    // This is safe because:
-    // 1. This branch only executes in production (JEST_WORKER_ID check above)
-    // 2. The string 'import.meta.url' is a hardcoded constant
-    // 3. No user input is involved
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
-    const getUrl = new Function('return import.meta.url');
-    const currentFileUrl = getUrl();
-    const currentFilePath = fileURLToPath(currentFileUrl);
-    const currentDir = dirname(currentFilePath);
-
-    // Go up 3 levels to repo root: python-bridge -> src|dist -> cli -> root
-    // Then into analyzer/
-    analyzerPath = resolve(currentDir, '..', '..', '..', 'analyzer');
-    moduleInfo = currentFilePath;
+  if (!existsSync(analyzerPath)) {
+    // Strategy 2: Assume running from repo root
+    analyzerPath = resolve(process.cwd(), 'analyzer');
   }
+
+  if (!existsSync(analyzerPath)) {
+    // Strategy 3: Try relative to cli/dist (npm global install)
+    // This won't work perfectly but provides better error message
+    analyzerPath = resolve(process.cwd(), '..', '..', 'analyzer');
+  }
+
+  moduleInfo = `(fallback from cwd: ${process.cwd()})`;
 
   if (existsSync(analyzerPath)) {
     return analyzerPath;
