@@ -6,7 +6,7 @@
  */
 
 import { spawn, spawnSync, ChildProcess } from 'child_process';
-import { resolve, dirname, join } from 'path';
+import { resolve } from 'path';
 import { existsSync } from 'fs';
 import { z } from 'zod';
 import type { IPythonBridge, AnalyzeOptions, AuditOptions, PlanOptions, SuggestOptions, ApplyData } from './IPythonBridge.js';
@@ -16,31 +16,57 @@ import type { IConfig } from '../config/IConfig.js';
 import { defaultConfig } from '../config/IConfig.js';
 
 /**
- * Find the analyzer directory by searching upwards from a starting directory.
+ * Find the analyzer directory.
  *
- * This works regardless of:
- * - User's current working directory
- * - Whether code is in src/ or dist/
- * - Whether running in ES modules or CommonJS (Jest)
+ * Path Resolution Order:
+ * 1. DOCIMP_ANALYZER_PATH environment variable (if set) - for custom installations
+ * 2. Fallback strategies using process.cwd() (tried in order):
+ * - <cwd>/../analyzer - when running from cli/ directory (development, Jest tests)
+ * - <cwd>/analyzer - when running from repo root
+ * - <cwd>/../../analyzer - when installed globally via npm
  *
- * @param startDir - Directory to start searching from
- * @returns Path to analyzer directory
- * @throws Error if analyzer directory not found
+ * Note: We cannot use import.meta.url for module-relative resolution because Jest
+ * (CommonJS test environment) parses the entire file and rejects any 'import.meta'
+ * reference, even in conditional branches. The only solution is to use process.cwd()
+ * fallback strategies and require DOCIMP_ANALYZER_PATH for special setups.
+ *
+ * @returns Absolute path to analyzer directory
+ * @throws Error if analyzer directory not found in any location
  */
-function findAnalyzerDir(startDir: string): string {
-  let currentDir = startDir;
-  const root = resolve('/');
-
-  while (currentDir !== root) {
-    const analyzerPath = join(currentDir, 'analyzer');
-    if (existsSync(analyzerPath)) {
-      return analyzerPath;
+function findAnalyzerDir(): string {
+  // Check environment variable first (allows custom installations)
+  const envPath = process.env.DOCIMP_ANALYZER_PATH;
+  if (envPath) {
+    if (existsSync(envPath)) {
+      return resolve(envPath);
     }
-    currentDir = dirname(currentDir);
+    throw new Error(
+      `DOCIMP_ANALYZER_PATH is set to "${envPath}" but directory does not exist.\n` +
+      `Please check the path or unset the environment variable.`
+    );
   }
 
+  // Fallback path resolution when DOCIMP_ANALYZER_PATH is not set
+  // Try multiple strategies based on common deployment scenarios
+  const strategies = [
+    { path: resolve(process.cwd(), '..', 'analyzer'), context: 'cli/ directory (development/tests)' },
+    { path: resolve(process.cwd(), 'analyzer'), context: 'repo root' },
+    { path: resolve(process.cwd(), '..', '..', 'analyzer'), context: 'global npm install' },
+  ];
+
+  for (const strategy of strategies) {
+    if (existsSync(strategy.path)) {
+      return strategy.path;
+    }
+  }
+
+  // If all strategies fail, provide helpful error with attempted paths
+  const attemptedPaths = strategies.map((s) => `  - ${s.path} (${s.context})`).join('\n');
   throw new Error(
-    `Could not find analyzer directory. Searched upwards from: ${startDir}`
+    `Could not find analyzer directory.\n` +
+    `Attempted paths:\n${attemptedPaths}\n` +
+    `Current working directory: ${process.cwd()}\n\n` +
+    `If you have a custom installation, set DOCIMP_ANALYZER_PATH environment variable.`
   );
 }
 
@@ -119,10 +145,10 @@ export class PythonBridge implements IPythonBridge {
   ) {
     this.pythonPath = pythonPath || detectPythonExecutable();
 
-    // Auto-detect analyzer path by searching upwards from current working directory
-    // This works regardless of where docimp is invoked from
+    // Auto-detect analyzer path relative to module location
+    // This works regardless of user's cwd, global install, or directory structure
     if (!analyzerPath) {
-      this.analyzerModule = findAnalyzerDir(process.cwd());
+      this.analyzerModule = findAnalyzerDir();
     } else {
       this.analyzerModule = analyzerPath;
     }

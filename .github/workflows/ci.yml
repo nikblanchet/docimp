@@ -155,6 +155,8 @@ jobs:
           npm run build
 
       - name: Run end-to-end analysis test
+        env:
+          DOCIMP_ANALYZER_PATH: ${{ github.workspace }}/analyzer
         run: |
           cd cli
           node dist/index.js analyze ../examples --format json > /dev/null
@@ -244,6 +246,8 @@ jobs:
           npm run build
 
       - name: Run workflow validation tests
+        env:
+          DOCIMP_ANALYZER_PATH: ${{ github.workspace }}/analyzer
         run: |
           chmod +x test-samples/test-workflows.sh
           ./test-samples/test-workflows.sh
