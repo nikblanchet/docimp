@@ -99,6 +99,22 @@ describe('improve command', () => {
     MockPluginManager.mockImplementation(() => mockPluginManager);
     MockInteractiveSession.mockImplementation(() => mockSession);
 
+    // Mock fs.existsSync, fs.statSync, and fs.accessSync for path validation
+    const fs = require('fs');
+    jest.spyOn(fs, 'existsSync').mockImplementation((path: string) => {
+      // Allow './test' path to exist for tests
+      if (path === './test' || path.includes('.docimp')) {
+        return true;
+      }
+      return false;
+    });
+    jest.spyOn(fs, 'statSync').mockImplementation(() => ({
+      isDirectory: () => true,
+      isFile: () => false,
+    }));
+    jest.spyOn(fs, 'readdirSync').mockImplementation(() => ['file.ts']); // Not empty
+    jest.spyOn(fs, 'accessSync').mockImplementation(() => {}); // Allow read access
+
     // Mock plan file
     mockReadFileSync.mockReturnValue(JSON.stringify({
       items: [
