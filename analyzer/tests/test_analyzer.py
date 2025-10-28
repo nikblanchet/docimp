@@ -12,6 +12,12 @@ from src.parsers.python_parser import PythonParser
 from src.parsers.typescript_parser import TypeScriptParser
 from src.scoring.impact_scorer import ImpactScorer
 
+# Test fixture paths
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+MALFORMED_SAMPLES = PROJECT_ROOT / 'test-samples' / 'malformed'
+MIXED_SAMPLES = PROJECT_ROOT / 'test-samples' / 'mixed-valid-invalid'
+EXAMPLES_DIR = PROJECT_ROOT / 'examples'
+
 
 class TestDocumentationAnalyzer:
     """Test suite for DocumentationAnalyzer with dependency injection."""
@@ -377,3 +383,93 @@ class TestDocumentationAnalyzer:
             # Should still have parsed the valid file
             assert len(result.items) >= 1, "Should parse valid file"
             assert any('good_function' in item.name for item in result.items)
+
+    def test_malformed_directory_analysis(self, analyzer):
+        """Test analyzing test-samples/malformed/ directory with broken files (Issue #199)."""
+        # Analyze directory with malformed files
+        result = analyzer.analyze(str(MALFORMED_SAMPLES))
+
+        # TypeScript/JavaScript parsers use error recovery and parse partial ASTs
+        # Only Python files with syntax errors fail to parse
+        # Should have exactly 4 Python parse failures
+        python_failures = [f for f in result.parse_failures if f.filepath.endswith('.py')]
+        assert len(python_failures) == 4, \
+            f"Expected exactly 4 Python failures, got {len(python_failures)}. " \
+            f"Check that test-samples/malformed/ hasn't been modified."
+
+        # Check that Python malformed files are tracked as failures
+        failed_files = [f.filepath for f in result.parse_failures]
+        assert any('python_missing_colon.py' in f for f in failed_files), \
+            "Python missing colon file should fail to parse"
+        assert any('python_unclosed_paren.py' in f for f in failed_files), \
+            "Python unclosed paren file should fail to parse"
+        assert any('python_invalid_indentation.py' in f for f in failed_files), \
+            "Python invalid indentation file should fail to parse"
+        assert any('python_incomplete_statement.py' in f for f in failed_files), \
+            "Python incomplete statement file should fail to parse"
+
+        # Analysis should complete without crashing
+        # TypeScript/JavaScript items may be present due to error recovery
+        assert result.total_items >= 0, "Analysis should complete successfully"
+
+    def test_mixed_valid_invalid_analysis(self, analyzer):
+        """Test analyzing test-samples/mixed-valid-invalid/ with mix of valid and broken files (Issue #199)."""
+        # Analyze directory with 3 valid and 3 broken files
+        result = analyzer.analyze(str(MIXED_SAMPLES))
+
+        # Should have items from the 3 valid files + partial items from TS/JS (error recovery)
+        assert len(result.items) > 0, "Should parse valid files"
+
+        # Python file with syntax error should fail
+        # TypeScript/JavaScript use error recovery, so they may not fail
+        assert len(result.parse_failures) >= 1, \
+            f"Expected at least 1 parse failure (Python), got {len(result.parse_failures)}"
+
+        # Check that Python broken file is tracked as failure
+        failed_files = [f.filepath for f in result.parse_failures]
+        assert any('broken_syntax.py' in f for f in failed_files), \
+            "Python broken file should fail to parse"
+
+        # Check that valid files were parsed successfully
+        item_names = [item.name for item in result.items]
+        assert any('calculate_area' in name or 'Shape' in name for name in item_names), \
+            "Should parse Python valid file"
+        # TypeScript/JavaScript valid files should be parsed
+        assert any('DataProcessor' in name or 'formatMessage' in name or
+                  'add' in name or 'Calculator' in name for name in item_names), \
+            "Should parse TypeScript/JavaScript valid files"
+
+    def test_python_syntax_failures_tracked(self, analyzer):
+        """Test that Python syntax failures are properly tracked in parse_failures (Issue #199)."""
+        result = analyzer.analyze(str(MALFORMED_SAMPLES))
+
+        # Get Python failures (by file extension)
+        python_failures = [f for f in result.parse_failures if f.filepath.endswith('.py')]
+        assert len(python_failures) == 4, \
+            f"Expected 4 Python failures, got {len(python_failures)}"
+
+        # Verify each Python failure has error message
+        for failure in python_failures:
+            assert failure.error, \
+                f"Python failure {failure.filepath} should have error message"
+            assert 'Syntax error' in failure.error or 'syntax' in failure.error.lower(), \
+                f"Error should mention syntax: {failure.error}"
+
+    def test_polyglot_analysis_with_python_errors(self, analyzer):
+        """Test that Python syntax errors are handled while TS/JS use error recovery (Issue #199)."""
+        result = analyzer.analyze(str(MALFORMED_SAMPLES))
+
+        # Python files should fail to parse (4 failures expected)
+        python_failures = [f for f in result.parse_failures if f.filepath.endswith('.py')]
+        assert len(python_failures) == 4, \
+            f"Expected 4 Python failures, got {len(python_failures)}"
+
+        # TypeScript/JavaScript parsers use error recovery, so they may succeed
+        # or partially succeed. The key is that analysis completes without crashing.
+        assert result.total_items >= 0, "Analysis should complete successfully"
+
+        # Verify Python failures have error messages
+        for failure in python_failures:
+            assert failure.error, "Python failures should have error messages"
+            assert 'Syntax error' in failure.error or 'syntax' in failure.error.lower(), \
+                f"Error message should mention syntax: {failure.error}"
