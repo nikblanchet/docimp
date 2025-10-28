@@ -131,9 +131,6 @@ class ClaudeClient:
                 content_block = message.content[0]
                 if isinstance(content_block, TextBlock):
                     return content_block.text
-                elif hasattr(content_block, 'text'):
-                    # For duck-typing compatibility (e.g., test mocks)
-                    return content_block.text  # type: ignore[union-attr]
                 else:
                     raise RuntimeError(
                         f"Unexpected content block type: {type(content_block).__name__}. "

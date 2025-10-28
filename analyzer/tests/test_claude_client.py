@@ -11,6 +11,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.claude.claude_client import ClaudeClient
+from anthropic.types import TextBlock
 
 
 class TestClaudeClientInitialization:
@@ -145,7 +146,7 @@ class TestClaudeClientAPIInteraction:
         mock_anthropic_class.return_value = mock_client
 
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text='"""Generated docstring"""')]
+        mock_message.content = [MagicMock(spec=TextBlock, text='"""Generated docstring"""')]
         mock_client.messages.create.return_value = mock_message
 
         # Create client and generate docstring
@@ -170,7 +171,7 @@ class TestClaudeClientAPIInteraction:
         mock_anthropic_class.return_value = mock_client
 
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text='"""Docstring"""')]
+        mock_message.content = [MagicMock(spec=TextBlock, text='"""Docstring"""')]
         mock_client.messages.create.return_value = mock_message
 
         client = ClaudeClient(api_key='sk-ant-test')
@@ -186,7 +187,7 @@ class TestClaudeClientAPIInteraction:
         mock_anthropic_class.return_value = mock_client
 
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text='"""Docstring"""')]
+        mock_message.content = [MagicMock(spec=TextBlock, text='"""Docstring"""')]
         mock_client.messages.create.return_value = mock_message
 
         client = ClaudeClient(api_key='sk-ant-test', timeout=45.0)
@@ -203,7 +204,7 @@ class TestClaudeClientAPIInteraction:
 
         # Mock response with specific structure
         mock_message = MagicMock()
-        mock_content_block = MagicMock()
+        mock_content_block = MagicMock(spec=TextBlock)
         mock_content_block.text = 'Expected documentation text'
         mock_message.content = [mock_content_block]
         mock_client.messages.create.return_value = mock_message
@@ -259,7 +260,7 @@ class TestClaudeClientRetryLogic:
 
         # First call raises RateLimitError, second succeeds
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text='"""Success"""')]
+        mock_message.content = [MagicMock(spec=TextBlock, text='"""Success"""')]
         mock_client.messages.create.side_effect = [
             anthropic.RateLimitError('Rate limit exceeded', response=mock_response, body=None),
             mock_message
@@ -287,7 +288,7 @@ class TestClaudeClientRetryLogic:
 
         # Fail twice, succeed on third attempt
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text='"""Success"""')]
+        mock_message.content = [MagicMock(spec=TextBlock, text='"""Success"""')]
         mock_client.messages.create.side_effect = [
             anthropic.RateLimitError('Rate limit', response=mock_response, body=None),
             anthropic.RateLimitError('Rate limit', response=mock_response, body=None),
@@ -373,7 +374,7 @@ class TestClaudeClientTimeoutHandling:
 
         # First call times out, second succeeds
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text='"""Success"""')]
+        mock_message.content = [MagicMock(spec=TextBlock, text='"""Success"""')]
         mock_client.messages.create.side_effect = [
             anthropic.APITimeoutError('Request timed out'),
             mock_message
@@ -398,7 +399,7 @@ class TestClaudeClientTimeoutHandling:
 
         # Timeout twice, succeed on third attempt
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text='"""Success"""')]
+        mock_message.content = [MagicMock(spec=TextBlock, text='"""Success"""')]
         mock_client.messages.create.side_effect = [
             anthropic.APITimeoutError('Timeout 1'),
             anthropic.APITimeoutError('Timeout 2'),
@@ -473,7 +474,7 @@ class TestClaudeClientTimeoutHandling:
 
         # Mix of timeout and rate limit errors
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text='"""Success"""')]
+        mock_message.content = [MagicMock(spec=TextBlock, text='"""Success"""')]
         mock_client.messages.create.side_effect = [
             anthropic.APITimeoutError('Timeout'),
             anthropic.RateLimitError('Rate limit', response=mock_response, body=None),
@@ -534,7 +535,7 @@ int
 """'''
 
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text=single_docstring)]
+        mock_message.content = [MagicMock(spec=TextBlock, text=single_docstring)]
         mock_client.messages.create.return_value = mock_message
 
         client = ClaudeClient(api_key='sk-ant-test')
@@ -594,7 +595,7 @@ str
 """'''
 
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text=multiple_docstrings)]
+        mock_message.content = [MagicMock(spec=TextBlock, text=multiple_docstrings)]
         mock_client.messages.create.return_value = mock_message
 
         client = ClaudeClient(api_key='sk-ant-test')
@@ -623,7 +624,7 @@ strict_mode : bool, optional
 """'''
 
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text=single_class_doc)]
+        mock_message.content = [MagicMock(spec=TextBlock, text=single_class_doc)]
         mock_client.messages.create.return_value = mock_message
 
         client = ClaudeClient(api_key='sk-ant-test')
@@ -663,7 +664,7 @@ bool
 """'''
 
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text=class_plus_methods)]
+        mock_message.content = [MagicMock(spec=TextBlock, text=class_plus_methods)]
         mock_client.messages.create.return_value = mock_message
 
         client = ClaudeClient(api_key='sk-ant-test')
@@ -686,7 +687,7 @@ bool
  */'''
 
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text=single_jsdoc)]
+        mock_message.content = [MagicMock(spec=TextBlock, text=single_jsdoc)]
         mock_client.messages.create.return_value = mock_message
 
         client = ClaudeClient(api_key='sk-ant-test')
@@ -720,7 +721,7 @@ bool
  */'''
 
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text=multiple_jsdocs)]
+        mock_message.content = [MagicMock(spec=TextBlock, text=multiple_jsdocs)]
         mock_client.messages.create.return_value = mock_message
 
         client = ClaudeClient(api_key='sk-ant-test')
@@ -758,7 +759,7 @@ bool
  */'''
 
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text=class_and_methods)]
+        mock_message.content = [MagicMock(spec=TextBlock, text=class_and_methods)]
         mock_client.messages.create.return_value = mock_message
 
         client = ClaudeClient(api_key='sk-ant-test')
@@ -823,7 +824,7 @@ str
 """'''
 
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text=issue_220_response)]
+        mock_message.content = [MagicMock(spec=TextBlock, text=issue_220_response)]
         mock_client.messages.create.return_value = mock_message
 
         client = ClaudeClient(api_key='sk-ant-test')
