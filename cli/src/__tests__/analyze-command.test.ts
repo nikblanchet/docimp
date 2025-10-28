@@ -91,6 +91,85 @@ describe('analyze command auto-clean', () => {
     }
   });
 
+  describe('path validation', () => {
+    it('throws friendly error for non-existent path', async () => {
+      const nonExistentPath = join(tempDir, 'does-not-exist');
+
+      await expect(
+        analyzeCore(
+          nonExistentPath,
+          { format: 'json', verbose: false },
+          mockBridge,
+          mockDisplay
+        )
+      ).rejects.toThrow('Path not found');
+
+      await expect(
+        analyzeCore(
+          nonExistentPath,
+          { format: 'json', verbose: false },
+          mockBridge,
+          mockDisplay
+        )
+      ).rejects.toThrow('Please check that the path exists and try again');
+
+      // Verify Python bridge was NOT called
+      expect(mockBridge.analyze).not.toHaveBeenCalled();
+    });
+
+    it('passes absolute path to Python bridge', async () => {
+      // Run analyze with valid temp directory
+      await analyzeCore(
+        tempDir,
+        { format: 'json', verbose: false },
+        mockBridge,
+        mockDisplay
+      );
+
+      // Verify Python bridge was called with absolute path
+      expect(mockBridge.analyze).toHaveBeenCalledWith(
+        expect.objectContaining({
+          path: tempDir,
+        })
+      );
+    });
+
+    it('throws error for empty string path', async () => {
+      await expect(
+        analyzeCore('', { format: 'json', verbose: false }, mockBridge, mockDisplay)
+      ).rejects.toThrow('Path cannot be empty');
+
+      // Verify Python bridge was NOT called
+      expect(mockBridge.analyze).not.toHaveBeenCalled();
+    });
+
+    it('warns when analyzing empty directory', async () => {
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const emptyDir = join(tempDir, 'empty');
+      const fs = require('fs');
+      fs.mkdirSync(emptyDir);
+
+      try {
+        await analyzeCore(
+          emptyDir,
+          { format: 'json', verbose: false },
+          mockBridge,
+          mockDisplay
+        );
+
+        // Verify warning was issued
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Warning: Directory is empty')
+        );
+
+        // Verify Python bridge was still called (warning, not error)
+        expect(mockBridge.analyze).toHaveBeenCalled();
+      } finally {
+        consoleWarnSpy.mockRestore();
+      }
+    });
+  });
+
   describe('auto-clean behavior', () => {
     it('clears session reports by default', async () => {
       // Setup: Create state directory with old reports
