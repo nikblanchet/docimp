@@ -430,11 +430,11 @@ class TestDocumentationAnalyzer:
 
         # Check that valid files were parsed successfully
         item_names = [item.name for item in result.items]
-        assert any('calculate_area' in item_names or 'Shape' in item_names), \
+        assert any('calculate_area' in name or 'Shape' in name for name in item_names), \
             "Should parse Python valid file"
         # TypeScript/JavaScript valid files should be parsed
-        assert any('DataProcessor' in item_names or 'formatMessage' in item_names or
-                  'add' in item_names or 'Calculator' in item_names), \
+        assert any('DataProcessor' in name or 'formatMessage' in name or
+                  'add' in name or 'Calculator' in name for name in item_names), \
             "Should parse TypeScript/JavaScript valid files"
 
     def test_python_syntax_failures_tracked(self, analyzer):
@@ -444,16 +444,17 @@ class TestDocumentationAnalyzer:
 
         result = analyzer.analyze(str(malformed_dir))
 
-        # Get Python failures
-        python_failures = [f for f in result.parse_failures if f.language == 'python']
+        # Get Python failures (by file extension)
+        python_failures = [f for f in result.parse_failures if f.filepath.endswith('.py')]
         assert len(python_failures) == 4, \
             f"Expected 4 Python failures, got {len(python_failures)}"
 
         # Verify each Python failure has error message
         for failure in python_failures:
-            assert failure.error_message, \
+            assert failure.error, \
                 f"Python failure {failure.filepath} should have error message"
-            assert failure.language == 'python'
+            assert 'Syntax error' in failure.error or 'syntax' in failure.error.lower(), \
+                f"Error should mention syntax: {failure.error}"
 
     def test_polyglot_analysis_with_python_errors(self, analyzer):
         """Test that Python syntax errors are handled while TS/JS use error recovery (Issue #199)."""
@@ -463,7 +464,7 @@ class TestDocumentationAnalyzer:
         result = analyzer.analyze(str(malformed_dir))
 
         # Python files should fail to parse (4 failures expected)
-        python_failures = [f for f in result.parse_failures if f.language == 'python']
+        python_failures = [f for f in result.parse_failures if f.filepath.endswith('.py')]
         assert len(python_failures) == 4, \
             f"Expected 4 Python failures, got {len(python_failures)}"
 
@@ -473,6 +474,6 @@ class TestDocumentationAnalyzer:
 
         # Verify Python failures have error messages
         for failure in python_failures:
-            assert failure.error_message, "Python failures should have error messages"
-            assert 'Syntax error' in failure.error_message or 'syntax' in failure.error_message.lower(), \
-                f"Error message should mention syntax: {failure.error_message}"
+            assert failure.error, "Python failures should have error messages"
+            assert 'Syntax error' in failure.error or 'syntax' in failure.error.lower(), \
+                f"Error message should mention syntax: {failure.error}"
