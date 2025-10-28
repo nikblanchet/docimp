@@ -216,8 +216,6 @@ class TestClaudeClientAPIInteraction:
     @patch('anthropic.Anthropic')
     def test_unexpected_content_block_type_raises_error(self, mock_anthropic_class):
         """Test that non-TextBlock content raises RuntimeError."""
-        import anthropic.types
-
         mock_client = MagicMock()
         mock_anthropic_class.return_value = mock_client
 
