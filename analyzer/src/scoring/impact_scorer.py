@@ -5,6 +5,7 @@ cyclomatic complexity and optionally audit quality ratings. Higher scores
 indicate higher priority for documentation improvement.
 """
 
+import math
 from typing import Optional
 
 from ..models.code_item import CodeItem
@@ -44,11 +45,12 @@ class ImpactScorer:
             quality_weight: Weight for quality component (0-1).
 
         Raises:
-            ValueError: If weights don't sum to 1.0.
+            ValueError: If weights don't sum to 1.0 (±0.01).
         """
-        if abs(complexity_weight + quality_weight - 1.0) > 0.001:
+        weight_sum = complexity_weight + quality_weight
+        if not math.isclose(weight_sum, 1.0, abs_tol=0.01):
             raise ValueError(
-                f"Weights must sum to 1.0, got {complexity_weight + quality_weight}"
+                f"Weights must sum to 1.0 (±0.01), got {weight_sum}"
             )
 
         self.complexity_weight = complexity_weight
