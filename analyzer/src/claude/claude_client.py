@@ -10,6 +10,7 @@ import time
 from typing import Optional
 
 import anthropic
+from anthropic.types import TextBlock
 
 
 class ClaudeClient:
@@ -100,7 +101,8 @@ class ClaudeClient:
         Raises
         ------
         RuntimeError
-            If API request times out after all retry attempts.
+            If API request times out after all retry attempts, or if API returns
+            unexpected content block type (non-TextBlock).
         anthropic.RateLimitError
             If rate limit is exceeded after all retry attempts.
         anthropic.APIError
@@ -126,7 +128,14 @@ class ClaudeClient:
                 )
 
                 # Extract text from response
-                return message.content[0].text
+                content_block = message.content[0]
+                if isinstance(content_block, TextBlock):
+                    return content_block.text
+                else:
+                    raise RuntimeError(
+                        f"Unexpected content block type: {type(content_block).__name__}. "
+                        f"Expected TextBlock with text content."
+                    )
 
             except anthropic.APITimeoutError:
                 should_retry, delay = self._should_retry(attempt)
