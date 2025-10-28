@@ -55,7 +55,36 @@ describe('ConfigLoader', () => {
     it('should throw error for non-existent config file', async () => {
       await expect(
         configLoader.load('/path/to/nonexistent/config.js')
-      ).rejects.toThrow('Configuration file not found');
+      ).rejects.toThrow('Config file not found');
+
+      await expect(
+        configLoader.load('/path/to/nonexistent/config.js')
+      ).rejects.toThrow('Please check that the config file exists and try again');
+    });
+
+    it('should throw error for empty config path', async () => {
+      await expect(
+        configLoader.load('')
+      ).rejects.toThrow('Config file path cannot be empty');
+    });
+
+    it('should throw error when config path is a directory', async () => {
+      const fs = require('fs');
+      const os = require('os');
+      const path = require('path');
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'docimp-config-test-'));
+
+      try {
+        await expect(
+          configLoader.load(tempDir)
+        ).rejects.toThrow('Config path is not a file');
+
+        await expect(
+          configLoader.load(tempDir)
+        ).rejects.toThrow('Please provide a path to a configuration file, not a directory');
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
     });
   });
 });
