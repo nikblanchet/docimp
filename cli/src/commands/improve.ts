@@ -15,6 +15,7 @@ import { PluginManager } from '../plugins/PluginManager.js';
 import { TerminalDisplay } from '../display/TerminalDisplay.js';
 import { InteractiveSession } from '../session/InteractiveSession.js';
 import { StateManager } from '../utils/StateManager.js';
+import { PathValidator } from '../utils/PathValidator.js';
 import {
   STYLE_GUIDE_CHOICES,
   VALID_STYLE_GUIDES,
@@ -93,6 +94,11 @@ export async function improveCommand(
       );
       process.exit(1);
     }
+
+    // Validate path exists and is accessible (for consistency with other commands)
+    const absolutePath = PathValidator.validatePathExists(path);
+    PathValidator.validatePathReadable(absolutePath);
+    PathValidator.warnIfEmpty(absolutePath);
 
     // Load configuration
     const configLoader = new ConfigLoader();
