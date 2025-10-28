@@ -63,6 +63,45 @@ class TestImpactScorer:
         with pytest.raises(ValueError, match="Weights must sum to 1.0"):
             ImpactScorer(complexity_weight=0.5, quality_weight=0.6)
 
+    def test_scorer_floating_point_precision(self):
+        """Test scorer handles floating-point precision edge cases."""
+        # These weights might not sum to exactly 1.0 due to floating-point
+        # precision, but should be accepted with 0.01 tolerance
+        scorer1 = ImpactScorer(complexity_weight=0.33, quality_weight=0.67)
+        assert scorer1.complexity_weight == 0.33
+        assert scorer1.quality_weight == 0.67
+
+        scorer2 = ImpactScorer(complexity_weight=0.1, quality_weight=0.9)
+        assert scorer2.complexity_weight == 0.1
+        assert scorer2.quality_weight == 0.9
+
+    def test_scorer_weights_within_tolerance(self):
+        """Test weights just within 0.01 tolerance are accepted."""
+        # 0.504 + 0.504 = 1.008, which is within tolerance (0.008 difference)
+        scorer = ImpactScorer(complexity_weight=0.504, quality_weight=0.504)
+        assert scorer.complexity_weight == 0.504
+        assert scorer.quality_weight == 0.504
+
+        # Test at the exact boundary: 0.505 + 0.495 = 1.0 exactly
+        scorer2 = ImpactScorer(complexity_weight=0.505, quality_weight=0.495)
+        assert scorer2.complexity_weight == 0.505
+        assert scorer2.quality_weight == 0.495
+
+    def test_scorer_weights_outside_tolerance(self):
+        """Test weights outside 0.01 tolerance are rejected."""
+        # 0.6 + 0.42 = 1.02, which exceeds tolerance
+        with pytest.raises(ValueError, match=r"Weights must sum to 1\.0 \(±0\.01\)"):
+            ImpactScorer(complexity_weight=0.6, quality_weight=0.42)
+
+        # Also test undershooting the tolerance
+        with pytest.raises(ValueError, match=r"Weights must sum to 1\.0 \(±0\.01\)"):
+            ImpactScorer(complexity_weight=0.5, quality_weight=0.48)
+
+        # Test at exact boundary: 0.505 + 0.505 = 1.01 (difference = 0.01)
+        # math.isclose uses < not <= for tolerance, so this should be rejected
+        with pytest.raises(ValueError, match=r"Weights must sum to 1\.0 \(±0\.01\)"):
+            ImpactScorer(complexity_weight=0.505, quality_weight=0.505)
+
     def test_basic_complexity_scoring(self, scorer, simple_item, complex_item):
         """Test basic complexity-based scoring without audit data."""
         simple_score = scorer.calculate_score(simple_item)
