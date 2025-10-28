@@ -49,16 +49,35 @@ function findAnalyzerDir(): string {
   // In production: cli/dist/python-bridge/PythonBridge.js
   // In development: cli/src/python-bridge/PythonBridge.ts
   //
-  // IMPORTANT: Jest doesn't support import.meta at parse time, so we use eval() to hide
-  // it from the parser. This is safe because we're just getting the module URL.
+  // IMPORTANT: Jest/CommonJS compatibility
+  // - Jest parses the ENTIRE file and fails if it sees 'import.meta' anywhere
+  // - We MUST hide import.meta from Jest's parser using new Function()
+  // - We detect Jest via JEST_WORKER_ID to ensure new Function() only runs in production
+  // - This is a known limitation of mixing ESM (import.meta) with Jest (CommonJS)
 
   let analyzerPath: string;
   let moduleInfo: string;
 
-  // Try module-relative resolution (production ESM)
-  try {
-    // Use new Function to access import.meta without Jest seeing it
-    // This works in production ESM but will throw in Jest/CommonJS
+  // Detect if we're in a Jest/test environment
+  // Jest sets JEST_WORKER_ID when running tests
+  const isJestEnvironment = process.env.JEST_WORKER_ID !== undefined;
+
+  if (isJestEnvironment) {
+    // Jest/test environment: Tests run from cli/ directory
+    // Go up one level to repo root, then into analyzer/
+    analyzerPath = resolve(process.cwd(), '..', 'analyzer');
+    moduleInfo = '(test environment)';
+  } else {
+    // Production/development: Use import.meta.url for module-relative resolution
+    //
+    // NOTE: new Function() is necessary here to hide import.meta from Jest's parser.
+    // Jest parses the entire file even if this branch doesn't execute, so we cannot
+    // reference import.meta directly anywhere in the source code.
+    //
+    // This is safe because:
+    // 1. This branch only executes in production (JEST_WORKER_ID check above)
+    // 2. The string 'import.meta.url' is a hardcoded constant
+    // 3. No user input is involved
     // eslint-disable-next-line @typescript-eslint/no-implied-eval
     const getUrl = new Function('return import.meta.url');
     const currentFileUrl = getUrl();
@@ -66,13 +85,9 @@ function findAnalyzerDir(): string {
     const currentDir = dirname(currentFilePath);
 
     // Go up 3 levels to repo root: python-bridge -> src|dist -> cli -> root
+    // Then into analyzer/
     analyzerPath = resolve(currentDir, '..', '..', '..', 'analyzer');
     moduleInfo = currentFilePath;
-  } catch {
-    // Fallback for Jest/test environment or when import.meta not available
-    // Tests run from cli/ directory, so go up one level to find analyzer/
-    analyzerPath = resolve(process.cwd(), '..', 'analyzer');
-    moduleInfo = '(test environment)';
   }
 
   if (existsSync(analyzerPath)) {
