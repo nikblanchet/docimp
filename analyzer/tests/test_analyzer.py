@@ -377,3 +377,117 @@ class TestDocumentationAnalyzer:
             # Should still have parsed the valid file
             assert len(result.items) >= 1, "Should parse valid file"
             assert any('good_function' in item.name for item in result.items)
+
+    def test_malformed_directory_analysis(self, analyzer):
+        """Test analyzing examples/malformed/ directory with all broken files (Issue #199)."""
+        project_root = Path(__file__).parent.parent.parent
+        malformed_dir = project_root / 'examples' / 'malformed'
+
+        # Analyze directory with all malformed files
+        result = analyzer.analyze(str(malformed_dir))
+
+        # Should have NO successfully parsed items (all files are broken)
+        assert len(result.items) == 0, \
+            f"Expected 0 items from malformed directory, got {len(result.items)}"
+
+        # Should have 12 parse failures (4 Python + 4 TypeScript + 4 JavaScript)
+        assert len(result.parse_failures) == 12, \
+            f"Expected 12 parse failures, got {len(result.parse_failures)}"
+
+        # Check that all malformed files are tracked
+        failed_files = [f.filepath for f in result.parse_failures]
+        assert any('python_missing_colon.py' in f for f in failed_files)
+        assert any('typescript_missing_brace.ts' in f for f in failed_files)
+        assert any('javascript_esm_error.js' in f for f in failed_files)
+
+        # Analysis should complete without crashing
+        assert result.coverage_percent == 0.0  # No items to calculate coverage from
+
+    def test_mixed_valid_invalid_analysis(self, analyzer):
+        """Test analyzing examples/mixed-valid-invalid/ with mix of valid and broken files (Issue #199)."""
+        project_root = Path(__file__).parent.parent.parent
+        mixed_dir = project_root / 'examples' / 'mixed-valid-invalid'
+
+        # Analyze directory with 3 valid and 3 broken files
+        result = analyzer.analyze(str(mixed_dir))
+
+        # Should have items from the 3 valid files only
+        assert len(result.items) > 0, "Should parse valid files"
+
+        # Should have exactly 3 parse failures (one per broken file)
+        assert len(result.parse_failures) == 3, \
+            f"Expected 3 parse failures, got {len(result.parse_failures)}"
+
+        # Check that broken files are tracked
+        failed_files = [f.filepath for f in result.parse_failures]
+        assert any('broken_syntax.py' in f for f in failed_files)
+        assert any('broken_types.ts' in f for f in failed_files)
+        assert any('broken_export.js' in f for f in failed_files)
+
+        # Check that valid files were parsed successfully
+        item_names = [item.name for item in result.items]
+        assert any('calculate_area' in item_names or 'Shape' in item_names), \
+            "Should parse Python valid file"
+        assert any('DataProcessor' in item_names or 'formatMessage' in item_names), \
+            "Should parse TypeScript valid file"
+        assert any('add' in item_names or 'Calculator' in item_names), \
+            "Should parse JavaScript valid file"
+
+    def test_typescript_syntax_failures_tracked(self, analyzer):
+        """Test that TypeScript syntax failures are properly tracked in parse_failures (Issue #199)."""
+        project_root = Path(__file__).parent.parent.parent
+        malformed_dir = project_root / 'examples' / 'malformed'
+
+        result = analyzer.analyze(str(malformed_dir))
+
+        # Get TypeScript failures
+        ts_failures = [f for f in result.parse_failures if f.filepath.endswith('.ts')]
+        assert len(ts_failures) == 4, \
+            f"Expected 4 TypeScript failures, got {len(ts_failures)}"
+
+        # Verify each TypeScript failure has error message
+        for failure in ts_failures:
+            assert failure.error_message, \
+                f"TypeScript failure {failure.filepath} should have error message"
+            assert failure.language == 'typescript'
+
+    def test_javascript_syntax_failures_tracked(self, analyzer):
+        """Test that JavaScript syntax failures are properly tracked in parse_failures (Issue #199)."""
+        project_root = Path(__file__).parent.parent.parent
+        malformed_dir = project_root / 'examples' / 'malformed'
+
+        result = analyzer.analyze(str(malformed_dir))
+
+        # Get JavaScript failures (.js, .mjs, .cjs)
+        js_failures = [f for f in result.parse_failures
+                      if f.filepath.endswith(('.js', '.mjs', '.cjs'))]
+        assert len(js_failures) == 4, \
+            f"Expected 4 JavaScript failures, got {len(js_failures)}"
+
+        # Verify each JavaScript failure has error message
+        for failure in js_failures:
+            assert failure.error_message, \
+                f"JavaScript failure {failure.filepath} should have error message"
+            assert failure.language == 'javascript'
+
+    def test_polyglot_syntax_error_handling(self, analyzer):
+        """Test that multiple languages with errors are handled simultaneously (Issue #199)."""
+        project_root = Path(__file__).parent.parent.parent
+        malformed_dir = project_root / 'examples' / 'malformed'
+
+        result = analyzer.analyze(str(malformed_dir))
+
+        # Should have failures from all three languages
+        languages_with_failures = {f.language for f in result.parse_failures}
+        assert 'python' in languages_with_failures, "Should have Python failures"
+        assert 'typescript' in languages_with_failures, "Should have TypeScript failures"
+        assert 'javascript' in languages_with_failures, "Should have JavaScript failures"
+
+        # Each language should have 4 failures
+        python_failures = [f for f in result.parse_failures if f.language == 'python']
+        typescript_failures = [f for f in result.parse_failures if f.language == 'typescript']
+        javascript_failures = [f for f in result.parse_failures if f.language == 'javascript']
+
+        assert len(python_failures) == 4, f"Expected 4 Python failures, got {len(python_failures)}"
+        assert len(typescript_failures) == 4, f"Expected 4 TypeScript failures, got {len(typescript_failures)}"
+        assert len(javascript_failures) == 4, f"Expected 4 JavaScript failures, got {len(javascript_failures)}"
