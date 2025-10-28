@@ -245,3 +245,80 @@ class TestTypeScriptParser:
             assert isinstance(item.parameters, list)
             assert item.export_type in ['named', 'default', 'commonjs', 'internal']
             assert item.module_system in ['esm', 'commonjs', 'unknown']
+
+
+class TestTypeScriptParserMalformedSyntax:
+    """Test suite for TypeScriptParser malformed syntax handling (Issue #199)."""
+
+    @pytest.fixture
+    def parser(self):
+        """Create parser instance."""
+        return TypeScriptParser()
+
+    @pytest.fixture
+    def malformed_dir(self):
+        """Return path to malformed examples directory."""
+        project_root = Path(__file__).parent.parent.parent
+        return project_root / 'examples' / 'malformed'
+
+    def test_typescript_syntax_error_handling(self, parser, malformed_dir):
+        """Test that TypeScript syntax errors raise SyntaxError."""
+        # Test missing brace
+        with pytest.raises(SyntaxError):
+            parser.parse_file(str(malformed_dir / 'typescript_missing_brace.ts'))
+
+        # Test invalid type syntax
+        with pytest.raises(SyntaxError):
+            parser.parse_file(str(malformed_dir / 'typescript_invalid_syntax.ts'))
+
+        # Test unclosed string
+        with pytest.raises(SyntaxError):
+            parser.parse_file(str(malformed_dir / 'typescript_unclosed_string.ts'))
+
+        # Test incomplete expression
+        with pytest.raises(SyntaxError):
+            parser.parse_file(str(malformed_dir / 'typescript_missing_semicolon.ts'))
+
+    def test_javascript_esm_syntax_error(self, parser, malformed_dir):
+        """Test that JavaScript ESM syntax errors raise SyntaxError."""
+        # Test ESM with malformed class
+        with pytest.raises(SyntaxError):
+            parser.parse_file(str(malformed_dir / 'javascript_esm_error.js'))
+
+        # Test arrow function with syntax error
+        with pytest.raises(SyntaxError):
+            parser.parse_file(str(malformed_dir / 'javascript_arrow_error.js'))
+
+        # Test unclosed bracket in ESM module
+        with pytest.raises(SyntaxError):
+            parser.parse_file(str(malformed_dir / 'javascript_unclosed_bracket.mjs'))
+
+    def test_javascript_cjs_syntax_error(self, parser, malformed_dir):
+        """Test that JavaScript CommonJS syntax errors raise SyntaxError."""
+        # Test CommonJS with syntax error
+        with pytest.raises(SyntaxError):
+            parser.parse_file(str(malformed_dir / 'javascript_commonjs_error.cjs'))
+
+    def test_syntax_error_messages_are_clear(self, parser, malformed_dir):
+        """Test that syntax error messages include helpful information."""
+        try:
+            parser.parse_file(str(malformed_dir / 'typescript_missing_brace.ts'))
+            assert False, "Should have raised SyntaxError"
+        except SyntaxError as e:
+            error_msg = str(e)
+            # Error message should be informative
+            assert 'typescript_missing_brace.ts' in error_msg, \
+                f"Error message should include filename, got: {error_msg}"
+
+    def test_multiple_typescript_errors(self, parser, malformed_dir):
+        """Test various TypeScript syntax error types."""
+        malformed_files = [
+            'typescript_missing_brace.ts',
+            'typescript_invalid_syntax.ts',
+            'typescript_unclosed_string.ts',
+            'typescript_missing_semicolon.ts'
+        ]
+
+        for filename in malformed_files:
+            with pytest.raises(SyntaxError, match=filename):
+                parser.parse_file(str(malformed_dir / filename))

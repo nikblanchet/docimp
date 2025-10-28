@@ -105,6 +105,42 @@ class TestPythonParser:
         with pytest.raises(SyntaxError):
             parser.parse_file(str(bad_file))
 
+    def test_multiple_syntax_error_types(self, parser):
+        """Test that parser raises SyntaxError for different types of syntax errors."""
+        # Get path to malformed examples
+        test_dir = Path(__file__).parent.parent.parent
+        malformed_dir = test_dir / 'examples' / 'malformed'
+
+        # Test missing colon
+        with pytest.raises(SyntaxError):
+            parser.parse_file(str(malformed_dir / 'python_missing_colon.py'))
+
+        # Test unclosed parenthesis
+        with pytest.raises(SyntaxError):
+            parser.parse_file(str(malformed_dir / 'python_unclosed_paren.py'))
+
+        # Test invalid indentation
+        with pytest.raises(SyntaxError):
+            parser.parse_file(str(malformed_dir / 'python_invalid_indentation.py'))
+
+        # Test incomplete statement
+        with pytest.raises(SyntaxError):
+            parser.parse_file(str(malformed_dir / 'python_incomplete_statement.py'))
+
+    def test_syntax_error_message_clarity(self, parser):
+        """Test that syntax error messages include file path and are informative."""
+        test_dir = Path(__file__).parent.parent.parent
+        malformed_file = test_dir / 'examples' / 'malformed' / 'python_missing_colon.py'
+
+        try:
+            parser.parse_file(str(malformed_file))
+            assert False, "Should have raised SyntaxError"
+        except SyntaxError as e:
+            error_msg = str(e)
+            # Error message should mention the file
+            assert 'python_missing_colon.py' in error_msg, \
+                f"Error message should include filename, got: {error_msg}"
+
     def test_complexity_calculation(self, parser, tmp_path):
         """Test that cyclomatic complexity is calculated correctly."""
         # Simple function should have complexity 1
