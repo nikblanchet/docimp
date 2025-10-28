@@ -62,6 +62,7 @@ DocImp solves this by:
 - **Interactive Workflow**: Step-by-step improvement with progress tracking
 - **Multiple Module Systems**: ESM, CommonJS, mixed codebases supported
 - **Real JSDoc Type-Checking**: Uses TypeScript compiler for validation, not just parsing
+- **Graceful Error Handling**: Continues analyzing valid files when encountering syntax errors
 
 ### Language Support
 
@@ -1114,6 +1115,45 @@ DocImp is dual-licensed under **AGPL-3.0** (for open-source use) or a **Commerci
 - **v1.1.0**: Save/resume sessions, progress tracking
 - **v1.2.0**: Pattern detection, advanced scoring algorithms
 - **v2.0.0**: Additional languages, IDE integrations
+
+---
+
+## Troubleshooting
+
+### Parse Errors in Analyzed Code
+
+If DocImp encounters syntax errors in your codebase:
+
+**Default behavior (non-strict mode)**:
+- DocImp logs warnings for files with syntax errors
+- Analysis continues with remaining valid files
+- Parse failures are tracked and displayed in the analysis summary
+- You can fix the syntax errors and re-run the analysis
+
+**Example output**:
+```
+⚠ Parse Failures: 2 files could not be parsed
+
+src/broken.py: invalid syntax (line 42)
+src/incomplete.ts: Unexpected token '}'
+```
+
+**Strict mode (fail-fast)**:
+```bash
+docimp analyze ./src --strict
+```
+In strict mode, DocImp fails immediately on the first syntax error. Useful for CI/CD pipelines where you want to enforce clean syntax before analyzing documentation.
+
+**Common causes**:
+- Work-in-progress files with incomplete code
+- Broken commits pushed during development
+- Copy-paste errors or merge conflicts
+- Experimental code that doesn't compile
+
+**Resolution**:
+1. Review the error message for file path and line number
+2. Fix the syntax error in the source file
+3. Re-run `docimp analyze`
 
 ---
 
