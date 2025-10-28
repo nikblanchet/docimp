@@ -21,9 +21,9 @@ import { defaultConfig } from '../config/IConfig.js';
  * Path Resolution Order:
  * 1. DOCIMP_ANALYZER_PATH environment variable (if set) - for custom installations
  * 2. Fallback strategies using process.cwd() (tried in order):
- *    a. <cwd>/../analyzer - when running from cli/ directory (development, Jest tests)
- *    b. <cwd>/analyzer - when running from repo root
- *    c. <cwd>/../../analyzer - when installed globally via npm
+ * - <cwd>/../analyzer - when running from cli/ directory (development, Jest tests)
+ * - <cwd>/analyzer - when running from repo root
+ * - <cwd>/../../analyzer - when installed globally via npm
  *
  * Note: We cannot use import.meta.url for module-relative resolution because Jest
  * (CommonJS test environment) parses the entire file and rejects any 'import.meta'
