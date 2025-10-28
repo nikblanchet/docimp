@@ -48,13 +48,54 @@ When analyzing this directory, DocImp should:
 5. Continue analyzing remaining files
 6. Complete the analysis without crashing
 
-## Testing
+## Manual Testing
 
-These files are used by:
+To manually verify error handling:
+
+```bash
+# Analyze malformed directory (should complete with warnings)
+docimp analyze test-samples/malformed
+
+# Expected output includes parse failure warnings:
+# Parse Failures: 4 files could not be parsed
+# - python_missing_colon.py: invalid syntax
+# - python_unclosed_paren.py: invalid syntax
+# - python_invalid_indentation.py: invalid syntax
+# - python_incomplete_statement.py: invalid syntax
+
+# Strict mode (should fail immediately on first error)
+docimp analyze test-samples/malformed --strict
+
+# Expected: Exits with code 1 on first parse failure
+```
+
+## Automated Testing
+
+These fixtures are used by:
 - `analyzer/tests/test_parsers.py` - Parser-level syntax error handling
 - `analyzer/tests/test_typescript_parser.py` - TypeScript/JavaScript parser tests
 - `analyzer/tests/test_analyzer.py` - Integration tests
-- `cli/src/__tests__/` - CLI and display tests
+- `cli/src/__tests__/analyze-command.test.ts` - CLI-level parse failure display tests
+
+Run tests:
+
+```bash
+# Run parser-level tests for syntax error handling
+pytest analyzer/tests/test_parsers.py -k malformed
+
+# Run TypeScript/JavaScript parser tests
+pytest analyzer/tests/test_typescript_parser.py -k error_recovery
+
+# Run integration tests
+pytest analyzer/tests/test_analyzer.py -k malformed
+
+# Run CLI-level tests
+npm --prefix cli test -- analyze-command.test.ts
+
+# Run full test suite
+pytest analyzer/tests/
+npm --prefix cli test
+```
 
 ## See Also
 

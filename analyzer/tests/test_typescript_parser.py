@@ -10,6 +10,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.parsers.typescript_parser import TypeScriptParser
 from src.models.code_item import CodeItem
 
+# Test fixture paths
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+MALFORMED_SAMPLES = PROJECT_ROOT / 'test-samples' / 'malformed'
+EXAMPLES_DIR = PROJECT_ROOT / 'examples'
+
 
 class TestTypeScriptParser:
     """Test suite for TypeScript parser."""
@@ -22,20 +27,17 @@ class TestTypeScriptParser:
     @pytest.fixture
     def ts_file(self):
         """Return path to test TypeScript file."""
-        project_root = Path(__file__).parent.parent.parent
-        return str(project_root / 'examples' / 'test_simple.ts')
+        return str(EXAMPLES_DIR / 'test_simple.ts')
 
     @pytest.fixture
     def js_esm_file(self):
         """Return path to test JavaScript ESM file."""
-        project_root = Path(__file__).parent.parent.parent
-        return str(project_root / 'examples' / 'test_javascript_patterns.js')
+        return str(EXAMPLES_DIR / 'test_javascript_patterns.js')
 
     @pytest.fixture
     def js_cjs_file(self):
         """Return path to test CommonJS file."""
-        project_root = Path(__file__).parent.parent.parent
-        return str(project_root / 'examples' / 'test_commonjs.cjs')
+        return str(EXAMPLES_DIR / 'test_commonjs.cjs')
 
     def test_parser_initialization(self, parser):
         """Test that parser initializes correctly."""
@@ -258,14 +260,16 @@ class TestTypeScriptParserMalformedSyntax:
     @pytest.fixture
     def malformed_dir(self):
         """Return path to malformed test samples directory."""
-        project_root = Path(__file__).parent.parent.parent
-        return project_root / 'test-samples' / 'malformed'
+        return MALFORMED_SAMPLES
 
     def test_typescript_parser_uses_error_recovery(self, parser, malformed_dir):
-        """Test that TypeScript parser uses error recovery for malformed files."""
+        """Test that TypeScript parser uses error recovery for malformed files.
+
+        Expected: Parser returns list (empty or partial) without raising exceptions.
+        This differs from Python's strict AST parser which raises SyntaxError.
+        """
         # TypeScript parser is designed to be tolerant of errors for IDE support
         # It uses error recovery to parse partial ASTs even with syntax errors
-        # This is expected behavior - unlike Python's strict AST parser
 
         # Parse a file with missing brace - should succeed with partial AST
         result = parser.parse_file(str(malformed_dir / 'typescript_missing_brace.ts'))
@@ -275,7 +279,11 @@ class TestTypeScriptParserMalformedSyntax:
         # In contrast, Python's AST parser raises SyntaxError immediately
 
     def test_javascript_parser_uses_error_recovery(self, parser, malformed_dir):
-        """Test that JavaScript parser uses error recovery like TypeScript."""
+        """Test that JavaScript parser uses error recovery like TypeScript.
+
+        Expected: Parser returns list (empty or partial) without raising exceptions.
+        JavaScript files use the same TypeScript parser with checkJs enabled.
+        """
         # JavaScript files are parsed using the same TypeScript parser
         # with checkJs enabled, so error recovery also applies
 

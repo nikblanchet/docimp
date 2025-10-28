@@ -12,6 +12,12 @@ from src.parsers.python_parser import PythonParser
 from src.parsers.typescript_parser import TypeScriptParser
 from src.scoring.impact_scorer import ImpactScorer
 
+# Test fixture paths
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+MALFORMED_SAMPLES = PROJECT_ROOT / 'test-samples' / 'malformed'
+MIXED_SAMPLES = PROJECT_ROOT / 'test-samples' / 'mixed-valid-invalid'
+EXAMPLES_DIR = PROJECT_ROOT / 'examples'
+
 
 class TestDocumentationAnalyzer:
     """Test suite for DocumentationAnalyzer with dependency injection."""
@@ -380,17 +386,16 @@ class TestDocumentationAnalyzer:
 
     def test_malformed_directory_analysis(self, analyzer):
         """Test analyzing test-samples/malformed/ directory with broken files (Issue #199)."""
-        project_root = Path(__file__).parent.parent.parent
-        malformed_dir = project_root / 'test-samples' / 'malformed'
-
         # Analyze directory with malformed files
-        result = analyzer.analyze(str(malformed_dir))
+        result = analyzer.analyze(str(MALFORMED_SAMPLES))
 
         # TypeScript/JavaScript parsers use error recovery and parse partial ASTs
         # Only Python files with syntax errors fail to parse
-        # Should have at least 4 Python parse failures
-        assert len(result.parse_failures) >= 4, \
-            f"Expected at least 4 parse failures (Python files), got {len(result.parse_failures)}"
+        # Should have exactly 4 Python parse failures
+        python_failures = [f for f in result.parse_failures if f.filepath.endswith('.py')]
+        assert len(python_failures) == 4, \
+            f"Expected exactly 4 Python failures, got {len(python_failures)}. " \
+            f"Check that test-samples/malformed/ hasn't been modified."
 
         # Check that Python malformed files are tracked as failures
         failed_files = [f.filepath for f in result.parse_failures]
@@ -409,11 +414,8 @@ class TestDocumentationAnalyzer:
 
     def test_mixed_valid_invalid_analysis(self, analyzer):
         """Test analyzing test-samples/mixed-valid-invalid/ with mix of valid and broken files (Issue #199)."""
-        project_root = Path(__file__).parent.parent.parent
-        mixed_dir = project_root / 'test-samples' / 'mixed-valid-invalid'
-
         # Analyze directory with 3 valid and 3 broken files
-        result = analyzer.analyze(str(mixed_dir))
+        result = analyzer.analyze(str(MIXED_SAMPLES))
 
         # Should have items from the 3 valid files + partial items from TS/JS (error recovery)
         assert len(result.items) > 0, "Should parse valid files"
@@ -439,10 +441,7 @@ class TestDocumentationAnalyzer:
 
     def test_python_syntax_failures_tracked(self, analyzer):
         """Test that Python syntax failures are properly tracked in parse_failures (Issue #199)."""
-        project_root = Path(__file__).parent.parent.parent
-        malformed_dir = project_root / 'test-samples' / 'malformed'
-
-        result = analyzer.analyze(str(malformed_dir))
+        result = analyzer.analyze(str(MALFORMED_SAMPLES))
 
         # Get Python failures (by file extension)
         python_failures = [f for f in result.parse_failures if f.filepath.endswith('.py')]
@@ -458,10 +457,7 @@ class TestDocumentationAnalyzer:
 
     def test_polyglot_analysis_with_python_errors(self, analyzer):
         """Test that Python syntax errors are handled while TS/JS use error recovery (Issue #199)."""
-        project_root = Path(__file__).parent.parent.parent
-        malformed_dir = project_root / 'test-samples' / 'malformed'
-
-        result = analyzer.analyze(str(malformed_dir))
+        result = analyzer.analyze(str(MALFORMED_SAMPLES))
 
         # Python files should fail to parse (4 failures expected)
         python_failures = [f for f in result.parse_failures if f.filepath.endswith('.py')]

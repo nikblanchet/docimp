@@ -10,6 +10,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.parsers.python_parser import PythonParser
 from src.models.code_item import CodeItem
 
+# Test fixture paths
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+MALFORMED_SAMPLES = PROJECT_ROOT / 'test-samples' / 'malformed'
+EXAMPLES_DIR = PROJECT_ROOT / 'examples'
+
 
 class TestPythonParser:
     """Test suite for PythonParser."""
@@ -22,9 +27,7 @@ class TestPythonParser:
     @pytest.fixture
     def test_file(self):
         """Return path to test Python file."""
-        # Get path relative to project root
-        test_dir = Path(__file__).parent.parent.parent
-        return str(test_dir / 'examples' / 'test_simple.py')
+        return str(EXAMPLES_DIR / 'test_simple.py')
 
     def test_parse_file_returns_code_items(self, parser, test_file):
         """Test that parse_file returns a list of CodeItem objects."""
@@ -107,30 +110,25 @@ class TestPythonParser:
 
     def test_multiple_syntax_error_types(self, parser):
         """Test that parser raises SyntaxError for different types of syntax errors."""
-        # Get path to malformed test samples
-        test_dir = Path(__file__).parent.parent.parent
-        malformed_dir = test_dir / 'test-samples' / 'malformed'
-
         # Test missing colon
         with pytest.raises(SyntaxError):
-            parser.parse_file(str(malformed_dir / 'python_missing_colon.py'))
+            parser.parse_file(str(MALFORMED_SAMPLES / 'python_missing_colon.py'))
 
         # Test unclosed parenthesis
         with pytest.raises(SyntaxError):
-            parser.parse_file(str(malformed_dir / 'python_unclosed_paren.py'))
+            parser.parse_file(str(MALFORMED_SAMPLES / 'python_unclosed_paren.py'))
 
         # Test invalid indentation
         with pytest.raises(SyntaxError):
-            parser.parse_file(str(malformed_dir / 'python_invalid_indentation.py'))
+            parser.parse_file(str(MALFORMED_SAMPLES / 'python_invalid_indentation.py'))
 
         # Test incomplete statement
         with pytest.raises(SyntaxError):
-            parser.parse_file(str(malformed_dir / 'python_incomplete_statement.py'))
+            parser.parse_file(str(MALFORMED_SAMPLES / 'python_incomplete_statement.py'))
 
     def test_syntax_error_message_clarity(self, parser):
         """Test that syntax error messages include file path and are informative."""
-        test_dir = Path(__file__).parent.parent.parent
-        malformed_file = test_dir / 'test-samples' / 'malformed' / 'python_missing_colon.py'
+        malformed_file = MALFORMED_SAMPLES / 'python_missing_colon.py'
 
         try:
             parser.parse_file(str(malformed_file))

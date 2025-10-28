@@ -337,4 +337,94 @@ describe('analyze command auto-clean', () => {
       );
     });
   });
+
+  describe('parse failures display', () => {
+    it('displays parse failures in terminal output', async () => {
+      // Mock analysis result with parse failures
+      const mockResultWithFailures: AnalysisResult = {
+        items: [],
+        coverage_percent: 0,
+        total_items: 0,
+        documented_items: 0,
+        by_language: {},
+        parse_failures: [
+          { filepath: 'broken.py', error: 'SyntaxError: invalid syntax (missing colon)' },
+          { filepath: 'malformed.ts', error: 'SyntaxError: Unexpected token' }
+        ]
+      };
+
+      // Update mock bridge to return failures
+      mockBridge.analyze = jest.fn().mockResolvedValue(mockResultWithFailures);
+
+      // Run analyze
+      await analyzeCore(
+        tempDir,
+        { format: 'json', verbose: false },
+        mockBridge,
+        mockDisplay
+      );
+
+      // Verify showAnalysisResult was called with parse failures
+      expect(mockDisplay.showAnalysisResult).toHaveBeenCalledWith(
+        expect.objectContaining({
+          parse_failures: expect.arrayContaining([
+            expect.objectContaining({ filepath: 'broken.py' }),
+            expect.objectContaining({ filepath: 'malformed.ts' })
+          ])
+        }),
+        expect.any(String) // format parameter
+      );
+    });
+
+    it('continues analysis when some files fail to parse', async () => {
+      // Mock result with successful items AND parse failures
+      const mockResultWithMixedOutcome: AnalysisResult = {
+        items: [
+          {
+            name: 'validFunction',
+            type: 'function',
+            filepath: 'valid.py',
+            line_number: 1,
+            end_line: 5,
+            language: 'python',
+            complexity: 2,
+            impact_score: 10,
+            has_docs: false,
+            parameters: [],
+            return_type: null,
+            docstring: null,
+            export_type: 'internal',
+            module_system: 'unknown',
+            audit_rating: null
+          }
+        ],
+        coverage_percent: 0,
+        total_items: 1,
+        documented_items: 0,
+        by_language: { python: { total: 1, documented: 0, coverage_percent: 0 } },
+        parse_failures: [
+          { filepath: 'broken.py', error: 'SyntaxError: invalid syntax' }
+        ]
+      };
+
+      mockBridge.analyze = jest.fn().mockResolvedValue(mockResultWithMixedOutcome);
+
+      // Run analyze
+      await analyzeCore(
+        tempDir,
+        { format: 'json', verbose: false },
+        mockBridge,
+        mockDisplay
+      );
+
+      // Verify analysis completed successfully despite parse failure
+      expect(mockDisplay.showAnalysisResult).toHaveBeenCalled();
+      expect(mockBridge.analyze).toHaveBeenCalled();
+
+      // Verify both successful items and failures are present in result
+      const callArg = (mockDisplay.showAnalysisResult as jest.Mock).mock.calls[0][0];
+      expect(callArg.items.length).toBe(1);
+      expect(callArg.parse_failures.length).toBe(1);
+    });
+  });
 });
