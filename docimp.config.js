@@ -190,6 +190,11 @@ export default {
   //
   // Controls how DocImp prioritizes undocumented code.
   // Weights must sum to 1.0 (±0.01 tolerance for floating-point precision).
+  //
+  // NOTE: Config validation (TypeScript) issues a warning if weights don't
+  // sum to 1.0, but runtime validation (Python ImpactScorer) raises an error.
+  // This is intentional: config validation is lenient (suggestions), runtime
+  // validation is strict (requirements).
   impactWeights: {
     // Weight for cyclomatic complexity (0-1).
     //
