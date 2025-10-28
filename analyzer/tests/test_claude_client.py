@@ -213,6 +213,29 @@ class TestClaudeClientAPIInteraction:
 
         assert result == 'Expected documentation text'
 
+    @patch('anthropic.Anthropic')
+    def test_unexpected_content_block_type_raises_error(self, mock_anthropic_class):
+        """Test that non-TextBlock content raises RuntimeError."""
+        import anthropic.types
+
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        # Mock response with ToolUseBlock instead of TextBlock
+        mock_message = MagicMock()
+        mock_tool_block = MagicMock()
+        # Set the spec to ToolUseBlock so isinstance check will fail
+        mock_tool_block.__class__.__name__ = 'ToolUseBlock'
+        # Remove text attribute to make it clearly not a TextBlock
+        del mock_tool_block.text
+        mock_message.content = [mock_tool_block]
+        mock_client.messages.create.return_value = mock_message
+
+        client = ClaudeClient(api_key='sk-ant-test')
+
+        with pytest.raises(RuntimeError, match='Unexpected content block type'):
+            client.generate_docstring('test prompt')
+
 
 class TestClaudeClientRetryLogic:
     """Test ClaudeClient retry behavior for rate limits."""
