@@ -379,9 +379,9 @@ class TestDocumentationAnalyzer:
             assert any('good_function' in item.name for item in result.items)
 
     def test_malformed_directory_analysis(self, analyzer):
-        """Test analyzing examples/malformed/ directory with broken files (Issue #199)."""
+        """Test analyzing test-samples/malformed/ directory with broken files (Issue #199)."""
         project_root = Path(__file__).parent.parent.parent
-        malformed_dir = project_root / 'examples' / 'malformed'
+        malformed_dir = project_root / 'test-samples' / 'malformed'
 
         # Analyze directory with malformed files
         result = analyzer.analyze(str(malformed_dir))
@@ -408,9 +408,9 @@ class TestDocumentationAnalyzer:
         assert result.total_items >= 0, "Analysis should complete successfully"
 
     def test_mixed_valid_invalid_analysis(self, analyzer):
-        """Test analyzing examples/mixed-valid-invalid/ with mix of valid and broken files (Issue #199)."""
+        """Test analyzing test-samples/mixed-valid-invalid/ with mix of valid and broken files (Issue #199)."""
         project_root = Path(__file__).parent.parent.parent
-        mixed_dir = project_root / 'examples' / 'mixed-valid-invalid'
+        mixed_dir = project_root / 'test-samples' / 'mixed-valid-invalid'
 
         # Analyze directory with 3 valid and 3 broken files
         result = analyzer.analyze(str(mixed_dir))
@@ -440,7 +440,7 @@ class TestDocumentationAnalyzer:
     def test_python_syntax_failures_tracked(self, analyzer):
         """Test that Python syntax failures are properly tracked in parse_failures (Issue #199)."""
         project_root = Path(__file__).parent.parent.parent
-        malformed_dir = project_root / 'examples' / 'malformed'
+        malformed_dir = project_root / 'test-samples' / 'malformed'
 
         result = analyzer.analyze(str(malformed_dir))
 
@@ -459,7 +459,7 @@ class TestDocumentationAnalyzer:
     def test_polyglot_analysis_with_python_errors(self, analyzer):
         """Test that Python syntax errors are handled while TS/JS use error recovery (Issue #199)."""
         project_root = Path(__file__).parent.parent.parent
-        malformed_dir = project_root / 'examples' / 'malformed'
+        malformed_dir = project_root / 'test-samples' / 'malformed'
 
         result = analyzer.analyze(str(malformed_dir))
 

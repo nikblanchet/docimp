@@ -107,9 +107,9 @@ class TestPythonParser:
 
     def test_multiple_syntax_error_types(self, parser):
         """Test that parser raises SyntaxError for different types of syntax errors."""
-        # Get path to malformed examples
+        # Get path to malformed test samples
         test_dir = Path(__file__).parent.parent.parent
-        malformed_dir = test_dir / 'examples' / 'malformed'
+        malformed_dir = test_dir / 'test-samples' / 'malformed'
 
         # Test missing colon
         with pytest.raises(SyntaxError):
@@ -130,7 +130,7 @@ class TestPythonParser:
     def test_syntax_error_message_clarity(self, parser):
         """Test that syntax error messages include file path and are informative."""
         test_dir = Path(__file__).parent.parent.parent
-        malformed_file = test_dir / 'examples' / 'malformed' / 'python_missing_colon.py'
+        malformed_file = test_dir / 'test-samples' / 'malformed' / 'python_missing_colon.py'
 
         try:
             parser.parse_file(str(malformed_file))

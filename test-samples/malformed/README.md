@@ -2,6 +2,8 @@
 
 This directory contains intentionally broken code files used to test how DocImp handles syntax errors in analyzed codebases.
 
+**Location:** `test-samples/malformed/` - Separated from `examples/` to avoid interfering with tests that expect valid code.
+
 These files are NOT meant for user consumption. They are test fixtures to ensure DocImp:
 - Detects syntax errors gracefully
 - Continues analyzing valid files after encountering errors
@@ -56,5 +58,5 @@ These files are used by:
 
 ## See Also
 
-- `examples/mixed-valid-invalid/` - Mix of valid and broken files for integration testing
+- `test-samples/mixed-valid-invalid/` - Mix of valid and broken files for integration testing
 - Issue #199 - Original feature request for malformed syntax testing

@@ -257,9 +257,9 @@ class TestTypeScriptParserMalformedSyntax:
 
     @pytest.fixture
     def malformed_dir(self):
-        """Return path to malformed examples directory."""
+        """Return path to malformed test samples directory."""
         project_root = Path(__file__).parent.parent.parent
-        return project_root / 'examples' / 'malformed'
+        return project_root / 'test-samples' / 'malformed'
 
     def test_typescript_parser_uses_error_recovery(self, parser, malformed_dir):
         """Test that TypeScript parser uses error recovery for malformed files."""
