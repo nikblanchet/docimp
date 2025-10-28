@@ -189,7 +189,7 @@ export default {
   // Impact scoring weights.
   //
   // Controls how DocImp prioritizes undocumented code.
-  // Weights should sum to 1.0.
+  // Weights must sum to 1.0 (±0.01 tolerance for floating-point precision).
   impactWeights: {
     // Weight for cyclomatic complexity (0-1).
     //
