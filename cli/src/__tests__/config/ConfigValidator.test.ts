@@ -200,6 +200,30 @@ describe('ConfigValidator', () => {
       );
     });
 
+    it('should warn for weights outside 0.01 tolerance', () => {
+      // Test that 0.6 + 0.42 = 1.02 produces a warning (exceeds tolerance)
+      validateAndMerge({
+        impactWeights: { complexity: 0.6, quality: 0.42 },
+      });
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('1.02')
+      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('not 1.0')
+      );
+    });
+
+    it('should not warn for weights within 0.01 tolerance', () => {
+      // Test that 0.504 + 0.504 = 1.008 does NOT produce a warning (within tolerance)
+      consoleWarnSpy.mockClear(); // Clear any previous warnings
+      validateAndMerge({
+        impactWeights: { complexity: 0.504, quality: 0.504 },
+      });
+
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+    });
+
     it('should not warn if weights sum to 1.0', () => {
       validateAndMerge({
         impactWeights: { complexity: 0.6, quality: 0.4 },
