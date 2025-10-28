@@ -17,7 +17,19 @@ jest.mock('../../python-bridge/PythonBridge.js');
 jest.mock('../../config/ConfigLoader.js');
 jest.mock('../../plugins/PluginManager.js');
 jest.mock('../../session/InteractiveSession.js');
-jest.mock('fs');
+jest.mock('fs', () => {
+  const actual = jest.requireActual('fs');
+  return {
+    ...actual,
+    existsSync: jest.fn(),
+    statSync: jest.fn(),
+    readdirSync: jest.fn(),
+    accessSync: jest.fn(),
+    readFileSync: jest.fn(),
+    writeFileSync: jest.fn(),
+    mkdirSync: jest.fn(),
+  };
+});
 jest.mock('prompts');
 jest.mock('chalk', () => ({
   default: {
@@ -99,21 +111,22 @@ describe('improve command', () => {
     MockPluginManager.mockImplementation(() => mockPluginManager);
     MockInteractiveSession.mockImplementation(() => mockSession);
 
-    // Mock fs.existsSync, fs.statSync, and fs.accessSync for path validation
+    // Mock fs for path validation
     const fs = require('fs');
-    jest.spyOn(fs, 'existsSync').mockImplementation((path: string) => {
-      // Allow './test' path to exist for tests
-      if (path === './test' || path.includes('.docimp')) {
+    fs.existsSync.mockImplementation((path: string) => {
+      // Allow './test' path and .docimp paths to exist for tests
+      const pathStr = String(path);
+      if (pathStr.includes('./test') || pathStr.includes('.docimp') || pathStr.includes('/test')) {
         return true;
       }
       return false;
     });
-    jest.spyOn(fs, 'statSync').mockImplementation(() => ({
+    fs.statSync.mockImplementation(() => ({
       isDirectory: () => true,
       isFile: () => false,
     }));
-    jest.spyOn(fs, 'readdirSync').mockImplementation(() => ['file.ts']); // Not empty
-    jest.spyOn(fs, 'accessSync').mockImplementation(() => {}); // Allow read access
+    fs.readdirSync.mockImplementation(() => ['file.ts']); // Not empty
+    fs.accessSync.mockImplementation(() => {}); // Allow read access
 
     // Mock plan file
     mockReadFileSync.mockReturnValue(JSON.stringify({
