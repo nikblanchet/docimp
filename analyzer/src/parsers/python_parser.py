@@ -79,7 +79,7 @@ class PythonParser(BaseParser):
         except SyntaxError as e:
             raise SyntaxError(f"Syntax error in {filepath}: {e}")
 
-    def _extract_function(self, node: ast.FunctionDef, filepath: str) -> Optional[CodeItem]:
+    def _extract_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef, filepath: str) -> Optional[CodeItem]:
         """Extract a function definition as a CodeItem."""
         return CodeItem(
             name=node.name,
@@ -117,7 +117,7 @@ class PythonParser(BaseParser):
             module_system='unknown'
         )
 
-    def _extract_method(self, node: ast.FunctionDef, class_name: str, filepath: str) -> Optional[CodeItem]:
+    def _extract_method(self, node: ast.FunctionDef | ast.AsyncFunctionDef, class_name: str, filepath: str) -> Optional[CodeItem]:
         """Extract a method definition as a CodeItem."""
         return CodeItem(
             name=f"{class_name}.{node.name}",
@@ -136,11 +136,11 @@ class PythonParser(BaseParser):
             module_system='unknown'
         )
 
-    def _has_docstring(self, node: ast.AST) -> bool:
+    def _has_docstring(self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef | ast.Module) -> bool:
         """Check if a node has a docstring."""
         return ast.get_docstring(node) is not None
 
-    def _extract_parameters(self, node: ast.FunctionDef) -> List[str]:
+    def _extract_parameters(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> List[str]:
         """Extract parameter names from a function."""
         params = []
 
@@ -158,7 +158,7 @@ class PythonParser(BaseParser):
 
         return params
 
-    def _extract_return_type(self, node: ast.FunctionDef) -> Optional[str]:
+    def _extract_return_type(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> Optional[str]:
         """Extract return type annotation if present."""
         if node.returns:
             return ast.unparse(node.returns)
