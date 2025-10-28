@@ -166,7 +166,7 @@ describe('ConfigLoader - File Loading Integration', () => {
           await loader.load(nonExistentPath);
         },
         {
-          message: /Configuration file not found/,
+          message: /Config file not found/,
         }
       );
     });

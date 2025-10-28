@@ -8,6 +8,7 @@
 import { pathToFileURL } from 'node:url';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { PathValidator } from '../utils/PathValidator.js';
 import type { IConfig } from './IConfig.js';
 import { defaultConfig } from './IConfig.js';
 import { validateAndMerge } from './ConfigValidator.js';
@@ -34,14 +35,12 @@ export class ConfigLoader {
   async load(configPath?: string): Promise<IConfig> {
     let resolvedPath: string | null = null;
 
-    // If explicit path provided, use it
-    if (configPath) {
-      resolvedPath = resolve(configPath);
-      if (!existsSync(resolvedPath)) {
-        throw new Error(`Configuration file not found: ${resolvedPath}`);
-      }
+    // If explicit path provided (including empty string), validate it with PathValidator
+    if (configPath !== undefined) {
+      // Use PathValidator for consistent error messages
+      resolvedPath = PathValidator.validateConfigPath(configPath);
     } else {
-      // Try to find config in current directory
+      // Try to find config in current directory (auto-discovery - no validation needed)
       const defaultPath = resolve(process.cwd(), 'docimp.config.js');
       if (existsSync(defaultPath)) {
         resolvedPath = defaultPath;

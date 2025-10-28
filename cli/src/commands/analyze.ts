@@ -10,6 +10,7 @@ import { ConfigLoader } from '../config/ConfigLoader.js';
 import { PythonBridge } from '../python-bridge/PythonBridge.js';
 import { TerminalDisplay } from '../display/TerminalDisplay.js';
 import { StateManager } from '../utils/StateManager.js';
+import { PathValidator } from '../utils/PathValidator.js';
 import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
 import type { IDisplay } from '../display/IDisplay.js';
 
@@ -39,6 +40,11 @@ export async function analyzeCore(
   bridge?: IPythonBridge,
   display?: IDisplay
 ): Promise<void> {
+  // Validate path exists and is accessible before proceeding
+  const absolutePath = PathValidator.validatePathExists(path);
+  PathValidator.validatePathReadable(absolutePath);
+  PathValidator.warnIfEmpty(absolutePath);
+
   // Create display dependency (needed before loading config)
   const terminalDisplay = display ?? new TerminalDisplay();
 
@@ -76,14 +82,14 @@ export async function analyzeCore(
 
   // Run analysis via Python subprocess
   if (options.verbose) {
-    terminalDisplay.showMessage(`Analyzing: ${path}`);
+    terminalDisplay.showMessage(`Analyzing: ${absolutePath}`);
   }
 
   const stopSpinner = terminalDisplay.startSpinner('Analyzing codebase...');
 
   try {
     const result = await pythonBridge.analyze({
-      path,
+      path: absolutePath,
       config,
       verbose: options.verbose,
       strict: options.strict,
