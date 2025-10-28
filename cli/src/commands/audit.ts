@@ -11,6 +11,7 @@ import { TerminalDisplay } from '../display/TerminalDisplay.js';
 import { StateManager } from '../utils/StateManager.js';
 import { ConfigLoader } from '../config/ConfigLoader.js';
 import { CodeExtractor } from '../utils/CodeExtractor.js';
+import { PathValidator } from '../utils/PathValidator.js';
 import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
 import type { IDisplay } from '../display/IDisplay.js';
 import type { AuditRatings, AuditSummary } from '../types/analysis.js';
@@ -90,6 +91,11 @@ export async function auditCore(
   display?: IDisplay,
   config?: IConfig
 ): Promise<void> {
+  // Validate path exists and is accessible before proceeding
+  const absolutePath = PathValidator.validatePathExists(path);
+  PathValidator.validatePathReadable(absolutePath);
+  PathValidator.warnIfEmpty(absolutePath);
+
   // Create display dependency (needed before loading config)
   const terminalDisplay = display ?? new TerminalDisplay();
 
@@ -112,14 +118,14 @@ export async function auditCore(
 
   // Get list of documented items from Python
   if (options.verbose) {
-    terminalDisplay.showMessage(`Finding documented items in: ${path}`);
+    terminalDisplay.showMessage(`Finding documented items in: ${absolutePath}`);
   }
 
   const stopSpinner = terminalDisplay.startSpinner('Analyzing documented items...');
 
   try {
     const result = await pythonBridge.audit({
-      path,
+      path: absolutePath,
       auditFile,
       verbose: options.verbose,
     });

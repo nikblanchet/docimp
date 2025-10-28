@@ -211,6 +211,135 @@ describe('calculateAuditSummary', () => {
   });
 });
 
+describe('auditCore - path validation', () => {
+  const mockPythonBridge: jest.Mocked<IPythonBridge> = {
+    analyze: jest.fn(),
+    audit: jest.fn(),
+    plan: jest.fn(),
+    suggest: jest.fn(),
+    apply: jest.fn(),
+  };
+
+  const mockDisplay: jest.Mocked<IDisplay> = {
+    showMessage: jest.fn(),
+    showError: jest.fn(),
+    showWarning: jest.fn(),
+    showConfig: jest.fn(),
+    showAnalysisResult: jest.fn(),
+    showAuditSummary: jest.fn(),
+    startSpinner: jest.fn(() => jest.fn()),
+  };
+
+  const mockConfig: IConfig = {
+    styleGuides: { python: 'google', javascript: 'jsdoc-vanilla', typescript: 'tsdoc-typedoc' },
+    tone: 'concise',
+    impactWeights: { complexity: 0.6, quality: 0.4 },
+    plugins: [],
+    exclude: [],
+    audit: { showCode: { mode: 'truncated', maxLines: 20 } },
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('throws friendly error for non-existent path', async () => {
+    const nonExistentPath = '/nonexistent/path/to/code';
+
+    await expect(
+      auditCore(
+        nonExistentPath,
+        { verbose: false },
+        mockPythonBridge,
+        mockDisplay,
+        mockConfig
+      )
+    ).rejects.toThrow('Path not found');
+
+    await expect(
+      auditCore(
+        nonExistentPath,
+        { verbose: false },
+        mockPythonBridge,
+        mockDisplay,
+        mockConfig
+      )
+    ).rejects.toThrow('Please check that the path exists and try again');
+
+    // Verify Python bridge was NOT called
+    expect(mockPythonBridge.audit).not.toHaveBeenCalled();
+  });
+
+  it('throws error for empty string path', async () => {
+    await expect(
+      auditCore('', { verbose: false }, mockPythonBridge, mockDisplay, mockConfig)
+    ).rejects.toThrow('Path cannot be empty');
+
+    // Verify Python bridge was NOT called
+    expect(mockPythonBridge.audit).not.toHaveBeenCalled();
+  });
+
+  it('passes absolute path to Python bridge', async () => {
+    // Use a real temp directory
+    const fs = require('fs');
+    const os = require('os');
+    const path = require('path');
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'docimp-audit-test-'));
+
+    try {
+      mockPythonBridge.audit.mockResolvedValue({ items: [] });
+
+      await auditCore(
+        tempDir,
+        { verbose: false },
+        mockPythonBridge,
+        mockDisplay,
+        mockConfig
+      );
+
+      // Verify Python bridge was called with absolute path
+      expect(mockPythonBridge.audit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          path: tempDir,
+        })
+      );
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('warns when auditing empty directory', async () => {
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+    const fs = require('fs');
+    const os = require('os');
+    const path = require('path');
+    const emptyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'docimp-audit-test-'));
+
+    try {
+      mockPythonBridge.audit.mockResolvedValue({ items: [] });
+
+      await auditCore(
+        emptyDir,
+        { verbose: false },
+        mockPythonBridge,
+        mockDisplay,
+        mockConfig
+      );
+
+      // Verify warning was issued
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Warning: Directory is empty')
+      );
+
+      // Verify Python bridge was still called (warning, not error)
+      expect(mockPythonBridge.audit).toHaveBeenCalled();
+    } finally {
+      consoleWarnSpy.mockRestore();
+      fs.rmSync(emptyDir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('auditCore - config loading', () => {
   // Mock Python bridge
   const mockPythonBridge: jest.Mocked<IPythonBridge> = {
