@@ -35,9 +35,16 @@ export class ConfigLoader {
   async load(configPath?: string): Promise<IConfig> {
     let resolvedPath: string | null = null;
 
-    // If explicit path provided (including empty string), validate it with PathValidator
+    // If explicit path provided, validate it
     if (configPath !== undefined) {
-      // Use PathValidator for consistent error messages
+      // Reject empty strings at the API boundary
+      if (configPath === '') {
+        throw new Error(
+          'Config file path cannot be empty.\n' +
+          'Please provide a valid config file path.'
+        );
+      }
+      // Use PathValidator for file existence and type validation
       resolvedPath = PathValidator.validateConfigPath(configPath);
     } else {
       // Try to find config in current directory (auto-discovery - no validation needed)
