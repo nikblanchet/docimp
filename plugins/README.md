@@ -336,6 +336,67 @@ When multiple plugins validate the same documentation:
 - Error messages from all rejecting plugins are combined
 - The first auto-fix is used (if multiple plugins provide fixes)
 
+## Architectural Note: Module-Global Dependency Pattern
+
+### Exception to Pure DI
+
+DocImp generally follows pure dependency injection throughout the codebase (see CLAUDE.md). However, the plugin layer uses **module-level globals** for dependencies like the TypeScript compiler. This is an intentional, documented exception.
+
+### Pattern Used in Built-in Plugins
+
+```javascript
+// Module-level globals (set once, never change)
+let ts;
+let parseJSDoc;
+let documentRegistry;
+
+/**
+ * Initialize TypeScript compiler dependencies.
+ * Called once when plugin loads.
+ */
+async function initializeTypeScript() {
+  if (!ts) {
+    ts = await import('typescript');
+    // ... initialize other globals
+  }
+}
+
+async function beforeAccept(docstring, item, config) {
+  await initializeTypeScript();
+  // Use ts, parseJSDoc, etc. without passing as parameters
+}
+```
+
+### Why This Pattern is Acceptable
+
+1. **Performance**: Avoids passing heavy TypeScript compiler objects through every function call
+2. **Single-threaded**: Node.js is single-threaded, no race conditions from shared state
+3. **Encapsulation**: Dependencies are module-scoped, not leaked to global scope
+4. **Initialization guarantees**: Lazy initialization ensures dependencies are ready when needed
+5. **Documented trade-off**: This README and code comments explain the design decision
+
+### When to Use This Pattern
+
+**Use module-global pattern when:**
+- Dependencies are expensive to initialize (like TS compiler)
+- Dependencies are never reconfigured after initialization
+- You're in Node.js single-threaded context
+- Performance matters more than pure DI
+
+**Avoid module-global pattern when:**
+- You need different instances for testing
+- Dependencies might change during runtime
+- You're writing application-layer code (not infrastructure/plugins)
+
+### Testing with Module Globals
+
+While module globals make testing slightly harder, plugins can still be tested by:
+1. Testing initialization separately
+2. Testing hook logic with pre-initialized state
+3. Using integration tests that exercise the full plugin lifecycle
+
+See `cli/src/__tests__/plugins/PluginManager.test.ts` for examples.
+
 ## Security
 
 ### Trust Model
