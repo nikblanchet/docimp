@@ -21,7 +21,7 @@ from .scoring.impact_scorer import ImpactScorer
 from .utils.git_helper import GitHelper
 from .utils.state_manager import StateManager
 from .writer.docstring_writer import DocstringWriter
-from .writer.transaction_manager import TransactionManager, RollbackResult
+from .writer.transaction_manager import TransactionManager
 
 
 def create_analyzer(
@@ -619,7 +619,7 @@ def cmd_list_changes(
             changes = manager.list_session_changes(args.session_id)
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
-            print(f"Use 'docimp list-sessions' to see available sessions", file=sys.stderr)
+            print("Use 'docimp list-sessions' to see available sessions", file=sys.stderr)
             return 1
 
         if not changes:
@@ -677,7 +677,7 @@ def cmd_rollback_session(
 
         if not manifest_path.exists():
             print(f"Error: Session not found: {args.session_id}", file=sys.stderr)
-            print(f"Use 'docimp list-sessions' to see available sessions", file=sys.stderr)
+            print("Use 'docimp list-sessions' to see available sessions", file=sys.stderr)
             return 1
 
         manifest = manager.load_manifest(manifest_path)
