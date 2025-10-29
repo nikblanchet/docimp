@@ -12,6 +12,7 @@ import { analyzeCommand } from './commands/analyze.js';
 import { auditCommand } from './commands/audit.js';
 import { planCommand } from './commands/plan.js';
 import { improveCommand } from './commands/improve.js';
+import { EXIT_CODE } from './constants/exitCodes.js';
 import { StateManager } from './utils/StateManager.js';
 import { PythonBridge } from './python-bridge/PythonBridge.js';
 import { TerminalDisplay } from './display/TerminalDisplay.js';
@@ -48,13 +49,14 @@ program
 
       // Call command with injected dependencies
       const exitCode = await analyzeCommand(path, options, bridge, display, configLoader);
-      if (exitCode !== 0) {
+      if (exitCode !== EXIT_CODE.SUCCESS) {
         process.exit(exitCode);
       }
     } catch (error) {
       // Unexpected error (commands should return exit codes, not throw)
-      console.error('Unexpected error:', error);
-      process.exit(1);
+      const errorDisplay = new TerminalDisplay();
+      errorDisplay.showError(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(EXIT_CODE.ERROR);
     }
   });
 
@@ -78,13 +80,14 @@ program
 
       // Call command with injected dependencies
       const exitCode = await auditCommand(path, options, bridge, display, configLoader);
-      if (exitCode !== 0) {
+      if (exitCode !== EXIT_CODE.SUCCESS) {
         process.exit(exitCode);
       }
     } catch (error) {
       // Unexpected error (commands should return exit codes, not throw)
-      console.error('Unexpected error:', error);
-      process.exit(1);
+      const errorDisplay = new TerminalDisplay();
+      errorDisplay.showError(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(EXIT_CODE.ERROR);
     }
   });
 
@@ -106,13 +109,14 @@ program
 
       // Call command with injected dependencies
       const exitCode = await planCommand(path, options, bridge, display);
-      if (exitCode !== 0) {
+      if (exitCode !== EXIT_CODE.SUCCESS) {
         process.exit(exitCode);
       }
     } catch (error) {
       // Unexpected error (commands should return exit codes, not throw)
-      console.error('Unexpected error:', error);
-      process.exit(1);
+      const errorDisplay = new TerminalDisplay();
+      errorDisplay.showError(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(EXIT_CODE.ERROR);
     }
   });
 
@@ -144,13 +148,14 @@ program
 
       // Call command with injected dependencies
       const exitCode = await improveCommand(path, options, bridge, display, configLoader, pluginManager, editorLauncher);
-      if (exitCode !== 0) {
+      if (exitCode !== EXIT_CODE.SUCCESS) {
         process.exit(exitCode);
       }
     } catch (error) {
       // Unexpected error (commands should return exit codes, not throw)
-      console.error('Unexpected error:', error);
-      process.exit(1);
+      const errorDisplay = new TerminalDisplay();
+      errorDisplay.showError(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(EXIT_CODE.ERROR);
     }
   });
 

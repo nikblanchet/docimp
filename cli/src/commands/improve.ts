@@ -12,6 +12,7 @@ import chalk from 'chalk';
 import { StateManager } from '../utils/StateManager.js';
 import { PathValidator } from '../utils/PathValidator.js';
 import { InteractiveSession } from '../session/InteractiveSession.js';
+import { EXIT_CODE, type ExitCode } from '../constants/exitCodes.js';
 import {
   STYLE_GUIDE_CHOICES,
   VALID_STYLE_GUIDES,
@@ -381,7 +382,7 @@ export async function improveCore(
  * @param configLoader - Config loader instance (dependency injection)
  * @param pluginManager - Plugin manager instance (dependency injection)
  * @param editorLauncher - Editor launcher instance (dependency injection)
- * @returns Exit code (0 for success, 1 for failure)
+ * @returns Exit code (EXIT_CODE.SUCCESS or EXIT_CODE.USER_CANCELLED for success, EXIT_CODE.ERROR for failure)
  */
 export async function improveCommand(
   path: string,
@@ -401,18 +402,18 @@ export async function improveCommand(
   configLoader: IConfigLoader,
   pluginManager: IPluginManager,
   editorLauncher: IEditorLauncher
-): Promise<number> {
+): Promise<ExitCode> {
   try {
     await improveCore(path, options, bridge, display, configLoader, pluginManager, editorLauncher);
-    return 0;
+    return EXIT_CODE.SUCCESS;
   } catch (error) {
     // User cancellation is not an error - exit gracefully with code 0
     if (error instanceof UserCancellationError) {
       display.showError(error.message);
-      return 0;
+      return EXIT_CODE.USER_CANCELLED;
     }
 
     display.showError(error instanceof Error ? error.message : String(error));
-    return 1;
+    return EXIT_CODE.ERROR;
   }
 }
