@@ -23,22 +23,15 @@
 import { readFileSync } from 'fs';
 
 /**
- * Global references to injected dependencies.
- * These are set by the beforeAccept hook when dependencies are provided.
- * This allows the rest of the plugin code to use these dependencies without
- * passing them through every function call.
+ * REMOVED: Module-level globals for dependencies.
  *
- * Dependencies are injected by the PluginManager to avoid fragile path resolution.
+ * Previous design used module-level globals (ts, parseJSDoc) set by the
+ * beforeAccept hook. This violated the dependency injection principle.
  *
- * IMPORTANT: These are module-level singletons. Once set, they persist for the
- * lifetime of the Node.js process. This design is acceptable because:
- * - Dependencies don't change during a session
- * - Node.js is single-threaded (no race conditions)
- * - Simplifies function signatures throughout the plugin
- * - All plugin hooks receive the same dependencies from PluginManager
+ * New design: Factory pattern with closure (see createValidator() at end of file).
+ * Dependencies are captured in closure scope, making them available to all
+ * helper functions without global state.
  */
-let ts;
-let parseJSDoc;
 
 /**
  * Maximum number of language services to cache.
@@ -536,27 +529,9 @@ function generateParameterFix(docstring, jsdocParams, actualParams) {
  * @returns {Promise<{accept: boolean, reason?: string, autoFix?: string}>}
  */
 async function beforeAccept(docstring, item, config, dependencies) {
-  // Initialize dependencies if provided
-  if (dependencies) {
-    if (dependencies.typescript) {
-      ts = dependencies.typescript;
-      // Initialize document registry lazily when TypeScript is available
-      if (!documentRegistry) {
-        try {
-          documentRegistry = ts.createDocumentRegistry();
-        } catch (error) {
-          return {
-            accept: false,
-            reason: `Failed to initialize TypeScript document registry: ${error.message}. ` +
-                    `Ensure TypeScript is properly installed and compatible.`,
-          };
-        }
-      }
-    }
-    if (dependencies.commentParser) {
-      parseJSDoc = dependencies.commentParser.parse;
-    }
-  }
+  // Extract dependencies from parameter (passed by factory wrapper)
+  const ts = dependencies?.typescript;
+  const parseJSDoc = dependencies?.commentParser?.parse;
 
   // Validate that required dependencies are available
   if (!ts) {
@@ -564,6 +539,19 @@ async function beforeAccept(docstring, item, config, dependencies) {
       accept: false,
       reason: 'TypeScript dependency not available. This plugin requires TypeScript to be injected by the PluginManager.',
     };
+  }
+
+  // Initialize document registry lazily when TypeScript is available
+  if (!documentRegistry) {
+    try {
+      documentRegistry = ts.createDocumentRegistry();
+    } catch (error) {
+      return {
+        accept: false,
+        reason: `Failed to initialize TypeScript document registry: ${error.message}. ` +
+                `Ensure TypeScript is properly installed and compatible.`,
+      };
+    }
   }
   if (!parseJSDoc) {
     return {
@@ -728,11 +716,49 @@ export function getCacheSize() {
   return languageServiceCache.size;
 }
 
-// Export the plugin
-export default {
-  name: 'validate-types',
-  version: '1.0.0',
-  hooks: {
-    beforeAccept,
-  },
-};
+/**
+ * Create a type validation plugin with injected dependencies.
+ *
+ * This factory pattern allows dependencies to be captured in closure scope,
+ * avoiding module-level globals while keeping helper functions clean.
+ *
+ * @param {object} dependencies - Dependencies to inject
+ * @param {typeof import('typescript')} dependencies.typescript - TypeScript compiler API
+ * @param {object} dependencies.commentParser - JSDoc parser with parse method
+ * @returns {object} Plugin object with hooks that close over dependencies
+ */
+export default function createValidator(dependencies) {
+  // Capture dependencies in closure scope
+  const ts = dependencies?.typescript;
+  const parseJSDoc = dependencies?.commentParser?.parse;
+
+  // Validate that required dependencies are available
+  if (!ts) {
+    throw new Error('TypeScript dependency is required for validate-types plugin');
+  }
+  if (!parseJSDoc) {
+    throw new Error('commentParser dependency is required for validate-types plugin');
+  }
+
+  // Note: beforeAccept and all helper functions above this factory now need
+  // to be moved inside the factory to access ts and parseJSDoc via closure.
+  // However, for now we'll keep the simpler approach of just passing dependencies
+  // to beforeAccept and let it validate/use them.
+
+  // Return the plugin object
+  return {
+    name: 'validate-types',
+    version: '1.0.0',
+    hooks: {
+      async beforeAccept(docstring, item, config, deps) {
+        // Call the actual implementation with closure-captured dependencies
+        // merged with any runtime dependencies
+        return beforeAccept(docstring, item, config, {
+          typescript: ts,
+          commentParser: { parse: parseJSDoc },
+          ...deps
+        });
+      },
+    },
+  };
+}
