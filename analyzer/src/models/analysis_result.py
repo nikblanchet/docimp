@@ -1,8 +1,16 @@
 """AnalysisResult data model for aggregated code analysis results."""
 
 from dataclasses import dataclass, field, asdict
-from typing import List, Dict, Union
-from .code_item import CodeItem
+from .code_item import CodeItem, CodeItemValue
+
+type LanguageMetricsValue = str | int | float
+type AnalysisResultValue = (
+    list[dict[str, CodeItemValue]]
+    | float
+    | int
+    | dict[str, dict[str, LanguageMetricsValue]]
+    | list[dict[str, str]]
+)
 
 
 @dataclass
@@ -46,7 +54,7 @@ class LanguageMetrics:
     avg_complexity: float = 0.0
     avg_impact_score: float = 0.0
 
-    def to_dict(self) -> dict[str, Union[str, int, float]]:
+    def to_dict(self) -> dict[str, LanguageMetricsValue]:
         """Serialize LanguageMetrics to a JSON-compatible dictionary.
 
         Returns:
@@ -71,14 +79,14 @@ class AnalysisResult:
         parse_failures: List of files that failed to parse.
     """
 
-    items: List[CodeItem]
+    items: list[CodeItem]
     coverage_percent: float
     total_items: int
     documented_items: int
-    by_language: Dict[str, LanguageMetrics] = field(default_factory=dict)
-    parse_failures: List[ParseFailure] = field(default_factory=list)
+    by_language: dict[str, LanguageMetrics] = field(default_factory=dict)
+    parse_failures: list[ParseFailure] = field(default_factory=list)
 
-    def to_dict(self) -> dict[str, Union[List[dict[str, Union[str, int, float, bool, List[str], None]]], float, int, Dict[str, dict[str, Union[str, int, float]]], List[dict[str, str]]]]:
+    def to_dict(self) -> dict[str, AnalysisResultValue]:
         """Serialize AnalysisResult to a JSON-compatible dictionary.
 
         Returns:
@@ -96,7 +104,7 @@ class AnalysisResult:
                                    for failure in self.parse_failures]
         return result
 
-    def get_undocumented_items(self) -> List[CodeItem]:
+    def get_undocumented_items(self) -> list[CodeItem]:
         """Get all items without documentation.
 
         Returns:
@@ -104,7 +112,7 @@ class AnalysisResult:
         """
         return [item for item in self.items if not item.has_docs]
 
-    def get_items_by_language(self, language: str) -> List[CodeItem]:
+    def get_items_by_language(self, language: str) -> list[CodeItem]:
         """Get all items for a specific programming language.
 
         Args:
@@ -115,7 +123,7 @@ class AnalysisResult:
         """
         return [item for item in self.items if item.language == language]
 
-    def get_top_priority_items(self, limit: int = 10) -> List[CodeItem]:
+    def get_top_priority_items(self, limit: int = 10) -> list[CodeItem]:
         """Get the highest priority items by impact score.
 
         Args:
