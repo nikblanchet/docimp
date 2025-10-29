@@ -14,10 +14,11 @@ import chalk from 'chalk';
 import type { PlanItem, SupportedLanguage } from '../types/analysis.js';
 import type { IConfig } from '../config/IConfig.js';
 import type { PluginResult, CodeItemMetadata } from '../plugins/IPlugin.js';
-import { PluginManager } from '../plugins/PluginManager.js';
+import type { IPluginManager } from '../plugins/IPluginManager.js';
+import type { IEditorLauncher } from '../editor/IEditorLauncher.js';
+import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
+import type { IInteractiveSession } from './IInteractiveSession.js';
 import { ProgressTracker } from './ProgressTracker.js';
-import { EditorLauncher } from '../editor/EditorLauncher.js';
-import { PythonBridge } from '../python-bridge/PythonBridge.js';
 
 /**
  * Options for interactive session.
@@ -27,10 +28,13 @@ export interface SessionOptions {
   config: IConfig;
 
   /** Python bridge for Claude and file operations */
-  pythonBridge: PythonBridge;
+  pythonBridge: IPythonBridge;
 
   /** Plugin manager for validation */
-  pluginManager: PluginManager;
+  pluginManager: IPluginManager;
+
+  /** Editor launcher for manual editing */
+  editorLauncher: IEditorLauncher;
 
   /** Per-language style guides (only for languages in the plan) */
   styleGuides: Partial<Record<SupportedLanguage, string>>;
@@ -50,13 +54,13 @@ type UserAction = 'accept' | 'edit' | 'regenerate' | 'skip' | 'quit';
 /**
  * Manages an interactive documentation improvement session.
  */
-export class InteractiveSession {
+export class InteractiveSession implements IInteractiveSession {
   private config: IConfig;
-  private pythonBridge: PythonBridge;
-  private pluginManager: PluginManager;
+  private pythonBridge: IPythonBridge;
+  private pluginManager: IPluginManager;
   private styleGuides: Partial<Record<SupportedLanguage, string>>;
   private tone: string;
-  private editorLauncher: EditorLauncher;
+  private editorLauncher: IEditorLauncher;
   private basePath: string;
 
   /**
@@ -70,7 +74,7 @@ export class InteractiveSession {
     this.pluginManager = options.pluginManager;
     this.styleGuides = options.styleGuides;
     this.tone = options.tone;
-    this.editorLauncher = new EditorLauncher();
+    this.editorLauncher = options.editorLauncher;
     this.basePath = options.basePath;
   }
 

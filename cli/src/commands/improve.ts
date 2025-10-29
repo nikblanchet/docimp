@@ -9,13 +9,9 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import prompts from 'prompts';
 import chalk from 'chalk';
-import { PythonBridge } from '../python-bridge/PythonBridge.js';
-import { ConfigLoader } from '../config/ConfigLoader.js';
-import { PluginManager } from '../plugins/PluginManager.js';
-import { TerminalDisplay } from '../display/TerminalDisplay.js';
-import { InteractiveSession } from '../session/InteractiveSession.js';
 import { StateManager } from '../utils/StateManager.js';
 import { PathValidator } from '../utils/PathValidator.js';
+import { InteractiveSession } from '../session/InteractiveSession.js';
 import {
   STYLE_GUIDE_CHOICES,
   VALID_STYLE_GUIDES,
@@ -25,6 +21,12 @@ import {
 import type { PlanResult, SupportedLanguage } from '../types/analysis.js';
 import type { IConfig } from '../config/IConfig.js';
 import { isPluginConfig } from '../config/IConfig.js';
+import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
+import type { IConfigLoader } from '../config/IConfigLoader.js';
+import type { IPluginManager } from '../plugins/IPluginManager.js';
+import type { IDisplay } from '../display/IDisplay.js';
+import type { IEditorLauncher } from '../editor/IEditorLauncher.js';
+import type { IInteractiveSession } from '../session/IInteractiveSession.js';
 
 /**
  * Execute the improve command.
@@ -40,6 +42,11 @@ import { isPluginConfig } from '../config/IConfig.js';
  * @param options.nonInteractive - Run in non-interactive mode
  * @param options.verbose - Enable verbose output
  * @param options.listStyles - List available style guides and exit
+ * @param bridge - Python bridge instance (dependency injection)
+ * @param display - Display instance (dependency injection)
+ * @param configLoader - Config loader instance (dependency injection)
+ * @param pluginManager - Plugin manager instance (dependency injection)
+ * @param editorLauncher - Editor launcher instance (dependency injection)
  */
 export async function improveCommand(
   path: string,
@@ -53,9 +60,13 @@ export async function improveCommand(
     nonInteractive?: boolean;
     verbose?: boolean;
     listStyles?: boolean;
-  }
+  },
+  bridge: IPythonBridge,
+  display: IDisplay,
+  configLoader: IConfigLoader,
+  pluginManager: IPluginManager,
+  editorLauncher: IEditorLauncher
 ): Promise<void> {
-  const display = new TerminalDisplay();
 
   try {
     // Handle --list-styles flag (exit early without requiring API key or plan)
@@ -101,7 +112,6 @@ export async function improveCommand(
     PathValidator.warnIfEmpty(absolutePath);
 
     // Load configuration
-    const configLoader = new ConfigLoader();
     const config: IConfig = await configLoader.load(options.config);
 
     // Load plan file
@@ -320,7 +330,6 @@ export async function improveCommand(
     }
 
     // Load plugins
-    const pluginManager = new PluginManager(config);
     const pluginPaths = isPluginConfig(config.plugins)
       ? config.plugins.paths ?? []
       : config.plugins ?? [];
@@ -339,14 +348,12 @@ export async function improveCommand(
       }
     }
 
-    // Create Python bridge with config for timeout settings
-    const pythonBridge = new PythonBridge(undefined, undefined, config);
-
-    // Create interactive session
-    const session = new InteractiveSession({
+    // Create interactive session with injected dependencies
+    const session: IInteractiveSession = new InteractiveSession({
       config,
-      pythonBridge,
+      pythonBridge: bridge,
       pluginManager,
+      editorLauncher,
       styleGuides,
       tone,
       basePath: resolve(process.cwd(), path),
