@@ -19,6 +19,7 @@ import type {
 } from './IPlugin.js';
 import type { IConfig } from '../config/IConfig.js';
 import { isPluginConfig } from '../config/IConfig.js';
+import type { IPluginManager } from './IPluginManager.js';
 
 // Import dependencies to inject into plugins
 import * as typescript from 'typescript';
@@ -27,7 +28,7 @@ import { parse as commentParserParse } from 'comment-parser';
 /**
  * Manages plugin loading and execution.
  */
-export class PluginManager {
+export class PluginManager implements IPluginManager {
   private plugins: IPlugin[] = [];
   private loadedPaths: Set<string> = new Set();
   private config?: IConfig;
