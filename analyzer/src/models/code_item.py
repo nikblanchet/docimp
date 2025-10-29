@@ -1,7 +1,7 @@
 """CodeItem data model for representing parsed code elements."""
 
 from dataclasses import dataclass, field, asdict
-from typing import List, Optional
+from typing import List, Optional, Union
 
 
 @dataclass
@@ -55,7 +55,7 @@ class CodeItem:
     impact_score: float = 0.0
     audit_rating: Optional[int] = None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Union[str, int, float, bool, List[str], None]]:
         """Serialize CodeItem to a JSON-compatible dictionary.
 
         Returns:

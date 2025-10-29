@@ -1,7 +1,7 @@
 """AnalysisResult data model for aggregated code analysis results."""
 
 from dataclasses import dataclass, field, asdict
-from typing import List, Dict
+from typing import List, Dict, Union
 from .code_item import CodeItem
 
 
@@ -17,11 +17,11 @@ class ParseFailure:
     filepath: str
     error: str
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, str]:
         """Serialize ParseFailure to a JSON-compatible dictionary.
 
         Returns:
-            Dictionary representation of the ParseFailure.
+            Dictionary representation of the ParseFailure (filepath and error strings).
         """
         return asdict(self)
 
@@ -46,7 +46,7 @@ class LanguageMetrics:
     avg_complexity: float = 0.0
     avg_impact_score: float = 0.0
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Union[str, int, float]]:
         """Serialize LanguageMetrics to a JSON-compatible dictionary.
 
         Returns:
@@ -78,7 +78,7 @@ class AnalysisResult:
     by_language: Dict[str, LanguageMetrics] = field(default_factory=dict)
     parse_failures: List[ParseFailure] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Union[List[dict[str, Union[str, int, float, bool, List[str], None]]], float, int, Dict[str, dict[str, Union[str, int, float]]], List[dict[str, str]]]]:
         """Serialize AnalysisResult to a JSON-compatible dictionary.
 
         Returns:
