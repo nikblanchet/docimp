@@ -100,7 +100,7 @@ export class PluginManager implements IPluginManager {
     const module = await import(fileUrl);
 
     // Extract the plugin object (handle default exports and named exports)
-    let plugin: IPlugin | ((deps: any) => IPlugin) = module.default || module;
+    let plugin: IPlugin | ((deps: PluginDependencies) => IPlugin) = module.default || module;
 
     // If the export is a factory function, call it with dependencies (DI pattern)
     if (typeof plugin === 'function') {

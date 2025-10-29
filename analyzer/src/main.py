@@ -496,7 +496,6 @@ def cmd_apply(
         docstring = apply_data.get('docstring')
         language = apply_data.get('language')
         line_number = apply_data.get('line_number')
-        base_path = apply_data.get('base_path', '/')
 
         if not all([filepath, item_name, item_type, docstring, language]):
             print("Error: Missing required fields in apply data", file=sys.stderr)
