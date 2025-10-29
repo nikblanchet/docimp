@@ -137,7 +137,8 @@ class PlanResult:
 def generate_plan(
     result: AnalysisResult,
     audit_file: Optional[Path] = None,
-    quality_threshold: int = 2
+    quality_threshold: int = 2,
+    scorer: Optional[ImpactScorer] = None
 ) -> PlanResult:
     """Generate a prioritized documentation improvement plan.
 
@@ -164,6 +165,8 @@ def generate_plan(
         audit_file: Path to audit results file. If None, uses StateManager.get_audit_file().
         quality_threshold: Items with audit rating <= this value are included (default: 2).
                           Scale: 1=Terrible, 2=OK, 3=Good, 4=Excellent.
+        scorer: Impact scorer instance for recalculating scores with audit ratings (dependency injection).
+                If None, creates a new ImpactScorer with default settings.
 
     Returns:
         PlanResult with prioritized items to improve.
@@ -188,7 +191,10 @@ def generate_plan(
     # Apply audit ratings to items and recalculate impact scores
     invalid_ratings: List[dict] = []
     if audit_results:
-        scorer = ImpactScorer()
+        # Use injected scorer or create default if None
+        if scorer is None:
+            scorer = ImpactScorer()
+
         for item in result.items:
             # Normalize item filepath for matching
             normalized_item_path = str(Path(item.filepath).resolve())
