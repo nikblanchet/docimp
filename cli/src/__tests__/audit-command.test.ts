@@ -41,7 +41,8 @@ import prompts from 'prompts';
 import type { AuditRatings, AuditSummary, CodeItem } from '../types/analysis';
 import type { IPythonBridge } from '../python-bridge/IPythonBridge';
 import type { IDisplay } from '../display/IDisplay';
-import type { IConfig } from '../config/IConfig';
+import type { IConfigLoader } from '../config/IConfigLoader';
+import { defaultConfig } from '../config/IConfig';
 
 describe('calculateAuditSummary', () => {
   const auditFile = '.docimp/session-reports/audit.json';
@@ -230,13 +231,11 @@ describe('auditCore - path validation', () => {
     startSpinner: jest.fn(() => jest.fn()),
   };
 
-  const mockConfig: IConfig = {
-    styleGuides: { python: 'google', javascript: 'jsdoc-vanilla', typescript: 'tsdoc-typedoc' },
-    tone: 'concise',
-    impactWeights: { complexity: 0.6, quality: 0.4 },
-    plugins: [],
-    exclude: [],
-    audit: { showCode: { mode: 'truncated', maxLines: 20 } },
+  const mockConfigLoader: IConfigLoader = {
+    load: jest.fn().mockResolvedValue({
+      ...defaultConfig,
+      audit: { showCode: { mode: 'truncated', maxLines: 20 } },
+    }),
   };
 
   beforeEach(() => {
@@ -252,7 +251,7 @@ describe('auditCore - path validation', () => {
         { verbose: false },
         mockPythonBridge,
         mockDisplay,
-        mockConfig
+        mockConfigLoader
       )
     ).rejects.toThrow('Path not found');
 
@@ -262,7 +261,7 @@ describe('auditCore - path validation', () => {
         { verbose: false },
         mockPythonBridge,
         mockDisplay,
-        mockConfig
+        mockConfigLoader
       )
     ).rejects.toThrow('Please check that the path exists and try again');
 
@@ -272,7 +271,7 @@ describe('auditCore - path validation', () => {
 
   it('throws error for empty string path', async () => {
     await expect(
-      auditCore('', { verbose: false }, mockPythonBridge, mockDisplay, mockConfig)
+      auditCore('', { verbose: false }, mockPythonBridge, mockDisplay, mockConfigLoader)
     ).rejects.toThrow('Path cannot be empty');
 
     // Verify Python bridge was NOT called
@@ -294,7 +293,7 @@ describe('auditCore - path validation', () => {
         { verbose: false },
         mockPythonBridge,
         mockDisplay,
-        mockConfig
+        mockConfigLoader
       );
 
       // Verify Python bridge was called with absolute path
@@ -323,7 +322,7 @@ describe('auditCore - path validation', () => {
         { verbose: false },
         mockPythonBridge,
         mockDisplay,
-        mockConfig
+        mockConfigLoader
       );
 
       // Verify warning was issued
@@ -367,6 +366,10 @@ describe('auditCore - config loading', () => {
     showSignature: jest.fn(),
   };
 
+  const mockConfigLoader: IConfigLoader = {
+    load: jest.fn().mockResolvedValue(defaultConfig),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     // Mock audit to return empty items (we're not testing the full flow yet)
@@ -381,39 +384,45 @@ describe('auditCore - config loading', () => {
 
   it('uses default config when no config provided', async () => {
     // Default should be: mode='truncated', maxLines=20
-    await auditCore('.', {}, mockPythonBridge, mockDisplay);
+    await auditCore('.', {}, mockPythonBridge, mockDisplay, mockConfigLoader);
 
     // Verify audit was called (config loading didn't throw)
     expect(mockPythonBridge.audit).toHaveBeenCalled();
   });
 
   it('uses custom config in complete mode', async () => {
-    const customConfig: IConfig = {
-      audit: {
-        showCode: {
-          mode: 'complete',
-          maxLines: 50,
+    const customConfigLoader: IConfigLoader = {
+      load: jest.fn().mockResolvedValue({
+        ...defaultConfig,
+        audit: {
+          showCode: {
+            mode: 'complete',
+            maxLines: 50,
+          },
         },
-      },
+      }),
     };
 
-    await auditCore('.', {}, mockPythonBridge, mockDisplay, customConfig);
+    await auditCore('.', {}, mockPythonBridge, mockDisplay, customConfigLoader);
 
     // Verify audit was called with custom config
     expect(mockPythonBridge.audit).toHaveBeenCalled();
   });
 
   it('uses custom config in signature mode', async () => {
-    const customConfig: IConfig = {
-      audit: {
-        showCode: {
-          mode: 'signature',
-          maxLines: 10,
+    const customConfigLoader: IConfigLoader = {
+      load: jest.fn().mockResolvedValue({
+        ...defaultConfig,
+        audit: {
+          showCode: {
+            mode: 'signature',
+            maxLines: 10,
+          },
         },
-      },
+      }),
     };
 
-    await auditCore('.', {}, mockPythonBridge, mockDisplay, customConfig);
+    await auditCore('.', {}, mockPythonBridge, mockDisplay, customConfigLoader);
 
     // Verify audit was called with custom config
     expect(mockPythonBridge.audit).toHaveBeenCalled();
@@ -445,6 +454,10 @@ describe('auditCore - boxed docstring display', () => {
     showBoxedDocstring: jest.fn(),
     showCodeBlock: jest.fn(),
     showSignature: jest.fn(),
+  };
+
+  const mockConfigLoader: IConfigLoader = {
+    load: jest.fn().mockResolvedValue(defaultConfig),
   };
 
   const mockPrompts = prompts as jest.MockedFunction<typeof prompts>;
@@ -484,7 +497,7 @@ describe('auditCore - boxed docstring display', () => {
       by_language: {},
     });
 
-    await auditCore('.', {}, mockPythonBridge, mockDisplay);
+    await auditCore('.', {}, mockPythonBridge, mockDisplay, mockConfigLoader);
 
     // Verify boxed docstring was shown
     expect(mockDisplay.showBoxedDocstring).toHaveBeenCalledWith('/**\n * Test docstring\n */');
@@ -519,7 +532,7 @@ describe('auditCore - boxed docstring display', () => {
       by_language: {},
     });
 
-    await auditCore('.', {}, mockPythonBridge, mockDisplay);
+    await auditCore('.', {}, mockPythonBridge, mockDisplay, mockConfigLoader);
 
     // Verify no dashed lines were shown (old format)
     const messages = mockDisplay.showMessage.mock.calls.map(call => call[0]);
@@ -558,7 +571,7 @@ describe('auditCore - boxed docstring display', () => {
       by_language: {},
     });
 
-    await auditCore('.', {}, mockPythonBridge, mockDisplay);
+    await auditCore('.', {}, mockPythonBridge, mockDisplay, mockConfigLoader);
 
     // Verify boxed docstring was called before prompts
     expect(mockDisplay.showBoxedDocstring).toHaveBeenCalled();
@@ -625,13 +638,16 @@ describe('auditCore - code display modes', () => {
   };
 
   it('complete mode shows full code without [C] option', async () => {
-    const config: IConfig = {
-      audit: {
-        showCode: {
-          mode: 'complete',
-          maxLines: 20,
+    const configLoader: IConfigLoader = {
+      load: jest.fn().mockResolvedValue({
+        ...defaultConfig,
+        audit: {
+          showCode: {
+            mode: 'complete',
+            maxLines: 20,
+          },
         },
-      },
+      }),
     };
 
     mockPythonBridge.audit.mockResolvedValue({
@@ -642,7 +658,7 @@ describe('auditCore - code display modes', () => {
       by_language: {},
     });
 
-    await auditCore('.', {}, mockPythonBridge, mockDisplay, config);
+    await auditCore('.', {}, mockPythonBridge, mockDisplay, configLoader);
 
     // Verify showCodeBlock was called
     expect(mockDisplay.showCodeBlock).toHaveBeenCalled();
@@ -653,13 +669,16 @@ describe('auditCore - code display modes', () => {
   });
 
   it('truncated mode shows truncated code with [C] option when code is long', async () => {
-    const config: IConfig = {
-      audit: {
-        showCode: {
-          mode: 'truncated',
-          maxLines: 2,
+    const configLoader: IConfigLoader = {
+      load: jest.fn().mockResolvedValue({
+        ...defaultConfig,
+        audit: {
+          showCode: {
+            mode: 'truncated',
+            maxLines: 2,
+          },
         },
-      },
+      }),
     };
 
     const longItem = createMockItem();
@@ -673,7 +692,7 @@ describe('auditCore - code display modes', () => {
       by_language: {},
     });
 
-    await auditCore('.', {}, mockPythonBridge, mockDisplay, config);
+    await auditCore('.', {}, mockPythonBridge, mockDisplay, configLoader);
 
     // Verify showCodeBlock was called
     expect(mockDisplay.showCodeBlock).toHaveBeenCalled();
@@ -683,13 +702,16 @@ describe('auditCore - code display modes', () => {
   });
 
   it('signature mode shows signature with [C] option', async () => {
-    const config: IConfig = {
-      audit: {
-        showCode: {
-          mode: 'signature',
-          maxLines: 20,
+    const configLoader: IConfigLoader = {
+      load: jest.fn().mockResolvedValue({
+        ...defaultConfig,
+        audit: {
+          showCode: {
+            mode: 'signature',
+            maxLines: 20,
+          },
         },
-      },
+      }),
     };
 
     mockPythonBridge.audit.mockResolvedValue({
@@ -700,7 +722,7 @@ describe('auditCore - code display modes', () => {
       by_language: {},
     });
 
-    await auditCore('.', {}, mockPythonBridge, mockDisplay, config);
+    await auditCore('.', {}, mockPythonBridge, mockDisplay, configLoader);
 
     // Verify showSignature was called
     expect(mockDisplay.showSignature).toHaveBeenCalled();
@@ -710,13 +732,16 @@ describe('auditCore - code display modes', () => {
   });
 
   it('on-demand mode shows no code but has [C] option', async () => {
-    const config: IConfig = {
-      audit: {
-        showCode: {
-          mode: 'on-demand',
-          maxLines: 20,
+    const configLoader: IConfigLoader = {
+      load: jest.fn().mockResolvedValue({
+        ...defaultConfig,
+        audit: {
+          showCode: {
+            mode: 'on-demand',
+            maxLines: 20,
+          },
         },
-      },
+      }),
     };
 
     mockPythonBridge.audit.mockResolvedValue({
@@ -727,7 +752,7 @@ describe('auditCore - code display modes', () => {
       by_language: {},
     });
 
-    await auditCore('.', {}, mockPythonBridge, mockDisplay, config);
+    await auditCore('.', {}, mockPythonBridge, mockDisplay, configLoader);
 
     // Verify NO code display methods were called
     expect(mockDisplay.showCodeBlock).not.toHaveBeenCalled();
@@ -738,13 +763,16 @@ describe('auditCore - code display modes', () => {
   });
 
   it('[C] option displays full code and re-prompts', async () => {
-    const config: IConfig = {
-      audit: {
-        showCode: {
-          mode: 'signature',
-          maxLines: 20,
+    const configLoader: IConfigLoader = {
+      load: jest.fn().mockResolvedValue({
+        ...defaultConfig,
+        audit: {
+          showCode: {
+            mode: 'signature',
+            maxLines: 20,
+          },
         },
-      },
+      }),
     };
 
     mockPythonBridge.audit.mockResolvedValue({
@@ -760,7 +788,7 @@ describe('auditCore - code display modes', () => {
       .mockResolvedValueOnce({ rating: 'C' })
       .mockResolvedValueOnce({ rating: '4' });
 
-    await auditCore('.', {}, mockPythonBridge, mockDisplay, config);
+    await auditCore('.', {}, mockPythonBridge, mockDisplay, configLoader);
 
     // Verify showSignature was called once (initial display)
     expect(mockDisplay.showSignature).toHaveBeenCalledTimes(1);
@@ -771,13 +799,16 @@ describe('auditCore - code display modes', () => {
   });
 
   it('prompt validation accepts C when [C] option is available', async () => {
-    const config: IConfig = {
-      audit: {
-        showCode: {
-          mode: 'signature',
-          maxLines: 20,
+    const configLoader: IConfigLoader = {
+      load: jest.fn().mockResolvedValue({
+        ...defaultConfig,
+        audit: {
+          showCode: {
+            mode: 'signature',
+            maxLines: 20,
+          },
         },
-      },
+      }),
     };
 
     mockPythonBridge.audit.mockResolvedValue({
@@ -788,7 +819,7 @@ describe('auditCore - code display modes', () => {
       by_language: {},
     });
 
-    await auditCore('.', {}, mockPythonBridge, mockDisplay, config);
+    await auditCore('.', {}, mockPythonBridge, mockDisplay, configLoader);
 
     const promptCall = mockPrompts.mock.calls[0][0];
     // Verify validation function accepts 'C'
@@ -797,13 +828,16 @@ describe('auditCore - code display modes', () => {
   });
 
   it('prompt validation rejects C when [C] option is not available', async () => {
-    const config: IConfig = {
-      audit: {
-        showCode: {
-          mode: 'complete',
-          maxLines: 20,
+    const configLoader: IConfigLoader = {
+      load: jest.fn().mockResolvedValue({
+        ...defaultConfig,
+        audit: {
+          showCode: {
+            mode: 'complete',
+            maxLines: 20,
+          },
         },
-      },
+      }),
     };
 
     mockPythonBridge.audit.mockResolvedValue({
@@ -814,7 +848,7 @@ describe('auditCore - code display modes', () => {
       by_language: {},
     });
 
-    await auditCore('.', {}, mockPythonBridge, mockDisplay, config);
+    await auditCore('.', {}, mockPythonBridge, mockDisplay, configLoader);
 
     const promptCall = mockPrompts.mock.calls[0][0];
     // Verify validation function rejects 'C'

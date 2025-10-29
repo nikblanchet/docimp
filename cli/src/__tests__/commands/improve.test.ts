@@ -6,16 +6,17 @@
  */
 
 import { improveCommand } from '../../commands/improve.js';
-import { ConfigLoader } from '../../config/ConfigLoader.js';
-import { PluginManager } from '../../plugins/PluginManager.js';
+import type { IConfigLoader } from '../../config/IConfigLoader.js';
+import type { IPluginManager } from '../../plugins/IPluginManager.js';
+import type { IEditorLauncher } from '../../editor/IEditorLauncher.js';
+import type { IPythonBridge } from '../../python-bridge/IPythonBridge.js';
+import type { IDisplay } from '../../display/IDisplay.js';
+import { defaultConfig } from '../../config/IConfig.js';
 import { InteractiveSession } from '../../session/InteractiveSession.js';
 import { readFileSync } from 'fs';
 import prompts from 'prompts';
 
 // Mock dependencies
-jest.mock('../../python-bridge/PythonBridge.js');
-jest.mock('../../config/ConfigLoader.js');
-jest.mock('../../plugins/PluginManager.js');
 jest.mock('../../session/InteractiveSession.js');
 jest.mock('fs', () => {
   const actual = jest.requireActual('fs');
@@ -60,16 +61,17 @@ jest.mock('cli-table3', () => {
 });
 jest.mock('../../display/TerminalDisplay.js');
 
-const MockConfigLoader = ConfigLoader as jest.MockedClass<typeof ConfigLoader>;
-const MockPluginManager = PluginManager as jest.MockedClass<typeof PluginManager>;
-const MockInteractiveSession = InteractiveSession as jest.MockedClass<typeof InteractiveSession>;
 const mockReadFileSync = readFileSync as jest.MockedFunction<typeof readFileSync>;
 const mockPrompts = prompts as jest.MockedFunction<typeof prompts>;
+const MockInteractiveSession = InteractiveSession as jest.MockedClass<typeof InteractiveSession>;
 
 describe('improve command', () => {
   let originalEnv: NodeJS.ProcessEnv;
-  let mockConfigLoader: jest.Mocked<ConfigLoader>;
-  let mockPluginManager: jest.Mocked<PluginManager>;
+  let mockBridge: IPythonBridge;
+  let mockDisplay: IDisplay;
+  let mockConfigLoader: IConfigLoader;
+  let mockPluginManager: IPluginManager;
+  let mockEditorLauncher: IEditorLauncher;
   let mockSession: jest.Mocked<InteractiveSession>;
   let exitSpy: jest.SpyInstance;
   let consoleSpy: jest.SpyInstance;
@@ -87,28 +89,54 @@ describe('improve command', () => {
       throw new Error(`process.exit called with ${code}`);
     }) as any);
 
-    // Setup mocks
-    mockConfigLoader = new MockConfigLoader() as jest.Mocked<ConfigLoader>;
-    mockConfigLoader.load = jest.fn().mockResolvedValue({
-      styleGuides: {
-        javascript: 'jsdoc-vanilla',
-        python: 'google',
-        typescript: 'tsdoc-typedoc',
-      },
-      tone: 'concise',
-      plugins: ['./plugins/validate-types.js'],
-      exclude: [],
-    });
+    // Setup mock dependencies
+    mockBridge = {
+      analyze: jest.fn(),
+      audit: jest.fn(),
+      plan: jest.fn(),
+      suggest: jest.fn(),
+      apply: jest.fn(),
+    };
 
-    mockPluginManager = new MockPluginManager() as jest.Mocked<PluginManager>;
-    mockPluginManager.loadPlugins = jest.fn().mockResolvedValue(undefined);
-    mockPluginManager.getLoadedPlugins = jest.fn().mockReturnValue(['validate-types']);
+    mockDisplay = {
+      showMessage: jest.fn(),
+      showError: jest.fn(),
+      showWarning: jest.fn(),
+      showConfig: jest.fn(),
+      showAnalysisResult: jest.fn(),
+      showAuditSummary: jest.fn(),
+      startSpinner: jest.fn(() => jest.fn()),
+    };
 
+    mockConfigLoader = {
+      load: jest.fn().mockResolvedValue({
+        ...defaultConfig,
+        styleGuides: {
+          javascript: 'jsdoc-vanilla',
+          python: 'google',
+          typescript: 'tsdoc-typedoc',
+        },
+        tone: 'concise',
+        plugins: ['./plugins/validate-types.js'],
+        exclude: [],
+      }),
+    };
+
+    mockPluginManager = {
+      loadPlugins: jest.fn().mockResolvedValue(undefined),
+      runBeforeAccept: jest.fn().mockResolvedValue([]),
+      runAfterWrite: jest.fn().mockResolvedValue([]),
+      getLoadedPlugins: jest.fn().mockReturnValue(['validate-types']),
+      clear: jest.fn(),
+    };
+
+    mockEditorLauncher = {
+      editText: jest.fn().mockResolvedValue(null),
+    };
+
+    // Setup mock session that will be returned when InteractiveSession is instantiated
     mockSession = new MockInteractiveSession({} as any) as jest.Mocked<InteractiveSession>;
     mockSession.run = jest.fn().mockResolvedValue(undefined);
-
-    MockConfigLoader.mockImplementation(() => mockConfigLoader);
-    MockPluginManager.mockImplementation(() => mockPluginManager);
     MockInteractiveSession.mockImplementation(() => mockSession);
 
     // Mock fs for path validation
@@ -173,7 +201,7 @@ describe('improve command', () => {
       delete process.env.ANTHROPIC_API_KEY;
 
       await expect(async () => {
-        await improveCommand('./test', {});
+        await improveCommand('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
       }).rejects.toThrow('process.exit called with 1');
 
       expect(exitSpy).toHaveBeenCalledWith(1);
@@ -182,7 +210,7 @@ describe('improve command', () => {
     it('should continue if ANTHROPIC_API_KEY is set', async () => {
       process.env.ANTHROPIC_API_KEY = 'sk-ant-test';
 
-      await improveCommand('./test', {});
+      await improveCommand('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       expect(mockSession.run).toHaveBeenCalled();
     });
@@ -190,13 +218,13 @@ describe('improve command', () => {
 
   describe('configuration loading', () => {
     it('should load default config when no config specified', async () => {
-      await improveCommand('./test', {});
+      await improveCommand('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       expect(mockConfigLoader.load).toHaveBeenCalledWith(undefined);
     });
 
     it('should load custom config when specified', async () => {
-      await improveCommand('./test', { config: './custom.config.js' });
+      await improveCommand('./test', { config: './custom.config.js' }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       expect(mockConfigLoader.load).toHaveBeenCalledWith('./custom.config.js');
     });
@@ -205,14 +233,14 @@ describe('improve command', () => {
       mockConfigLoader.load.mockRejectedValueOnce(new Error('Invalid config'));
 
       await expect(async () => {
-        await improveCommand('./test', {});
+        await improveCommand('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
       }).rejects.toThrow('process.exit called with 1');
     });
   });
 
   describe('plan file loading', () => {
     it('should load default plan file', async () => {
-      await improveCommand('./test', {});
+      await improveCommand('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       expect(mockReadFileSync).toHaveBeenCalledWith(
         expect.stringMatching(/\.docimp\/session-reports\/plan\.json$/),
@@ -221,7 +249,7 @@ describe('improve command', () => {
     });
 
     it('should load custom plan file when specified', async () => {
-      await improveCommand('./test', { planFile: './custom-plan.json' });
+      await improveCommand('./test', { planFile: './custom-plan.json' }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       expect(mockReadFileSync).toHaveBeenCalledWith(
         expect.stringMatching(/custom-plan\.json$/),
@@ -235,7 +263,7 @@ describe('improve command', () => {
       });
 
       await expect(async () => {
-        await improveCommand('./test', {});
+        await improveCommand('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
       }).rejects.toThrow('process.exit called with 1');
     });
 
@@ -243,14 +271,14 @@ describe('improve command', () => {
       mockReadFileSync.mockReturnValueOnce('invalid json');
 
       await expect(async () => {
-        await improveCommand('./test', {});
+        await improveCommand('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
       }).rejects.toThrow();
     });
 
     it('should handle empty plan file', async () => {
       mockReadFileSync.mockReturnValueOnce(JSON.stringify({ items: [] }));
 
-      await improveCommand('./test', {});
+      await improveCommand('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       expect(mockSession.run).not.toHaveBeenCalled();
     });
@@ -280,7 +308,7 @@ describe('improve command', () => {
       }));
 
       await expect(async () => {
-        await improveCommand('./test', {});
+        await improveCommand('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
       }).rejects.toThrow('process.exit called with 1');
 
       expect(exitSpy).toHaveBeenCalledWith(1);
@@ -327,7 +355,7 @@ describe('improve command', () => {
       }));
 
       await expect(async () => {
-        await improveCommand('./test', {});
+        await improveCommand('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
       }).rejects.toThrow('process.exit called with 1');
 
       expect(exitSpy).toHaveBeenCalledWith(1);
@@ -376,7 +404,7 @@ describe('improve command', () => {
         .mockResolvedValueOnce({ styleGuide: 'tsdoc-typedoc' }) // TypeScript style
         .mockResolvedValueOnce({ tone: 'concise' });            // Tone
 
-      await improveCommand('./test', {});
+      await improveCommand('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       // Should prompt for both languages and tone
       expect(mockPrompts).toHaveBeenCalledTimes(3);
@@ -386,7 +414,7 @@ describe('improve command', () => {
 
   describe('user preferences', () => {
     it('should prompt for style guides per language and tone', async () => {
-      await improveCommand('./test', {});
+      await improveCommand('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       // Should be called twice: once for javascript style, once for tone
       expect(mockPrompts).toHaveBeenCalledTimes(2);
@@ -397,7 +425,7 @@ describe('improve command', () => {
     });
 
     it('should use command-line tone override', async () => {
-      await improveCommand('./test', { tone: 'detailed' });
+      await improveCommand('./test', { tone: 'detailed' }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       expect(MockInteractiveSession).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -411,7 +439,7 @@ describe('improve command', () => {
         .mockResolvedValueOnce({ styleGuide: 'jsdoc-google' })  // JavaScript style
         .mockResolvedValueOnce({ tone: 'friendly' });           // Tone
 
-      await improveCommand('./test', {});
+      await improveCommand('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       expect(MockInteractiveSession).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -424,7 +452,7 @@ describe('improve command', () => {
 
   describe('plugin loading', () => {
     it('should load plugins from config', async () => {
-      await improveCommand('./test', {});
+      await improveCommand('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       expect(mockPluginManager.loadPlugins).toHaveBeenCalledWith([
         './plugins/validate-types.js',
@@ -434,7 +462,7 @@ describe('improve command', () => {
     it('should continue without plugins if loading fails', async () => {
       mockPluginManager.loadPlugins.mockRejectedValueOnce(new Error('Plugin load failed'));
 
-      await improveCommand('./test', {});
+      await improveCommand('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       // Should still create session
       expect(mockSession.run).toHaveBeenCalled();
@@ -452,7 +480,7 @@ describe('improve command', () => {
         exclude: [],
       });
 
-      await improveCommand('./test', {});
+      await improveCommand('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       expect(mockPluginManager.loadPlugins).not.toHaveBeenCalled();
     });
@@ -460,7 +488,7 @@ describe('improve command', () => {
 
   describe('session execution', () => {
     it('should create and run interactive session', async () => {
-      await improveCommand('./test', {});
+      await improveCommand('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       expect(MockInteractiveSession).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -517,7 +545,7 @@ describe('improve command', () => {
       ];
       mockReadFileSync.mockReturnValueOnce(JSON.stringify({ items: planItems }));
 
-      await improveCommand('./test', {});
+      await improveCommand('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       expect(mockSession.run).toHaveBeenCalledWith(planItems);
     });
@@ -526,14 +554,14 @@ describe('improve command', () => {
       mockSession.run.mockRejectedValueOnce(new Error('Session failed'));
 
       await expect(async () => {
-        await improveCommand('./test', {});
+        await improveCommand('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
       }).rejects.toThrow('process.exit called with 1');
     });
   });
 
   describe('verbose mode', () => {
     it('should pass verbose flag to components', async () => {
-      await improveCommand('./test', { verbose: true });
+      await improveCommand('./test', { verbose: true }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       // Session should be created (verbose doesn't prevent creation)
       expect(mockSession.run).toHaveBeenCalled();
@@ -563,7 +591,7 @@ describe('improve command', () => {
 
       mockPrompts.mockResolvedValueOnce({ tone: 'concise' });
 
-      await improveCommand('./test', { pythonStyle: 'numpy-rest' });
+      await improveCommand('./test', { pythonStyle: 'numpy-rest' }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       // Should only prompt for tone, not python style
       expect(mockPrompts).toHaveBeenCalledTimes(1);
@@ -620,7 +648,7 @@ describe('improve command', () => {
       await improveCommand('./test', {
         pythonStyle: 'google',
         javascriptStyle: 'jsdoc-google',
-      });
+      }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       // Should only prompt for tone
       expect(mockPrompts).toHaveBeenCalledTimes(1);
@@ -633,7 +661,7 @@ describe('improve command', () => {
 
     it('should reject invalid python style guide', async () => {
       await expect(async () => {
-        await improveCommand('./test', { pythonStyle: 'invalid-style' });
+        await improveCommand('./test', { pythonStyle: 'invalid-style' }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
       }).rejects.toThrow('process.exit called with 1');
 
       expect(exitSpy).toHaveBeenCalledWith(1);
@@ -641,7 +669,7 @@ describe('improve command', () => {
 
     it('should reject invalid javascript style guide', async () => {
       await expect(async () => {
-        await improveCommand('./test', { javascriptStyle: 'invalid-style' });
+        await improveCommand('./test', { javascriptStyle: 'invalid-style' }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
       }).rejects.toThrow('process.exit called with 1');
 
       expect(exitSpy).toHaveBeenCalledWith(1);
@@ -649,7 +677,7 @@ describe('improve command', () => {
 
     it('should reject invalid typescript style guide', async () => {
       await expect(async () => {
-        await improveCommand('./test', { typescriptStyle: 'invalid-style' });
+        await improveCommand('./test', { typescriptStyle: 'invalid-style' }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
       }).rejects.toThrow('process.exit called with 1');
 
       expect(exitSpy).toHaveBeenCalledWith(1);
@@ -657,7 +685,7 @@ describe('improve command', () => {
 
     it('should reject invalid tone', async () => {
       await expect(async () => {
-        await improveCommand('./test', { tone: 'invalid-tone' });
+        await improveCommand('./test', { tone: 'invalid-tone' }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
       }).rejects.toThrow('process.exit called with 1');
 
       expect(exitSpy).toHaveBeenCalledWith(1);
@@ -666,7 +694,7 @@ describe('improve command', () => {
 
   describe('non-interactive mode', () => {
     it('should use config values without prompting when --non-interactive', async () => {
-      await improveCommand('./test', { nonInteractive: true });
+      await improveCommand('./test', { nonInteractive: true }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       // Should not prompt at all
       expect(mockPrompts).not.toHaveBeenCalled();
@@ -685,7 +713,7 @@ describe('improve command', () => {
         nonInteractive: true,
         javascriptStyle: 'jsdoc-google',
         tone: 'detailed',
-      });
+      }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       expect(mockPrompts).not.toHaveBeenCalled();
       expect(MockInteractiveSession).toHaveBeenCalledWith(
@@ -725,7 +753,7 @@ describe('improve command', () => {
       });
 
       await expect(async () => {
-        await improveCommand('./test', { nonInteractive: true });
+        await improveCommand('./test', { nonInteractive: true }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
       }).rejects.toThrow('process.exit called with 1');
 
       expect(exitSpy).toHaveBeenCalledWith(1);
@@ -763,7 +791,7 @@ describe('improve command', () => {
       await improveCommand('./test', {
         nonInteractive: true,
         pythonStyle: 'google',
-      });
+      }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       expect(mockPrompts).not.toHaveBeenCalled();
       expect(MockInteractiveSession).toHaveBeenCalledWith(
@@ -781,7 +809,7 @@ describe('improve command', () => {
         exclude: [],
       });
 
-      await improveCommand('./test', { nonInteractive: true });
+      await improveCommand('./test', { nonInteractive: true }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       expect(MockInteractiveSession).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -834,7 +862,7 @@ describe('improve command', () => {
         .mockResolvedValueOnce({ styleGuide: 'jsdoc-vanilla' }) // JavaScript prompt
         .mockResolvedValueOnce({ tone: 'concise' });            // Tone prompt
 
-      await improveCommand('./test', { pythonStyle: 'google' });
+      await improveCommand('./test', { pythonStyle: 'google' }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       // Should prompt for javascript (no flag) and tone
       expect(mockPrompts).toHaveBeenCalledTimes(2);
@@ -846,7 +874,7 @@ describe('improve command', () => {
     });
 
     it('should skip tone prompt when --tone flag provided', async () => {
-      await improveCommand('./test', { tone: 'friendly' });
+      await improveCommand('./test', { tone: 'friendly' }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       // Should only prompt for javascript style, not tone
       expect(mockPrompts).toHaveBeenCalledTimes(1);
@@ -863,7 +891,7 @@ describe('improve command', () => {
     it('should display all style guides and exit without requiring API key', async () => {
       delete process.env.ANTHROPIC_API_KEY;
 
-      await improveCommand('./test', { listStyles: true });
+      await improveCommand('./test', { listStyles: true }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       // Should not attempt to load config or plan
       expect(mockConfigLoader.load).not.toHaveBeenCalled();
@@ -873,7 +901,7 @@ describe('improve command', () => {
     });
 
     it('should display all style guides without requiring plan file', async () => {
-      await improveCommand('./test', { listStyles: true });
+      await improveCommand('./test', { listStyles: true }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       // Should not load plan file
       expect(mockReadFileSync).not.toHaveBeenCalled();
@@ -881,7 +909,7 @@ describe('improve command', () => {
     });
 
     it('should return early after displaying styles', async () => {
-      await improveCommand('./test', { listStyles: true });
+      await improveCommand('./test', { listStyles: true }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       // Should not create interactive session
       expect(mockSession.run).not.toHaveBeenCalled();
@@ -893,7 +921,7 @@ describe('improve command', () => {
       await improveCommand('./test', {
         nonInteractive: true,
         verbose: true,
-      });
+      }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       // Verify session was created with correct config
       expect(MockInteractiveSession).toHaveBeenCalled();
@@ -905,7 +933,7 @@ describe('improve command', () => {
         nonInteractive: true,
         javascriptStyle: 'jsdoc-google',
         verbose: true,
-      });
+      }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       // Verify CLI flag was used
       expect(MockInteractiveSession).toHaveBeenCalledWith(
@@ -920,7 +948,7 @@ describe('improve command', () => {
         .mockResolvedValueOnce({ styleGuide: 'jsdoc-vanilla' })
         .mockResolvedValueOnce({ tone: 'concise' });
 
-      await improveCommand('./test', { verbose: true });
+      await improveCommand('./test', { verbose: true }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       // Verify prompts were called and session created
       expect(mockPrompts).toHaveBeenCalled();
@@ -932,7 +960,7 @@ describe('improve command', () => {
         nonInteractive: true,
         verbose: true,
         tone: 'detailed',
-      });
+      }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
 
       // Verify all options passed correctly
       expect(MockInteractiveSession).toHaveBeenCalledWith(
