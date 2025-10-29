@@ -9,6 +9,7 @@ import prompts from 'prompts';
 import { StateManager } from '../utils/StateManager.js';
 import { CodeExtractor } from '../utils/CodeExtractor.js';
 import { PathValidator } from '../utils/PathValidator.js';
+import { EXIT_CODE, type ExitCode } from '../constants/exitCodes.js';
 import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
 import type { IDisplay } from '../display/IDisplay.js';
 import type { IConfigLoader } from '../config/IConfigLoader.js';
@@ -361,6 +362,7 @@ export async function auditCore(
  * @param bridge - Python bridge instance (dependency injection)
  * @param display - Display instance (dependency injection)
  * @param configLoader - Config loader instance (dependency injection)
+ * @returns Exit code (EXIT_CODE.SUCCESS for success, EXIT_CODE.ERROR for failure)
  */
 export async function auditCommand(
   path: string,
@@ -372,11 +374,12 @@ export async function auditCommand(
   bridge: IPythonBridge,
   display: IDisplay,
   configLoader: IConfigLoader
-): Promise<void> {
+): Promise<ExitCode> {
   try {
     await auditCore(path, options, bridge, display, configLoader);
+    return EXIT_CODE.SUCCESS;
   } catch (error) {
     display.showError(error instanceof Error ? error.message : String(error));
-    process.exit(1);
+    return EXIT_CODE.ERROR;
   }
 }

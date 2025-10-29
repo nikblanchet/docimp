@@ -7,6 +7,7 @@
 
 import { StateManager } from '../utils/StateManager.js';
 import { PathValidator } from '../utils/PathValidator.js';
+import { EXIT_CODE, type ExitCode } from '../constants/exitCodes.js';
 import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
 import type { IDisplay } from '../display/IDisplay.js';
 
@@ -112,6 +113,7 @@ export async function planCore(
  * @param options.verbose - Enable verbose output
  * @param bridge - Python bridge instance (dependency injection)
  * @param display - Display instance (dependency injection)
+ * @returns Exit code (EXIT_CODE.SUCCESS for success, EXIT_CODE.ERROR for failure)
  */
 export async function planCommand(
   path: string,
@@ -123,11 +125,12 @@ export async function planCommand(
   },
   bridge: IPythonBridge,
   display: IDisplay
-): Promise<void> {
+): Promise<ExitCode> {
   try {
     await planCore(path, options, bridge, display);
+    return EXIT_CODE.SUCCESS;
   } catch (error) {
     display.showError(error instanceof Error ? error.message : String(error));
-    process.exit(1);
+    return EXIT_CODE.ERROR;
   }
 }
