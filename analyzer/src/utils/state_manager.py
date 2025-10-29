@@ -30,6 +30,7 @@ class StateManager:
     SESSION_REPORTS_DIR = 'session-reports'
     HISTORY_DIR = 'history'
     TRANSACTION_DIR = 'transactions'
+    GIT_STATE_DIR = 'state'
 
     AUDIT_FILE = 'audit.json'
     PLAN_FILE = 'plan.json'
@@ -259,3 +260,45 @@ class StateManager:
             key=lambda p: p.stat().st_mtime,
             reverse=True
         )
+
+    @classmethod
+    def get_git_state_dir(cls, base_path: Optional[Path] = None) -> Path:
+        """Get the absolute path to the .docimp/state directory.
+
+        This directory contains the side-car git repository used for
+        transaction tracking and rollback capability.
+
+        Args:
+            base_path: Base directory to resolve from. If None, uses current working directory.
+
+        Returns:
+            Absolute path to .docimp/state/ directory.
+        """
+        return cls.get_state_dir(base_path) / cls.GIT_STATE_DIR
+
+    @classmethod
+    def ensure_git_state(cls, base_path: Optional[Path] = None) -> bool:
+        """Ensure git state directory exists and is initialized.
+
+        This method initializes the side-car git repository if git is available.
+        If git is not available, it returns False but does not raise an error
+        (graceful degradation).
+
+        Args:
+            base_path: Base directory to resolve from. If None, uses current working directory.
+
+        Returns:
+            True if git state was successfully initialized, False if git unavailable.
+
+        Raises:
+            subprocess.CalledProcessError: If git command fails.
+        """
+        from src.utils.git_helper import GitHelper
+
+        # First ensure base state directory exists
+        cls.ensure_state_dir(base_path)
+
+        # Initialize git repository
+        if base_path is None:
+            base_path = Path.cwd()
+        return GitHelper.init_sidecar_repo(base_path)
