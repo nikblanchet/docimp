@@ -148,7 +148,10 @@ docimp improve ./src
 
 - **Python**: 3.13 (untested on other versions)
 - **Node.js**: 22 (untested on other versions)
+- **Git**: 2.x or higher (Git CLI is required for rollback/undo functionality)
 - **Claude API Key**: From [console.anthropic.com](https://console.anthropic.com)
+
+**Note on Git**: DocImp uses the Git CLI to track documentation changes for rollback capability. If Git is not installed, DocImp will run without rollback features (graceful degradation). Future versions will include Dulwich (Apache 2.0 license) as a pure-Python fallback.
 
 ### Install from Source
 
@@ -168,6 +171,9 @@ npm link
 
 # Verify installation
 docimp --version
+
+# Verify Git is available (for rollback features)
+git --version
 
 # Set API key
 export ANTHROPIC_API_KEY=sk-ant-...
@@ -291,6 +297,42 @@ docimp improve ./src
 - Style guide violations (preferred tags, punctuation)
 - Missing examples for public APIs
 
+### Rollback & Undo
+
+DocImp uses the Git CLI to track all documentation changes with full rollback capability. Each improve session creates a Git branch in a side-car repository (`.docimp/state/.git`) that never interferes with your project's Git repository.
+
+**During an improve session**, press `[U]` to undo the last accepted change.
+
+**After a session**, use rollback commands to revert changes:
+
+```bash
+# List all sessions (shows session ID, timestamp, change count)
+docimp list-sessions
+
+# List changes within a specific session
+docimp list-changes <session-id>
+
+# Rollback entire session (all changes)
+docimp rollback-session <session-id>
+docimp rollback-session --last  # Rollback most recent session
+
+# Rollback specific individual change
+docimp rollback-change <entry-id>
+docimp rollback-change --last   # Rollback most recent change
+```
+
+**How it works**:
+- Each improve session = Git branch (`docimp/session-<uuid>`)
+- Each accepted change = Git commit with metadata
+- Rollback = Git revert with conflict detection
+- Side-car repo in `.docimp/state/.git` (never touches your repo)
+
+**Conflict handling**:
+If files have been modified since the change was made, DocImp uses Git's 3-way merge to attempt resolution. If conflicts occur, you'll be prompted with options to complete partial rollback, retry, or cancel the rollback attempt.
+
+**No Git installed?**
+DocImp gracefully degrades - improve workflow runs normally, but rollback commands are unavailable.
+
 ---
 
 ## Workflows
@@ -330,12 +372,16 @@ DocImp stores session data in `.docimp/` (similar to `.git/`):
 │   ├── audit.json          # Latest audit ratings
 │   ├── plan.json           # Latest improvement plan
 │   └── analyze-latest.json # Latest analysis
+├── state/                  # Git-based transaction tracking
+│   └── .git/               # Side-car Git repo (never touches your repo)
 └── history/                # Future: audit history
 ```
 
 **Auto-clean behavior**: `docimp analyze` clears old session reports by default
 - Prevents stale audit/plan data
 - Use `--keep-old-reports` flag to preserve existing reports
+
+**Transaction tracking**: The `.docimp/state/` directory contains a side-car Git repository used for rollback functionality. This repository operates independently from your project's Git repository and tracks all documentation changes made by DocImp.
 
 **Note**: `.docimp/` is gitignored automatically. Restore clean state with `rm -rf .docimp/`
 
