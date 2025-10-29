@@ -568,22 +568,40 @@ def cmd_list_sessions(
         sessions = manager.list_uncommitted_transactions(transactions_dir)
 
         if not sessions:
-            print("No active sessions found")
+            if args.format == 'json':
+                print(json.dumps([]))
+            else:
+                print("No active sessions found")
             return 0
 
-        # Display sessions
-        print("=" * 80)
-        print("Active DocImp Sessions")
-        print("=" * 80)
-        print(f"{'Session ID':<40} {'Started':<20} {'Changes':<10} {'Status':<10}")
-        print("-" * 80)
+        # Output format
+        if args.format == 'json':
+            # JSON format for TypeScript CLI
+            data = [
+                {
+                    'session_id': session.session_id,
+                    'started_at': session.started_at,
+                    'completed_at': session.completed_at,
+                    'change_count': len(session.entries),
+                    'status': session.status
+                }
+                for session in sessions
+            ]
+            print(json.dumps(data, indent=2))
+        else:
+            # Human-readable table format
+            print("=" * 80)
+            print("Active DocImp Sessions")
+            print("=" * 80)
+            print(f"{'Session ID':<40} {'Started':<20} {'Changes':<10} {'Status':<10}")
+            print("-" * 80)
 
-        for session in sessions:
-            print(f"{session.session_id:<40} {session.started_at:<20} "
-                  f"{len(session.entries):<10} {session.status:<10}")
+            for session in sessions:
+                print(f"{session.session_id:<40} {session.started_at:<20} "
+                      f"{len(session.entries):<10} {session.status:<10}")
 
-        print("=" * 80)
-        print(f"\nTotal: {len(sessions)} session(s)")
+            print("=" * 80)
+            print(f"\nTotal: {len(sessions)} session(s)")
 
         return 0
 
@@ -623,24 +641,44 @@ def cmd_list_changes(
             return 1
 
         if not changes:
-            print(f"No changes found in session: {args.session_id}")
+            if args.format == 'json':
+                print(json.dumps([]))
+            else:
+                print(f"No changes found in session: {args.session_id}")
             return 0
 
-        # Display changes
-        print("=" * 100)
-        print(f"Changes in Session: {args.session_id}")
-        print("=" * 100)
-        print(f"{'Entry ID':<12} {'File':<40} {'Item':<25} {'Timestamp':<20}")
-        print("-" * 100)
+        # Output format
+        if args.format == 'json':
+            # JSON format for TypeScript CLI
+            data = [
+                {
+                    'entry_id': change.entry_id,
+                    'filepath': change.filepath,
+                    'timestamp': change.timestamp,
+                    'item_name': change.item_name,
+                    'item_type': change.item_type,
+                    'language': change.language,
+                    'success': change.success
+                }
+                for change in changes
+            ]
+            print(json.dumps(data, indent=2))
+        else:
+            # Human-readable table format
+            print("=" * 100)
+            print(f"Changes in Session: {args.session_id}")
+            print("=" * 100)
+            print(f"{'Entry ID':<12} {'File':<40} {'Item':<25} {'Timestamp':<20}")
+            print("-" * 100)
 
-        for change in changes:
-            filepath_short = change.filepath[-37:] if len(change.filepath) > 40 else change.filepath
-            item_short = change.item_name[:22] + '...' if len(change.item_name) > 25 else change.item_name
-            timestamp_short = change.timestamp[:19] if len(change.timestamp) > 20 else change.timestamp
-            print(f"{change.entry_id:<12} {filepath_short:<40} {item_short:<25} {timestamp_short:<20}")
+            for change in changes:
+                filepath_short = change.filepath[-37:] if len(change.filepath) > 40 else change.filepath
+                item_short = change.item_name[:22] + '...' if len(change.item_name) > 25 else change.item_name
+                timestamp_short = change.timestamp[:19] if len(change.timestamp) > 20 else change.timestamp
+                print(f"{change.entry_id:<12} {filepath_short:<40} {item_short:<25} {timestamp_short:<20}")
 
-        print("=" * 100)
-        print(f"\nTotal: {len(changes)} change(s)")
+            print("=" * 100)
+            print(f"\nTotal: {len(changes)} change(s)")
 
         return 0
 
@@ -671,36 +709,63 @@ def cmd_rollback_session(
             print("Error: Git not installed - rollback unavailable", file=sys.stderr)
             return 1
 
-        # Load the session manifest
+        # Determine session ID (handle --last flag)
+        session_id = args.session_id
         transactions_dir = StateManager.get_state_dir() / 'transactions'
-        manifest_path = transactions_dir / f'transaction-{args.session_id}.json'
+
+        if session_id == 'last':
+            # Find most recent session
+            sessions = manager.list_uncommitted_transactions(transactions_dir)
+            if not sessions:
+                print("Error: No active sessions found", file=sys.stderr)
+                return 1
+            # Sort by started_at timestamp (most recent first)
+            sessions.sort(key=lambda s: s.started_at, reverse=True)
+            session_id = sessions[0].session_id
+
+        # Load the session manifest
+        manifest_path = transactions_dir / f'transaction-{session_id}.json'
 
         if not manifest_path.exists():
-            print(f"Error: Session not found: {args.session_id}", file=sys.stderr)
+            print(f"Error: Session not found: {session_id}", file=sys.stderr)
             print("Use 'docimp list-sessions' to see available sessions", file=sys.stderr)
             return 1
 
         manifest = manager.load_manifest(manifest_path)
 
-        # Show session details
-        print("=" * 60)
-        print(f"Session: {manifest.session_id}")
-        print(f"Started: {manifest.started_at}")
-        print(f"Changes: {len(manifest.entries)}")
-        print("=" * 60)
+        # Show session details (unless JSON output or no-confirm)
+        if not args.no_confirm:
+            print("=" * 60)
+            print(f"Session: {manifest.session_id}")
+            print(f"Started: {manifest.started_at}")
+            print(f"Changes: {len(manifest.entries)}")
+            print("=" * 60)
 
-        # Prompt for confirmation
-        response = input("\nRollback this session? This will revert all changes. (y/N): ")
-        if response.lower() not in ['y', 'yes']:
-            print("Rollback cancelled")
-            return 0
+            # Prompt for confirmation
+            response = input("\nRollback this session? This will revert all changes. (y/N): ")
+            if response.lower() not in ['y', 'yes']:
+                print("Rollback cancelled")
+                return 0
 
         # Perform rollback
-        print("\nRolling back session...")
+        if not args.no_confirm:
+            print("\nRolling back session...")
+
         restored_count = manager.rollback_transaction(manifest)
 
-        print(f"\nSuccess! Rolled back {restored_count} file(s)")
-        print(f"Session marked as: {manifest.status}")
+        # Output result
+        if args.format == 'json':
+            # JSON format for TypeScript CLI
+            result = {
+                'success': True,
+                'restored_count': restored_count,
+                'status': manifest.status,
+                'message': f'Rolled back {restored_count} file(s)'
+            }
+            print(json.dumps(result, indent=2))
+        else:
+            print(f"\nSuccess! Rolled back {restored_count} file(s)")
+            print(f"Session marked as: {manifest.status}")
 
         return 0
 
@@ -734,38 +799,79 @@ def cmd_rollback_change(
             print("Error: Git not installed - rollback unavailable", file=sys.stderr)
             return 1
 
+        # Determine entry ID (handle --last flag)
+        entry_id = args.entry_id
+
+        if entry_id == 'last':
+            # Find most recent change across all sessions
+            transactions_dir = StateManager.get_state_dir() / 'transactions'
+            sessions = manager.list_uncommitted_transactions(transactions_dir)
+            if not sessions:
+                print("Error: No active sessions found", file=sys.stderr)
+                return 1
+
+            # Get all changes from all sessions and find the most recent
+            all_changes = []
+            for session in sessions:
+                changes = manager.list_session_changes(session.session_id)
+                all_changes.extend(changes)
+
+            if not all_changes:
+                print("Error: No changes found in any session", file=sys.stderr)
+                return 1
+
+            # Sort by timestamp (most recent first)
+            all_changes.sort(key=lambda c: c.timestamp, reverse=True)
+            entry_id = all_changes[0].entry_id
+
         # Get diff preview
         try:
-            diff = manager.get_change_diff(args.entry_id)
+            diff = manager.get_change_diff(entry_id)
         except Exception:
-            print(f"Error: Change not found: {args.entry_id}", file=sys.stderr)
+            print(f"Error: Change not found: {entry_id}", file=sys.stderr)
             return 1
 
-        # Show diff
-        print("=" * 60)
-        print(f"Change: {args.entry_id}")
-        print("=" * 60)
-        print(diff)
-        print("=" * 60)
+        # Show diff (unless no-confirm or JSON output)
+        if not args.no_confirm:
+            print("=" * 60)
+            print(f"Change: {entry_id}")
+            print("=" * 60)
+            print(diff)
+            print("=" * 60)
 
-        # Prompt for confirmation
-        response = input("\nRollback this change? (y/N): ")
-        if response.lower() not in ['y', 'yes']:
-            print("Rollback cancelled")
-            return 0
+            # Prompt for confirmation
+            response = input("\nRollback this change? (y/N): ")
+            if response.lower() not in ['y', 'yes']:
+                print("Rollback cancelled")
+                return 0
 
         # Perform rollback
-        print("\nRolling back change...")
-        result = manager.rollback_change(args.entry_id)
+        if not args.no_confirm:
+            print("\nRolling back change...")
 
-        if result.success:
-            print(f"\nSuccess! Rolled back {result.restored_count} file(s)")
+        result = manager.rollback_change(entry_id)
+
+        # Output result
+        if args.format == 'json':
+            # JSON format for TypeScript CLI
+            result_data = {
+                'success': result.success,
+                'restored_count': result.restored_count,
+                'failed_count': result.failed_count,
+                'status': result.status,
+                'conflicts': result.conflicts,
+                'message': f'Rolled back {result.restored_count} file(s)' if result.success else f'Rollback failed: {result.failed_count} file(s) had conflicts'
+            }
+            print(json.dumps(result_data, indent=2))
         else:
-            print(f"\nRollback failed: {result.failed_count} file(s) had conflicts")
-            if result.conflicts:
-                print("Conflicts in:")
-                for conflict in result.conflicts:
-                    print(f"  - {conflict}")
+            if result.success:
+                print(f"\nSuccess! Rolled back {result.restored_count} file(s)")
+            else:
+                print(f"\nRollback failed: {result.failed_count} file(s) had conflicts")
+                if result.conflicts:
+                    print("Conflicts in:")
+                    for conflict in result.conflicts:
+                        print(f"  - {conflict}")
 
         return 0 if result.success else 1
 
@@ -1084,6 +1190,12 @@ def main(argv: Optional[list] = None) -> int:
         help='List active DocImp sessions'
     )
     list_sessions_parser.add_argument(
+        '--format',
+        choices=['json', 'table'],
+        default='table',
+        help='Output format (default: table)'
+    )
+    list_sessions_parser.add_argument(
         '--verbose',
         action='store_true',
         help='Enable verbose output'
@@ -1099,6 +1211,12 @@ def main(argv: Optional[list] = None) -> int:
         help='Session ID to list changes for'
     )
     list_changes_parser.add_argument(
+        '--format',
+        choices=['json', 'table'],
+        default='table',
+        help='Output format (default: table)'
+    )
+    list_changes_parser.add_argument(
         '--verbose',
         action='store_true',
         help='Enable verbose output'
@@ -1111,7 +1229,18 @@ def main(argv: Optional[list] = None) -> int:
     )
     rollback_session_parser.add_argument(
         'session_id',
-        help='Session ID to rollback'
+        help='Session ID to rollback, or "last" for most recent session'
+    )
+    rollback_session_parser.add_argument(
+        '--format',
+        choices=['json', 'table'],
+        default='table',
+        help='Output format (default: table)'
+    )
+    rollback_session_parser.add_argument(
+        '--no-confirm',
+        action='store_true',
+        help='Skip confirmation prompt (for scripting)'
     )
     rollback_session_parser.add_argument(
         '--verbose',
@@ -1126,7 +1255,18 @@ def main(argv: Optional[list] = None) -> int:
     )
     rollback_change_parser.add_argument(
         'entry_id',
-        help='Entry ID (commit SHA) to rollback'
+        help='Entry ID (commit SHA) to rollback, or "last" for most recent change'
+    )
+    rollback_change_parser.add_argument(
+        '--format',
+        choices=['json', 'table'],
+        default='table',
+        help='Output format (default: table)'
+    )
+    rollback_change_parser.add_argument(
+        '--no-confirm',
+        action='store_true',
+        help='Skip confirmation prompt (for scripting)'
     )
     rollback_change_parser.add_argument(
         '--verbose',

@@ -53,7 +53,7 @@ class TestListSessions:
         manager.list_uncommitted_transactions.return_value = [session1, session2]
 
         # Create mock args
-        args = argparse.Namespace(verbose=False)
+        args = argparse.Namespace(verbose=False, format='table')
 
         # Mock GitHelper.check_git_available
         with patch('src.main.GitHelper.check_git_available', return_value=True):
@@ -73,7 +73,7 @@ class TestListSessions:
         manager = Mock()
         manager.list_uncommitted_transactions.return_value = []
 
-        args = argparse.Namespace(verbose=False)
+        args = argparse.Namespace(verbose=False, format='table')
 
         with patch('src.main.GitHelper.check_git_available', return_value=True):
             result = cmd_list_sessions(args, manager)
@@ -85,7 +85,7 @@ class TestListSessions:
     def test_list_sessions_git_unavailable(self, capsys):
         """Test listing sessions when git is not available."""
         manager = Mock()
-        args = argparse.Namespace(verbose=False)
+        args = argparse.Namespace(verbose=False, format='table')
 
         with patch('src.main.GitHelper.check_git_available', return_value=False):
             result = cmd_list_sessions(args, manager)
@@ -126,7 +126,7 @@ class TestListChanges:
 
         manager.list_session_changes.return_value = [change1, change2]
 
-        args = argparse.Namespace(session_id='test-session', verbose=False)
+        args = argparse.Namespace(session_id='test-session', verbose=False, format='table')
 
         with patch('src.main.GitHelper.check_git_available', return_value=True):
             result = cmd_list_changes(args, manager)
@@ -143,7 +143,7 @@ class TestListChanges:
         manager = Mock()
         manager.list_session_changes.side_effect = ValueError("Session does not exist")
 
-        args = argparse.Namespace(session_id='invalid-session', verbose=False)
+        args = argparse.Namespace(session_id='invalid-session', verbose=False, format='table')
 
         with patch('src.main.GitHelper.check_git_available', return_value=True):
             result = cmd_list_changes(args, manager)
@@ -183,7 +183,7 @@ class TestRollbackSession:
         manager.load_manifest.return_value = manifest
         manager.rollback_transaction.return_value = 1
 
-        args = argparse.Namespace(session_id='test-session', verbose=False)
+        args = argparse.Namespace(session_id='test-session', verbose=False, format='table', no_confirm=False)
 
         # Mock Path.exists to return True for manifest
         with patch('src.main.GitHelper.check_git_available', return_value=True), \
@@ -208,7 +208,7 @@ class TestRollbackSession:
 
         manager.load_manifest.return_value = manifest
 
-        args = argparse.Namespace(session_id='test-session', verbose=False)
+        args = argparse.Namespace(session_id='test-session', verbose=False, format='table', no_confirm=False)
 
         with patch('src.main.GitHelper.check_git_available', return_value=True), \
              patch('src.main.Path.exists', return_value=True), \
@@ -223,7 +223,7 @@ class TestRollbackSession:
     def test_rollback_session_not_found(self, capsys):
         """Test rollback for non-existent session."""
         manager = Mock()
-        args = argparse.Namespace(session_id='nonexistent', verbose=False)
+        args = argparse.Namespace(session_id='nonexistent', verbose=False, format='table', no_confirm=False)
 
         with patch('src.main.GitHelper.check_git_available', return_value=True), \
              patch('src.main.Path.exists', return_value=False):
@@ -249,7 +249,7 @@ class TestRollbackChange:
             status='completed'
         )
 
-        args = argparse.Namespace(entry_id='abc123', verbose=False)
+        args = argparse.Namespace(entry_id='abc123', verbose=False, format='table', no_confirm=False)
 
         with patch('src.main.GitHelper.check_git_available', return_value=True), \
              patch('builtins.input', return_value='y'):
@@ -271,7 +271,7 @@ class TestRollbackChange:
             status='failed'
         )
 
-        args = argparse.Namespace(entry_id='abc123', verbose=False)
+        args = argparse.Namespace(entry_id='abc123', verbose=False, format='table', no_confirm=False)
 
         with patch('src.main.GitHelper.check_git_available', return_value=True), \
              patch('builtins.input', return_value='y'):
