@@ -6,9 +6,7 @@ rather than hardcoding instantiations, enabling testability and flexibility.
 
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 # Add parent directory to path for src imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -167,7 +165,7 @@ class TestPlanGeneratorDI:
         mock_scorer.calculate_score.return_value = 99.0
 
         # Generate plan with injected scorer
-        plan = generate_plan(
+        generate_plan(
             result=result,
             audit_file=audit_file,
             quality_threshold=2,
