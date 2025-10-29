@@ -124,7 +124,19 @@ class TestCLI:
 
     def test_create_analyzer(self):
         """Test analyzer factory function."""
-        analyzer = create_analyzer()
+        from src.parsers.python_parser import PythonParser
+        from src.parsers.typescript_parser import TypeScriptParser
+        from src.scoring.impact_scorer import ImpactScorer
+
+        # Create dependencies for DI
+        parsers = {
+            'python': PythonParser(),
+            'typescript': TypeScriptParser(),
+            'javascript': TypeScriptParser()
+        }
+        scorer = ImpactScorer()
+
+        analyzer = create_analyzer(parsers, scorer)
 
         assert isinstance(analyzer, DocumentationAnalyzer)
         assert 'python' in analyzer.parsers
