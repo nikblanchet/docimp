@@ -2,13 +2,13 @@
 
 This module provides transaction management for the DocImp improve workflow,
 enabling users to rollback documentation changes if needed. Transactions track
-all file modifications during an improve session and preserve backup files
-until the transaction is committed or rolled back.
+all file modifications during an improve session using a side-car git repository
+for full rollback capability.
 
 Key components:
-- TransactionEntry: Records a single file modification
-- TransactionManifest: Tracks all modifications in a session
-- TransactionManager: Manages transaction lifecycle
+- TransactionEntry: Records a single file modification (parsed from git commits)
+- TransactionManifest: Tracks all modifications in a session (built from git branch)
+- TransactionManager: Manages transaction lifecycle using git backend
 """
 
 from dataclasses import dataclass, asdict, field
@@ -16,6 +16,7 @@ from typing import List, Optional
 from pathlib import Path
 import json
 import shutil
+import re
 from datetime import datetime
 
 
@@ -24,6 +25,7 @@ class TransactionEntry:
     """Record of a single file modification during an improve session.
 
     Attributes:
+        entry_id: Git commit SHA (short hash) or generated ID for JSON fallback
         filepath: Absolute path to the modified file
         backup_path: Path to the backup file (.bak)
         timestamp: ISO format timestamp of when the write occurred
@@ -32,6 +34,7 @@ class TransactionEntry:
         language: Programming language ('python', 'javascript', 'typescript')
         success: Whether the write operation succeeded
     """
+    entry_id: str
     filepath: str
     backup_path: str
     timestamp: str
@@ -45,17 +48,20 @@ class TransactionEntry:
 class TransactionManifest:
     """Manifest tracking all writes in an improve session.
 
-    The manifest is serialized to JSON and stored in .docimp/session-reports/transactions/
-    to enable rollback functionality. Each improve session gets a unique manifest file
-    identified by its session_id (UUID).
+    The manifest is built from a git branch in the side-car repository at
+    .docimp/state/.git. Each improve session corresponds to a git branch
+    docimp/session-{session_id}, and each file modification is a git commit.
+
+    When git is unavailable, falls back to JSON storage in
+    .docimp/session-reports/transactions/ for graceful degradation.
 
     Attributes:
-        session_id: Unique identifier for this session (UUID)
+        session_id: Unique identifier for this session (UUID) - maps to git branch name
         started_at: ISO timestamp when the session began
         completed_at: ISO timestamp when session ended, None if in progress
-        entries: List of file modifications made during the session
-        status: Current state ('in_progress', 'committed', 'rolled_back')
-        git_commit_sha: Optional git commit SHA for future git integration
+        entries: List of file modifications (parsed from git commits)
+        status: Current state ('in_progress', 'committed', 'rolled_back', 'partial_rollback')
+        git_commit_sha: Git commit SHA of the squash commit (None if in_progress)
     """
     session_id: str
     started_at: str
@@ -66,16 +72,22 @@ class TransactionManifest:
 
 
 class TransactionManager:
-    """Manages transaction lifecycle for rollback capability.
+    """Manages transaction lifecycle using git backend for rollback capability.
 
-    The TransactionManager handles the complete lifecycle of a documentation
-    improvement transaction:
+    The TransactionManager uses a side-car git repository at .docimp/state/.git
+    to track all documentation changes with full git semantics:
 
-    1. Begin: Create new manifest when session starts
-    2. Record: Track each file modification with backup path
-    3. Commit: Mark successful completion and cleanup backups
-    4. Rollback: Restore files from backups on user request
-    5. Cleanup: Delete old transaction manifests based on retention policy
+    - Sessions = git branches (docimp/session-{uuid})
+    - Changes = git commits (one per accepted docstring)
+    - Rollback = git revert (individual changes or entire sessions)
+
+    Gracefully degrades to JSON storage when git is unavailable.
+
+    Lifecycle:
+    1. Begin: Create git branch for session
+    2. Record: Git commit each file modification
+    3. Commit: Merge session branch, delete backups
+    4. Rollback: Git revert commits to restore files
 
     Example:
         >>> manager = TransactionManager()
@@ -87,8 +99,34 @@ class TransactionManager:
         >>> manager.commit_transaction(manifest)
     """
 
+    def __init__(self, base_path: Optional[Path] = None, use_git: bool = True):
+        """Initialize TransactionManager with optional git support.
+
+        Args:
+            base_path: Project root directory. If None, disables git (for backward compat).
+            use_git: Whether to use git backend. Defaults to True.
+        """
+        from src.utils.git_helper import GitHelper
+        from src.utils.state_manager import StateManager
+
+        self.base_path = base_path if base_path else Path.cwd()
+
+        # Only use git if explicitly requested AND base_path is set AND git is available
+        self.git_available = (
+            use_git and
+            base_path is not None and
+            GitHelper.check_git_available()
+        )
+
+        # Initialize git state if available
+        if self.git_available:
+            StateManager.ensure_git_state(self.base_path)
+
     def begin_transaction(self, session_id: str) -> TransactionManifest:
         """Create a new transaction manifest for an improve session.
+
+        Creates a git branch docimp/session-{session_id} in the side-car repository.
+        Falls back to JSON-only if git unavailable.
 
         Parameters:
             session_id: Unique identifier for the session (typically a UUID)
@@ -96,6 +134,16 @@ class TransactionManager:
         Returns:
             New TransactionManifest with status 'in_progress'
         """
+        if self.git_available:
+            from src.utils.git_helper import GitHelper
+
+            # Create git branch for this session
+            branch_name = f'docimp/session-{session_id}'
+            GitHelper.run_git_command(
+                ['checkout', '-b', branch_name],
+                self.base_path
+            )
+
         return TransactionManifest(
             session_id=session_id,
             started_at=datetime.utcnow().isoformat()
@@ -112,8 +160,8 @@ class TransactionManager:
     ) -> None:
         """Add a file modification entry to the transaction manifest.
 
-        Call this after each successful docstring write to record the modification
-        and its backup location for potential rollback.
+        Creates a git commit for the file modification. The commit message includes
+        metadata about the change for later parsing.
 
         Parameters:
             manifest: Transaction manifest to update
@@ -123,10 +171,57 @@ class TransactionManager:
             item_type: Type of code item ('function', 'class', 'method')
             language: Programming language ('python', 'javascript', 'typescript')
         """
+        timestamp = datetime.utcnow().isoformat()
+        entry_id = None
+
+        if self.git_available:
+            from src.utils.git_helper import GitHelper
+
+            # Convert filepath to relative path from base_path for git
+            try:
+                file_path_obj = Path(filepath)
+                if file_path_obj.is_absolute():
+                    rel_filepath = file_path_obj.relative_to(self.base_path)
+                else:
+                    rel_filepath = Path(filepath)
+            except ValueError:
+                # File is outside work-tree, can't use git for this file
+                entry_id = f'entry-{len(manifest.entries)}'
+            else:
+                # Git add the modified file (using relative path)
+                GitHelper.run_git_command(['add', str(rel_filepath)], self.base_path)
+
+                # Create commit with metadata in message
+                commit_msg = f"""docimp: Add docs to {item_name}
+
+Metadata:
+  item_name: {item_name}
+  item_type: {item_type}
+  language: {language}
+  filepath: {filepath}
+  backup_path: {backup_path}
+  timestamp: {timestamp}"""
+
+                GitHelper.run_git_command(
+                    ['commit', '-m', commit_msg],
+                    self.base_path
+                )
+
+                # Get the commit SHA (short hash)
+                result = GitHelper.run_git_command(
+                    ['rev-parse', '--short', 'HEAD'],
+                    self.base_path
+                )
+                entry_id = result.stdout.strip()
+        else:
+            # Fallback: generate simple ID
+            entry_id = f'entry-{len(manifest.entries)}'
+
         entry = TransactionEntry(
+            entry_id=entry_id,
             filepath=filepath,
             backup_path=backup_path,
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=timestamp,
             item_name=item_name,
             item_type=item_type,
             language=language,
@@ -137,15 +232,45 @@ class TransactionManager:
     def commit_transaction(self, manifest: TransactionManifest) -> None:
         """Mark transaction as committed and delete all backup files.
 
-        Call this when an improve session completes successfully. This marks
-        the transaction as 'committed', sets the completion timestamp, and
-        deletes all backup files since the changes are now permanent.
+        Merges the session git branch into main with --squash, creating a single
+        squash commit for the entire session. Deletes backup files.
 
         Parameters:
             manifest: Transaction manifest to commit
         """
         manifest.status = 'committed'
         manifest.completed_at = datetime.utcnow().isoformat()
+
+        if self.git_available:
+            from src.utils.git_helper import GitHelper
+
+            branch_name = f'docimp/session-{manifest.session_id}'
+
+            # Checkout main branch
+            GitHelper.run_git_command(['checkout', 'main'], self.base_path)
+
+            # Merge session branch with squash
+            GitHelper.run_git_command(
+                ['merge', '--squash', branch_name],
+                self.base_path,
+                check=False  # May fail if no changes
+            )
+
+            # Create squash commit
+            squash_msg = f'docimp session {manifest.session_id} (squash)'
+            result = GitHelper.run_git_command(
+                ['commit', '-m', squash_msg],
+                self.base_path,
+                check=False  # May fail if nothing to commit
+            )
+
+            # Get squash commit SHA if successful
+            if result.returncode == 0:
+                sha_result = GitHelper.run_git_command(
+                    ['rev-parse', '--short', 'HEAD'],
+                    self.base_path
+                )
+                manifest.git_commit_sha = sha_result.stdout.strip()
 
         # Delete all backup files
         for entry in manifest.entries:

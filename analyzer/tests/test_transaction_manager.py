@@ -12,20 +12,21 @@ from src.writer.transaction_manager import TransactionManager
 
 def test_begin_transaction_creates_manifest():
     """Test that begin_transaction creates a valid manifest."""
-    manager = TransactionManager()
-    manifest = manager.begin_transaction('test-session-id')
+    with tempfile.TemporaryDirectory() as tmpdir:
+        manager = TransactionManager(base_path=Path(tmpdir))
+        manifest = manager.begin_transaction('test-session-id')
 
-    assert manifest.session_id == 'test-session-id'
-    assert manifest.status == 'in_progress'
-    assert manifest.entries == []
-    assert manifest.started_at is not None
-    assert manifest.completed_at is None
-    assert manifest.git_commit_sha is None
+        assert manifest.session_id == 'test-session-id'
+        assert manifest.status == 'in_progress'
+        assert manifest.entries == []
+        assert manifest.started_at is not None
+        assert manifest.completed_at is None
+        assert manifest.git_commit_sha is None
 
 
 def test_record_write_adds_entry():
     """Test that record_write adds entry to manifest."""
-    manager = TransactionManager()
+    manager = TransactionManager()  # No base_path = JSON mode
     manifest = manager.begin_transaction('test-id')
 
     manager.record_write(
@@ -46,6 +47,7 @@ def test_record_write_adds_entry():
     assert entry.language == 'python'
     assert entry.success is True
     assert entry.timestamp is not None
+    assert entry.entry_id is not None  # New field
 
 
 def test_record_multiple_writes():
