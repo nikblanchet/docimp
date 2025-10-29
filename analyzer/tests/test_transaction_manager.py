@@ -7,9 +7,7 @@ import time
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.writer.transaction_manager import (
-    TransactionManager, TransactionManifest, TransactionEntry
-)
+from src.writer.transaction_manager import TransactionManager
 
 
 def test_begin_transaction_creates_manifest():
