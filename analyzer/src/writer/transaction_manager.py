@@ -70,6 +70,24 @@ class TransactionManifest:
     git_commit_sha: Optional[str] = None
 
 
+@dataclass
+class RollbackResult:
+    """Result of a rollback operation (individual change or multiple changes).
+
+    Attributes:
+        success: Whether the rollback operation completed successfully
+        restored_count: Number of changes successfully reverted
+        failed_count: Number of changes that failed to revert
+        conflicts: List of file paths that have merge conflicts
+        status: Overall status ('completed', 'partial_rollback', 'failed')
+    """
+    success: bool
+    restored_count: int
+    failed_count: int
+    conflicts: List[str] = field(default_factory=list)
+    status: str = 'completed'
+
+
 class TransactionManager:
     """Manages transaction lifecycle using git backend for rollback capability.
 
@@ -436,3 +454,257 @@ Metadata:
             deleted_count += 1
 
         return deleted_count
+
+    def list_session_changes(self, session_id: str) -> List[TransactionEntry]:
+        """List all commits in a session branch.
+
+        Parses the git log for the session branch and extracts TransactionEntry
+        objects from each commit's metadata.
+
+        Parameters:
+            session_id: Session ID to list changes for
+
+        Returns:
+            List of TransactionEntry objects, one per commit
+
+        Raises:
+            ValueError: If git unavailable or session branch doesn't exist
+        """
+        if not self.git_available:
+            raise ValueError("Git backend not available - cannot list session changes")
+
+        from src.utils.git_helper import GitHelper
+
+        branch_name = f'docimp/session-{session_id}'
+
+        # Check if branch exists
+        result = GitHelper.run_git_command(
+            ['rev-parse', '--verify', branch_name],
+            self.base_path,
+            check=False
+        )
+        if result.returncode != 0:
+            raise ValueError(f"Session branch {branch_name} does not exist")
+
+        # Get commit SHAs in the session branch
+        result = GitHelper.run_git_command(
+            ['log', branch_name, '--format=%H', '--reverse'],
+            self.base_path
+        )
+
+        commit_shas = result.stdout.strip().split('\n') if result.stdout.strip() else []
+        entries = []
+
+        for commit_sha in commit_shas:
+            # Get commit message with metadata
+            msg_result = GitHelper.run_git_command(
+                ['log', '-1', '--format=%B', commit_sha],
+                self.base_path
+            )
+
+            # Parse metadata from commit message
+            entry = self._parse_commit_to_entry(commit_sha, msg_result.stdout)
+            if entry:
+                entries.append(entry)
+
+        return entries
+
+    def _parse_commit_to_entry(self, commit_sha: str, commit_message: str) -> Optional[TransactionEntry]:
+        """Parse a git commit message to extract TransactionEntry.
+
+        Parameters:
+            commit_sha: Git commit SHA
+            commit_message: Full commit message with metadata
+
+        Returns:
+            TransactionEntry object or None if not a docimp commit
+        """
+        lines = commit_message.strip().split('\n')
+
+        # Skip non-docimp commits (like initial commit)
+        if not lines or not lines[0].startswith('docimp:'):
+            return None
+
+        # Extract metadata section
+        metadata = {}
+        in_metadata = False
+
+        for line in lines:
+            if line.strip() == 'Metadata:':
+                in_metadata = True
+                continue
+
+            if in_metadata and ':' in line:
+                key, value = line.split(':', 1)
+                metadata[key.strip()] = value.strip()
+
+        # Build TransactionEntry from metadata
+        if not metadata:
+            return None
+
+        # Get short hash
+        from src.utils.git_helper import GitHelper
+        short_result = GitHelper.run_git_command(
+            ['rev-parse', '--short', commit_sha],
+            self.base_path
+        )
+        entry_id = short_result.stdout.strip()
+
+        return TransactionEntry(
+            entry_id=entry_id,
+            filepath=metadata.get('filepath', ''),
+            backup_path=metadata.get('backup_path', ''),
+            timestamp=metadata.get('timestamp', ''),
+            item_name=metadata.get('item_name', ''),
+            item_type=metadata.get('item_type', ''),
+            language=metadata.get('language', ''),
+            success=True
+        )
+
+    def rollback_change(self, entry_id: str) -> RollbackResult:
+        """Rollback a single change by reverting its git commit.
+
+        Parameters:
+            entry_id: Git commit SHA (short or full) to revert
+
+        Returns:
+            RollbackResult with success status and conflict information
+
+        Raises:
+            ValueError: If git unavailable
+        """
+        if not self.git_available:
+            raise ValueError("Git backend not available - cannot rollback changes")
+
+        from src.utils.git_helper import GitHelper
+
+        # Attempt git revert
+        result = GitHelper.run_git_command(
+            ['revert', '--no-commit', entry_id],
+            self.base_path,
+            check=False
+        )
+
+        # Check for conflicts
+        if result.returncode != 0:
+            # Check git status for conflict markers
+            status_result = GitHelper.run_git_command(
+                ['status', '--short'],
+                self.base_path
+            )
+
+            conflicts = []
+            for line in status_result.stdout.split('\n'):
+                if line.startswith('UU ') or line.startswith('AA ') or line.startswith('DD '):
+                    # Conflict detected
+                    filepath = line[3:].strip()
+                    conflicts.append(filepath)
+
+            if conflicts:
+                # Abort the revert to leave working tree clean
+                GitHelper.run_git_command(
+                    ['revert', '--abort'],
+                    self.base_path,
+                    check=False
+                )
+
+                return RollbackResult(
+                    success=False,
+                    restored_count=0,
+                    failed_count=1,
+                    conflicts=conflicts,
+                    status='failed'
+                )
+            else:
+                # Non-conflict error
+                return RollbackResult(
+                    success=False,
+                    restored_count=0,
+                    failed_count=1,
+                    conflicts=[],
+                    status='failed'
+                )
+
+        # Commit the revert
+        GitHelper.run_git_command(
+            ['commit', '-m', f'Revert change {entry_id}'],
+            self.base_path
+        )
+
+        return RollbackResult(
+            success=True,
+            restored_count=1,
+            failed_count=0,
+            conflicts=[],
+            status='completed'
+        )
+
+    def rollback_multiple(self, entry_ids: List[str]) -> RollbackResult:
+        """Rollback multiple changes by reverting their git commits.
+
+        Parameters:
+            entry_ids: List of git commit SHAs to revert
+
+        Returns:
+            RollbackResult with aggregate success status
+
+        Raises:
+            ValueError: If git unavailable
+        """
+        if not self.git_available:
+            raise ValueError("Git backend not available - cannot rollback changes")
+
+        total_restored = 0
+        total_failed = 0
+        all_conflicts = []
+
+        for entry_id in entry_ids:
+            result = self.rollback_change(entry_id)
+            total_restored += result.restored_count
+            total_failed += result.failed_count
+            all_conflicts.extend(result.conflicts)
+
+        # Determine overall status
+        if total_failed == 0:
+            status = 'completed'
+            success = True
+        elif total_restored > 0:
+            status = 'partial_rollback'
+            success = False
+        else:
+            status = 'failed'
+            success = False
+
+        return RollbackResult(
+            success=success,
+            restored_count=total_restored,
+            failed_count=total_failed,
+            conflicts=all_conflicts,
+            status=status
+        )
+
+    def get_change_diff(self, entry_id: str) -> str:
+        """Get the diff for a specific change.
+
+        Shows what would be reverted if this change were rolled back.
+
+        Parameters:
+            entry_id: Git commit SHA (short or full)
+
+        Returns:
+            Diff output as string
+
+        Raises:
+            ValueError: If git unavailable
+        """
+        if not self.git_available:
+            raise ValueError("Git backend not available - cannot get diff")
+
+        from src.utils.git_helper import GitHelper
+
+        result = GitHelper.run_git_command(
+            ['show', entry_id],
+            self.base_path
+        )
+
+        return result.stdout
