@@ -15,6 +15,9 @@ from src.audit.quality_rater import (
     save_audit_results
 )
 from src.main import cmd_audit, cmd_apply_audit
+from src.parsers.python_parser import PythonParser
+from src.parsers.typescript_parser import TypeScriptParser
+from src.scoring.impact_scorer import ImpactScorer
 
 
 class TestAuditCommand:
@@ -75,6 +78,14 @@ class TestAuditCommand:
         """Test audit command returns only items WITH docs."""
         import argparse
 
+        # Create mock dependencies for DI
+        parsers = {
+            'python': PythonParser(),
+            'typescript': TypeScriptParser(),
+            'javascript': TypeScriptParser()
+        }
+        scorer = ImpactScorer()
+
         with patch('src.main.create_analyzer') as mock_create:
             mock_create.return_value.analyze.return_value = mock_analyzer
 
@@ -84,7 +95,7 @@ class TestAuditCommand:
                 audit_file='.docimp-audit.json'
             )
 
-            exit_code = cmd_audit(args)
+            exit_code = cmd_audit(args, parsers, scorer)
 
             assert exit_code == 0
 
@@ -99,6 +110,14 @@ class TestAuditCommand:
         """Test audit command excludes items without docs."""
         import argparse
 
+        # Create mock dependencies for DI
+        parsers = {
+            'python': PythonParser(),
+            'typescript': TypeScriptParser(),
+            'javascript': TypeScriptParser()
+        }
+        scorer = ImpactScorer()
+
         with patch('src.main.create_analyzer') as mock_create:
             mock_create.return_value.analyze.return_value = mock_analyzer
 
@@ -108,7 +127,7 @@ class TestAuditCommand:
                 audit_file='.docimp-audit.json'
             )
 
-            exit_code = cmd_audit(args)
+            exit_code = cmd_audit(args, parsers, scorer)
 
             assert exit_code == 0
 

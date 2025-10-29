@@ -8,7 +8,9 @@ import { join } from 'path';
 import { analyzeCore } from '../commands/analyze';
 import type { IPythonBridge } from '../python-bridge/IPythonBridge';
 import type { IDisplay } from '../display/IDisplay';
+import type { IConfigLoader } from '../config/IConfigLoader';
 import type { AnalysisResult } from '../types/AnalysisResult';
+import { defaultConfig } from '../config/IConfig';
 
 // Mock ESM modules that Jest can't handle
 jest.mock('chalk', () => ({
@@ -45,6 +47,7 @@ describe('analyze command auto-clean', () => {
   let tempDir: string;
   let mockBridge: IPythonBridge;
   let mockDisplay: IDisplay;
+  let mockConfigLoader: IConfigLoader;
   let mockResult: AnalysisResult;
 
   beforeEach(() => {
@@ -67,6 +70,11 @@ describe('analyze command auto-clean', () => {
       plan: jest.fn(),
       suggest: jest.fn(),
       apply: jest.fn(),
+    };
+
+    // Mock ConfigLoader
+    mockConfigLoader = {
+      load: jest.fn().mockResolvedValue(defaultConfig),
     };
 
     // Mock Display
@@ -123,7 +131,8 @@ describe('analyze command auto-clean', () => {
         tempDir,
         { format: 'json', verbose: false },
         mockBridge,
-        mockDisplay
+        mockDisplay,
+        mockConfigLoader
       );
 
       // Verify Python bridge was called with absolute path
@@ -154,7 +163,8 @@ describe('analyze command auto-clean', () => {
           emptyDir,
           { format: 'json', verbose: false },
           mockBridge,
-          mockDisplay
+          mockDisplay,
+          mockConfigLoader
         );
 
         // Verify warning was issued
@@ -200,7 +210,8 @@ describe('analyze command auto-clean', () => {
         tempDir,
         { format: 'json', verbose: false },
         mockBridge,
-        mockDisplay
+        mockDisplay,
+        mockConfigLoader
       );
 
       // Verify files were cleared
@@ -239,7 +250,8 @@ describe('analyze command auto-clean', () => {
         tempDir,
         { format: 'json', verbose: false, keepOldReports: true },
         mockBridge,
-        mockDisplay
+        mockDisplay,
+        mockConfigLoader
       );
 
       // Verify files were preserved
@@ -273,7 +285,8 @@ describe('analyze command auto-clean', () => {
         tempDir,
         { format: 'json', verbose: false },
         mockBridge,
-        mockDisplay
+        mockDisplay,
+        mockConfigLoader
       );
 
       // Verify message was displayed
@@ -293,7 +306,8 @@ describe('analyze command auto-clean', () => {
         tempDir,
         { format: 'json', verbose: true, keepOldReports: true },
         mockBridge,
-        mockDisplay
+        mockDisplay,
+        mockConfigLoader
       );
 
       // Verify message was displayed
@@ -310,7 +324,8 @@ describe('analyze command auto-clean', () => {
         tempDir,
         { format: 'json', verbose: false },
         mockBridge,
-        mockDisplay
+        mockDisplay,
+        mockConfigLoader
       );
 
       // Verify analyze-latest.json was created
@@ -328,7 +343,8 @@ describe('analyze command auto-clean', () => {
         tempDir,
         { format: 'json', verbose: true },
         mockBridge,
-        mockDisplay
+        mockDisplay,
+        mockConfigLoader
       );
 
       // Verify message was displayed
@@ -361,7 +377,8 @@ describe('analyze command auto-clean', () => {
         tempDir,
         { format: 'json', verbose: false },
         mockBridge,
-        mockDisplay
+        mockDisplay,
+        mockConfigLoader
       );
 
       // Verify showAnalysisResult was called with parse failures
@@ -414,7 +431,8 @@ describe('analyze command auto-clean', () => {
         tempDir,
         { format: 'json', verbose: false },
         mockBridge,
-        mockDisplay
+        mockDisplay,
+        mockConfigLoader
       );
 
       // Verify analysis completed successfully despite parse failure

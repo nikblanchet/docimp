@@ -8,11 +8,12 @@ import { spawn } from 'child_process';
 import { writeFileSync, readFileSync, unlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import type { IEditorLauncher } from './IEditorLauncher.js';
 
 /**
  * Launches an external editor for editing text.
  */
-export class EditorLauncher {
+export class EditorLauncher implements IEditorLauncher {
   /**
    * Get the preferred editor from environment variables.
    *

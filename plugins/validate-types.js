@@ -23,22 +23,15 @@
 import { readFileSync } from 'fs';
 
 /**
- * Global references to injected dependencies.
- * These are set by the beforeAccept hook when dependencies are provided.
- * This allows the rest of the plugin code to use these dependencies without
- * passing them through every function call.
+ * REMOVED: Module-level globals for dependencies.
  *
- * Dependencies are injected by the PluginManager to avoid fragile path resolution.
+ * Previous design used module-level globals (ts, parseJSDoc) set by the
+ * beforeAccept hook. This violated the dependency injection principle.
  *
- * IMPORTANT: These are module-level singletons. Once set, they persist for the
- * lifetime of the Node.js process. This design is acceptable because:
- * - Dependencies don't change during a session
- * - Node.js is single-threaded (no race conditions)
- * - Simplifies function signatures throughout the plugin
- * - All plugin hooks receive the same dependencies from PluginManager
+ * New design: Factory pattern with closure (see createValidator() at end of file).
+ * Dependencies are captured in closure scope, making them available to all
+ * helper functions without global state.
  */
-let ts;
-let parseJSDoc;
 
 /**
  * Maximum number of language services to cache.
@@ -139,523 +132,6 @@ let cacheStats = {
 let documentRegistry;
 
 /**
- * Extract parameter names from a JSDoc comment.
- *
- * Uses comment-parser to properly handle JSDoc parameter patterns including:
- * - Optional parameters: @param {string} [name='default']
- * - Rest parameters: @param {...any} args
- * - Destructured parameters: @param {{x: number, y: number}} options
- *
- * @param {string} docstring - JSDoc comment text
- * @returns {string[]} Array of parameter names
- * @example
- * // Optional parameter with default value
- * extractJSDocParamNames('/** @param {string} [name="default"] - User name *\/')
- * // Returns: ['name']
- *
- * @example
- * // Rest parameter
- * extractJSDocParamNames('/** @param {...number} args - Numbers to sum *\/')
- * // Returns: ['args']
- *
- * @example
- * // Destructured parameter
- * extractJSDocParamNames('/** @param {{x: number, y: number}} coords - Point coordinates *\/')
- * // Returns: ['coords']
- */
-function extractJSDocParamNames(docstring) {
-  try {
-    // Parse JSDoc comment using comment-parser
-    const parsed = parseJSDoc(docstring);
-
-    if (!parsed || parsed.length === 0) {
-      return [];
-    }
-
-    // Extract @param tags from the first comment block
-    const paramTags = parsed[0].tags.filter(tag => tag.tag === 'param');
-
-    // Extract parameter names, handling special patterns
-    return paramTags.map(tag => {
-      let paramName = tag.name;
-
-      // Handle optional parameters: [name], [name='default']
-      // Extract the base parameter name from brackets
-      if (paramName.startsWith('[') && paramName.includes(']')) {
-        // Extract name from [name] or [name='default']
-        const match = paramName.match(/^\[([^\]=]+)/);
-        if (match) {
-          paramName = match[1];
-        }
-      }
-
-      // Handle rest parameters: ...args
-      // Remove the rest operator
-      if (paramName.startsWith('...')) {
-        paramName = paramName.substring(3);
-      }
-
-      // Handle destructured parameters: {x, y} or options.x
-      // For destructured params, we want the root parameter name
-      // comment-parser gives us something like "options" or "options.x"
-      // We want just "options"
-      if (paramName.includes('.')) {
-        paramName = paramName.split('.')[0];
-      }
-
-      return paramName;
-    });
-  } catch (error) {
-    // Fallback to empty array if parsing fails
-    // This ensures the function doesn't crash on malformed JSDoc
-    // In development, log the error for debugging
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('[validate-types] Failed to parse JSDoc:', error.message);
-    }
-    return [];
-  }
-}
-
-/**
- * Extract function signature from source code.
- *
- * This function reuses the SourceFile from a language service instead of
- * creating an ephemeral one. This avoids duplicate parsing and reduces
- * memory pressure.
- *
- * @param {import('typescript').LanguageService} service - TypeScript language service
- * @param {string} filepath - Path to the file
- * @param {string} functionName - Name of the function to find
- * @returns {{params: string[], isAsync: boolean} | null} Function info or null
- */
-function extractFunctionSignature(service, filepath, functionName) {
-  // Get the SourceFile from the language service's program
-  const program = service.getProgram();
-  const sourceFile = program?.getSourceFile(filepath);
-
-  if (!sourceFile) {
-    return null;
-  }
-
-  let functionInfo = null;
-
-  // Visit all nodes to find the function
-  function visit(node) {
-    // Check for function declarations
-    if (ts.isFunctionDeclaration(node) && node.name?.text === functionName) {
-      functionInfo = {
-        params: node.parameters.map((p) => p.name.getText(sourceFile)),
-        isAsync: node.modifiers?.some(
-          (m) => m.kind === ts.SyntaxKind.AsyncKeyword
-        ) || false,
-      };
-    }
-
-    // Check for variable declarations with arrow functions
-    if (ts.isVariableDeclaration(node) && node.name.getText(sourceFile) === functionName) {
-      if (node.initializer && ts.isArrowFunction(node.initializer)) {
-        functionInfo = {
-          params: node.initializer.parameters.map((p) => p.name.getText(sourceFile)),
-          isAsync: node.initializer.modifiers?.some(
-            (m) => m.kind === ts.SyntaxKind.AsyncKeyword
-          ) || false,
-        };
-      }
-    }
-
-    // Check for method declarations in classes
-    if (ts.isMethodDeclaration(node) && node.name.getText(sourceFile) === functionName) {
-      functionInfo = {
-        params: node.parameters.map((p) => p.name.getText(sourceFile)),
-        isAsync: node.modifiers?.some(
-          (m) => m.kind === ts.SyntaxKind.AsyncKeyword
-        ) || false,
-      };
-    }
-
-    ts.forEachChild(node, visit);
-  }
-
-  visit(sourceFile);
-  return functionInfo;
-}
-
-/**
- * Get or create a cached language service for a file.
- *
- * This function implements LRU caching to prevent memory leaks from
- * repeatedly creating TypeScript programs. It reuses language services
- * when file content hasn't changed and evicts least recently used
- * entries when the cache reaches MAX_CACHE_SIZE.
- *
- * @param {string} filepath - Path to the file
- * @param {string} sourceCode - Source code content
- * @returns {import('typescript').LanguageService} Cached or new language service
- */
-function getCachedLanguageService(filepath, sourceCode) {
-  // Check if we have a cached service for this file
-  const cached = languageServiceCache.get(filepath);
-
-  // Return cached service if content hasn't changed
-  // Note: Uses string equality for cache invalidation. For very large files
-  // (>10KB), hash-based comparison could be more efficient, but string
-  // comparison is simpler and sufficient for typical documentation files.
-  // V8's string comparison is highly optimized and fast for most use cases.
-  if (cached && cached.content === sourceCode) {
-    // Cache HIT
-    cacheStats.hits++;
-    if (process.env.DEBUG_DOCIMP_CACHE) {
-      console.error(`[validate-types] Cache HIT: ${filepath} (${cacheStats.hits} total hits)`);
-    }
-
-    // Move to end of access order (most recently used) - O(1) operation
-    cacheAccessOrder.delete(filepath);
-    cacheAccessOrder.set(filepath, true);
-    return cached.service;
-  }
-
-  // Cache MISS or INVALIDATION
-  if (cached) {
-    // Content changed - invalidation
-    // Dispose the old language service before creating a new one
-    try {
-      cached.service.dispose();
-    } catch (error) {
-      // Log but don't fail - disposal is best-effort cleanup
-      if (process.env.DEBUG_DOCIMP_CACHE) {
-        console.error(`[validate-types] Error disposing language service for ${filepath}:`, error);
-      }
-    }
-    cacheStats.invalidations++;
-    if (process.env.DEBUG_DOCIMP_CACHE) {
-      console.error(`[validate-types] Cache INVALIDATE: ${filepath} (${cacheStats.invalidations} total invalidations)`);
-    }
-  } else {
-    // New file - miss
-    cacheStats.misses++;
-    if (process.env.DEBUG_DOCIMP_CACHE) {
-      console.error(`[validate-types] Cache MISS: ${filepath} (${cacheStats.misses} total misses)`);
-    }
-  }
-
-  // Create or update the language service
-  const version = cached ? cached.version + 1 : 0;
-
-  // Evict least recently used entry if cache is full
-  if (!cached && languageServiceCache.size >= MAX_CACHE_SIZE) {
-    // Get the first (oldest) entry from the Map - O(1) operation
-    const lruPath = cacheAccessOrder.keys().next().value;
-    if (lruPath) {
-      // Dispose the language service to free memory
-      const evictedEntry = languageServiceCache.get(lruPath);
-      if (evictedEntry) {
-        try {
-          evictedEntry.service.dispose();
-        } catch (error) {
-          // Log but don't fail - disposal is best-effort cleanup
-          if (process.env.DEBUG_DOCIMP_CACHE) {
-            console.error(`[validate-types] Error disposing evicted language service for ${lruPath}:`, error);
-          }
-        }
-      }
-      languageServiceCache.delete(lruPath);
-      cacheAccessOrder.delete(lruPath);
-      if (process.env.DEBUG_DOCIMP_CACHE) {
-        console.error(`[validate-types] Cache EVICT (LRU): ${lruPath} (cache size: ${languageServiceCache.size})`);
-      }
-    }
-  }
-
-  // Create compiler options with checkJs enabled
-  const compilerOptions = {
-    allowJs: true,
-    checkJs: true,
-    noEmit: true,
-    skipLibCheck: true,
-    target: ts.ScriptTarget.ES2022,
-    module: ts.ModuleKind.ESNext,
-  };
-
-  // Track current file version and content
-  const fileVersions = new Map([[filepath, version]]);
-  const fileContents = new Map([[filepath, sourceCode]]);
-
-  // Create a language service host
-  const host = {
-    getScriptFileNames: () => [filepath],
-    getScriptVersion: (fileName) => String(fileVersions.get(fileName) || 0),
-    getScriptSnapshot: (fileName) => {
-      const content = fileContents.get(fileName);
-      return content ? ts.ScriptSnapshot.fromString(content) : undefined;
-    },
-    getCurrentDirectory: () => process.cwd(),
-    getCompilationSettings: () => compilerOptions,
-    getDefaultLibFileName: (options) => ts.getDefaultLibFilePath(options),
-    getProjectVersion: () => String(version),
-    getScriptKind: (fileName) => {
-      if (fileName.endsWith('.tsx')) return ts.ScriptKind.TSX;
-      if (fileName.endsWith('.jsx')) return ts.ScriptKind.JSX;
-      if (fileName.endsWith('.ts')) return ts.ScriptKind.TS;
-      return ts.ScriptKind.JS;
-    },
-    getNewLine: () => '\n',
-    fileExists: (fileName) => fileName === filepath || ts.sys.fileExists(fileName),
-    readFile: (fileName) => fileContents.get(fileName) || ts.sys.readFile(fileName),
-    readDirectory: ts.sys.readDirectory,
-    directoryExists: ts.sys.directoryExists,
-    getDirectories: ts.sys.getDirectories,
-  };
-
-  // Create the language service with document registry
-  const service = ts.createLanguageService(host, documentRegistry);
-
-  // Cache the service
-  languageServiceCache.set(filepath, {
-    service,
-    version,
-    content: sourceCode,
-  });
-
-  // Update LRU access order - O(1) operation
-  // Delete then re-set to move to end (most recently used)
-  cacheAccessOrder.delete(filepath);
-  cacheAccessOrder.set(filepath, true);
-
-  return service;
-}
-
-/**
- * Validate JSDoc with TypeScript compiler.
- *
- * Uses a cached TypeScript language service with checkJs enabled
- * to validate JSDoc comments against actual code. This prevents
- * memory leaks by reusing programs instead of creating new ones.
- *
- * @param {string} filepath - Path to the file
- * @param {string} code - Source code (if available)
- * @returns {{valid: boolean, errors: string[]}} Validation result
- */
-function validateWithCompiler(filepath, code) {
-  const perfStart = process.env.DEBUG_DOCIMP_PERF ? performance.now() : null;
-
-  // If no code provided, try to read the file
-  const sourceCode = code || (function() {
-    try {
-      return readFileSync(filepath, 'utf-8');
-    } catch {
-      return null;
-    }
-  })();
-
-  if (!sourceCode) {
-    return { valid: true, errors: [] }; // Can't validate without source
-  }
-
-  // Get cached or create new language service
-  const service = getCachedLanguageService(filepath, sourceCode);
-
-  // Get semantic diagnostics (includes JSDoc validation)
-  let diagnostics = [];
-  try {
-    diagnostics = service.getSemanticDiagnostics(filepath);
-  } catch (error) {
-    // Return error as validation failure
-    if (perfStart !== null) {
-      const duration = (performance.now() - perfStart).toFixed(2);
-      console.error(`[validate-types] Validation failed after ${duration}ms for ${filepath}`);
-    }
-    return {
-      valid: false,
-      errors: [`TypeScript compiler error: ${error.message}`]
-    };
-  }
-
-  // Format errors with line/column information
-  const errors = diagnostics.map((d) => {
-    const message = ts.flattenDiagnosticMessageText(d.messageText, '\n');
-    const position = d.start !== undefined && d.file
-      ? d.file.getLineAndCharacterOfPosition(d.start)
-      : null;
-    const location = position
-      ? ` (line ${position.line + 1}, col ${position.character + 1})`
-      : '';
-    return `${message}${location}`;
-  });
-
-  if (perfStart !== null) {
-    const duration = (performance.now() - perfStart).toFixed(2);
-    console.error(`[validate-types] Validation took ${duration}ms for ${filepath}`);
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors,
-  };
-}
-
-/**
- * Generate auto-fix for parameter name mismatches.
- *
- * @param {string} docstring - Original JSDoc
- * @param {string[]} jsdocParams - Parameter names in JSDoc
- * @param {string[]} actualParams - Parameter names in function signature
- * @returns {string | null} Fixed JSDoc or null if can't fix
- */
-function generateParameterFix(docstring, jsdocParams, actualParams) {
-  if (jsdocParams.length !== actualParams.length) {
-    return null; // Can't auto-fix if counts don't match
-  }
-
-  let fixed = docstring;
-
-  // Replace each mismatched parameter name
-  for (let i = 0; i < jsdocParams.length; i++) {
-    if (jsdocParams[i] !== actualParams[i]) {
-      // Replace the parameter name in the @param tag
-      const pattern = new RegExp(
-        `(@param\\s+\\{[^}]+\\})\\s+${jsdocParams[i]}\\b`,
-        'g'
-      );
-      fixed = fixed.replace(pattern, `$1 ${actualParams[i]}`);
-    }
-  }
-
-  return fixed !== docstring ? fixed : null;
-}
-
-/**
- * Validate JSDoc type annotations.
- *
- * This is the main beforeAccept hook that runs before documentation
- * is accepted in the improve workflow.
- *
- * @param {string} docstring - Generated JSDoc comment
- * @param {object} item - Code item metadata
- * @param {object} config - User configuration
- * @param {object} dependencies - Injected dependencies (TypeScript, comment-parser)
- * @returns {Promise<{accept: boolean, reason?: string, autoFix?: string}>}
- */
-async function beforeAccept(docstring, item, config, dependencies) {
-  // Initialize dependencies if provided
-  if (dependencies) {
-    if (dependencies.typescript) {
-      ts = dependencies.typescript;
-      // Initialize document registry lazily when TypeScript is available
-      if (!documentRegistry) {
-        try {
-          documentRegistry = ts.createDocumentRegistry();
-        } catch (error) {
-          return {
-            accept: false,
-            reason: `Failed to initialize TypeScript document registry: ${error.message}. ` +
-                    `Ensure TypeScript is properly installed and compatible.`,
-          };
-        }
-      }
-    }
-    if (dependencies.commentParser) {
-      parseJSDoc = dependencies.commentParser.parse;
-    }
-  }
-
-  // Validate that required dependencies are available
-  if (!ts) {
-    return {
-      accept: false,
-      reason: 'TypeScript dependency not available. This plugin requires TypeScript to be injected by the PluginManager.',
-    };
-  }
-  if (!parseJSDoc) {
-    return {
-      accept: false,
-      reason: 'comment-parser dependency not available. This plugin requires comment-parser to be injected by the PluginManager.',
-    };
-  }
-
-  // Only validate JavaScript/TypeScript files
-  if (item.language !== 'javascript' && item.language !== 'typescript') {
-    return { accept: true };
-  }
-
-  // Skip if type enforcement is disabled
-  if (config.jsdocStyle?.enforceTypes === false) {
-    return { accept: true };
-  }
-
-  const errors = [];
-
-  // Extract parameter names from JSDoc
-  const jsdocParams = extractJSDocParamNames(docstring);
-
-  // Get language service for signature extraction and validation
-  // This will be cached and reused by validateWithCompiler
-  let functionInfo = null;
-  if (item.code && item.filepath) {
-    const service = getCachedLanguageService(item.filepath, item.code);
-    functionInfo = extractFunctionSignature(service, item.filepath, item.name);
-  }
-
-  // Validate parameter names match
-  if (functionInfo && item.parameters) {
-    const actualParams = functionInfo.params;
-
-    // Check if parameter names match
-    if (jsdocParams.length !== actualParams.length) {
-      errors.push(
-        `Parameter count mismatch: JSDoc has ${jsdocParams.length} params, function has ${actualParams.length}`
-      );
-    } else {
-      const mismatches = [];
-      for (let i = 0; i < jsdocParams.length; i++) {
-        if (jsdocParams[i] !== actualParams[i]) {
-          mismatches.push(
-            `  Position ${i + 1}: JSDoc says "${jsdocParams[i]}", function says "${actualParams[i]}"`
-          );
-        }
-      }
-
-      if (mismatches.length > 0) {
-        errors.push(
-          'Parameter name mismatch:\n' + mismatches.join('\n')
-        );
-      }
-    }
-  }
-
-  // Run TypeScript compiler validation
-  const compilerResult = validateWithCompiler(item.filepath, item.code);
-  if (!compilerResult.valid) {
-    errors.push(
-      'TypeScript compiler errors:\n  ' +
-        compilerResult.errors.join('\n  ')
-    );
-  }
-
-  // If there are errors, reject with detailed message
-  if (errors.length > 0) {
-    const reason = errors.join('\n\n');
-
-    // Try to generate an auto-fix
-    let autoFix = null;
-    if (functionInfo && jsdocParams.length === functionInfo.params.length) {
-      autoFix = generateParameterFix(
-        docstring,
-        jsdocParams,
-        functionInfo.params
-      );
-    }
-
-    return {
-      accept: false,
-      reason,
-      autoFix: autoFix || undefined,
-    };
-  }
-
-  return { accept: true };
-}
-
-/**
  * Clear the language service cache.
  *
  * This function is primarily useful for testing to ensure
@@ -728,11 +204,506 @@ export function getCacheSize() {
   return languageServiceCache.size;
 }
 
-// Export the plugin
-export default {
-  name: 'validate-types',
-  version: '1.0.0',
-  hooks: {
-    beforeAccept,
-  },
-};
+/**
+ * Create a type validation plugin with injected dependencies.
+ *
+ * This factory pattern captures dependencies in closure scope, making them
+ * available to all helper functions without global state. This follows the
+ * dependency injection principle while maintaining clean code organization.
+ *
+ * Module-level caches (languageServiceCache, cacheAccessOrder, etc.) remain
+ * at module scope as documented exceptions for performance optimization.
+ *
+ * @param {object} dependencies - Dependencies to inject
+ * @param {typeof import('typescript')} dependencies.typescript - TypeScript compiler API
+ * @param {object} dependencies.commentParser - JSDoc parser with parse method
+ * @returns {object} Plugin object with hooks that close over dependencies
+ */
+export default function createValidator(dependencies) {
+  // Capture dependencies in closure scope
+  const ts = dependencies?.typescript;
+  const parseJSDoc = dependencies?.commentParser?.parse;
+
+  // Validate that required dependencies are available
+  if (!ts) {
+    throw new Error('TypeScript dependency is required for validate-types plugin');
+  }
+  if (!parseJSDoc) {
+    throw new Error('commentParser dependency is required for validate-types plugin');
+  }
+
+  // ============================================================================
+  // HELPER FUNCTIONS (moved inside factory to access ts and parseJSDoc via closure)
+  // ============================================================================
+
+  /**
+   * Extract parameter names from a JSDoc comment.
+   *
+   * Uses comment-parser to properly handle JSDoc parameter patterns including:
+   * - Optional parameters: @param {string} [name='default']
+   * - Rest parameters: @param {...any} args
+   * - Destructured parameters: @param {{x: number, y: number}} options
+   *
+   * @param {string} docstring - JSDoc comment text
+   * @returns {string[]} Array of parameter names
+   */
+  function extractJSDocParamNames(docstring) {
+    try {
+      // Parse JSDoc comment using comment-parser (from closure)
+      const parsed = parseJSDoc(docstring);
+
+      if (!parsed || parsed.length === 0) {
+        return [];
+      }
+
+      // Extract @param tags from the first comment block
+      const paramTags = parsed[0].tags.filter(tag => tag.tag === 'param');
+
+      // Extract parameter names, handling special patterns
+      return paramTags.map(tag => {
+        let paramName = tag.name;
+
+        // Handle optional parameters: [name], [name='default']
+        if (paramName.startsWith('[') && paramName.includes(']')) {
+          const match = paramName.match(/^\[([^\]=]+)/);
+          if (match) {
+            paramName = match[1];
+          }
+        }
+
+        // Handle rest parameters: ...args
+        if (paramName.startsWith('...')) {
+          paramName = paramName.substring(3);
+        }
+
+        // Handle destructured parameters: options.x -> options
+        if (paramName.includes('.')) {
+          paramName = paramName.split('.')[0];
+        }
+
+        return paramName;
+      });
+    } catch (error) {
+      // Fallback to empty array if parsing fails
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[validate-types] Failed to parse JSDoc:', error.message);
+      }
+      return [];
+    }
+  }
+
+  /**
+   * Extract function signature from source code.
+   *
+   * This function reuses the SourceFile from a language service instead of
+   * creating an ephemeral one. This avoids duplicate parsing and reduces
+   * memory pressure.
+   *
+   * @param {import('typescript').LanguageService} service - TypeScript language service
+   * @param {string} filepath - Path to the file
+   * @param {string} functionName - Name of the function to find
+   * @returns {{params: string[], isAsync: boolean} | null} Function info or null
+   */
+  function extractFunctionSignature(service, filepath, functionName) {
+    // Get the SourceFile from the language service's program
+    const program = service.getProgram();
+    const sourceFile = program?.getSourceFile(filepath);
+
+    if (!sourceFile) {
+      return null;
+    }
+
+    let functionInfo = null;
+
+    // Visit all nodes to find the function
+    function visit(node) {
+      // Check for function declarations (ts from closure)
+      if (ts.isFunctionDeclaration(node) && node.name?.text === functionName) {
+        functionInfo = {
+          params: node.parameters.map((p) => p.name.getText(sourceFile)),
+          isAsync: node.modifiers?.some(
+            (m) => m.kind === ts.SyntaxKind.AsyncKeyword
+          ) || false,
+        };
+      }
+
+      // Check for variable declarations with arrow functions
+      if (ts.isVariableDeclaration(node) && node.name.getText(sourceFile) === functionName) {
+        if (node.initializer && ts.isArrowFunction(node.initializer)) {
+          functionInfo = {
+            params: node.initializer.parameters.map((p) => p.name.getText(sourceFile)),
+            isAsync: node.initializer.modifiers?.some(
+              (m) => m.kind === ts.SyntaxKind.AsyncKeyword
+            ) || false,
+          };
+        }
+      }
+
+      // Check for method declarations in classes
+      if (ts.isMethodDeclaration(node) && node.name.getText(sourceFile) === functionName) {
+        functionInfo = {
+          params: node.parameters.map((p) => p.name.getText(sourceFile)),
+          isAsync: node.modifiers?.some(
+            (m) => m.kind === ts.SyntaxKind.AsyncKeyword
+          ) || false,
+        };
+      }
+
+      ts.forEachChild(node, visit);
+    }
+
+    visit(sourceFile);
+    return functionInfo;
+  }
+
+  /**
+   * Get or create a cached language service for a file.
+   *
+   * This function implements LRU caching to prevent memory leaks from
+   * repeatedly creating TypeScript programs. It reuses language services
+   * when file content hasn't changed and evicts least recently used
+   * entries when the cache reaches MAX_CACHE_SIZE.
+   *
+   * @param {string} filepath - Path to the file
+   * @param {string} sourceCode - Source code content
+   * @returns {import('typescript').LanguageService} Cached or new language service
+   */
+  function getCachedLanguageService(filepath, sourceCode) {
+    // Check if we have a cached service for this file
+    const cached = languageServiceCache.get(filepath);
+
+    // Return cached service if content hasn't changed
+    if (cached && cached.content === sourceCode) {
+      // Cache HIT
+      cacheStats.hits++;
+      if (process.env.DEBUG_DOCIMP_CACHE) {
+        console.error(`[validate-types] Cache HIT: ${filepath} (${cacheStats.hits} total hits)`);
+      }
+
+      // Move to end of access order (most recently used) - O(1) operation
+      cacheAccessOrder.delete(filepath);
+      cacheAccessOrder.set(filepath, true);
+      return cached.service;
+    }
+
+    // Cache MISS or INVALIDATION
+    if (cached) {
+      // Content changed - invalidation
+      try {
+        cached.service.dispose();
+      } catch (error) {
+        if (process.env.DEBUG_DOCIMP_CACHE) {
+          console.error(`[validate-types] Error disposing language service for ${filepath}:`, error);
+        }
+      }
+      cacheStats.invalidations++;
+      if (process.env.DEBUG_DOCIMP_CACHE) {
+        console.error(`[validate-types] Cache INVALIDATE: ${filepath} (${cacheStats.invalidations} total invalidations)`);
+      }
+    } else {
+      // New file - miss
+      cacheStats.misses++;
+      if (process.env.DEBUG_DOCIMP_CACHE) {
+        console.error(`[validate-types] Cache MISS: ${filepath} (${cacheStats.misses} total misses)`);
+      }
+    }
+
+    // Create or update the language service
+    const version = cached ? cached.version + 1 : 0;
+
+    // Evict least recently used entry if cache is full
+    if (!cached && languageServiceCache.size >= MAX_CACHE_SIZE) {
+      const lruPath = cacheAccessOrder.keys().next().value;
+      if (lruPath) {
+        const evictedEntry = languageServiceCache.get(lruPath);
+        if (evictedEntry) {
+          try {
+            evictedEntry.service.dispose();
+          } catch (error) {
+            if (process.env.DEBUG_DOCIMP_CACHE) {
+              console.error(`[validate-types] Error disposing evicted language service for ${lruPath}:`, error);
+            }
+          }
+        }
+        languageServiceCache.delete(lruPath);
+        cacheAccessOrder.delete(lruPath);
+        if (process.env.DEBUG_DOCIMP_CACHE) {
+          console.error(`[validate-types] Cache EVICT (LRU): ${lruPath} (cache size: ${languageServiceCache.size})`);
+        }
+      }
+    }
+
+    // Create compiler options with checkJs enabled (ts from closure)
+    const compilerOptions = {
+      allowJs: true,
+      checkJs: true,
+      noEmit: true,
+      skipLibCheck: true,
+      target: ts.ScriptTarget.ES2022,
+      module: ts.ModuleKind.ESNext,
+    };
+
+    // Track current file version and content
+    const fileVersions = new Map([[filepath, version]]);
+    const fileContents = new Map([[filepath, sourceCode]]);
+
+    // Create a language service host (ts from closure)
+    const host = {
+      getScriptFileNames: () => [filepath],
+      getScriptVersion: (fileName) => String(fileVersions.get(fileName) || 0),
+      getScriptSnapshot: (fileName) => {
+        const content = fileContents.get(fileName);
+        return content ? ts.ScriptSnapshot.fromString(content) : undefined;
+      },
+      getCurrentDirectory: () => process.cwd(),
+      getCompilationSettings: () => compilerOptions,
+      getDefaultLibFileName: (options) => ts.getDefaultLibFilePath(options),
+      getProjectVersion: () => String(version),
+      getScriptKind: (fileName) => {
+        if (fileName.endsWith('.tsx')) return ts.ScriptKind.TSX;
+        if (fileName.endsWith('.jsx')) return ts.ScriptKind.JSX;
+        if (fileName.endsWith('.ts')) return ts.ScriptKind.TS;
+        return ts.ScriptKind.JS;
+      },
+      getNewLine: () => '\n',
+      fileExists: (fileName) => fileName === filepath || ts.sys.fileExists(fileName),
+      readFile: (fileName) => fileContents.get(fileName) || ts.sys.readFile(fileName),
+      readDirectory: ts.sys.readDirectory,
+      directoryExists: ts.sys.directoryExists,
+      getDirectories: ts.sys.getDirectories,
+    };
+
+    // Create the language service with document registry (ts from closure)
+    const service = ts.createLanguageService(host, documentRegistry);
+
+    // Cache the service
+    languageServiceCache.set(filepath, {
+      service,
+      version,
+      content: sourceCode,
+    });
+
+    // Update LRU access order
+    cacheAccessOrder.delete(filepath);
+    cacheAccessOrder.set(filepath, true);
+
+    return service;
+  }
+
+  /**
+   * Validate JSDoc with TypeScript compiler.
+   *
+   * Uses a cached TypeScript language service with checkJs enabled
+   * to validate JSDoc comments against actual code.
+   *
+   * @param {string} filepath - Path to the file
+   * @param {string} code - Source code (if available)
+   * @returns {{valid: boolean, errors: string[]}} Validation result
+   */
+  function validateWithCompiler(filepath, code) {
+    const perfStart = process.env.DEBUG_DOCIMP_PERF ? performance.now() : null;
+
+    // If no code provided, try to read the file
+    const sourceCode = code || (function() {
+      try {
+        return readFileSync(filepath, 'utf-8');
+      } catch {
+        return null;
+      }
+    })();
+
+    if (!sourceCode) {
+      return { valid: true, errors: [] }; // Can't validate without source
+    }
+
+    // Get cached or create new language service
+    const service = getCachedLanguageService(filepath, sourceCode);
+
+    // Get semantic diagnostics (includes JSDoc validation)
+    let diagnostics = [];
+    try {
+      diagnostics = service.getSemanticDiagnostics(filepath);
+    } catch (error) {
+      if (perfStart !== null) {
+        const duration = (performance.now() - perfStart).toFixed(2);
+        console.error(`[validate-types] Validation failed after ${duration}ms for ${filepath}`);
+      }
+      return {
+        valid: false,
+        errors: [`TypeScript compiler error: ${error.message}`]
+      };
+    }
+
+    // Format errors with line/column information (ts from closure)
+    const errors = diagnostics.map((d) => {
+      const message = ts.flattenDiagnosticMessageText(d.messageText, '\n');
+      const position = d.start !== undefined && d.file
+        ? d.file.getLineAndCharacterOfPosition(d.start)
+        : null;
+      const location = position
+        ? ` (line ${position.line + 1}, col ${position.character + 1})`
+        : '';
+      return `${message}${location}`;
+    });
+
+    if (perfStart !== null) {
+      const duration = (performance.now() - perfStart).toFixed(2);
+      console.error(`[validate-types] Validation took ${duration}ms for ${filepath}`);
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+    };
+  }
+
+  /**
+   * Generate auto-fix for parameter name mismatches.
+   *
+   * @param {string} docstring - Original JSDoc
+   * @param {string[]} jsdocParams - Parameter names in JSDoc
+   * @param {string[]} actualParams - Parameter names in function signature
+   * @returns {string | null} Fixed JSDoc or null if can't fix
+   */
+  function generateParameterFix(docstring, jsdocParams, actualParams) {
+    if (jsdocParams.length !== actualParams.length) {
+      return null; // Can't auto-fix if counts don't match
+    }
+
+    let fixed = docstring;
+
+    // Replace each mismatched parameter name
+    for (let i = 0; i < jsdocParams.length; i++) {
+      if (jsdocParams[i] !== actualParams[i]) {
+        // Replace the parameter name in the @param tag
+        const pattern = new RegExp(
+          `(@param\\s+\\{[^}]+\\})\\s+${jsdocParams[i]}\\b`,
+          'g'
+        );
+        fixed = fixed.replace(pattern, `$1 ${actualParams[i]}`);
+      }
+    }
+
+    return fixed !== docstring ? fixed : null;
+  }
+
+  /**
+   * Validate JSDoc type annotations.
+   *
+   * This is the main beforeAccept hook that runs before documentation
+   * is accepted in the improve workflow.
+   *
+   * @param {string} docstring - Generated JSDoc comment
+   * @param {object} item - Code item metadata
+   * @param {object} config - User configuration
+   * @returns {Promise<{accept: boolean, reason?: string, autoFix?: string}>}
+   */
+  async function beforeAccept(docstring, item, config) {
+    // Initialize document registry lazily when TypeScript is available (ts from closure)
+    if (!documentRegistry) {
+      try {
+        documentRegistry = ts.createDocumentRegistry();
+      } catch (error) {
+        return {
+          accept: false,
+          reason: `Failed to initialize TypeScript document registry: ${error.message}. ` +
+                  `Ensure TypeScript is properly installed and compatible.`,
+        };
+      }
+    }
+
+    // Only validate JavaScript/TypeScript files
+    if (item.language !== 'javascript' && item.language !== 'typescript') {
+      return { accept: true };
+    }
+
+    // Skip if type enforcement is disabled
+    if (config.jsdocStyle?.enforceTypes === false) {
+      return { accept: true };
+    }
+
+    const errors = [];
+
+    // Extract parameter names from JSDoc (uses parseJSDoc from closure)
+    const jsdocParams = extractJSDocParamNames(docstring);
+
+    // Get language service for signature extraction and validation (uses ts from closure)
+    let functionInfo = null;
+    if (item.code && item.filepath) {
+      const service = getCachedLanguageService(item.filepath, item.code);
+      functionInfo = extractFunctionSignature(service, item.filepath, item.name);
+    }
+
+    // Validate parameter names match
+    if (functionInfo && item.parameters) {
+      const actualParams = functionInfo.params;
+
+      // Check if parameter names match
+      if (jsdocParams.length !== actualParams.length) {
+        errors.push(
+          `Parameter count mismatch: JSDoc has ${jsdocParams.length} params, function has ${actualParams.length}`
+        );
+      } else {
+        const mismatches = [];
+        for (let i = 0; i < jsdocParams.length; i++) {
+          if (jsdocParams[i] !== actualParams[i]) {
+            mismatches.push(
+              `  Position ${i + 1}: JSDoc says "${jsdocParams[i]}", function says "${actualParams[i]}"`
+            );
+          }
+        }
+
+        if (mismatches.length > 0) {
+          errors.push(
+            'Parameter name mismatch:\n' + mismatches.join('\n')
+          );
+        }
+      }
+    }
+
+    // Run TypeScript compiler validation (uses ts from closure)
+    const compilerResult = validateWithCompiler(item.filepath, item.code);
+    if (!compilerResult.valid) {
+      errors.push(
+        'TypeScript compiler errors:\n  ' +
+          compilerResult.errors.join('\n  ')
+      );
+    }
+
+    // If there are errors, reject with detailed message
+    if (errors.length > 0) {
+      const reason = errors.join('\n\n');
+
+      // Try to generate an auto-fix
+      let autoFix = null;
+      if (functionInfo && jsdocParams.length === functionInfo.params.length) {
+        autoFix = generateParameterFix(
+          docstring,
+          jsdocParams,
+          functionInfo.params
+        );
+      }
+
+      return {
+        accept: false,
+        reason,
+        autoFix: autoFix || undefined,
+      };
+    }
+
+    return { accept: true };
+  }
+
+  // ============================================================================
+  // PLUGIN OBJECT
+  // ============================================================================
+
+  // Return the plugin object with hooks that access dependencies via closure
+  return {
+    name: 'validate-types',
+    version: '1.0.0',
+    hooks: {
+      beforeAccept,
+    },
+  };
+}

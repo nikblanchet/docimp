@@ -12,6 +12,7 @@ import { PathValidator } from '../utils/PathValidator.js';
 import type { IConfig } from './IConfig.js';
 import { defaultConfig } from './IConfig.js';
 import { validateAndMerge } from './ConfigValidator.js';
+import type { IConfigLoader } from './IConfigLoader.js';
 
 /**
  * Configuration loader class.
@@ -19,7 +20,7 @@ import { validateAndMerge } from './ConfigValidator.js';
  * Dynamically imports JavaScript configuration files and validates them
  * against the IConfig schema.
  */
-export class ConfigLoader {
+export class ConfigLoader implements IConfigLoader {
   /**
    * Load configuration from a file path.
    *

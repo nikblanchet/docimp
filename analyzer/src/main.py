@@ -22,19 +22,22 @@ from .utils.state_manager import StateManager
 from .writer.docstring_writer import DocstringWriter
 
 
-def create_analyzer() -> DocumentationAnalyzer:
-    """Create a DocumentationAnalyzer with all available parsers.
+def create_analyzer(
+    parsers: dict,
+    scorer: ImpactScorer
+) -> DocumentationAnalyzer:
+    """Create a DocumentationAnalyzer with injected dependencies.
+
+    Args:
+        parsers: Dictionary mapping language names to parser instances.
+        scorer: Impact scorer instance for calculating priority scores.
 
     Returns:
         DocumentationAnalyzer: Configured analyzer instance.
     """
     return DocumentationAnalyzer(
-        parsers={
-            'python': PythonParser(),
-            'typescript': TypeScriptParser(),
-            'javascript': TypeScriptParser()
-        },
-        scorer=ImpactScorer()
+        parsers=parsers,
+        scorer=scorer
     )
 
 
@@ -141,11 +144,17 @@ def format_summary(result) -> str:
     return "\n".join(lines)
 
 
-def cmd_analyze(args: argparse.Namespace) -> int:
+def cmd_analyze(
+    args: argparse.Namespace,
+    parsers: dict,
+    scorer: ImpactScorer
+) -> int:
     """Handle the analyze subcommand.
 
     Args:
         args: Parsed command-line arguments.
+        parsers: Dictionary mapping language names to parser instances (dependency injection).
+        scorer: Impact scorer instance (dependency injection).
 
     Returns:
         Exit code (0 for success, 1 for error).
@@ -167,8 +176,8 @@ def cmd_analyze(args: argparse.Namespace) -> int:
             if files_removed > 0:
                 print(f"Cleared {files_removed} previous session report(s)", file=sys.stderr)
 
-        # Create analyzer
-        analyzer = create_analyzer()
+        # Create analyzer with injected dependencies
+        analyzer = create_analyzer(parsers, scorer)
 
         # Run analysis
         if args.verbose:
@@ -205,18 +214,24 @@ def cmd_analyze(args: argparse.Namespace) -> int:
         return 1
 
 
-def cmd_audit(args: argparse.Namespace) -> int:
+def cmd_audit(
+    args: argparse.Namespace,
+    parsers: dict,
+    scorer: ImpactScorer
+) -> int:
     """Handle the audit subcommand.
 
     Args:
         args: Parsed command-line arguments.
+        parsers: Dictionary mapping language names to parser instances (dependency injection).
+        scorer: Impact scorer instance (dependency injection).
 
     Returns:
         Exit code (0 for success, 1 for error).
     """
     try:
-        # Create analyzer
-        analyzer = create_analyzer()
+        # Create analyzer with injected dependencies
+        analyzer = create_analyzer(parsers, scorer)
 
         # Run analysis
         if args.verbose:
@@ -301,11 +316,17 @@ def cmd_apply_audit(args: argparse.Namespace) -> int:
         return 1
 
 
-def cmd_plan(args: argparse.Namespace) -> int:
+def cmd_plan(
+    args: argparse.Namespace,
+    parsers: dict,
+    scorer: ImpactScorer
+) -> int:
     """Handle the plan subcommand.
 
     Args:
         args: Parsed command-line arguments.
+        parsers: Dictionary mapping language names to parser instances (dependency injection).
+        scorer: Impact scorer instance (dependency injection).
 
     Returns:
         Exit code (0 for success, 1 for error).
@@ -314,8 +335,8 @@ def cmd_plan(args: argparse.Namespace) -> int:
         # Ensure state directory exists
         StateManager.ensure_state_dir()
 
-        # Create analyzer
-        analyzer = create_analyzer()
+        # Create analyzer with injected dependencies
+        analyzer = create_analyzer(parsers, scorer)
 
         # Run analysis
         if args.verbose:
@@ -370,11 +391,17 @@ def cmd_plan(args: argparse.Namespace) -> int:
         return 1
 
 
-def cmd_suggest(args: argparse.Namespace) -> int:
+def cmd_suggest(
+    args: argparse.Namespace,
+    claude_client: ClaudeClient,
+    prompt_builder: PromptBuilder
+) -> int:
     """Handle the suggest subcommand.
 
     Args:
         args: Parsed command-line arguments.
+        claude_client: ClaudeClient instance for API calls (dependency injection).
+        prompt_builder: PromptBuilder instance for formatting prompts (dependency injection).
 
     Returns:
         Exit code (0 for success, 1 for error).
@@ -414,25 +441,8 @@ def cmd_suggest(args: argparse.Namespace) -> int:
         # For now, just use the whole file as context
         target_code = code_content  # Simplified for MVP
 
-        # Create Claude client and prompt builder
-        try:
-            client = ClaudeClient(
-                timeout=args.timeout,
-                max_retries=args.max_retries,
-                retry_delay=args.retry_delay
-            )
-        except ValueError as e:
-            print(f"Error: {e}", file=sys.stderr)
-            print("Please set the ANTHROPIC_API_KEY environment variable", file=sys.stderr)
-            return 1
-
-        builder = PromptBuilder(
-            style_guide=args.style_guide,
-            tone=args.tone
-        )
-
         # Build prompt
-        prompt = builder.build_prompt(
+        prompt = prompt_builder.build_prompt(
             code=target_code,
             item_name=item_name,
             item_type='function',  # Simplified for MVP
@@ -445,7 +455,7 @@ def cmd_suggest(args: argparse.Namespace) -> int:
             print("", file=sys.stderr)
 
         # Generate documentation
-        docstring = client.generate_docstring(prompt)
+        docstring = claude_client.generate_docstring(prompt)
 
         # Output the result
         print(docstring)
@@ -463,11 +473,15 @@ def cmd_suggest(args: argparse.Namespace) -> int:
         return 1
 
 
-def cmd_apply(args: argparse.Namespace) -> int:
+def cmd_apply(
+    args: argparse.Namespace,
+    docstring_writer: DocstringWriter
+) -> int:
     """Handle the apply subcommand to write documentation to files.
 
     Args:
         args: Parsed command-line arguments.
+        docstring_writer: DocstringWriter instance for file operations (dependency injection).
 
     Returns:
         Exit code (0 for success, 1 for error).
@@ -482,22 +496,16 @@ def cmd_apply(args: argparse.Namespace) -> int:
         docstring = apply_data.get('docstring')
         language = apply_data.get('language')
         line_number = apply_data.get('line_number')
-        base_path = apply_data.get('base_path', '/')
 
         if not all([filepath, item_name, item_type, docstring, language]):
             print("Error: Missing required fields in apply data", file=sys.stderr)
             return 1
 
-        # Create writer with base_path for path validation
-        # Note: DocstringWriter automatically applies defensive parser to clean
-        # any markdown wrappers from Claude responses
-        writer = DocstringWriter(base_path=base_path)
-
         # Write docstring
         if args.verbose:
             print(f"Writing documentation for {item_name} in {filepath}", file=sys.stderr)
 
-        success = writer.write_docstring(
+        success = docstring_writer.write_docstring(
             filepath=filepath,
             item_name=item_name,
             item_type=item_type,
@@ -724,19 +732,50 @@ def main(argv: Optional[list] = None) -> int:
         parser.print_help()
         return 1
 
-    # Dispatch to command handler
+    # Instantiate dependencies (ONLY place with instantiation in Python)
+    # These are shared across most commands
+    parsers = {
+        'python': PythonParser(),
+        'typescript': TypeScriptParser(),
+        'javascript': TypeScriptParser()
+    }
+    scorer = ImpactScorer()
+
+    # Dispatch to command handler with injected dependencies
     if args.command == 'analyze':
-        return cmd_analyze(args)
+        return cmd_analyze(args, parsers, scorer)
     elif args.command == 'audit':
-        return cmd_audit(args)
+        return cmd_audit(args, parsers, scorer)
     elif args.command == 'apply-audit':
         return cmd_apply_audit(args)
     elif args.command == 'plan':
-        return cmd_plan(args)
+        return cmd_plan(args, parsers, scorer)
     elif args.command == 'suggest':
-        return cmd_suggest(args)
+        # Create Claude client and prompt builder for suggest command
+        try:
+            claude_client = ClaudeClient(
+                timeout=args.timeout,
+                max_retries=args.max_retries,
+                retry_delay=args.retry_delay
+            )
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            print("Please set the ANTHROPIC_API_KEY environment variable", file=sys.stderr)
+            return 1
+        prompt_builder = PromptBuilder(
+            style_guide=args.style_guide,
+            tone=args.tone
+        )
+        return cmd_suggest(args, claude_client, prompt_builder)
     elif args.command == 'apply':
-        return cmd_apply(args)
+        # Create docstring writer for apply command
+        apply_data = json.load(sys.stdin)
+        base_path = apply_data.get('base_path', '/')
+        docstring_writer = DocstringWriter(base_path=base_path)
+        # Need to "rewind" stdin for cmd_apply to read it again
+        import io
+        sys.stdin = io.StringIO(json.dumps(apply_data))
+        return cmd_apply(args, docstring_writer)
 
     return 1
 

@@ -6,13 +6,11 @@
  */
 
 import { writeFileSync } from 'fs';
-import { ConfigLoader } from '../config/ConfigLoader.js';
-import { PythonBridge } from '../python-bridge/PythonBridge.js';
-import { TerminalDisplay } from '../display/TerminalDisplay.js';
 import { StateManager } from '../utils/StateManager.js';
 import { PathValidator } from '../utils/PathValidator.js';
 import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
 import type { IDisplay } from '../display/IDisplay.js';
+import type { IConfigLoader } from '../config/IConfigLoader.js';
 
 
 /**
@@ -25,8 +23,9 @@ import type { IDisplay } from '../display/IDisplay.js';
  * @param options.verbose - Enable verbose output
  * @param options.keepOldReports - Preserve existing audit and plan files
  * @param options.strict - Fail immediately on first parse error
- * @param bridge - Python bridge instance (injected for testing)
- * @param display - Display instance (injected for testing)
+ * @param bridge - Python bridge instance (dependency injection)
+ * @param display - Display instance (dependency injection)
+ * @param configLoader - Config loader instance (dependency injection)
  */
 export async function analyzeCore(
   path: string,
@@ -37,16 +36,14 @@ export async function analyzeCore(
     keepOldReports?: boolean;
     strict?: boolean;
   },
-  bridge?: IPythonBridge,
-  display?: IDisplay
+  bridge: IPythonBridge,
+  display: IDisplay,
+  configLoader: IConfigLoader
 ): Promise<void> {
   // Validate path exists and is accessible before proceeding
   const absolutePath = PathValidator.validatePathExists(path);
   PathValidator.validatePathReadable(absolutePath);
   PathValidator.warnIfEmpty(absolutePath);
-
-  // Create display dependency (needed before loading config)
-  const terminalDisplay = display ?? new TerminalDisplay();
 
   // Ensure state directory exists
   StateManager.ensureStateDir();
@@ -54,24 +51,20 @@ export async function analyzeCore(
   // Clear session reports unless --keep-old-reports flag is set
   if (options.keepOldReports) {
     if (options.verbose) {
-      terminalDisplay.showMessage('Keeping previous session reports');
+      display.showMessage('Keeping previous session reports');
     }
   } else {
     const filesRemoved = StateManager.clearSessionReports();
     if (filesRemoved > 0) {
-      terminalDisplay.showMessage(`Cleared ${filesRemoved} previous session report(s)`);
+      display.showMessage(`Cleared ${filesRemoved} previous session report(s)`);
     }
   }
 
   // Load configuration
-  const configLoader = new ConfigLoader();
   const config = await configLoader.load(options.config);
 
-  // Create Python bridge with config for timeout settings (after config loaded)
-  const pythonBridge = bridge ?? new PythonBridge(undefined, undefined, config);
-
   if (options.verbose) {
-    terminalDisplay.showConfig({
+    display.showConfig({
       styleGuides: config.styleGuides,
       tone: config.tone,
       plugins: config.plugins,
@@ -82,13 +75,13 @@ export async function analyzeCore(
 
   // Run analysis via Python subprocess
   if (options.verbose) {
-    terminalDisplay.showMessage(`Analyzing: ${absolutePath}`);
+    display.showMessage(`Analyzing: ${absolutePath}`);
   }
 
-  const stopSpinner = terminalDisplay.startSpinner('Analyzing codebase...');
+  const stopSpinner = display.startSpinner('Analyzing codebase...');
 
   try {
-    const result = await pythonBridge.analyze({
+    const result = await bridge.analyze({
       path: absolutePath,
       config,
       verbose: options.verbose,
@@ -102,12 +95,12 @@ export async function analyzeCore(
     writeFileSync(analyzeFile, JSON.stringify(result, null, 2), 'utf-8');
 
     if (options.verbose) {
-      terminalDisplay.showMessage(`Analysis saved to: ${analyzeFile}`);
+      display.showMessage(`Analysis saved to: ${analyzeFile}`);
     }
 
     // Display results using the display service
     const format = (options.format || 'summary') as 'summary' | 'json';
-    terminalDisplay.showAnalysisResult(result, format);
+    display.showAnalysisResult(result, format);
   } catch (error) {
     stopSpinner();
     throw error;
@@ -125,6 +118,9 @@ export async function analyzeCore(
  * @param options.verbose - Enable verbose output
  * @param options.keepOldReports - Preserve existing audit and plan files
  * @param options.strict - Fail immediately on first parse error
+ * @param bridge - Python bridge instance (dependency injection)
+ * @param display - Display instance (dependency injection)
+ * @param configLoader - Config loader instance (dependency injection)
  */
 export async function analyzeCommand(
   path: string,
@@ -134,12 +130,13 @@ export async function analyzeCommand(
     verbose?: boolean;
     keepOldReports?: boolean;
     strict?: boolean;
-  }
+  },
+  bridge: IPythonBridge,
+  display: IDisplay,
+  configLoader: IConfigLoader
 ): Promise<void> {
-  const display = new TerminalDisplay();
-
   try {
-    await analyzeCore(path, options);
+    await analyzeCore(path, options, bridge, display, configLoader);
   } catch (error) {
     display.showError(error instanceof Error ? error.message : String(error));
     process.exit(1);

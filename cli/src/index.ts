@@ -13,6 +13,11 @@ import { auditCommand } from './commands/audit.js';
 import { planCommand } from './commands/plan.js';
 import { improveCommand } from './commands/improve.js';
 import { StateManager } from './utils/StateManager.js';
+import { PythonBridge } from './python-bridge/PythonBridge.js';
+import { TerminalDisplay } from './display/TerminalDisplay.js';
+import { ConfigLoader } from './config/ConfigLoader.js';
+import { PluginManager } from './plugins/PluginManager.js';
+import { EditorLauncher } from './editor/EditorLauncher.js';
 
 const program = new Command();
 
@@ -31,7 +36,18 @@ program
   .option('--verbose', 'Enable verbose output')
   .option('--keep-old-reports', 'Preserve existing audit and plan files')
   .option('--strict', 'Fail immediately on first parse error (for CI/CD and debugging)')
-  .action(analyzeCommand);
+  .action(async (path, options) => {
+    // Instantiate dependencies (ONLY place with 'new' in TypeScript)
+    const display = new TerminalDisplay();
+    const configLoader = new ConfigLoader();
+
+    // Load config to get bridge timeout settings
+    const config = await configLoader.load(options.config);
+    const bridge = new PythonBridge(undefined, undefined, config);
+
+    // Call command with injected dependencies
+    await analyzeCommand(path, options, bridge, display, configLoader);
+  });
 
 // Audit command
 program
@@ -39,8 +55,20 @@ program
   .description('Audit existing documentation quality')
   .argument('<path>', 'Path to file or directory to audit')
   .option('--audit-file <file>', `Path to audit results file (default: ${StateManager.getAuditFile()})`)
+  .option('--config <path>', 'Path to configuration file')
   .option('--verbose', 'Enable verbose output')
-  .action(auditCommand);
+  .action(async (path, options) => {
+    // Instantiate dependencies
+    const display = new TerminalDisplay();
+    const configLoader = new ConfigLoader();
+
+    // Load config to get bridge timeout settings
+    const config = await configLoader.load(options.config);
+    const bridge = new PythonBridge(undefined, undefined, config);
+
+    // Call command with injected dependencies
+    await auditCommand(path, options, bridge, display, configLoader);
+  });
 
 // Plan command
 program
@@ -51,7 +79,15 @@ program
   .option('--plan-file <file>', `Output file for plan (default: ${StateManager.getPlanFile()})`)
   .option('--quality-threshold <threshold>', 'Include items with rating <= threshold (default: 2)', '2')
   .option('--verbose', 'Enable verbose output')
-  .action(planCommand);
+  .action(async (path, options) => {
+    // Instantiate dependencies
+    const display = new TerminalDisplay();
+    // Plan command doesn't need config, so use minimal bridge
+    const bridge = new PythonBridge();
+
+    // Call command with injected dependencies
+    await planCommand(path, options, bridge, display);
+  });
 
 // Improve command
 program
@@ -67,6 +103,19 @@ program
   .option('--non-interactive', 'Skip prompts and use config/CLI flags only (for CI/CD)')
   .option('--list-styles', 'List all available style guides and tones')
   .option('--verbose', 'Enable verbose output')
-  .action(improveCommand);
+  .action(async (path, options) => {
+    // Instantiate dependencies
+    const display = new TerminalDisplay();
+    const configLoader = new ConfigLoader();
+
+    // Load config to get bridge timeout settings and plugin configuration
+    const config = await configLoader.load(options.config);
+    const bridge = new PythonBridge(undefined, undefined, config);
+    const pluginManager = new PluginManager(config);
+    const editorLauncher = new EditorLauncher();
+
+    // Call command with injected dependencies
+    await improveCommand(path, options, bridge, display, configLoader, pluginManager, editorLauncher);
+  });
 
 program.parse(process.argv);
