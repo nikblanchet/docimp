@@ -5,10 +5,7 @@
  * by combining items with missing or poor quality documentation.
  */
 
-import { PythonBridge } from '../python-bridge/PythonBridge.js';
-import { TerminalDisplay } from '../display/TerminalDisplay.js';
 import { StateManager } from '../utils/StateManager.js';
-import { ConfigLoader } from '../config/ConfigLoader.js';
 import { PathValidator } from '../utils/PathValidator.js';
 import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
 import type { IDisplay } from '../display/IDisplay.js';
@@ -22,8 +19,8 @@ import type { IDisplay } from '../display/IDisplay.js';
  * @param options.planFile - Path to plan file for saving improvement plan
  * @param options.qualityThreshold - Quality threshold for filtering items
  * @param options.verbose - Enable verbose output
- * @param bridge - Python bridge instance (injected for testing)
- * @param display - Display instance (injected for testing)
+ * @param bridge - Python bridge instance (dependency injection)
+ * @param display - Display instance (dependency injection)
  */
 export async function planCore(
   path: string,
@@ -33,23 +30,13 @@ export async function planCore(
     qualityThreshold?: number;
     verbose?: boolean;
   },
-  bridge?: IPythonBridge,
-  display?: IDisplay
+  bridge: IPythonBridge,
+  display: IDisplay
 ): Promise<void> {
   // Validate path exists and is accessible before proceeding
   const absolutePath = PathValidator.validatePathExists(path);
   PathValidator.validatePathReadable(absolutePath);
   PathValidator.warnIfEmpty(absolutePath);
-
-  // Create display dependency (needed before loading config)
-  const terminalDisplay = display ?? new TerminalDisplay();
-
-  // Load configuration for timeout settings
-  const configLoader = new ConfigLoader();
-  const config = await configLoader.load();
-
-  // Create Python bridge with config for timeout settings (after config loaded)
-  const pythonBridge = bridge ?? new PythonBridge(undefined, undefined, config);
 
   // Use StateManager defaults if not provided
   const auditFile = options.auditFile ?? StateManager.getAuditFile();
@@ -57,13 +44,13 @@ export async function planCore(
 
   // Run plan generation via Python subprocess
   if (options.verbose) {
-    terminalDisplay.showMessage(`Generating plan for: ${absolutePath}`);
+    display.showMessage(`Generating plan for: ${absolutePath}`);
   }
 
-  const stopSpinner = terminalDisplay.startSpinner('Generating improvement plan...');
+  const stopSpinner = display.startSpinner('Generating improvement plan...');
 
   try {
-    const result = await pythonBridge.plan({
+    const result = await bridge.plan({
       path: absolutePath,
       auditFile,
       planFile,
@@ -74,16 +61,16 @@ export async function planCore(
     stopSpinner();
 
     // Display plan summary
-    terminalDisplay.showMessage('\n' + '='.repeat(60));
-    terminalDisplay.showMessage('Documentation Improvement Plan');
-    terminalDisplay.showMessage('='.repeat(60));
-    terminalDisplay.showMessage(`\nTotal items to improve: ${result.total_items}`);
-    terminalDisplay.showMessage(`  Missing documentation: ${result.missing_docs_count}`);
-    terminalDisplay.showMessage(`  Poor quality documentation: ${result.poor_quality_count}`);
+    display.showMessage('\n' + '='.repeat(60));
+    display.showMessage('Documentation Improvement Plan');
+    display.showMessage('='.repeat(60));
+    display.showMessage(`\nTotal items to improve: ${result.total_items}`);
+    display.showMessage(`  Missing documentation: ${result.missing_docs_count}`);
+    display.showMessage(`  Poor quality documentation: ${result.poor_quality_count}`);
 
     if (result.items.length > 0) {
-      terminalDisplay.showMessage('\nTop 10 priorities (by impact score):');
-      terminalDisplay.showMessage('-'.repeat(60));
+      display.showMessage('\nTop 10 priorities (by impact score):');
+      display.showMessage('-'.repeat(60));
 
       const topItems = result.items.slice(0, 10);
       for (const item of topItems) {
@@ -92,21 +79,21 @@ export async function planCore(
         const nameLabel = item.name.padEnd(30);
         const location = `${item.filepath}:${item.line_number}`;
 
-        terminalDisplay.showMessage(
+        display.showMessage(
           `  ${priorityLabel} ${typeLabel} ${nameLabel} ${location}`
         );
-        terminalDisplay.showMessage(`         ${item.reason}`);
+        display.showMessage(`         ${item.reason}`);
       }
 
       if (result.items.length > 10) {
-        terminalDisplay.showMessage(`\n  ... and ${result.items.length - 10} more items`);
+        display.showMessage(`\n  ... and ${result.items.length - 10} more items`);
       }
     }
 
-    terminalDisplay.showMessage('\n' + '='.repeat(60));
-    terminalDisplay.showMessage(`Plan saved to: ${planFile}`);
-    terminalDisplay.showMessage('Run \'docimp improve\' to start improving documentation.');
-    terminalDisplay.showMessage('='.repeat(60) + '\n');
+    display.showMessage('\n' + '='.repeat(60));
+    display.showMessage(`Plan saved to: ${planFile}`);
+    display.showMessage('Run \'docimp improve\' to start improving documentation.');
+    display.showMessage('='.repeat(60) + '\n');
   } catch (error) {
     stopSpinner();
     throw error;
@@ -123,6 +110,8 @@ export async function planCore(
  * @param options.planFile - Path to plan file for saving improvement plan
  * @param options.qualityThreshold - Quality threshold for filtering items
  * @param options.verbose - Enable verbose output
+ * @param bridge - Python bridge instance (dependency injection)
+ * @param display - Display instance (dependency injection)
  */
 export async function planCommand(
   path: string,
@@ -131,12 +120,12 @@ export async function planCommand(
     planFile?: string;
     qualityThreshold?: number;
     verbose?: boolean;
-  }
+  },
+  bridge: IPythonBridge,
+  display: IDisplay
 ): Promise<void> {
-  const display = new TerminalDisplay();
-
   try {
-    await planCore(path, options);
+    await planCore(path, options, bridge, display);
   } catch (error) {
     display.showError(error instanceof Error ? error.message : String(error));
     process.exit(1);

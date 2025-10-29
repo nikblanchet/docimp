@@ -6,16 +6,13 @@
  */
 
 import prompts from 'prompts';
-import { PythonBridge } from '../python-bridge/PythonBridge.js';
-import { TerminalDisplay } from '../display/TerminalDisplay.js';
 import { StateManager } from '../utils/StateManager.js';
-import { ConfigLoader } from '../config/ConfigLoader.js';
 import { CodeExtractor } from '../utils/CodeExtractor.js';
 import { PathValidator } from '../utils/PathValidator.js';
 import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
 import type { IDisplay } from '../display/IDisplay.js';
+import type { IConfigLoader } from '../config/IConfigLoader.js';
 import type { AuditRatings, AuditSummary } from '../types/analysis.js';
-import type { IConfig } from '../config/IConfig.js';
 
 /**
  * Calculate audit summary statistics from ratings.
@@ -77,54 +74,46 @@ export function calculateAuditSummary(
  * @param options - Command options
  * @param options.auditFile - Path to audit file for storing ratings
  * @param options.verbose - Enable verbose output
- * @param bridge - Python bridge instance (injected for testing)
- * @param display - Display instance (injected for testing)
- * @param config - Config instance (injected for testing)
+ * @param options.config - Path to configuration file
+ * @param bridge - Python bridge instance (dependency injection)
+ * @param display - Display instance (dependency injection)
+ * @param configLoader - Config loader instance (dependency injection)
  */
 export async function auditCore(
   path: string,
   options: {
     auditFile?: string;
     verbose?: boolean;
+    config?: string;
   },
-  bridge?: IPythonBridge,
-  display?: IDisplay,
-  config?: IConfig
+  bridge: IPythonBridge,
+  display: IDisplay,
+  configLoader: IConfigLoader
 ): Promise<void> {
   // Validate path exists and is accessible before proceeding
   const absolutePath = PathValidator.validatePathExists(path);
   PathValidator.validatePathReadable(absolutePath);
   PathValidator.warnIfEmpty(absolutePath);
 
-  // Create display dependency (needed before loading config)
-  const terminalDisplay = display ?? new TerminalDisplay();
-
-  // Load config if not injected
-  let loadedConfig = config;
-  if (!loadedConfig) {
-    const configLoader = new ConfigLoader();
-    loadedConfig = await configLoader.load();
-  }
-
-  // Create Python bridge with config for timeout settings (after config loaded)
-  const pythonBridge = bridge ?? new PythonBridge(undefined, undefined, loadedConfig);
+  // Load configuration
+  const config = await configLoader.load(options.config);
 
   // Extract audit.showCode settings with defaults
-  const showCodeMode = loadedConfig.audit?.showCode?.mode ?? 'truncated';
-  const maxLines = loadedConfig.audit?.showCode?.maxLines ?? 20;
+  const showCodeMode = config.audit?.showCode?.mode ?? 'truncated';
+  const maxLines = config.audit?.showCode?.maxLines ?? 20;
 
   // Use StateManager default if auditFile not provided
   const auditFile = options.auditFile ?? StateManager.getAuditFile();
 
   // Get list of documented items from Python
   if (options.verbose) {
-    terminalDisplay.showMessage(`Finding documented items in: ${absolutePath}`);
+    display.showMessage(`Finding documented items in: ${absolutePath}`);
   }
 
-  const stopSpinner = terminalDisplay.startSpinner('Analyzing documented items...');
+  const stopSpinner = display.startSpinner('Analyzing documented items...');
 
   try {
-    const result = await pythonBridge.audit({
+    const result = await bridge.audit({
       path: absolutePath,
       auditFile,
       verbose: options.verbose,
@@ -135,12 +124,12 @@ export async function auditCore(
     const items = result.items;
 
     if (items.length === 0) {
-      terminalDisplay.showMessage('No documented items found to audit.');
+      display.showMessage('No documented items found to audit.');
       return;
     }
 
-    terminalDisplay.showMessage(`\nFound ${items.length} documented items to audit.`);
-    terminalDisplay.showMessage('Rate the quality of each item\'s documentation.\n');
+    display.showMessage(`\nFound ${items.length} documented items to audit.`);
+    display.showMessage('Rate the quality of each item\'s documentation.\n');
 
     // Initialize ratings structure
     const ratings: AuditRatings = { ratings: {} };
@@ -151,15 +140,15 @@ export async function auditCore(
       audited++;
 
       // Show progress
-      terminalDisplay.showMessage(`\nAuditing: ${audited}/${items.length}`);
-      terminalDisplay.showMessage(`${item.type} ${item.name} (${item.language})`);
-      terminalDisplay.showMessage(`Location: ${item.filepath}:${item.line_number}`);
-      terminalDisplay.showMessage(`Complexity: ${item.complexity}\n`);
+      display.showMessage(`\nAuditing: ${audited}/${items.length}`);
+      display.showMessage(`${item.type} ${item.name} (${item.language})`);
+      display.showMessage(`Location: ${item.filepath}:${item.line_number}`);
+      display.showMessage(`Complexity: ${item.complexity}\n`);
 
       // Show the documentation in a boxed display
       if (item.docstring) {
-        terminalDisplay.showBoxedDocstring(item.docstring);
-        terminalDisplay.showMessage(''); // Add blank line after box
+        display.showBoxedDocstring(item.docstring);
+        display.showMessage(''); // Add blank line after box
       }
 
       // Display code based on mode
@@ -174,7 +163,7 @@ export async function auditCore(
           0, // maxLines = 0 means no truncation
           true // include line numbers
         );
-        terminalDisplay.showCodeBlock(
+        display.showCodeBlock(
           codeResult.code,
           codeResult.truncated,
           codeResult.totalLines,
@@ -190,7 +179,7 @@ export async function auditCore(
           maxLines,
           true // include line numbers
         );
-        terminalDisplay.showCodeBlock(
+        display.showCodeBlock(
           codeResult.code,
           codeResult.truncated,
           codeResult.totalLines,
@@ -207,7 +196,7 @@ export async function auditCore(
           item.language,
           5 // maxLines for signature
         );
-        terminalDisplay.showSignature(sigResult.signature, sigResult.totalLines);
+        display.showSignature(sigResult.signature, sigResult.totalLines);
         showCodeOption = true; // Always show [C] in signature mode
       } else if (showCodeMode === 'on-demand') {
         // Don't show code, but make [C] available
@@ -254,7 +243,7 @@ export async function auditCore(
 
         // Handle user cancellation (Ctrl+C)
         if (response.rating === undefined) {
-          terminalDisplay.showMessage('\n\nAudit interrupted by user.');
+          display.showMessage('\n\nAudit interrupted by user.');
           userRating = 'QUIT'; // Signal to quit
           break;
         }
@@ -263,7 +252,7 @@ export async function auditCore(
 
         // Handle [C] option - show full code and re-prompt
         if (normalized === 'C') {
-          terminalDisplay.showMessage(''); // Blank line before code
+          display.showMessage(''); // Blank line before code
           const fullCodeResult = CodeExtractor.extractCodeBlock(
             item.filepath,
             item.line_number,
@@ -271,20 +260,20 @@ export async function auditCore(
             0, // maxLines = 0 means no truncation
             true // include line numbers
           );
-          terminalDisplay.showCodeBlock(
+          display.showCodeBlock(
             fullCodeResult.code,
             false, // not truncated (showing full code)
             fullCodeResult.totalLines,
             fullCodeResult.displayedLines
           );
-          terminalDisplay.showMessage(''); // Blank line after code
+          display.showMessage(''); // Blank line after code
           // Loop continues to re-prompt
           continue;
         }
 
         // Handle quit
         if (normalized === 'Q') {
-          terminalDisplay.showMessage('\n\nAudit stopped by user.');
+          display.showMessage('\n\nAudit stopped by user.');
           userRating = 'QUIT'; // Signal to quit
           break;
         }
@@ -310,7 +299,7 @@ export async function auditCore(
           ratings.ratings[item.filepath] = {};
         }
         ratings.ratings[item.filepath][item.name] = null;
-        terminalDisplay.showMessage('Skipped.\n');
+        display.showMessage('Skipped.\n');
         continue;
       }
 
@@ -328,7 +317,7 @@ export async function auditCore(
         4: 'Excellent',
       };
 
-      terminalDisplay.showMessage(`Rated as: ${ratingLabels[numericRating]}\n`);
+      display.showMessage(`Rated as: ${ratingLabels[numericRating]}\n`);
     }
 
     // Save all ratings
@@ -338,21 +327,21 @@ export async function auditCore(
     );
 
     if (totalRatings > 0) {
-      const savingSpinner = terminalDisplay.startSpinner('Saving audit ratings...');
+      const savingSpinner = display.startSpinner('Saving audit ratings...');
 
       try {
-        await pythonBridge.applyAudit(ratings, auditFile);
+        await bridge.applyAudit(ratings, auditFile);
         savingSpinner();
 
         // Calculate and display audit summary
         const summary = calculateAuditSummary(items.length, ratings, auditFile);
-        terminalDisplay.showAuditSummary(summary);
+        display.showAuditSummary(summary);
       } catch (error) {
         savingSpinner();
         throw error;
       }
     } else {
-      terminalDisplay.showMessage('\n\nNo ratings saved.');
+      display.showMessage('\n\nNo ratings saved.');
     }
   } catch (error) {
     stopSpinner();
@@ -368,18 +357,24 @@ export async function auditCore(
  * @param options - Command options
  * @param options.auditFile - Path to audit file for storing ratings
  * @param options.verbose - Enable verbose output
+ * @param options.config - Path to configuration file
+ * @param bridge - Python bridge instance (dependency injection)
+ * @param display - Display instance (dependency injection)
+ * @param configLoader - Config loader instance (dependency injection)
  */
 export async function auditCommand(
   path: string,
   options: {
     auditFile?: string;
     verbose?: boolean;
-  }
+    config?: string;
+  },
+  bridge: IPythonBridge,
+  display: IDisplay,
+  configLoader: IConfigLoader
 ): Promise<void> {
-  const display = new TerminalDisplay();
-
   try {
-    await auditCore(path, options);
+    await auditCore(path, options, bridge, display, configLoader);
   } catch (error) {
     display.showError(error instanceof Error ? error.message : String(error));
     process.exit(1);
