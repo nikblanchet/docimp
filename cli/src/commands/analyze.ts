@@ -121,6 +121,7 @@ export async function analyzeCore(
  * @param bridge - Python bridge instance (dependency injection)
  * @param display - Display instance (dependency injection)
  * @param configLoader - Config loader instance (dependency injection)
+ * @returns Exit code (0 for success, 1 for failure)
  */
 export async function analyzeCommand(
   path: string,
@@ -134,11 +135,12 @@ export async function analyzeCommand(
   bridge: IPythonBridge,
   display: IDisplay,
   configLoader: IConfigLoader
-): Promise<void> {
+): Promise<number> {
   try {
     await analyzeCore(path, options, bridge, display, configLoader);
+    return 0;
   } catch (error) {
     display.showError(error instanceof Error ? error.message : String(error));
-    process.exit(1);
+    return 1;
   }
 }
