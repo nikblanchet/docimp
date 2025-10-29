@@ -177,7 +177,7 @@ class PythonParser(BaseParser):
         complexity = 1  # Base complexity
 
         # Use a manual traversal that stops at nested function boundaries
-        def traverse(current_node):
+        def traverse(current_node: ast.AST) -> None:
             nonlocal complexity
 
             for child in ast.iter_child_nodes(current_node):

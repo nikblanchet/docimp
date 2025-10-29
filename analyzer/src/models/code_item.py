@@ -1,7 +1,8 @@
 """CodeItem data model for representing parsed code elements."""
 
 from dataclasses import dataclass, field, asdict
-from typing import List, Optional
+
+type CodeItemValue = str | int | float | bool | list[str] | None
 
 
 @dataclass
@@ -47,15 +48,15 @@ class CodeItem:
     module_system: str
 
     # Optional metadata with defaults
-    parameters: List[str] = field(default_factory=list)
-    return_type: Optional[str] = None
-    docstring: Optional[str] = None
+    parameters: list[str] = field(default_factory=list)
+    return_type: str | None = None
+    docstring: str | None = None
 
     # Computed/augmented fields with defaults
     impact_score: float = 0.0
-    audit_rating: Optional[int] = None
+    audit_rating: int | None = None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, CodeItemValue]:
         """Serialize CodeItem to a JSON-compatible dictionary.
 
         Returns:

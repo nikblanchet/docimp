@@ -5,9 +5,10 @@ for parsing .ts, .js, .cjs, and .mjs files with full JSDoc validation.
 """
 
 import json
+import os
 import subprocess
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from .base_parser import BaseParser
 from ..models.code_item import CodeItem
 
@@ -25,19 +26,61 @@ class TypeScriptParser(BaseParser):
 
     MAX_SUBPROCESS_OUTPUT_LEN = 200
 
-    def __init__(self):
-        """Initialize the TypeScript parser and locate the Node.js CLI script."""
-        # Find the compiled JavaScript CLI entry point
-        # Path from analyzer/src/parsers -> cli/dist/parsers
-        current_file = Path(__file__)
-        project_root = current_file.parent.parent.parent.parent
-        self.helper_path = project_root / 'cli' / 'dist' / 'parsers' / 'ts-js-parser-cli.js'
+    def __init__(self, helper_path: Optional[Path] = None):
+        """Initialize the TypeScript parser and locate the Node.js CLI script.
+
+        Uses a three-tier resolution strategy:
+        1. Explicit helper_path parameter (highest priority, for dependency injection)
+        2. DOCIMP_TS_HELPER_PATH environment variable (for CI/CD and custom deployments)
+        3. Auto-detection fallback (for development environment)
+
+        Args:
+            helper_path: Optional explicit path to compiled ts-js-parser-cli.js.
+                        If None, uses environment variable or auto-detection.
+
+        Raises:
+            FileNotFoundError: If the helper script cannot be found at the resolved path.
+        """
+        if helper_path:
+            # Priority 1: Explicit parameter (dependency injection)
+            self.helper_path = helper_path
+        else:
+            # Priority 2: Environment variable
+            env_path = os.environ.get('DOCIMP_TS_HELPER_PATH')
+            if env_path:
+                self.helper_path = Path(env_path)
+            else:
+                # Priority 3: Auto-detection fallback
+                self.helper_path = self._find_helper()
 
         if not self.helper_path.exists():
             raise FileNotFoundError(
-                f"TypeScript parser CLI not found at {self.helper_path}. "
-                "Run 'cd cli && npm install && npm run build' to compile the TypeScript parser."
+                f"TypeScript parser CLI not found at {self.helper_path}.\n"
+                f"Options to resolve:\n"
+                f"1. Build the TypeScript CLI: 'cd cli && npm install && npm run build'\n"
+                f"2. Set environment variable: export DOCIMP_TS_HELPER_PATH=/path/to/ts-js-parser-cli.js\n"
+                f"3. Pass helper_path parameter explicitly: TypeScriptParser(helper_path=Path('/path/to/cli.js'))"
             )
+
+    def _find_helper(self) -> Path:
+        """Auto-detect helper path using multiple fallback strategies.
+
+        Returns:
+            Path: Best-guess path to ts-js-parser-cli.js (may not exist).
+        """
+        # Strategy 1: Development environment (from analyzer/src/parsers -> cli/dist/parsers)
+        current_file = Path(__file__)
+        project_root = current_file.parent.parent.parent.parent
+        dev_path = project_root / 'cli' / 'dist' / 'parsers' / 'ts-js-parser-cli.js'
+
+        if dev_path.exists():
+            return dev_path
+
+        # Future: Strategy 2 could check for pip-installed package location
+        # using pkg_resources or importlib.resources for installed packages
+
+        # Return development path as default (will trigger FileNotFoundError with helpful message)
+        return dev_path
 
     def _truncate_output(self, text: str) -> str:
         """Truncate subprocess output for error messages.

@@ -16,6 +16,132 @@ MALFORMED_SAMPLES = PROJECT_ROOT / 'test-samples' / 'malformed'
 EXAMPLES_DIR = PROJECT_ROOT / 'examples'
 
 
+class TestTypeScriptParserInitialization:
+    """Test suite for TypeScriptParser initialization and dependency injection (Issue #63)."""
+
+    def test_explicit_helper_path_injection(self, tmp_path):
+        """Test explicit helper_path parameter (Priority 1: dependency injection)."""
+        # Create a mock helper file
+        mock_helper = tmp_path / "mock-helper.js"
+        mock_helper.write_text("// mock helper")
+
+        # Inject explicit path
+        parser = TypeScriptParser(helper_path=mock_helper)
+
+        assert parser.helper_path == mock_helper
+        assert parser.helper_path.exists()
+
+    def test_environment_variable_resolution(self, tmp_path, monkeypatch):
+        """Test DOCIMP_TS_HELPER_PATH environment variable (Priority 2)."""
+        # Create a mock helper file
+        mock_helper = tmp_path / "env-helper.js"
+        mock_helper.write_text("// env helper")
+
+        # Set environment variable
+        monkeypatch.setenv('DOCIMP_TS_HELPER_PATH', str(mock_helper))
+
+        # Create parser without explicit path
+        parser = TypeScriptParser()
+
+        assert parser.helper_path == mock_helper
+        assert parser.helper_path.exists()
+
+    def test_auto_detection_fallback(self):
+        """Test auto-detection fallback (Priority 3: development environment)."""
+        # Create parser without explicit path or env var
+        parser = TypeScriptParser()
+
+        # Should auto-detect the real helper path
+        assert parser.helper_path is not None
+        assert parser.helper_path.exists()
+        assert parser.helper_path.name == 'ts-js-parser-cli.js'
+
+    def test_priority_explicit_over_environment(self, tmp_path, monkeypatch):
+        """Test that explicit parameter takes priority over environment variable."""
+        # Create two mock helper files
+        explicit_helper = tmp_path / "explicit-helper.js"
+        explicit_helper.write_text("// explicit")
+        env_helper = tmp_path / "env-helper.js"
+        env_helper.write_text("// env")
+
+        # Set environment variable
+        monkeypatch.setenv('DOCIMP_TS_HELPER_PATH', str(env_helper))
+
+        # Create parser with explicit path (should override env var)
+        parser = TypeScriptParser(helper_path=explicit_helper)
+
+        assert parser.helper_path == explicit_helper
+        assert parser.helper_path != env_helper
+
+    def test_priority_environment_over_auto_detection(self, tmp_path, monkeypatch):
+        """Test that environment variable takes priority over auto-detection."""
+        # Create a mock helper file
+        mock_helper = tmp_path / "env-helper.js"
+        mock_helper.write_text("// env helper")
+
+        # Set environment variable
+        monkeypatch.setenv('DOCIMP_TS_HELPER_PATH', str(mock_helper))
+
+        # Create parser without explicit path
+        parser = TypeScriptParser()
+
+        # Should use env var, not auto-detection
+        assert parser.helper_path == mock_helper
+        assert 'env-helper.js' in str(parser.helper_path)
+
+    def test_error_when_explicit_path_not_found(self, tmp_path):
+        """Test that FileNotFoundError is raised when explicit path doesn't exist."""
+        nonexistent_path = tmp_path / "nonexistent-helper.js"
+
+        with pytest.raises(FileNotFoundError) as exc_info:
+            TypeScriptParser(helper_path=nonexistent_path)
+
+        error_msg = str(exc_info.value)
+        assert str(nonexistent_path) in error_msg
+        assert "Options to resolve:" in error_msg
+        assert "Build the TypeScript CLI" in error_msg
+        assert "DOCIMP_TS_HELPER_PATH" in error_msg
+
+    def test_error_when_environment_path_not_found(self, tmp_path, monkeypatch):
+        """Test that FileNotFoundError is raised when env var path doesn't exist."""
+        nonexistent_path = tmp_path / "nonexistent-helper.js"
+        monkeypatch.setenv('DOCIMP_TS_HELPER_PATH', str(nonexistent_path))
+
+        with pytest.raises(FileNotFoundError) as exc_info:
+            TypeScriptParser()
+
+        error_msg = str(exc_info.value)
+        assert str(nonexistent_path) in error_msg
+        assert "Options to resolve:" in error_msg
+
+    def test_backward_compatibility_default_instantiation(self):
+        """Test backward compatibility: TypeScriptParser() still works."""
+        # This is how existing code instantiates the parser
+        parser = TypeScriptParser()
+
+        # Should work without any parameters
+        assert parser is not None
+        assert parser.helper_path.exists()
+
+    def test_find_helper_returns_path_object(self):
+        """Test that _find_helper() returns a Path object."""
+        parser = TypeScriptParser()
+        helper_path = parser._find_helper()
+
+        assert isinstance(helper_path, Path)
+
+    def test_find_helper_strategy_development_environment(self):
+        """Test that _find_helper() finds the development environment path."""
+        parser = TypeScriptParser()
+        helper_path = parser._find_helper()
+
+        # Should find the cli/dist/parsers/ts-js-parser-cli.js path
+        assert 'cli' in str(helper_path)
+        assert 'dist' in str(helper_path)
+        assert 'parsers' in str(helper_path)
+        assert 'ts-js-parser-cli.js' in str(helper_path)
+
+
 class TestTypeScriptParser:
     """Test suite for TypeScript parser."""
 
