@@ -2,6 +2,8 @@
 
 This test suite verifies full transaction workflows from start to finish,
 including multi-session scenarios, large sessions, and edge cases.
+
+Tests both git-based and non-git modes to ensure both work correctly.
 """
 
 import sys
@@ -13,6 +15,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.writer.transaction_manager import TransactionManager
+from src.utils.git_helper import GitHelper
 
 
 class TestFullLifecycle:
@@ -398,3 +401,167 @@ class TestBranchNaming:
                 # Commit without errors
                 manager.commit_transaction(manifest)
                 assert manifest.status == 'committed'
+
+
+class TestGitBasedLifecycle:
+    """Test complete transaction workflows using git backend.
+
+    These tests verify that git integration works correctly for core workflows.
+    """
+
+    def test_git_full_lifecycle_begin_record_commit(self):
+        """Test begin → record × 3 → commit workflow with git backend."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base_path = Path(tmpdir)
+
+            # Initialize git backend
+            GitHelper.init_sidecar_repo(base_path)
+            manager = TransactionManager(base_path=base_path, use_git=True)
+
+            # Begin transaction
+            manifest = manager.begin_transaction('git-lifecycle-test')
+            assert manifest.session_id == 'git-lifecycle-test'
+            assert manifest.status == 'in_progress'
+
+            # Record 3 writes
+            for i in range(3):
+                filepath = base_path / f'file{i}.py'
+                filepath.write_text(f'def func{i}(): pass')
+                backup = str(filepath) + '.bak'
+                Path(backup).write_text('')
+
+                manager.record_write(
+                    manifest,
+                    str(filepath),
+                    backup,
+                    f'func{i}',
+                    'function',
+                    'python'
+                )
+
+            # Verify entries recorded
+            assert len(manifest.entries) == 3
+
+            # Commit transaction
+            manager.commit_transaction(manifest)
+            assert manifest.status == 'committed'
+            assert manifest.completed_at is not None
+            assert manifest.git_commit_sha is not None  # Git-specific
+
+            # Verify backups deleted
+            for i in range(3):
+                backup = base_path / f'file{i}.py.bak'
+                assert not backup.exists()
+
+    def test_git_full_lifecycle_rollback(self):
+        """Test begin → record × 3 → rollback workflow with git backend."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base_path = Path(tmpdir)
+
+            # Initialize git backend
+            GitHelper.init_sidecar_repo(base_path)
+            manager = TransactionManager(base_path=base_path, use_git=True)
+
+            # Create original files
+            originals = {}
+            for i in range(3):
+                filepath = base_path / f'file{i}.py'
+                original_content = f'# Original content {i}\n'
+                filepath.write_text(original_content)
+                originals[str(filepath)] = original_content
+
+            # Begin transaction
+            manifest = manager.begin_transaction('git-rollback-test')
+
+            # Record changes
+            for i in range(3):
+                filepath = base_path / f'file{i}.py'
+                backup = str(filepath) + '.bak'
+                Path(backup).write_text(originals[str(filepath)])
+                filepath.write_text(f'def new_func{i}(): pass')
+
+                manager.record_write(
+                    manifest,
+                    str(filepath),
+                    backup,
+                    f'new_func{i}',
+                    'function',
+                    'python'
+                )
+
+            # Rollback transaction (git-based)
+            restored_count = manager.rollback_transaction(manifest)
+            assert restored_count == 3
+
+            # Verify files restored
+            for i in range(3):
+                filepath = base_path / f'file{i}.py'
+                assert filepath.read_text() == originals[str(filepath)]
+
+    def test_git_multiple_sequential_sessions(self):
+        """Test multiple sessions work correctly with git backend."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base_path = Path(tmpdir)
+
+            # Initialize git backend
+            GitHelper.init_sidecar_repo(base_path)
+            manager = TransactionManager(base_path=base_path, use_git=True)
+
+            # Session 1
+            manifest1 = manager.begin_transaction('git-session-1')
+            filepath1 = base_path / 'file1.py'
+            filepath1.write_text('content1')
+            backup1 = str(filepath1) + '.bak'
+            Path(backup1).write_text('')
+            manager.record_write(manifest1, str(filepath1), backup1, 'func1', 'function', 'python')
+            manager.commit_transaction(manifest1)
+            assert manifest1.status == 'committed'
+            assert manifest1.git_commit_sha is not None
+
+            # Session 2
+            manifest2 = manager.begin_transaction('git-session-2')
+            filepath2 = base_path / 'file2.py'
+            filepath2.write_text('content2')
+            backup2 = str(filepath2) + '.bak'
+            Path(backup2).write_text('')
+            manager.record_write(manifest2, str(filepath2), backup2, 'func2', 'function', 'python')
+            manager.commit_transaction(manifest2)
+            assert manifest2.status == 'committed'
+            assert manifest2.git_commit_sha is not None
+
+            # Both should have different commit SHAs
+            assert manifest1.git_commit_sha != manifest2.git_commit_sha
+
+    def test_git_large_session(self):
+        """Test large session (30 changes) with git backend."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base_path = Path(tmpdir)
+
+            # Initialize git backend
+            GitHelper.init_sidecar_repo(base_path)
+            manager = TransactionManager(base_path=base_path, use_git=True)
+
+            manifest = manager.begin_transaction('git-large-session')
+
+            # Record 30 writes
+            for i in range(30):
+                filepath = base_path / f'file{i}.py'
+                filepath.write_text(f'def func{i}(): pass')
+                backup = str(filepath) + '.bak'
+                Path(backup).write_text('')
+                manager.record_write(
+                    manifest,
+                    str(filepath),
+                    backup,
+                    f'func{i}',
+                    'function',
+                    'python'
+                )
+
+            # Verify all tracked
+            assert len(manifest.entries) == 30
+
+            # Commit should handle large session
+            manager.commit_transaction(manifest)
+            assert manifest.status == 'committed'
+            assert manifest.git_commit_sha is not None

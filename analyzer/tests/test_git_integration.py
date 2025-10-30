@@ -69,8 +69,8 @@ class TestSidecarRepoIsolation:
             backup_path = str(test_file) + '.bak'
             manager.record_write(manifest, str(test_file), backup_path, 'foo', 'function', 'python')
 
-            # NOTE: Not calling commit_transaction here because it requires a main branch
-            # Full lifecycle testing with commit is done in test_transaction_lifecycle.py
+            # Commit transaction (now that git init is fixed)
+            manager.commit_transaction(manifest)
 
             # Compute hash of .git/ directory AFTER operations
             hash_after = compute_directory_hash(user_git_dir)
@@ -162,7 +162,8 @@ class TestSidecarRepoIsolation:
             backup_path = str(test_file) + '.bak'
             manager.record_write(manifest, str(test_file), backup_path, 'foo', 'function', 'python')
 
-            # NOTE: Not calling commit_transaction - full lifecycle tested in test_transaction_lifecycle.py
+            # Commit transaction
+            manager.commit_transaction(manifest)
 
             # Marker file should NOT exist (hook was never called)
             assert not marker_file.exists(), "User's git hook was triggered!"
@@ -185,7 +186,8 @@ class TestSidecarRepoIsolation:
             backup_path = str(test_file) + '.bak'
             manager.record_write(manifest, str(test_file), backup_path, 'foo', 'function', 'python')
 
-            # NOTE: Not calling commit_transaction - full lifecycle tested in test_transaction_lifecycle.py
+            # Commit transaction
+            manager.commit_transaction(manifest)
 
             # Check user's git status
             result = subprocess.run(
@@ -226,7 +228,8 @@ class TestSidecarRepoIsolation:
             backup_path = str(test_file) + '.bak'
             manager.record_write(manifest, str(test_file), backup_path, 'foo', 'function', 'python')
 
-            # NOTE: Not calling commit_transaction - full lifecycle tested in test_transaction_lifecycle.py
+            # Commit transaction
+            manager.commit_transaction(manifest)
 
             # Check user's git log
             result = subprocess.run(
@@ -263,9 +266,9 @@ class TestSpecialFilenames:
             # Should not raise
             manager.record_write(manifest, str(test_file), backup_path, 'foo', 'function', 'python')
 
-            # NOTE: Not calling commit_transaction - we're just testing filename handling
-            # Session branch was created successfully if we got here
-            assert manifest.session_id == 'test-session'
+            # Commit to verify end-to-end works with special filenames
+            manager.commit_transaction(manifest)
+            assert manifest.status == 'committed'
 
     def test_filenames_with_special_chars(self):
         """Test git operations with apostrophes, quotes, unicode."""
@@ -295,8 +298,9 @@ class TestSpecialFilenames:
                 except Exception as e:
                     pytest.fail(f"Failed to record file with name '{filename}': {e}")
 
-            # NOTE: Not calling commit_transaction - we're just testing special character handling
-            # All files recorded successfully if we got here
+            # Commit to verify end-to-end works with special characters
+            manager.commit_transaction(manifest)
+            assert manifest.status == 'committed'
             assert len(manifest.entries) == len(test_cases)
 
     def test_very_long_filenames(self):
@@ -361,10 +365,44 @@ class TestGitEdgeCases:
             git_state_dir = StateManager.get_git_state_dir(base_path)
             git_dir_path = git_state_dir / '.git'
 
-            # Skip this test for now - it requires a working main branch
-            # This scenario is better tested in test_transaction_lifecycle.py
-            # where we can set up proper git state
-            pytest.skip("Detached HEAD testing requires proper main branch setup")
+            # Create a commit first
+            manager = TransactionManager(base_path=base_path, use_git=True)
+            manifest = manager.begin_transaction('test-session-1')
+            test_file = base_path / 'test.py'
+            test_file.write_text('def foo(): pass')
+            backup_path1 = str(test_file) + '.bak'
+            manager.record_write(manifest, str(test_file), backup_path1, 'foo', 'function', 'python')
+            manager.commit_transaction(manifest)
+
+            # Get commit SHA and checkout in detached HEAD
+            result = GitHelper.run_git_command(
+                ['rev-parse', 'HEAD'],
+                base_path,
+                check=True
+            )
+            commit_sha = result.stdout.strip()
+
+            GitHelper.run_git_command(
+                ['checkout', commit_sha],
+                base_path,
+                check=True
+            )
+
+            # Attempt another transaction (should handle detached HEAD gracefully)
+            manifest2 = manager.begin_transaction('test-session-2')
+            test_file2 = base_path / 'test2.py'
+            test_file2.write_text('def bar(): pass')
+            backup_path2 = str(test_file2) + '.bak'
+            manager.record_write(manifest2, str(test_file2), backup_path2, 'bar', 'function', 'python')
+
+            # Should either work or fail gracefully
+            try:
+                manager.commit_transaction(manifest2)
+                # If it works, verify it committed
+                assert manifest2.status == 'committed'
+            except (subprocess.CalledProcessError, RuntimeError):
+                # Acceptable to fail in detached HEAD - just verify it fails cleanly
+                pass
 
 
 class TestConcurrencyAndSafety:
