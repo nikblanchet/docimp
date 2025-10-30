@@ -362,6 +362,74 @@ docimp improve ./src
 
 Best for: Large codebases, teams prioritizing documentation quality
 
+### Rollback
+
+DocImp tracks all documentation changes in a git-based transaction system, enabling you to rollback changes if needed.
+
+#### List Sessions
+
+View all documentation improvement sessions:
+
+```bash
+# List all sessions
+docimp list-sessions
+```
+
+**Output includes**:
+- Session ID (UUID)
+- Start time
+- Number of changes
+- Status (in_progress, committed, rolled_back)
+
+#### List Changes
+
+View changes in a specific session:
+
+```bash
+# List changes in a session
+docimp list-changes <session-id>
+
+# Or use "last" for the most recent session
+docimp list-changes last
+```
+
+**Output includes**:
+- Entry ID (git commit SHA)
+- File path
+- Item name (function/class/method)
+- Timestamp
+
+#### Rollback Session
+
+Revert all changes from a session:
+
+```bash
+# Rollback a specific session
+docimp rollback-session <session-id>
+
+# Or use "last" for the most recent session
+docimp rollback-session last
+```
+
+This reverts all documentation changes made during that session using git's 3-way merge for conflict detection.
+
+#### Rollback Change
+
+Revert a specific change:
+
+```bash
+# Rollback a specific change
+docimp rollback-change <entry-id>
+
+# Or use "last" for the most recent change
+docimp rollback-change last
+```
+
+**Conflict Handling**:
+- If files have been modified since the change, git's merge algorithm detects conflicts
+- Conflicts are reported with file paths
+- Partial rollback status is tracked
+
 ### State Directory (.docimp/)
 
 DocImp stores session data in `.docimp/` (similar to `.git/`):
