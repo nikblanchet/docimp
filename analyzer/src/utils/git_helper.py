@@ -66,7 +66,8 @@ class GitHelper:
         git_state_dir.mkdir(parents=True, exist_ok=True)
 
         # Initialize git repo with explicit git-dir and work-tree
-        GitHelper.run_git_command(['init'], base_path)
+        # Use --initial-branch=main to ensure consistent branch name across git versions
+        GitHelper.run_git_command(['init', '--initial-branch=main'], base_path)
 
         # Create initial commit on main branch
         # This ensures we have a branch to work from
