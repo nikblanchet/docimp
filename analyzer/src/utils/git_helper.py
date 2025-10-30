@@ -90,7 +90,8 @@ class GitHelper:
             )
 
             # Add and commit the .gitignore file
-            GitHelper.run_git_command(['add', str(gitignore_path)], base_path)
+            # Use -f to force add the .gitignore file even though it ignores itself
+            GitHelper.run_git_command(['add', '-f', str(gitignore_path)], base_path)
             GitHelper.run_git_command(
                 ['commit', '-m', 'Initialize docimp side-car repo'],
                 base_path

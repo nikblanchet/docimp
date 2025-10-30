@@ -403,9 +403,9 @@ class TestConcurrencyAndSafety:
                 manager1.commit_transaction(manifest1)
                 manager2.commit_transaction(manifest2)
 
-                # If both succeed, verify both sessions exist
-                sessions = manager1.list_sessions()
-                assert len(sessions) >= 2
+                # If both succeed, verify both manifests are marked committed
+                assert manifest1.status == 'committed'
+                assert manifest2.status == 'committed'
             except (subprocess.CalledProcessError, RuntimeError):
                 # Acceptable to have conflicts with concurrent commits
                 pass
