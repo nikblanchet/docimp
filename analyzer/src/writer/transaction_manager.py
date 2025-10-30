@@ -750,7 +750,6 @@ Metadata:
         Returns:
             List of Path objects for orphaned backup files
         """
-        import time
         from datetime import datetime, timedelta
 
         orphaned = []
