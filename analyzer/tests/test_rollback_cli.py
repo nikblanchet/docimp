@@ -157,6 +157,76 @@ class TestListChanges:
 class TestRollbackSession:
     """Test cmd_rollback_session command."""
 
+    def test_rollback_session_last_flag(self, capsys):
+        """Test rolling back most recent session using 'last' keyword."""
+        manager = Mock()
+
+        # Create two mock sessions with different timestamps
+        session1 = TransactionManifest(
+            session_id='session-older',
+            started_at='2024-01-01T10:00:00',
+            status='in_progress',
+            entries=[
+                TransactionEntry(
+                    entry_id='abc123',
+                    filepath='/test/file1.py',
+                    backup_path='/test/file1.py.bak',
+                    timestamp='2024-01-01T10:01:00',
+                    item_name='func1',
+                    item_type='function',
+                    language='python',
+                    success=True
+                )
+            ]
+        )
+        session2 = TransactionManifest(
+            session_id='session-newer',
+            started_at='2024-01-01T11:00:00',
+            status='in_progress',
+            entries=[
+                TransactionEntry(
+                    entry_id='def456',
+                    filepath='/test/file2.py',
+                    backup_path='/test/file2.py.bak',
+                    timestamp='2024-01-01T11:01:00',
+                    item_name='func2',
+                    item_type='function',
+                    language='python',
+                    success=True
+                )
+            ]
+        )
+
+        # list_uncommitted_transactions returns both sessions
+        manager.list_uncommitted_transactions.return_value = [session1, session2]
+        manager.load_manifest.return_value = session2  # Most recent
+        manager.rollback_transaction.return_value = 1
+
+        args = argparse.Namespace(session_id='last', verbose=False, format='table', no_confirm=True)
+
+        with patch('src.main.GitHelper.check_git_available', return_value=True), \
+             patch('src.main.Path.exists', return_value=True):
+            result = cmd_rollback_session(args, manager)
+
+        assert result == 0
+        # Verify the most recent session (session-newer) was loaded
+        manager.load_manifest.assert_called_once()
+        assert 'session-newer' in str(manager.load_manifest.call_args)
+
+    def test_rollback_session_last_no_sessions(self, capsys):
+        """Test 'last' flag when no sessions exist."""
+        manager = Mock()
+        manager.list_uncommitted_transactions.return_value = []
+
+        args = argparse.Namespace(session_id='last', verbose=False, format='table', no_confirm=False)
+
+        with patch('src.main.GitHelper.check_git_available', return_value=True):
+            result = cmd_rollback_session(args, manager)
+
+        assert result == 1
+        captured = capsys.readouterr()
+        assert 'No active sessions found' in captured.err
+
     def test_rollback_session_success(self, capsys):
         """Test successful session rollback."""
         manager = Mock()
@@ -237,6 +307,114 @@ class TestRollbackSession:
 class TestRollbackChange:
     """Test cmd_rollback_change command."""
 
+    def test_rollback_change_last_flag(self, capsys):
+        """Test rolling back most recent change using 'last' keyword."""
+        manager = Mock()
+
+        # Create mock sessions with changes
+        session1 = TransactionManifest(
+            session_id='session-1',
+            started_at='2024-01-01T10:00:00',
+            status='in_progress',
+            entries=[]
+        )
+        session2 = TransactionManifest(
+            session_id='session-2',
+            started_at='2024-01-01T11:00:00',
+            status='in_progress',
+            entries=[]
+        )
+
+        # Create changes with different timestamps
+        change1 = TransactionEntry(
+            entry_id='abc123',
+            filepath='/test/file1.py',
+            backup_path='/test/file1.py.bak',
+            timestamp='2024-01-01T10:01:00',
+            item_name='func1',
+            item_type='function',
+            language='python',
+            success=True
+        )
+        change2 = TransactionEntry(
+            entry_id='def456',
+            filepath='/test/file2.py',
+            backup_path='/test/file2.py.bak',
+            timestamp='2024-01-01T11:01:00',  # Most recent
+            item_name='func2',
+            item_type='function',
+            language='python',
+            success=True
+        )
+        change3 = TransactionEntry(
+            entry_id='ghi789',
+            filepath='/test/file3.py',
+            backup_path='/test/file3.py.bak',
+            timestamp='2024-01-01T10:30:00',
+            item_name='func3',
+            item_type='function',
+            language='python',
+            success=True
+        )
+
+        manager.list_uncommitted_transactions.return_value = [session1, session2]
+        manager.list_session_changes.side_effect = lambda sid: [change1, change3] if sid == 'session-1' else [change2]
+        manager.get_change_diff.return_value = "diff --git a/file2.py b/file2.py\n..."
+        manager.rollback_change.return_value = RollbackResult(
+            success=True,
+            restored_count=1,
+            failed_count=0,
+            conflicts=[],
+            status='completed'
+        )
+
+        args = argparse.Namespace(entry_id='last', verbose=False, format='table', no_confirm=True)
+
+        with patch('src.main.GitHelper.check_git_available', return_value=True):
+            result = cmd_rollback_change(args, manager)
+
+        assert result == 0
+        # Verify the most recent change (def456) was used
+        manager.get_change_diff.assert_called_with('def456')
+        manager.rollback_change.assert_called_with('def456')
+
+    def test_rollback_change_last_no_sessions(self, capsys):
+        """Test 'last' flag when no sessions exist."""
+        manager = Mock()
+        manager.list_uncommitted_transactions.return_value = []
+
+        args = argparse.Namespace(entry_id='last', verbose=False, format='table', no_confirm=False)
+
+        with patch('src.main.GitHelper.check_git_available', return_value=True):
+            result = cmd_rollback_change(args, manager)
+
+        assert result == 1
+        captured = capsys.readouterr()
+        assert 'No active sessions found' in captured.err
+
+    def test_rollback_change_last_no_changes(self, capsys):
+        """Test 'last' flag when sessions exist but have no changes."""
+        manager = Mock()
+
+        session = TransactionManifest(
+            session_id='session-1',
+            started_at='2024-01-01T10:00:00',
+            status='in_progress',
+            entries=[]
+        )
+
+        manager.list_uncommitted_transactions.return_value = [session]
+        manager.list_session_changes.return_value = []
+
+        args = argparse.Namespace(entry_id='last', verbose=False, format='table', no_confirm=False)
+
+        with patch('src.main.GitHelper.check_git_available', return_value=True):
+            result = cmd_rollback_change(args, manager)
+
+        assert result == 1
+        captured = capsys.readouterr()
+        assert 'No changes found' in captured.err
+
     def test_rollback_change_success(self, capsys):
         """Test successful change rollback."""
         manager = Mock()
@@ -279,8 +457,9 @@ class TestRollbackChange:
 
         assert result == 1
         captured = capsys.readouterr()
-        assert 'Rollback failed' in captured.out
-        assert 'conflicts' in captured.out.lower()
+        assert 'Rollback failed' in captured.err
+        assert 'Conflict Details' in captured.err
+        assert 'Resolution Options' in captured.err
 
 
 class TestInteractiveRollback:

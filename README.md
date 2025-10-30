@@ -311,15 +311,22 @@ docimp list-sessions
 
 # List changes within a specific session
 docimp list-changes <session-id>
+docimp list-changes last       # List changes in most recent session
 
 # Rollback entire session (all changes)
 docimp rollback-session <session-id>
-docimp rollback-session --last  # Rollback most recent session
+docimp rollback-session last  # Rollback most recent session
 
 # Rollback specific individual change
 docimp rollback-change <entry-id>
-docimp rollback-change --last   # Rollback most recent change
+docimp rollback-change last   # Rollback most recent change
 ```
+
+**Using "last" keyword**:
+- `last` as session ID: Finds the most recent session (sorted by start time)
+- `last` as entry ID: Finds the most recent change across all sessions (sorted by timestamp)
+- Useful for quick undo without needing to look up IDs
+- Works with `--no-confirm` for scripting: `docimp rollback-session last --no-confirm`
 
 **How it works**:
 - Each improve session = Git branch (`docimp/session-<uuid>`)
@@ -328,7 +335,20 @@ docimp rollback-change --last   # Rollback most recent change
 - Side-car repo in `.docimp/state/.git` (never touches your repo)
 
 **Conflict handling**:
-If files have been modified since the change was made, DocImp uses Git's 3-way merge to attempt resolution. If conflicts occur, you'll be prompted with options to complete partial rollback, retry, or cancel the rollback attempt.
+If files have been modified since the change was made, DocImp uses Git's 3-way merge to attempt resolution. If conflicts occur, you'll see detailed guidance with resolution options:
+
+Common conflict scenarios:
+- **Modified file**: You edited the file after DocImp added documentation
+  - Resolution: Review changes, decide which version to keep, retry rollback
+- **Deleted file**: The file was deleted after documentation was added
+  - Resolution: Restore file or accept partial rollback
+- **Multiple changes**: Several DocImp changes modified the same lines
+  - Resolution: Rollback changes in reverse order, or use git directly
+
+When conflicts occur, DocImp displays:
+- Which files have conflicts
+- Why conflicts happened (file modified since change)
+- Three resolution options: manual resolution, accept partial rollback, or use git directly
 
 **No Git installed?**
 DocImp gracefully degrades - improve workflow runs normally, but rollback commands are unavailable.

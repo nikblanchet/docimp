@@ -867,11 +867,21 @@ def cmd_rollback_change(
             if result.success:
                 print(f"\nSuccess! Rolled back {result.restored_count} file(s)")
             else:
-                print(f"\nRollback failed: {result.failed_count} file(s) had conflicts")
+                print(f"\nRollback failed: {result.failed_count} file(s) had conflicts", file=sys.stderr)
                 if result.conflicts:
-                    print("Conflicts in:")
+                    print("\nConflict Details:", file=sys.stderr)
+                    print("The following files have been modified since this change was made:", file=sys.stderr)
                     for conflict in result.conflicts:
-                        print(f"  - {conflict}")
+                        print(f"  - {conflict}", file=sys.stderr)
+                    print("\nResolution Options:", file=sys.stderr)
+                    print("  1. Manually resolve conflicts:", file=sys.stderr)
+                    print("     - Review the file and decide which version to keep", file=sys.stderr)
+                    print("     - Retry rollback after resolving", file=sys.stderr)
+                    print("  2. Accept partial rollback:", file=sys.stderr)
+                    print("     - Non-conflicting files were rolled back successfully", file=sys.stderr)
+                    print("     - Conflicting files remain in their current state", file=sys.stderr)
+                    print("  3. Use git directly:", file=sys.stderr)
+                    print("     - git --git-dir=.docimp/state/.git --work-tree=. revert <commit-sha>", file=sys.stderr)
 
         return 0 if result.success else 1
 
@@ -983,11 +993,16 @@ def cmd_interactive_rollback(
             if result.success:
                 print(f"\nSuccess! Rolled back {result.restored_count} file(s)")
             else:
-                print(f"\nRollback failed: {result.failed_count} file(s) had conflicts")
+                print(f"\nRollback failed: {result.failed_count} file(s) had conflicts", file=sys.stderr)
                 if result.conflicts:
-                    print("Conflicts in:")
+                    print("\nConflict Details:", file=sys.stderr)
+                    print("The following files have been modified since this change was made:", file=sys.stderr)
                     for conflict in result.conflicts:
-                        print(f"  - {conflict}")
+                        print(f"  - {conflict}", file=sys.stderr)
+                    print("\nResolution Options:", file=sys.stderr)
+                    print("  1. Manually resolve conflicts and retry", file=sys.stderr)
+                    print("  2. Accept partial rollback (non-conflicting files rolled back)", file=sys.stderr)
+                    print("  3. Use git directly with --git-dir=.docimp/state/.git", file=sys.stderr)
                 return 1
 
         return 0

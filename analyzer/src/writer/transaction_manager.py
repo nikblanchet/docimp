@@ -194,7 +194,7 @@ class TransactionManager:
         if self.git_available:
             from src.utils.git_helper import GitHelper
 
-            # Convert filepath to relative path from base_path for git
+            # Convert absolute filepath to relative path for git operations
             try:
                 file_path_obj = Path(filepath)
                 if file_path_obj.is_absolute():
