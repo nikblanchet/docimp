@@ -208,9 +208,10 @@ class TransactionManager:
                 # Git add the modified file (using relative path)
                 GitHelper.run_git_command(['add', str(rel_filepath)], self.base_path)
 
-                # Create commit with metadata in message
+                # Create commit with metadata in message (version 1 schema)
                 commit_msg = f"""docimp: Add docs to {item_name}
 
+Metadata-Version: 1
 Metadata:
   item_name: {item_name}
   item_type: {item_type}
@@ -512,18 +513,34 @@ Metadata:
     def _parse_commit_to_entry(self, commit_sha: str, commit_message: str) -> Optional[TransactionEntry]:
         """Parse a git commit message to extract TransactionEntry.
 
+        Supports schema versioning with backward compatibility:
+        - Version 1: Has "Metadata-Version: 1" line (current)
+        - Version 0: No version line (backward compat for old commits)
+
         Parameters:
             commit_sha: Git commit SHA
             commit_message: Full commit message with metadata
 
         Returns:
-            TransactionEntry object or None if not a docimp commit
+            TransactionEntry object or None if not a docimp commit or malformed metadata
         """
+        import logging
+        logger = logging.getLogger(__name__)
+
         lines = commit_message.strip().split('\n')
 
         # Skip non-docimp commits (like initial commit)
         if not lines or not lines[0].startswith('docimp:'):
             return None
+
+        # Parse metadata version (default to 0 for backward compatibility)
+        metadata_version = 0
+        for line in lines:
+            if line.startswith('Metadata-Version:'):
+                try:
+                    metadata_version = int(line.split(':', 1)[1].strip())
+                except (ValueError, IndexError):
+                    logger.warning(f"Malformed Metadata-Version in commit {commit_sha[:7]}, defaulting to 0")
 
         # Extract metadata section
         metadata = {}
@@ -540,6 +557,18 @@ Metadata:
 
         # Build TransactionEntry from metadata
         if not metadata:
+            logger.warning(f"No metadata found in commit {commit_sha[:7]}, skipping")
+            return None
+
+        # Validate required fields (for version 1+)
+        required_fields = ['item_name', 'item_type', 'language', 'filepath']
+        missing_fields = [field for field in required_fields if field not in metadata]
+
+        if metadata_version >= 1 and missing_fields:
+            logger.warning(
+                f"Commit {commit_sha[:7]} missing required fields: {missing_fields}. "
+                f"Skipping entry."
+            )
             return None
 
         # Get short hash
@@ -708,3 +737,88 @@ Metadata:
         )
 
         return result.stdout
+
+    def find_orphaned_backups(self, max_age_days: Optional[int] = None) -> List[Path]:
+        """Find backup files (.bak) that don't have corresponding transaction entries.
+
+        Scans the project for .bak files and checks if they're tracked in any transaction.
+        Optionally filters by file age.
+
+        Parameters:
+            max_age_days: Only return backups older than this many days. None = all ages.
+
+        Returns:
+            List of Path objects for orphaned backup files
+        """
+        import time
+        from datetime import datetime, timedelta
+
+        orphaned = []
+        cutoff_time = None
+
+        if max_age_days is not None:
+            cutoff = datetime.now() - timedelta(days=max_age_days)
+            cutoff_time = cutoff.timestamp()
+
+        # Find all .bak files in the project
+        for bak_file in self.base_path.rglob('*.bak'):
+            # Skip if in .docimp directory
+            if '.docimp' in bak_file.parts:
+                continue
+
+            # Check age if filtering
+            if cutoff_time is not None:
+                mtime = bak_file.stat().st_mtime
+                if mtime > cutoff_time:
+                    continue  # Too recent
+
+            # Check if this backup is referenced in any transaction
+            is_tracked = False
+
+            from src.utils.state_manager import StateManager
+            transactions_dir = StateManager.get_state_dir(self.base_path) / 'session-reports' / 'transactions'
+
+            if transactions_dir.exists():
+                for manifest_file in transactions_dir.glob('transaction-*.json'):
+                    try:
+                        manifest = self.load_manifest(manifest_file)
+                        for entry in manifest.entries:
+                            if Path(entry.backup_path) == bak_file:
+                                is_tracked = True
+                                break
+                        if is_tracked:
+                            break
+                    except Exception:
+                        continue
+
+            if not is_tracked:
+                orphaned.append(bak_file)
+
+        return orphaned
+
+    def cleanup_orphaned_backups(self, max_age_days: int = 7, dry_run: bool = False) -> int:
+        """Delete orphaned backup files older than specified age.
+
+        Parameters:
+            max_age_days: Delete backups older than this many days
+            dry_run: If True, only report what would be deleted without deleting
+
+        Returns:
+            Number of backup files deleted (or would be deleted if dry_run)
+        """
+        orphaned = self.find_orphaned_backups(max_age_days=max_age_days)
+
+        deleted_count = 0
+        for bak_file in orphaned:
+            if not dry_run:
+                try:
+                    bak_file.unlink()
+                    deleted_count += 1
+                except Exception:
+                    # Ignore errors (file might be in use, permissions, etc.)
+                    pass
+            else:
+                # Dry run - just count
+                deleted_count += 1
+
+        return deleted_count
