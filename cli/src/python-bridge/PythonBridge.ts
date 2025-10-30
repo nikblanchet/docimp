@@ -10,8 +10,8 @@ import { resolve } from 'path';
 import { existsSync } from 'fs';
 import { z } from 'zod';
 import type { IPythonBridge, AnalyzeOptions, AuditOptions, PlanOptions, SuggestOptions, ApplyData } from './IPythonBridge.js';
-import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult } from '../types/analysis.js';
-import { AnalysisResultSchema, AuditListResultSchema, PlanResultSchema, formatValidationError } from './schemas.js';
+import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult, SessionSummary, TransactionEntry, RollbackResult } from '../types/analysis.js';
+import { AnalysisResultSchema, AuditListResultSchema, PlanResultSchema, SessionSummarySchema, TransactionEntrySchema, RollbackResultSchema, formatValidationError } from './schemas.js';
 import type { IConfig } from '../config/IConfig.js';
 import { defaultConfig } from '../config/IConfig.js';
 
@@ -734,5 +734,111 @@ export class PythonBridge implements IPythonBridge {
     } finally {
       cleanup();
     }
+  }
+
+  /**
+   * List all documentation improvement sessions.
+   *
+   * @returns Promise resolving to array of session summaries
+   * @throws Error if Python process fails or returns invalid JSON
+   */
+  async listSessions(): Promise<SessionSummary[]> {
+    const args = [
+      '-m',
+      'analyzer',
+      'list-sessions',
+      '--format',
+      'json'
+    ];
+
+    // Validate with array schema
+    const result = await this.executePython<SessionSummary[]>(
+      args,
+      false,
+      z.array(SessionSummarySchema)
+    );
+
+    return result;
+  }
+
+  /**
+   * List changes in a specific session.
+   *
+   * @param sessionId - Session UUID or 'last' for most recent
+   * @returns Promise resolving to array of transaction entries
+   * @throws Error if Python process fails or returns invalid JSON
+   */
+  async listChanges(sessionId: string): Promise<TransactionEntry[]> {
+    const args = [
+      '-m',
+      'analyzer',
+      'list-changes',
+      sessionId,
+      '--format',
+      'json'
+    ];
+
+    // Validate with array schema
+    const result = await this.executePython<TransactionEntry[]>(
+      args,
+      false,
+      z.array(TransactionEntrySchema)
+    );
+
+    return result;
+  }
+
+  /**
+   * Rollback an entire session (revert all changes).
+   *
+   * @param sessionId - Session UUID or 'last' for most recent
+   * @returns Promise resolving to rollback result
+   * @throws Error if Python process fails or rollback fails
+   */
+  async rollbackSession(sessionId: string): Promise<RollbackResult> {
+    const args = [
+      '-m',
+      'analyzer',
+      'rollback-session',
+      sessionId,
+      '--format',
+      'json',
+      '--no-confirm'
+    ];
+
+    const result = await this.executePython<RollbackResult>(
+      args,
+      false,
+      RollbackResultSchema
+    );
+
+    return result;
+  }
+
+  /**
+   * Rollback a specific change.
+   *
+   * @param entryId - Change entry ID or 'last' for most recent
+   * @returns Promise resolving to rollback result
+   * @throws Error if Python process fails or rollback fails
+   */
+  async rollbackChange(entryId: string): Promise<RollbackResult> {
+    const args = [
+      '-m',
+      'analyzer',
+      'rollback-change',
+      entryId,
+      '--format',
+      'json',
+      '--no-confirm'
+    ];
+
+    const result = await this.executePython<RollbackResult>(
+      args,
+      false,
+      RollbackResultSchema
+    );
+
+    return result;
   }
 }

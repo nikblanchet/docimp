@@ -6,7 +6,7 @@
  * configuration, and parse JSON responses.
  */
 
-import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult } from '../types/analysis.js';
+import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult, SessionSummary, TransactionEntry, RollbackResult } from '../types/analysis.js';
 import type { IConfig } from '../config/IConfig.js';
 
 /**
@@ -170,4 +170,39 @@ export interface IPythonBridge {
    * @throws Error if Python process fails or write fails
    */
   apply(data: ApplyData): Promise<void>;
+
+  /**
+   * List all documentation improvement sessions.
+   *
+   * @returns Promise resolving to array of session summaries
+   * @throws Error if Python process fails or returns invalid JSON
+   */
+  listSessions(): Promise<SessionSummary[]>;
+
+  /**
+   * List changes in a specific session.
+   *
+   * @param sessionId - Session UUID or 'last' for most recent
+   * @returns Promise resolving to array of transaction entries
+   * @throws Error if Python process fails or returns invalid JSON
+   */
+  listChanges(sessionId: string): Promise<TransactionEntry[]>;
+
+  /**
+   * Rollback an entire session (revert all changes).
+   *
+   * @param sessionId - Session UUID or 'last' for most recent
+   * @returns Promise resolving to rollback result
+   * @throws Error if Python process fails or rollback fails
+   */
+  rollbackSession(sessionId: string): Promise<RollbackResult>;
+
+  /**
+   * Rollback a specific change.
+   *
+   * @param entryId - Change entry ID or 'last' for most recent
+   * @returns Promise resolving to rollback result
+   * @throws Error if Python process fails or rollback fails
+   */
+  rollbackChange(entryId: string): Promise<RollbackResult>;
 }
