@@ -11,8 +11,7 @@ import sys
 from pathlib import Path
 import tempfile
 import subprocess
-from unittest.mock import patch, MagicMock
-import pytest
+from unittest.mock import patch
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -80,7 +79,7 @@ class TestPermissionErrors:
                 # Attempting operations should either fail gracefully or skip
                 # The important thing is no crash
                 try:
-                    manifest = manager.begin_transaction('test-session')
+                    _manifest = manager.begin_transaction('test-session')
                 except (PermissionError, OSError):
                     pass  # Acceptable to fail with clear error
             finally:
@@ -214,7 +213,7 @@ class TestGitStateRecovery:
 
             # Operations should either work or fail gracefully
             try:
-                manifest = manager.begin_transaction('test-session')
+                _manifest = manager.begin_transaction('test-session')
                 # May succeed or fail depending on implementation
             except (subprocess.CalledProcessError, RuntimeError, FileNotFoundError):
                 pass  # Acceptable to fail with clear error

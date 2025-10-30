@@ -349,7 +349,7 @@ class TestGitEdgeCases:
             # This may raise or fall back to non-git mode
             # Either behavior is acceptable, but should not crash
             try:
-                manifest = manager.begin_transaction('test-session')
+                _manifest = manager.begin_transaction('test-session')
             except (subprocess.CalledProcessError, RuntimeError):
                 pass  # Graceful failure is acceptable
 
@@ -360,10 +360,6 @@ class TestGitEdgeCases:
 
             # Initialize side-car repo
             GitHelper.init_sidecar_repo(base_path)
-
-            # Put repo in detached HEAD state
-            git_state_dir = StateManager.get_git_state_dir(base_path)
-            git_dir_path = git_state_dir / '.git'
 
             # Create a commit first
             manager = TransactionManager(base_path=base_path, use_git=True)

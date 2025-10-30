@@ -8,7 +8,6 @@ import sys
 from pathlib import Path
 import tempfile
 import subprocess
-import pytest
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -196,7 +195,7 @@ class TestNestedPaths:
             for filepath, original in nested_paths:
                 backup = str(filepath) + '.bak'
                 Path(backup).write_text(original)
-                filepath.write_text(f'# Modified\n')
+                filepath.write_text('# Modified\n')
                 manager.record_write(manifest, str(filepath), backup, 'func', 'function', 'python')
 
             # Rollback all
@@ -337,16 +336,6 @@ class TestGitSpecificRollback:
             Path(backup).write_text('original\n')
             filepath.write_text('modified\n')
             manager.record_write(manifest, str(filepath), backup, 'func', 'function', 'python')
-
-            # Count commits on session branch before rollback
-            git_dir = base_path / '.docimp' / 'state' / '.git'
-            result_before = subprocess.run(
-                ['git', '--git-dir', str(git_dir), 'rev-list', '--count', 'HEAD'],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            commits_before = int(result_before.stdout.strip())
 
             # Rollback
             manager.rollback_transaction(manifest)
