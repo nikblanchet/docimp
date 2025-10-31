@@ -11,7 +11,8 @@ import { defaultConfig } from '../../config/IConfig.js';
 
 describe('Transaction Lifecycle Integration', () => {
   let pythonBridge: PythonBridge;
-  const testStateDir = resolve(process.cwd(), '.docimp/state');
+  // Python subprocess runs from analyzer/ directory, so state is created there
+  const testStateDir = resolve(process.cwd(), '..', 'analyzer', '.docimp/state');
 
   beforeEach(() => {
     pythonBridge = new PythonBridge();
