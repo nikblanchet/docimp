@@ -690,6 +690,65 @@ def cmd_list_changes(
         return 1
 
 
+def cmd_begin_transaction(
+    args: argparse.Namespace,
+    manager: TransactionManager
+) -> int:
+    """Handle the begin-transaction subcommand.
+
+    Args:
+        args: Parsed command-line arguments.
+        manager: TransactionManager instance (dependency injection).
+
+    Returns:
+        Exit code (0 for success, 1 for error).
+    """
+    try:
+        # Check git availability
+        if not GitHelper.check_git_available():
+            error_msg = "Git not installed - transaction tracking unavailable"
+            if args.format == 'json':
+                result = {
+                    'success': False,
+                    'error': error_msg
+                }
+                print(json.dumps(result))
+            else:
+                print(f"Error: {error_msg}", file=sys.stderr)
+            return 1
+
+        # Begin the transaction
+        session_id = args.session_id
+        manager.begin_transaction(session_id)
+
+        # Output result
+        if args.format == 'json':
+            result = {
+                'success': True,
+                'message': f'Transaction initialized for session {session_id}'
+            }
+            print(json.dumps(result))
+        else:
+            print(f"Transaction initialized for session: {session_id}")
+
+        return 0
+
+    except Exception as e:
+        error_msg = str(e)
+        if args.format == 'json':
+            result = {
+                'success': False,
+                'error': error_msg
+            }
+            print(json.dumps(result))
+        else:
+            print(f"Error: {error_msg}", file=sys.stderr)
+            if args.verbose:
+                import traceback
+                traceback.print_exc(file=sys.stderr)
+        return 1
+
+
 def cmd_rollback_session(
     args: argparse.Namespace,
     manager: TransactionManager
@@ -1237,6 +1296,27 @@ def main(argv: Optional[list] = None) -> int:
         help='Enable verbose output'
     )
 
+    # Begin-transaction command (initialize transaction tracking)
+    begin_transaction_parser = subparsers.add_parser(
+        'begin-transaction',
+        help='Initialize transaction tracking for a session'
+    )
+    begin_transaction_parser.add_argument(
+        'session_id',
+        help='Session UUID'
+    )
+    begin_transaction_parser.add_argument(
+        '--format',
+        choices=['json', 'text'],
+        default='text',
+        help='Output format (json or text)'
+    )
+    begin_transaction_parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Enable verbose output'
+    )
+
     # Rollback-session command (rollback entire session)
     rollback_session_parser = subparsers.add_parser(
         'rollback-session',
@@ -1361,6 +1441,11 @@ def main(argv: Optional[list] = None) -> int:
         base_path = Path.cwd()
         manager = TransactionManager(base_path=base_path)
         return cmd_list_changes(args, manager)
+    elif args.command == 'begin-transaction':
+        # Create transaction manager for beginning transaction
+        base_path = Path.cwd()
+        manager = TransactionManager(base_path=base_path)
+        return cmd_begin_transaction(args, manager)
     elif args.command == 'rollback-session':
         # Create transaction manager for session rollback
         base_path = Path.cwd()
