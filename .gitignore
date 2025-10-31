@@ -44,7 +44,7 @@ dist/
 # Project-specific
 CLAUDE.md
 CLAUDE_CONTEXT.md
-docs/patterns      # Claude Code supporting documentation (symlink)
+docs/patterns
 
 # Temporary planning and scratch files
 .scratch
