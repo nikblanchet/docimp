@@ -205,4 +205,16 @@ export interface IPythonBridge {
    * @throws Error if Python process fails or rollback fails
    */
   rollbackChange(entryId: string): Promise<RollbackResult>;
+
+  /**
+   * Begin a new transaction for tracking documentation changes.
+   *
+   * Creates a new git branch in the side-car repository and initializes
+   * a transaction manifest for tracking all changes in this session.
+   *
+   * @param sessionId - Unique identifier for this improve session (UUID)
+   * @returns Promise resolving when transaction is initialized
+   * @throws Error if git backend unavailable or initialization fails
+   */
+  beginTransaction(sessionId: string): Promise<void>;
 }
