@@ -311,9 +311,8 @@ class DocstringWriter:
                 self._safe_restore(backup_path, file_path)
             raise
         finally:
-            # Always cleanup backup and temp files
-            if backup_path.exists():
-                backup_path.unlink()
+            # Cleanup temp file only (preserve backup for transaction tracking)
+            # Backup files are deleted only when transaction commits, not here
             if temp_path and temp_path.exists():
                 temp_path.unlink()
 
