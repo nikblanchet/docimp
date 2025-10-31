@@ -344,6 +344,102 @@ describe('InteractiveSession', () => {
     });
   });
 
+  describe('transaction finalization', () => {
+    it('should call commitTransaction after successful session completion', async () => {
+      mockPythonBridge.beginTransaction = jest.fn().mockResolvedValue(undefined);
+      mockPythonBridge.recordWrite = jest.fn().mockResolvedValue(undefined);
+      mockPythonBridge.commitTransaction = jest.fn().mockResolvedValue(undefined);
+      mockPrompts.mockResolvedValueOnce({ action: 'accept' });
+
+      await session.run([mockPlanItem]);
+
+      expect(mockPythonBridge.commitTransaction).toHaveBeenCalledWith(
+        expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
+      );
+      expect(mockPythonBridge.commitTransaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('should call commitTransaction even when user quits mid-session', async () => {
+      mockPythonBridge.beginTransaction = jest.fn().mockResolvedValue(undefined);
+      mockPythonBridge.recordWrite = jest.fn().mockResolvedValue(undefined);
+      mockPythonBridge.commitTransaction = jest.fn().mockResolvedValue(undefined);
+
+      // First item: accept, second item: quit
+      const secondItem = { ...mockPlanItem, name: 'secondFunction' };
+      mockPrompts
+        .mockResolvedValueOnce({ action: 'accept' })
+        .mockResolvedValueOnce({ action: 'quit' });
+
+      await session.run([mockPlanItem, secondItem]);
+
+      // Quitting is a normal exit - transaction should still be committed
+      expect(mockPythonBridge.beginTransaction).toHaveBeenCalled();
+      expect(mockPythonBridge.recordWrite).toHaveBeenCalledTimes(1); // Only first item
+      expect(mockPythonBridge.commitTransaction).toHaveBeenCalledTimes(1); // Still commits
+    });
+
+    it('should continue if commitTransaction fails (graceful degradation)', async () => {
+      mockPythonBridge.beginTransaction = jest.fn().mockResolvedValue(undefined);
+      mockPythonBridge.recordWrite = jest.fn().mockResolvedValue(undefined);
+      mockPythonBridge.commitTransaction = jest.fn().mockRejectedValue(
+        new Error('Git merge failed')
+      );
+      mockPrompts.mockResolvedValueOnce({ action: 'accept' });
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      await session.run([mockPlanItem]);
+
+      // Session should complete despite commit failure
+      expect(mockPythonBridge.apply).toHaveBeenCalled();
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/Failed to finalize transaction/),
+        expect.any(String)
+      );
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('should NOT attempt commit if transaction never initialized', async () => {
+      mockPythonBridge.beginTransaction = jest.fn().mockRejectedValue(
+        new Error('Git not available')
+      );
+      mockPythonBridge.commitTransaction = jest.fn().mockResolvedValue(undefined);
+      mockPrompts.mockResolvedValueOnce({ action: 'accept' });
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      await session.run([mockPlanItem]);
+
+      // Transaction init failed, so commitTransaction should never be called
+      expect(mockPythonBridge.beginTransaction).toHaveBeenCalled();
+      expect(mockPythonBridge.commitTransaction).not.toHaveBeenCalled();
+      expect(mockPythonBridge.apply).toHaveBeenCalled(); // Write still succeeds
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('should provide user feedback on successful finalization', async () => {
+      mockPythonBridge.beginTransaction = jest.fn().mockResolvedValue(undefined);
+      mockPythonBridge.recordWrite = jest.fn().mockResolvedValue(undefined);
+      mockPythonBridge.commitTransaction = jest.fn().mockResolvedValue(undefined);
+      mockPrompts.mockResolvedValueOnce({ action: 'accept' });
+      const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await session.run([mockPlanItem]);
+
+      // Verify console output mentions finalization/commit
+      const allCalls = consoleLogSpy.mock.calls.flat();
+      const hasFinalizationMessage = allCalls.some(call =>
+        typeof call === 'string' &&
+        (call.includes('finalize') || call.includes('commit') || call.includes('Session complete'))
+      );
+
+      expect(hasFinalizationMessage).toBe(true);
+      expect(mockPythonBridge.commitTransaction).toHaveBeenCalled();
+
+      consoleLogSpy.mockRestore();
+    });
+  });
+
   describe('plugin validation', () => {
     it('should run plugin validation before showing suggestion', async () => {
       const validationResults = [
