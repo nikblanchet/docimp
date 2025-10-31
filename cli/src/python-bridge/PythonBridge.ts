@@ -11,7 +11,7 @@ import { existsSync } from 'fs';
 import { z } from 'zod';
 import type { IPythonBridge, AnalyzeOptions, AuditOptions, PlanOptions, SuggestOptions, ApplyData } from './IPythonBridge.js';
 import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult, SessionSummary, TransactionEntry, RollbackResult } from '../types/analysis.js';
-import { AnalysisResultSchema, AuditListResultSchema, PlanResultSchema, SessionSummarySchema, TransactionEntrySchema, RollbackResultSchema, formatValidationError } from './schemas.js';
+import { AnalysisResultSchema, AuditListResultSchema, PlanResultSchema, SessionSummarySchema, TransactionEntrySchema, RollbackResultSchema, GenericSuccessSchema, formatValidationError } from './schemas.js';
 import type { IConfig } from '../config/IConfig.js';
 import { defaultConfig } from '../config/IConfig.js';
 
@@ -840,5 +840,36 @@ export class PythonBridge implements IPythonBridge {
     );
 
     return result;
+  }
+
+  /**
+   * Begin a new transaction for tracking documentation changes.
+   *
+   * Creates a new git branch in the side-car repository and initializes
+   * a transaction manifest for tracking all changes in this session.
+   *
+   * @param sessionId - Unique identifier for this improve session (UUID)
+   * @returns Promise resolving when transaction is initialized
+   * @throws Error if git backend unavailable or initialization fails
+   */
+  async beginTransaction(sessionId: string): Promise<void> {
+    const args = [
+      '-m',
+      'analyzer',
+      'begin-transaction',
+      sessionId,
+      '--format',
+      'json'
+    ];
+
+    const result = await this.executePython<z.infer<typeof GenericSuccessSchema>>(
+      args,
+      false,
+      GenericSuccessSchema
+    );
+
+    if (!result.success) {
+      throw new Error(`Failed to begin transaction: ${result.error || 'Unknown error'}`);
+    }
   }
 }
