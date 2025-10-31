@@ -118,23 +118,45 @@ export class InteractiveSession implements IInteractiveSession {
 
     const tracker = new ProgressTracker(items.length);
 
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
+    try {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
 
-      // Show progress
-      console.log(chalk.dim(`\n[${i + 1}/${items.length}] ${tracker.getProgressString()}`));
+        // Show progress
+        console.log(chalk.dim(`\n[${i + 1}/${items.length}] ${tracker.getProgressString()}`));
 
-      // Process this item
-      const shouldContinue = await this.processItem(item, i, tracker);
+        // Process this item
+        const shouldContinue = await this.processItem(item, i, tracker);
 
-      if (!shouldContinue) {
-        tracker.recordQuit(i);
-        break;
+        if (!shouldContinue) {
+          tracker.recordQuit(i);
+          break;
+        }
       }
-    }
 
-    // Show final summary
-    this.showSummary(tracker);
+      // Show final summary
+      this.showSummary(tracker);
+
+      // SUCCESS: Finalize transaction
+      if (this.transactionActive && this.sessionId) {
+        try {
+          await this.pythonBridge.commitTransaction(this.sessionId);
+          console.log(chalk.green('\nSession finalized. Changes committed.'));
+        } catch (error) {
+          console.warn(
+            chalk.yellow('Warning: Failed to finalize transaction:'),
+            chalk.dim(error instanceof Error ? error.message : String(error))
+          );
+        }
+      }
+    } catch (error) {
+      // ERROR/CANCELLATION: Leave transaction uncommitted
+      if (this.sessionId) {
+        console.log(chalk.yellow('\nSession interrupted. Changes left uncommitted.'));
+        console.log(chalk.dim(`Use 'docimp rollback-session ${this.sessionId}' to undo changes.`));
+      }
+      throw error;
+    }
   }
 
   /**
