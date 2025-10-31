@@ -109,7 +109,12 @@ export class InteractiveSession implements IInteractiveSession {
     }
 
     console.log(chalk.bold(`\n Starting interactive improvement session`));
-    console.log(chalk.dim(`Found ${items.length} items to improve\n`));
+    console.log(chalk.dim(`Found ${items.length} items to improve`));
+    if (this.transactionActive) {
+      console.log(chalk.dim(`Transaction tracking: enabled (session ${this.sessionId?.substring(0, 8)}...)\n`));
+    } else {
+      console.log(chalk.dim(`Transaction tracking: disabled\n`));
+    }
 
     const tracker = new ProgressTracker(items.length);
 
