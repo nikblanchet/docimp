@@ -5,7 +5,7 @@
  */
 
 import { PythonBridge } from '../../python-bridge/PythonBridge.js';
-import { existsSync, rmSync, writeFileSync, readFileSync } from 'fs';
+import { existsSync, rmSync, writeFileSync, readFileSync, mkdirSync } from 'fs';
 import { resolve } from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -14,9 +14,9 @@ const execAsync = promisify(exec);
 
 describe('Transaction Recording Integration', () => {
   let pythonBridge: PythonBridge;
-  // Python subprocess runs from analyzer/ directory, so state is created there
-  const testStateDir = resolve(process.cwd(), '..', 'analyzer', '.docimp/state');
-  const analyzerDir = resolve(process.cwd(), '..', 'analyzer');
+  // Use DOCIMP_ANALYZER_PATH set by Jest setup (works in both local and CI)
+  const analyzerDir = process.env.DOCIMP_ANALYZER_PATH || resolve(process.cwd(), '..', 'analyzer');
+  const testStateDir = resolve(analyzerDir, '.docimp/state');
 
   beforeEach(() => {
     pythonBridge = new PythonBridge();
