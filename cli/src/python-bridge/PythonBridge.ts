@@ -855,7 +855,7 @@ export class PythonBridge implements IPythonBridge {
   async beginTransaction(sessionId: string): Promise<void> {
     const args = [
       '-m',
-      'analyzer',
+      'src.main',
       'begin-transaction',
       sessionId,
       '--format',
