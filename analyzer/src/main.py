@@ -833,6 +833,82 @@ def cmd_record_write(
         return 1
 
 
+def cmd_commit_transaction(
+    args: argparse.Namespace,
+    manager: TransactionManager
+) -> int:
+    """Handle the commit-transaction subcommand.
+
+    Finalizes a transaction by squash-merging the session branch to main,
+    creating a single commit for the entire session, and deleting backup files.
+
+    Args:
+        args: Parsed command-line arguments.
+        manager: TransactionManager instance (dependency injection).
+
+    Returns:
+        Exit code (0 for success, 1 for error).
+    """
+    try:
+        # Check git availability
+        if not GitHelper.check_git_available():
+            error_msg = "Git not installed - transaction commit unavailable"
+            if args.format == 'json':
+                result = {
+                    'success': False,
+                    'error': error_msg
+                }
+                print(json.dumps(result))
+            else:
+                print(f"Error: {error_msg}", file=sys.stderr)
+            return 1
+
+        # Get session ID
+        session_id = args.session_id
+
+        # Create a minimal manifest for this session
+        # The manifest will be populated from git commits
+        from .writer.transaction_manager import TransactionManifest
+        from datetime import datetime
+        manifest = TransactionManifest(
+            session_id=session_id,
+            started_at=datetime.utcnow().isoformat()
+        )
+
+        # Commit the transaction (squash merge to main, delete backups)
+        manager.commit_transaction(manifest)
+
+        # Output result
+        if args.format == 'json':
+            result = {
+                'success': True,
+                'message': f'Transaction committed for session {session_id}',
+                'squash_commit_sha': manifest.git_commit_sha
+            }
+            print(json.dumps(result))
+        else:
+            print(f"Transaction committed for session: {session_id}")
+            if manifest.git_commit_sha:
+                print(f"Squash commit: {manifest.git_commit_sha}")
+
+        return 0
+
+    except Exception as e:
+        error_msg = str(e)
+        if args.format == 'json':
+            result = {
+                'success': False,
+                'error': error_msg
+            }
+            print(json.dumps(result))
+        else:
+            print(f"Error: {error_msg}", file=sys.stderr)
+            if args.verbose:
+                import traceback
+                traceback.print_exc(file=sys.stderr)
+        return 1
+
+
 def cmd_rollback_session(
     args: argparse.Namespace,
     manager: TransactionManager
@@ -1442,6 +1518,27 @@ def main(argv: Optional[list] = None) -> int:
         help='Enable verbose output'
     )
 
+    # Commit-transaction command (finalize transaction with squash merge)
+    commit_transaction_parser = subparsers.add_parser(
+        'commit-transaction',
+        help='Finalize transaction by squash-merging session to main'
+    )
+    commit_transaction_parser.add_argument(
+        'session_id',
+        help='Session UUID'
+    )
+    commit_transaction_parser.add_argument(
+        '--format',
+        choices=['json', 'text'],
+        default='text',
+        help='Output format (json or text)'
+    )
+    commit_transaction_parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Enable verbose output'
+    )
+
     # Rollback-session command (rollback entire session)
     rollback_session_parser = subparsers.add_parser(
         'rollback-session',
@@ -1576,6 +1673,11 @@ def main(argv: Optional[list] = None) -> int:
         base_path = Path.cwd()
         manager = TransactionManager(base_path=base_path)
         return cmd_record_write(args, manager)
+    elif args.command == 'commit-transaction':
+        # Create transaction manager for committing transaction
+        base_path = Path.cwd()
+        manager = TransactionManager(base_path=base_path)
+        return cmd_commit_transaction(args, manager)
     elif args.command == 'rollback-session':
         # Create transaction manager for session rollback
         base_path = Path.cwd()
