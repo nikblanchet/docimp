@@ -3,6 +3,9 @@ export default {
   testEnvironment: 'node',
   extensionsToTreatAsEsm: ['.ts'],
   setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
+  // Force sequential execution to avoid race conditions in integration tests
+  // that share the same .docimp/state directory via Python subprocess
+  maxWorkers: 1,
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^@/(.*)$': '<rootDir>/src/$1',
