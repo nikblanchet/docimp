@@ -266,6 +266,84 @@ describe('InteractiveSession', () => {
     });
   });
 
+  describe('change tracking', () => {
+    it('should call recordWrite after successful write', async () => {
+      mockPythonBridge.beginTransaction = jest.fn().mockResolvedValue(undefined);
+      mockPythonBridge.recordWrite = jest.fn().mockResolvedValue(undefined);
+      mockPrompts.mockResolvedValueOnce({ action: 'accept' });
+
+      await session.run([mockPlanItem]);
+
+      expect(mockPythonBridge.recordWrite).toHaveBeenCalledWith(
+        expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i),
+        mockPlanItem.filepath,
+        expect.stringContaining('.bak'),
+        mockPlanItem.name,
+        mockPlanItem.type,
+        mockPlanItem.language
+      );
+    });
+
+    it('should pass backup_path to apply command', async () => {
+      mockPythonBridge.beginTransaction = jest.fn().mockResolvedValue(undefined);
+      mockPythonBridge.recordWrite = jest.fn().mockResolvedValue(undefined);
+      mockPrompts.mockResolvedValueOnce({ action: 'accept' });
+
+      await session.run([mockPlanItem]);
+
+      expect(mockPythonBridge.apply).toHaveBeenCalledWith(
+        expect.objectContaining({
+          backup_path: expect.stringContaining('.bak')
+        })
+      );
+    });
+
+    it('should not call recordWrite if transaction initialization failed', async () => {
+      mockPythonBridge.beginTransaction = jest.fn().mockRejectedValue(
+        new Error('Git not available')
+      );
+      mockPythonBridge.recordWrite = jest.fn().mockResolvedValue(undefined);
+      mockPrompts.mockResolvedValueOnce({ action: 'accept' });
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      await session.run([mockPlanItem]);
+
+      expect(mockPythonBridge.recordWrite).not.toHaveBeenCalled();
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('should continue if recordWrite fails (graceful degradation)', async () => {
+      mockPythonBridge.beginTransaction = jest.fn().mockResolvedValue(undefined);
+      mockPythonBridge.recordWrite = jest.fn().mockRejectedValue(
+        new Error('Git commit failed')
+      );
+      mockPrompts.mockResolvedValueOnce({ action: 'accept' });
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      await session.run([mockPlanItem]);
+
+      // Write should succeed even though recordWrite failed
+      expect(mockPythonBridge.apply).toHaveBeenCalled();
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/Failed to record change in transaction/),
+        expect.any(String)
+      );
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('should not call recordWrite when user skips', async () => {
+      mockPythonBridge.beginTransaction = jest.fn().mockResolvedValue(undefined);
+      mockPythonBridge.recordWrite = jest.fn().mockResolvedValue(undefined);
+      mockPrompts.mockResolvedValueOnce({ action: 'skip' });
+
+      await session.run([mockPlanItem]);
+
+      expect(mockPythonBridge.recordWrite).not.toHaveBeenCalled();
+    });
+  });
+
   describe('plugin validation', () => {
     it('should run plugin validation before showing suggestion', async () => {
       const validationResults = [

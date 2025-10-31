@@ -416,6 +416,10 @@ export class InteractiveSession implements IInteractiveSession {
    * @returns Promise resolving to true if successful
    */
   private async writeDocstring(item: PlanItem, docstring: string): Promise<boolean> {
+    // Generate timestamp-based backup path for transaction tracking
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('Z', '');
+    const backupPath = `${item.filepath}.${timestamp}.bak`;
+
     try {
       await this.pythonBridge.apply({
         filepath: item.filepath,
@@ -425,7 +429,30 @@ export class InteractiveSession implements IInteractiveSession {
         language: item.language,
         line_number: item.line_number,
         base_path: this.basePath,
+        backup_path: backupPath,
       });
+
+      // Record the write in transaction (if transaction is active)
+      if (this.transactionActive && this.sessionId) {
+        try {
+          await this.pythonBridge.recordWrite(
+            this.sessionId,
+            item.filepath,
+            backupPath,
+            item.name,
+            item.type,
+            item.language
+          );
+        } catch (error) {
+          // Log warning but don't fail the write operation
+          const message = error instanceof Error ? error.message : String(error);
+          console.warn(
+            chalk.yellow('Warning: Failed to record change in transaction:'),
+            chalk.dim(message)
+          );
+          console.warn(chalk.yellow('Documentation was written but rollback may not work for this change.\n'));
+        }
+      }
 
       return true;
 

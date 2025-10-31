@@ -110,6 +110,9 @@ export interface ApplyData {
 
   /** Base directory for path validation (files must be within this directory) */
   base_path?: string;
+
+  /** Optional explicit backup path for transaction tracking */
+  backup_path?: string;
 }
 
 /**
