@@ -789,10 +789,10 @@ def cmd_record_write(
         # Create a minimal manifest for this session
         # The manifest is built from git commits, so we just need the session_id
         from .writer.transaction_manager import TransactionManifest
-        from datetime import datetime
+        from datetime import datetime, UTC
         manifest = TransactionManifest(
             session_id=session_id,
-            started_at=datetime.utcnow().isoformat()
+            started_at=datetime.now(UTC).isoformat()
         )
 
         # Record the write (creates git commit)
@@ -869,10 +869,10 @@ def cmd_commit_transaction(
         # Create a minimal manifest for this session
         # The manifest will be populated from git commits
         from .writer.transaction_manager import TransactionManifest
-        from datetime import datetime
+        from datetime import datetime, UTC
         manifest = TransactionManifest(
             session_id=session_id,
-            started_at=datetime.utcnow().isoformat()
+            started_at=datetime.now(UTC).isoformat()
         )
 
         # Commit the transaction (squash merge to main, delete backups)

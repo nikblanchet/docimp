@@ -920,4 +920,35 @@ export class PythonBridge implements IPythonBridge {
       throw new Error(`Failed to record write: ${result.error || 'Unknown error'}`);
     }
   }
+
+  /**
+   * Finalize transaction by squash-merging to main branch.
+   *
+   * Performs squash merge, creates commit, preserves session branch, and
+   * deletes backup files.
+   *
+   * @param sessionId - Transaction session identifier
+   * @returns Promise resolving when transaction is committed
+   * @throws Error if no active transaction or merge fails
+   */
+  async commitTransaction(sessionId: string): Promise<void> {
+    const args = [
+      '-m',
+      'src.main',
+      'commit-transaction',
+      sessionId,
+      '--format',
+      'json'
+    ];
+
+    const result = await this.executePython<z.infer<typeof GenericSuccessSchema>>(
+      args,
+      false,
+      GenericSuccessSchema
+    );
+
+    if (!result.success) {
+      throw new Error(`Failed to commit transaction: ${result.error || 'Unknown error'}`);
+    }
+  }
 }
