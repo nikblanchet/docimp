@@ -11,6 +11,7 @@
 
 import prompts from 'prompts';
 import chalk from 'chalk';
+import { v4 as uuidv4 } from 'uuid';
 import type { PlanItem, SupportedLanguage } from '../types/analysis.js';
 import type { IConfig } from '../config/IConfig.js';
 import type { PluginResult, CodeItemMetadata } from '../plugins/IPlugin.js';
@@ -62,6 +63,8 @@ export class InteractiveSession implements IInteractiveSession {
   private tone: string;
   private editorLauncher: IEditorLauncher;
   private basePath: string;
+  private sessionId?: string;
+  private transactionActive: boolean = false;
 
   /**
    * Create a new interactive session.
@@ -90,28 +93,70 @@ export class InteractiveSession implements IInteractiveSession {
       return;
     }
 
+    // Initialize transaction for tracking documentation changes
+    this.sessionId = uuidv4();
+
+    try {
+      await this.pythonBridge.beginTransaction(this.sessionId);
+      this.transactionActive = true;
+    } catch (error) {
+      console.warn(
+        chalk.yellow('Warning: Failed to initialize transaction tracking:'),
+        chalk.dim(error instanceof Error ? error.message : String(error))
+      );
+      console.warn(chalk.yellow('Session will continue without rollback capability.\n'));
+      this.transactionActive = false;
+    }
+
     console.log(chalk.bold(`\n Starting interactive improvement session`));
-    console.log(chalk.dim(`Found ${items.length} items to improve\n`));
+    console.log(chalk.dim(`Found ${items.length} items to improve`));
+    if (this.transactionActive) {
+      console.log(chalk.dim(`Transaction tracking: enabled (session ${this.sessionId?.substring(0, 8)}...)\n`));
+    } else {
+      console.log(chalk.dim(`Transaction tracking: disabled\n`));
+    }
 
     const tracker = new ProgressTracker(items.length);
 
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
+    try {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
 
-      // Show progress
-      console.log(chalk.dim(`\n[${i + 1}/${items.length}] ${tracker.getProgressString()}`));
+        // Show progress
+        console.log(chalk.dim(`\n[${i + 1}/${items.length}] ${tracker.getProgressString()}`));
 
-      // Process this item
-      const shouldContinue = await this.processItem(item, i, tracker);
+        // Process this item
+        const shouldContinue = await this.processItem(item, i, tracker);
 
-      if (!shouldContinue) {
-        tracker.recordQuit(i);
-        break;
+        if (!shouldContinue) {
+          tracker.recordQuit(i);
+          break;
+        }
       }
-    }
 
-    // Show final summary
-    this.showSummary(tracker);
+      // Show final summary
+      this.showSummary(tracker);
+
+      // SUCCESS: Finalize transaction
+      if (this.transactionActive && this.sessionId) {
+        try {
+          await this.pythonBridge.commitTransaction(this.sessionId);
+          console.log(chalk.green('\nSession finalized. Changes committed.'));
+        } catch (error) {
+          console.warn(
+            chalk.yellow('Warning: Failed to finalize transaction:'),
+            chalk.dim(error instanceof Error ? error.message : String(error))
+          );
+        }
+      }
+    } catch (error) {
+      // ERROR/CANCELLATION: Leave transaction uncommitted
+      if (this.sessionId) {
+        console.log(chalk.yellow('\nSession interrupted. Changes left uncommitted.'));
+        console.log(chalk.dim(`Use 'docimp rollback-session ${this.sessionId}' to undo changes.`));
+      }
+      throw error;
+    }
   }
 
   /**
@@ -393,6 +438,10 @@ export class InteractiveSession implements IInteractiveSession {
    * @returns Promise resolving to true if successful
    */
   private async writeDocstring(item: PlanItem, docstring: string): Promise<boolean> {
+    // Generate timestamp-based backup path for transaction tracking
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('Z', '');
+    const backupPath = `${item.filepath}.${timestamp}.bak`;
+
     try {
       await this.pythonBridge.apply({
         filepath: item.filepath,
@@ -402,7 +451,30 @@ export class InteractiveSession implements IInteractiveSession {
         language: item.language,
         line_number: item.line_number,
         base_path: this.basePath,
+        backup_path: backupPath,
       });
+
+      // Record the write in transaction (if transaction is active)
+      if (this.transactionActive && this.sessionId) {
+        try {
+          await this.pythonBridge.recordWrite(
+            this.sessionId,
+            item.filepath,
+            backupPath,
+            item.name,
+            item.type,
+            item.language
+          );
+        } catch (error) {
+          // Log warning but don't fail the write operation
+          const message = error instanceof Error ? error.message : String(error);
+          console.warn(
+            chalk.yellow('Warning: Failed to record change in transaction:'),
+            chalk.dim(message)
+          );
+          console.warn(chalk.yellow('Documentation was written but rollback may not work for this change.\n'));
+        }
+      }
 
       return true;
 

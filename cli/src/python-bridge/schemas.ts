@@ -173,6 +173,15 @@ export const RollbackResultSchema = z.object({
 }).passthrough();
 
 /**
+ * Generic success response schema for simple Python commands.
+ */
+export const GenericSuccessSchema = z.object({
+  success: z.boolean(),
+  error: z.string().optional(),
+  message: z.string().optional(),
+}).passthrough();
+
+/**
  * Helper to format Zod validation errors into user-friendly messages.
  *
  * @param error - Zod validation error

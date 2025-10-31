@@ -498,6 +498,7 @@ def cmd_apply(
         docstring = apply_data.get('docstring')
         language = apply_data.get('language')
         line_number = apply_data.get('line_number')
+        backup_path = apply_data.get('backup_path')  # Optional, for transaction tracking
 
         if not all([filepath, item_name, item_type, docstring, language]):
             print("Error: Missing required fields in apply data", file=sys.stderr)
@@ -513,7 +514,8 @@ def cmd_apply(
             item_type=item_type,
             docstring=docstring,
             language=language,
-            line_number=line_number
+            line_number=line_number,
+            explicit_backup_path=backup_path
         )
 
         if success:
@@ -687,6 +689,223 @@ def cmd_list_changes(
         if args.verbose:
             import traceback
             traceback.print_exc(file=sys.stderr)
+        return 1
+
+
+def cmd_begin_transaction(
+    args: argparse.Namespace,
+    manager: TransactionManager
+) -> int:
+    """Handle the begin-transaction subcommand.
+
+    Args:
+        args: Parsed command-line arguments.
+        manager: TransactionManager instance (dependency injection).
+
+    Returns:
+        Exit code (0 for success, 1 for error).
+    """
+    try:
+        # Check git availability
+        if not GitHelper.check_git_available():
+            error_msg = "Git not installed - transaction tracking unavailable"
+            if args.format == 'json':
+                result = {
+                    'success': False,
+                    'error': error_msg
+                }
+                print(json.dumps(result))
+            else:
+                print(f"Error: {error_msg}", file=sys.stderr)
+            return 1
+
+        # Begin the transaction
+        session_id = args.session_id
+        manager.begin_transaction(session_id)
+
+        # Output result
+        if args.format == 'json':
+            result = {
+                'success': True,
+                'message': f'Transaction initialized for session {session_id}'
+            }
+            print(json.dumps(result))
+        else:
+            print(f"Transaction initialized for session: {session_id}")
+
+        return 0
+
+    except Exception as e:
+        error_msg = str(e)
+        if args.format == 'json':
+            result = {
+                'success': False,
+                'error': error_msg
+            }
+            print(json.dumps(result))
+        else:
+            print(f"Error: {error_msg}", file=sys.stderr)
+            if args.verbose:
+                import traceback
+                traceback.print_exc(file=sys.stderr)
+        return 1
+
+
+def cmd_record_write(
+    args: argparse.Namespace,
+    manager: TransactionManager
+) -> int:
+    """Handle the record-write subcommand.
+
+    Args:
+        args: Parsed command-line arguments.
+        manager: TransactionManager instance (dependency injection).
+
+    Returns:
+        Exit code (0 for success, 1 for error).
+    """
+    try:
+        # Check git availability
+        if not GitHelper.check_git_available():
+            error_msg = "Git not installed - transaction tracking unavailable"
+            if args.format == 'json':
+                result = {
+                    'success': False,
+                    'error': error_msg
+                }
+                print(json.dumps(result))
+            else:
+                print(f"Error: {error_msg}", file=sys.stderr)
+            return 1
+
+        # Get parameters
+        session_id = args.session_id
+        filepath = args.filepath
+        backup_path = args.backup_path
+        item_name = args.item_name
+        item_type = args.item_type
+        language = args.language
+
+        # Create a minimal manifest for this session
+        # The manifest is built from git commits, so we just need the session_id
+        from .writer.transaction_manager import TransactionManifest
+        from datetime import datetime, UTC
+        manifest = TransactionManifest(
+            session_id=session_id,
+            started_at=datetime.now(UTC).isoformat()
+        )
+
+        # Record the write (creates git commit)
+        manager.record_write(
+            manifest,
+            filepath,
+            backup_path,
+            item_name,
+            item_type,
+            language
+        )
+
+        # Output result
+        if args.format == 'json':
+            result = {
+                'success': True,
+                'message': f'Recorded write for {item_name} in session {session_id}'
+            }
+            print(json.dumps(result))
+        else:
+            print(f"Recorded write for {item_name} in session: {session_id}")
+
+        return 0
+
+    except Exception as e:
+        error_msg = str(e)
+        if args.format == 'json':
+            result = {
+                'success': False,
+                'error': error_msg
+            }
+            print(json.dumps(result))
+        else:
+            print(f"Error: {error_msg}", file=sys.stderr)
+            if args.verbose:
+                import traceback
+                traceback.print_exc(file=sys.stderr)
+        return 1
+
+
+def cmd_commit_transaction(
+    args: argparse.Namespace,
+    manager: TransactionManager
+) -> int:
+    """Handle the commit-transaction subcommand.
+
+    Finalizes a transaction by squash-merging the session branch to main,
+    creating a single commit for the entire session, and deleting backup files.
+
+    Args:
+        args: Parsed command-line arguments.
+        manager: TransactionManager instance (dependency injection).
+
+    Returns:
+        Exit code (0 for success, 1 for error).
+    """
+    try:
+        # Check git availability
+        if not GitHelper.check_git_available():
+            error_msg = "Git not installed - transaction commit unavailable"
+            if args.format == 'json':
+                result = {
+                    'success': False,
+                    'error': error_msg
+                }
+                print(json.dumps(result))
+            else:
+                print(f"Error: {error_msg}", file=sys.stderr)
+            return 1
+
+        # Get session ID
+        session_id = args.session_id
+
+        # Create a minimal manifest for this session
+        # The manifest will be populated from git commits
+        from .writer.transaction_manager import TransactionManifest
+        from datetime import datetime, UTC
+        manifest = TransactionManifest(
+            session_id=session_id,
+            started_at=datetime.now(UTC).isoformat()
+        )
+
+        # Commit the transaction (squash merge to main, delete backups)
+        manager.commit_transaction(manifest)
+
+        # Output result
+        if args.format == 'json':
+            result = {
+                'success': True,
+                'message': f'Transaction committed for session {session_id}',
+                'squash_commit_sha': manifest.git_commit_sha
+            }
+            print(json.dumps(result))
+        else:
+            print(f"Transaction committed for session: {session_id}")
+            if manifest.git_commit_sha:
+                print(f"Squash commit: {manifest.git_commit_sha}")
+
+        return 0
+
+    except Exception as e:
+        error_msg = str(e)
+        if args.format == 'json':
+            result = {
+                'success': False,
+                'error': error_msg
+            }
+            print(json.dumps(result))
+        else:
+            print(f"Error: {error_msg}", file=sys.stderr)
+            if args.verbose:
+                import traceback
+                traceback.print_exc(file=sys.stderr)
         return 1
 
 
@@ -1237,6 +1456,89 @@ def main(argv: Optional[list] = None) -> int:
         help='Enable verbose output'
     )
 
+    # Begin-transaction command (initialize transaction tracking)
+    begin_transaction_parser = subparsers.add_parser(
+        'begin-transaction',
+        help='Initialize transaction tracking for a session'
+    )
+    begin_transaction_parser.add_argument(
+        'session_id',
+        help='Session UUID'
+    )
+    begin_transaction_parser.add_argument(
+        '--format',
+        choices=['json', 'text'],
+        default='text',
+        help='Output format (json or text)'
+    )
+    begin_transaction_parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Enable verbose output'
+    )
+
+    # Record-write command (record a documentation write in transaction)
+    record_write_parser = subparsers.add_parser(
+        'record-write',
+        help='Record a documentation write in the current transaction'
+    )
+    record_write_parser.add_argument(
+        'session_id',
+        help='Session UUID'
+    )
+    record_write_parser.add_argument(
+        'filepath',
+        help='Absolute path to the modified file'
+    )
+    record_write_parser.add_argument(
+        'backup_path',
+        help='Path to the backup file'
+    )
+    record_write_parser.add_argument(
+        'item_name',
+        help='Name of the documented function/class/method'
+    )
+    record_write_parser.add_argument(
+        'item_type',
+        help='Type of code item (function, class, method)'
+    )
+    record_write_parser.add_argument(
+        'language',
+        help='Programming language (python, javascript, typescript)'
+    )
+    record_write_parser.add_argument(
+        '--format',
+        choices=['json', 'text'],
+        default='text',
+        help='Output format (json or text)'
+    )
+    record_write_parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Enable verbose output'
+    )
+
+    # Commit-transaction command (finalize transaction with squash merge)
+    commit_transaction_parser = subparsers.add_parser(
+        'commit-transaction',
+        help='Finalize transaction by squash-merging session to main'
+    )
+    commit_transaction_parser.add_argument(
+        'session_id',
+        help='Session UUID'
+    )
+    commit_transaction_parser.add_argument(
+        '--format',
+        choices=['json', 'text'],
+        default='text',
+        help='Output format (json or text)'
+    )
+    commit_transaction_parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Enable verbose output'
+    )
+
     # Rollback-session command (rollback entire session)
     rollback_session_parser = subparsers.add_parser(
         'rollback-session',
@@ -1361,6 +1663,21 @@ def main(argv: Optional[list] = None) -> int:
         base_path = Path.cwd()
         manager = TransactionManager(base_path=base_path)
         return cmd_list_changes(args, manager)
+    elif args.command == 'begin-transaction':
+        # Create transaction manager for beginning transaction
+        base_path = Path.cwd()
+        manager = TransactionManager(base_path=base_path)
+        return cmd_begin_transaction(args, manager)
+    elif args.command == 'record-write':
+        # Create transaction manager for recording write
+        base_path = Path.cwd()
+        manager = TransactionManager(base_path=base_path)
+        return cmd_record_write(args, manager)
+    elif args.command == 'commit-transaction':
+        # Create transaction manager for committing transaction
+        base_path = Path.cwd()
+        manager = TransactionManager(base_path=base_path)
+        return cmd_commit_transaction(args, manager)
     elif args.command == 'rollback-session':
         # Create transaction manager for session rollback
         base_path = Path.cwd()
