@@ -34,7 +34,7 @@ export default {
     ],
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(chalk|cli-table3|ora|prompts|ansi-regex|strip-ansi|ansi-styles|#ansi-styles)/)',
+    'node_modules/(?!(chalk|cli-table3|ora|prompts|uuid|ansi-regex|strip-ansi|ansi-styles|#ansi-styles)/)',
   ],
   testMatch: [
     '**/__tests__/**/*.test.ts',
