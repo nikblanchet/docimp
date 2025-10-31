@@ -677,12 +677,7 @@ Metadata:
     def rollback_change(self, entry_id: str) -> RollbackResult:
         """Rollback a single change by reverting its git commit.
 
-        For changes from committed (squashed) sessions, this:
-        1. Checks out the preserved session branch
-        2. Reverts the specific commit on that branch
-        3. Re-squash-merges the session branch onto main
-        4. Updates the manifest to mark change as reverted
-
+        For changes from committed (squashed) sessions, uses re-squash strategy.
         For changes from in-progress sessions, reverts directly on current branch.
 
         Parameters:
@@ -697,7 +692,6 @@ Metadata:
         if not self.git_available:
             raise ValueError("Git backend not available - cannot rollback changes")
 
-        from src.utils.git_helper import GitHelper
         from src.utils.state_manager import StateManager
 
         # Find which session this entry belongs to
@@ -707,6 +701,55 @@ Metadata:
         except ValueError as e:
             raise ValueError(f"Cannot rollback: {str(e)}")
 
+        # Route to appropriate rollback strategy
+        if manifest.status == 'committed':
+            return self._rollback_from_committed_session(manifest, entry, entry_id)
+        else:
+            return self._rollback_from_in_progress_session(manifest, entry, entry_id)
+
+    def _rollback_from_committed_session(
+        self,
+        manifest: 'TransactionManifest',
+        entry: 'TransactionEntry',
+        entry_id: str
+    ) -> RollbackResult:
+        """Handle re-squash strategy for committed sessions.
+
+        This performs a complex re-squash workflow:
+        1. Checkout session branch
+        2. Revert specific commit on branch
+        3. Reset main to before previous squash
+        4. Re-squash session branch (now with revert)
+        5. Update manifest
+
+        Parameters:
+            manifest: Session manifest containing the entry
+            entry: Transaction entry to rollback
+            entry_id: Git commit SHA to revert
+
+        Returns:
+            RollbackResult with success status and conflict information
+
+        Raises:
+            ValueError: If session branch not found or rollback fails
+        """
+        from src.utils.git_helper import GitHelper
+
+        session_branch = f'docimp/session-{manifest.session_id}'
+
+        # Verify session branch exists
+        branch_check = GitHelper.run_git_command(
+            ['rev-parse', '--verify', session_branch],
+            self.base_path,
+            check=False
+        )
+
+        if branch_check.returncode != 0:
+            raise ValueError(
+                f"Session branch {session_branch} not found. "
+                "Cannot rollback individual change from squashed session."
+            )
+
         # Save current branch to restore later
         current_branch_result = GitHelper.run_git_command(
             ['rev-parse', '--abbrev-ref', 'HEAD'],
@@ -714,197 +757,44 @@ Metadata:
         )
         original_branch = current_branch_result.stdout.strip()
 
-        if manifest.status == 'committed':
-            # COMMITTED SESSION: Re-squash strategy
-            session_branch = f'docimp/session-{manifest.session_id}'
-
-            # Verify session branch exists
-            branch_check = GitHelper.run_git_command(
-                ['rev-parse', '--verify', session_branch],
-                self.base_path,
-                check=False
+        try:
+            # Checkout session branch
+            GitHelper.run_git_command(
+                ['checkout', session_branch],
+                self.base_path
             )
 
-            if branch_check.returncode != 0:
-                raise ValueError(
-                    f"Session branch {session_branch} not found. "
-                    "Cannot rollback individual change from squashed session."
-                )
+            # Verify we're on the session branch
+            current_check = GitHelper.run_git_command(
+                ['rev-parse', '--abbrev-ref', 'HEAD'],
+                self.base_path
+            )
+            if session_branch not in current_check.stdout:
+                raise ValueError(f"Failed to checkout session branch {session_branch}")
 
-            try:
-                # Checkout session branch
-                GitHelper.run_git_command(
-                    ['checkout', session_branch],
-                    self.base_path
-                )
-
-                # Verify we're on the session branch
-                current_check = GitHelper.run_git_command(
-                    ['rev-parse', '--abbrev-ref', 'HEAD'],
-                    self.base_path
-                )
-                if session_branch not in current_check.stdout:
-                    raise ValueError(f"Failed to checkout session branch {session_branch}")
-
-                # Revert the specific commit
-                revert_result = GitHelper.run_git_command(
-                    ['revert', '--no-commit', entry_id],
-                    self.base_path,
-                    check=False
-                )
-
-                # Check for conflicts
-                if revert_result.returncode != 0:
-                    conflicts = self._detect_conflicts()
-                    if conflicts:
-                        # Abort the revert
-                        GitHelper.run_git_command(
-                            ['revert', '--abort'],
-                            self.base_path,
-                            check=False
-                        )
-                        # Restore original branch
-                        GitHelper.run_git_command(
-                            ['checkout', original_branch],
-                            self.base_path,
-                            check=False
-                        )
-                        return RollbackResult(
-                            success=False,
-                            restored_count=0,
-                            failed_count=1,
-                            conflicts=conflicts,
-                            status='failed'
-                        )
-
-                # Commit the revert on session branch
-                commit_revert_result = GitHelper.run_git_command(
-                    ['commit', '-m', f'Revert change {entry_id}'],
-                    self.base_path,
-                    check=False
-                )
-
-                # If commit failed, check why
-                if commit_revert_result.returncode != 0:
-                    # Check if there are conflicts (unmerged files)
-                    conflicts = self._detect_conflicts()
-
-                    if conflicts:
-                        # Conflicts detected - abort the revert and restore branch
-                        GitHelper.run_git_command(
-                            ['revert', '--abort'],
-                            self.base_path,
-                            check=False
-                        )
-                        # Restore original branch
-                        GitHelper.run_git_command(
-                            ['checkout', original_branch],
-                            self.base_path,
-                            check=False
-                        )
-                        return RollbackResult(
-                            success=False,
-                            restored_count=0,
-                            failed_count=1,
-                            conflicts=conflicts,
-                            status='failed'
-                        )
-
-                    # Check if there are no changes to commit
-                    status_check = GitHelper.run_git_command(
-                        ['status', '--short'],
-                        self.base_path
-                    )
-                    if not status_check.stdout.strip():
-                        # No changes - revert was a no-op, which is okay
-                        pass
-                    else:
-                        # Some other error - raise it
-                        raise ValueError(f"Failed to commit revert on session branch: {commit_revert_result.stderr}")
-
-                # Checkout main
-                GitHelper.run_git_command(['checkout', 'main'], self.base_path)
-
-                # Find the previous squash commit (parent of current HEAD)
-                parent_result = GitHelper.run_git_command(
-                    ['rev-parse', 'HEAD^'],
-                    self.base_path
-                )
-                parent_sha = parent_result.stdout.strip()
-
-                # Reset main to before previous squash
-                GitHelper.run_git_command(
-                    ['reset', '--hard', parent_sha],
-                    self.base_path
-                )
-
-                # Re-squash merge session branch (now with reverted commit)
-                GitHelper.run_git_command(
-                    ['merge', '--squash', session_branch],
-                    self.base_path,
-                    check=False
-                )
-
-                # Create new squash commit (only if there are changes to commit)
-                squash_msg = f'docimp session {manifest.session_id} (squash, change {entry_id} reverted)'
-                commit_result = GitHelper.run_git_command(
-                    ['commit', '-m', squash_msg],
-                    self.base_path,
-                    check=False
-                )
-
-                # If commit failed, it might be because there were no changes
-                # This is okay - it means the revert had no net effect
-                if commit_result.returncode != 0:
-                    # Restore to the previous state
-                    GitHelper.run_git_command(
-                        ['reset', '--hard', 'HEAD'],
-                        self.base_path,
-                        check=False
-                    )
-
-                # Update manifest to track reverted change
-                # TODO: Add reverted tracking to manifest entries in future enhancement
-                # For now, the revert is recorded as a git commit on the session branch
-
-                return RollbackResult(
-                    success=True,
-                    restored_count=1,
-                    failed_count=0,
-                    conflicts=[],
-                    status='completed'
-                )
-
-            except Exception as e:
-                # Restore original branch on any error
-                GitHelper.run_git_command(
-                    ['checkout', original_branch],
-                    self.base_path,
-                    check=False
-                )
-                raise ValueError(f"Failed to rollback change: {str(e)}")
-
-        else:
-            # IN-PROGRESS SESSION: Direct revert (existing logic)
-            # Attempt git revert
-            result = GitHelper.run_git_command(
+            # Revert the specific commit
+            revert_result = GitHelper.run_git_command(
                 ['revert', '--no-commit', entry_id],
                 self.base_path,
                 check=False
             )
 
             # Check for conflicts
-            if result.returncode != 0:
+            if revert_result.returncode != 0:
                 conflicts = self._detect_conflicts()
-
                 if conflicts:
-                    # Abort the revert to leave working tree clean
+                    # Abort the revert
                     GitHelper.run_git_command(
                         ['revert', '--abort'],
                         self.base_path,
                         check=False
                     )
-
+                    # Restore original branch
+                    GitHelper.run_git_command(
+                        ['checkout', original_branch],
+                        self.base_path,
+                        check=False
+                    )
                     return RollbackResult(
                         success=False,
                         restored_count=0,
@@ -912,21 +802,96 @@ Metadata:
                         conflicts=conflicts,
                         status='failed'
                     )
-                else:
-                    # Non-conflict error
+
+            # Commit the revert on session branch
+            commit_revert_result = GitHelper.run_git_command(
+                ['commit', '-m', f'Revert change {entry_id}'],
+                self.base_path,
+                check=False
+            )
+
+            # If commit failed, check why
+            if commit_revert_result.returncode != 0:
+                # Check if there are conflicts (unmerged files)
+                conflicts = self._detect_conflicts()
+
+                if conflicts:
+                    # Conflicts detected - abort the revert and restore branch
+                    GitHelper.run_git_command(
+                        ['revert', '--abort'],
+                        self.base_path,
+                        check=False
+                    )
+                    # Restore original branch
+                    GitHelper.run_git_command(
+                        ['checkout', original_branch],
+                        self.base_path,
+                        check=False
+                    )
                     return RollbackResult(
                         success=False,
                         restored_count=0,
                         failed_count=1,
-                        conflicts=[],
+                        conflicts=conflicts,
                         status='failed'
                     )
 
-            # Commit the revert
-            GitHelper.run_git_command(
-                ['commit', '-m', f'Revert change {entry_id}'],
+                # Check if there are no changes to commit
+                status_check = GitHelper.run_git_command(
+                    ['status', '--short'],
+                    self.base_path
+                )
+                if not status_check.stdout.strip():
+                    # No changes - revert was a no-op, which is okay
+                    pass
+                else:
+                    # Some other error - raise it
+                    raise ValueError(f"Failed to commit revert on session branch: {commit_revert_result.stderr}")
+
+            # Checkout main
+            GitHelper.run_git_command(['checkout', 'main'], self.base_path)
+
+            # Find the previous squash commit (parent of current HEAD)
+            parent_result = GitHelper.run_git_command(
+                ['rev-parse', 'HEAD^'],
                 self.base_path
             )
+            parent_sha = parent_result.stdout.strip()
+
+            # Reset main to before previous squash
+            GitHelper.run_git_command(
+                ['reset', '--hard', parent_sha],
+                self.base_path
+            )
+
+            # Re-squash merge session branch (now with reverted commit)
+            GitHelper.run_git_command(
+                ['merge', '--squash', session_branch],
+                self.base_path,
+                check=False
+            )
+
+            # Create new squash commit (only if there are changes to commit)
+            squash_msg = f'docimp session {manifest.session_id} (squash, change {entry_id} reverted)'
+            commit_result = GitHelper.run_git_command(
+                ['commit', '-m', squash_msg],
+                self.base_path,
+                check=False
+            )
+
+            # If commit failed, it might be because there were no changes
+            # This is okay - it means the revert had no net effect
+            if commit_result.returncode != 0:
+                # Restore to the previous state
+                GitHelper.run_git_command(
+                    ['reset', '--hard', 'HEAD'],
+                    self.base_path,
+                    check=False
+                )
+
+            # Update manifest to track reverted change
+            # TODO: Add reverted tracking to manifest entries in future enhancement
+            # For now, the revert is recorded as a git commit on the session branch
 
             return RollbackResult(
                 success=True,
@@ -935,6 +900,85 @@ Metadata:
                 conflicts=[],
                 status='completed'
             )
+
+        except Exception as e:
+            # Restore original branch on any error
+            GitHelper.run_git_command(
+                ['checkout', original_branch],
+                self.base_path,
+                check=False
+            )
+            raise ValueError(f"Failed to rollback change: {str(e)}")
+
+    def _rollback_from_in_progress_session(
+        self,
+        manifest: 'TransactionManifest',
+        entry: 'TransactionEntry',
+        entry_id: str
+    ) -> RollbackResult:
+        """Handle simple revert for in-progress sessions.
+
+        Reverts the commit directly on the current branch.
+
+        Parameters:
+            manifest: Session manifest containing the entry
+            entry: Transaction entry to rollback
+            entry_id: Git commit SHA to revert
+
+        Returns:
+            RollbackResult with success status and conflict information
+        """
+        from src.utils.git_helper import GitHelper
+
+        # Attempt git revert
+        result = GitHelper.run_git_command(
+            ['revert', '--no-commit', entry_id],
+            self.base_path,
+            check=False
+        )
+
+        # Check for conflicts
+        if result.returncode != 0:
+            conflicts = self._detect_conflicts()
+
+            if conflicts:
+                # Abort the revert to leave working tree clean
+                GitHelper.run_git_command(
+                    ['revert', '--abort'],
+                    self.base_path,
+                    check=False
+                )
+
+                return RollbackResult(
+                    success=False,
+                    restored_count=0,
+                    failed_count=1,
+                    conflicts=conflicts,
+                    status='failed'
+                )
+            else:
+                # Non-conflict error
+                return RollbackResult(
+                    success=False,
+                    restored_count=0,
+                    failed_count=1,
+                    conflicts=[],
+                    status='failed'
+                )
+
+        # Commit the revert
+        GitHelper.run_git_command(
+            ['commit', '-m', f'Revert change {entry_id}'],
+            self.base_path
+        )
+
+        return RollbackResult(
+            success=True,
+            restored_count=1,
+            failed_count=0,
+            conflicts=[],
+            status='completed'
+        )
 
     def _detect_conflicts(self) -> List[str]:
         """Detect merge conflicts in the working tree.
