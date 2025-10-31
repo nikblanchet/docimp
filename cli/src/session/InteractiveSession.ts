@@ -11,6 +11,7 @@
 
 import prompts from 'prompts';
 import chalk from 'chalk';
+import { v4 as uuidv4 } from 'uuid';
 import type { PlanItem, SupportedLanguage } from '../types/analysis.js';
 import type { IConfig } from '../config/IConfig.js';
 import type { PluginResult, CodeItemMetadata } from '../plugins/IPlugin.js';
@@ -62,6 +63,8 @@ export class InteractiveSession implements IInteractiveSession {
   private tone: string;
   private editorLauncher: IEditorLauncher;
   private basePath: string;
+  private sessionId?: string;
+  private transactionActive: boolean = false;
 
   /**
    * Create a new interactive session.
@@ -88,6 +91,21 @@ export class InteractiveSession implements IInteractiveSession {
     if (items.length === 0) {
       console.log(chalk.yellow('No items in plan. Nothing to improve.'));
       return;
+    }
+
+    // Initialize transaction for tracking documentation changes
+    this.sessionId = uuidv4();
+
+    try {
+      await this.pythonBridge.beginTransaction(this.sessionId);
+      this.transactionActive = true;
+    } catch (error) {
+      console.warn(
+        chalk.yellow('Warning: Failed to initialize transaction tracking:'),
+        chalk.dim(error instanceof Error ? error.message : String(error))
+      );
+      console.warn(chalk.yellow('Session will continue without rollback capability.\n'));
+      this.transactionActive = false;
     }
 
     console.log(chalk.bold(`\n Starting interactive improvement session`));
