@@ -498,6 +498,7 @@ def cmd_apply(
         docstring = apply_data.get('docstring')
         language = apply_data.get('language')
         line_number = apply_data.get('line_number')
+        backup_path = apply_data.get('backup_path')  # Optional, for transaction tracking
 
         if not all([filepath, item_name, item_type, docstring, language]):
             print("Error: Missing required fields in apply data", file=sys.stderr)
@@ -513,7 +514,8 @@ def cmd_apply(
             item_type=item_type,
             docstring=docstring,
             language=language,
-            line_number=line_number
+            line_number=line_number,
+            explicit_backup_path=backup_path
         )
 
         if success:
