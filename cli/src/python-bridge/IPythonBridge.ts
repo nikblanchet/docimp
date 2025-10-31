@@ -217,4 +217,28 @@ export interface IPythonBridge {
    * @throws Error if git backend unavailable or initialization fails
    */
   beginTransaction(sessionId: string): Promise<void>;
+
+  /**
+   * Record a documentation write in the current transaction.
+   *
+   * Creates a git commit in the side-car repository with metadata about the
+   * change. Must be called after each accepted documentation modification.
+   *
+   * @param sessionId - Transaction session identifier
+   * @param filepath - Absolute path to modified file
+   * @param backupPath - Path to backup file for rollback
+   * @param itemName - Name of documented item (function/class/method)
+   * @param itemType - Type of item ('function', 'class', 'method')
+   * @param language - Programming language ('python', 'typescript', 'javascript')
+   * @returns Promise resolving when write is recorded
+   * @throws Error if transaction not active or git commit fails
+   */
+  recordWrite(
+    sessionId: string,
+    filepath: string,
+    backupPath: string,
+    itemName: string,
+    itemType: string,
+    language: string
+  ): Promise<void>;
 }
