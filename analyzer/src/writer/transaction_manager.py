@@ -786,6 +786,30 @@ Metadata:
 
                 # If commit failed, check why
                 if commit_revert_result.returncode != 0:
+                    # Check if there are conflicts (unmerged files)
+                    conflicts = self._detect_conflicts()
+
+                    if conflicts:
+                        # Conflicts detected - abort the revert and restore branch
+                        GitHelper.run_git_command(
+                            ['revert', '--abort'],
+                            self.base_path,
+                            check=False
+                        )
+                        # Restore original branch
+                        GitHelper.run_git_command(
+                            ['checkout', original_branch],
+                            self.base_path,
+                            check=False
+                        )
+                        return RollbackResult(
+                            success=False,
+                            restored_count=0,
+                            failed_count=1,
+                            conflicts=conflicts,
+                            status='failed'
+                        )
+
                     # Check if there are no changes to commit
                     status_check = GitHelper.run_git_command(
                         ['status', '--short'],
@@ -795,6 +819,7 @@ Metadata:
                         # No changes - revert was a no-op, which is okay
                         pass
                     else:
+                        # Some other error - raise it
                         raise ValueError(f"Failed to commit revert on session branch: {commit_revert_result.stderr}")
 
                 # Checkout main
@@ -914,6 +939,15 @@ Metadata:
     def _detect_conflicts(self) -> List[str]:
         """Detect merge conflicts in the working tree.
 
+        Checks for all git conflict status codes:
+        - UU: both modified
+        - AA: both added
+        - DD: both deleted
+        - AU: added by us
+        - UA: added by them
+        - DU: deleted by us
+        - UD: deleted by them
+
         Returns:
             List of file paths with conflicts
         """
@@ -924,12 +958,17 @@ Metadata:
             self.base_path
         )
 
+        # All conflict markers in git status --short
+        conflict_markers = ['UU ', 'AA ', 'DD ', 'AU ', 'UA ', 'DU ', 'UD ']
+
         conflicts = []
         for line in status_result.stdout.split('\n'):
-            if line.startswith('UU ') or line.startswith('AA ') or line.startswith('DD '):
-                # Conflict detected
-                filepath = line[3:].strip()
-                conflicts.append(filepath)
+            for marker in conflict_markers:
+                if line.startswith(marker):
+                    # Conflict detected
+                    filepath = line[3:].strip()
+                    conflicts.append(filepath)
+                    break
 
         return conflicts
 
