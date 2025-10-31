@@ -244,4 +244,19 @@ export interface IPythonBridge {
     itemType: string,
     language: string
   ): Promise<void>;
+
+  /**
+   * Finalize transaction by squash-merging to main branch.
+   *
+   * Performs the following operations:
+   * 1. Squash merge session branch onto main
+   * 2. Create single commit with session summary
+   * 3. Preserve session branch for individual change rollback
+   * 4. Delete all backup files (changes now committed)
+   *
+   * @param sessionId - Transaction session identifier
+   * @returns Promise resolving when transaction is committed
+   * @throws Error if no active transaction or merge fails
+   */
+  commitTransaction(sessionId: string): Promise<void>;
 }
