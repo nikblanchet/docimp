@@ -211,6 +211,61 @@ describe('InteractiveSession', () => {
     });
   });
 
+  describe('transaction initialization', () => {
+    it('should call beginTransaction at session start', async () => {
+      mockPythonBridge.beginTransaction = jest.fn().mockResolvedValue(undefined);
+      mockPrompts.mockResolvedValueOnce({ action: 'skip' });
+
+      await session.run([mockPlanItem]);
+
+      expect(mockPythonBridge.beginTransaction).toHaveBeenCalledWith(
+        expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
+      );
+    });
+
+    it('should continue session if transaction initialization fails', async () => {
+      mockPythonBridge.beginTransaction = jest.fn().mockRejectedValue(
+        new Error('Git backend not available')
+      );
+      mockPrompts.mockResolvedValueOnce({ action: 'skip' });
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      await session.run([mockPlanItem]);
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/Failed to initialize transaction/),
+        expect.any(String)
+      );
+      expect(mockPythonBridge.suggest).toHaveBeenCalled();
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('should generate unique session IDs for each run', async () => {
+      mockPythonBridge.beginTransaction = jest.fn().mockResolvedValue(undefined);
+      mockPrompts
+        .mockResolvedValueOnce({ action: 'skip' })
+        .mockResolvedValueOnce({ action: 'skip' });
+
+      await session.run([mockPlanItem]);
+      const firstCallSessionId = mockPythonBridge.beginTransaction.mock.calls[0][0];
+
+      await session.run([mockPlanItem]);
+      const secondCallSessionId = mockPythonBridge.beginTransaction.mock.calls[1][0];
+
+      expect(firstCallSessionId).not.toBe(secondCallSessionId);
+      expect(mockPythonBridge.beginTransaction).toHaveBeenCalledTimes(2);
+    });
+
+    it('should not call beginTransaction for empty item list', async () => {
+      mockPythonBridge.beginTransaction = jest.fn().mockResolvedValue(undefined);
+
+      await session.run([]);
+
+      expect(mockPythonBridge.beginTransaction).not.toHaveBeenCalled();
+    });
+  });
+
   describe('plugin validation', () => {
     it('should run plugin validation before showing suggestion', async () => {
       const validationResults = [
