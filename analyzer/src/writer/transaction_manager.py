@@ -814,7 +814,7 @@ Metadata:
                 )
 
                 # Re-squash merge session branch (now with reverted commit)
-                merge_result = GitHelper.run_git_command(
+                GitHelper.run_git_command(
                     ['merge', '--squash', session_branch],
                     self.base_path,
                     check=False
@@ -839,11 +839,8 @@ Metadata:
                     )
 
                 # Update manifest to track reverted change
-                manifest_path = transactions_dir / f'transaction-{manifest.session_id}.json'
-                for e in manifest.entries:
-                    if e.entry_id == entry.entry_id:
-                        # Mark as reverted (we'll need to add this field to TransactionEntry)
-                        pass  # TODO: Add reverted tracking in future enhancement
+                # TODO: Add reverted tracking to manifest entries in future enhancement
+                # For now, the revert is recorded as a git commit on the session branch
 
                 return RollbackResult(
                     success=True,
