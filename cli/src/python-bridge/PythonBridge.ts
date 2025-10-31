@@ -872,4 +872,52 @@ export class PythonBridge implements IPythonBridge {
       throw new Error(`Failed to begin transaction: ${result.error || 'Unknown error'}`);
     }
   }
+
+  /**
+   * Record a documentation write in the current transaction.
+   *
+   * Creates a git commit in the side-car repository with metadata about the
+   * change. Must be called after each accepted documentation modification.
+   *
+   * @param sessionId - Transaction session identifier
+   * @param filepath - Absolute path to modified file
+   * @param backupPath - Path to backup file for rollback
+   * @param itemName - Name of documented item (function/class/method)
+   * @param itemType - Type of item ('function', 'class', 'method')
+   * @param language - Programming language ('python', 'typescript', 'javascript')
+   * @returns Promise resolving when write is recorded
+   * @throws Error if transaction not active or git commit fails
+   */
+  async recordWrite(
+    sessionId: string,
+    filepath: string,
+    backupPath: string,
+    itemName: string,
+    itemType: string,
+    language: string
+  ): Promise<void> {
+    const args = [
+      '-m',
+      'src.main',
+      'record-write',
+      sessionId,
+      filepath,
+      backupPath,
+      itemName,
+      itemType,
+      language,
+      '--format',
+      'json'
+    ];
+
+    const result = await this.executePython<z.infer<typeof GenericSuccessSchema>>(
+      args,
+      false,
+      GenericSuccessSchema
+    );
+
+    if (!result.success) {
+      throw new Error(`Failed to record write: ${result.error || 'Unknown error'}`);
+    }
+  }
 }
