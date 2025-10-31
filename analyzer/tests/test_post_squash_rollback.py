@@ -11,7 +11,7 @@ committed (squashed to main). This uses the re-squash strategy:
 import tempfile
 from pathlib import Path
 
-from src.writer.transaction_manager import TransactionManager, TransactionEntry
+from src.writer.transaction_manager import TransactionManager
 
 
 class TestPostSquashRollback:
@@ -155,7 +155,7 @@ class TestPostSquashRollback:
             # Try to rollback - should fail when entry not found
             # (Since branch is deleted, _find_entry_by_id won't find it)
             try:
-                result = manager.rollback_change(change_id)
+                manager.rollback_change(change_id)
                 assert False, "Should have raised ValueError"
             except ValueError as e:
                 # Could be "Entry not found" or "Session branch not found"
