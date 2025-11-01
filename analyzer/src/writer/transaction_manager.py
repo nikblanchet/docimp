@@ -16,7 +16,7 @@ from typing import List, Optional
 from pathlib import Path
 import json
 import shutil
-from datetime import datetime
+from datetime import datetime, UTC
 
 
 @dataclass
@@ -169,7 +169,7 @@ class TransactionManager:
 
         return TransactionManifest(
             session_id=session_id,
-            started_at=datetime.utcnow().isoformat()
+            started_at=datetime.now(UTC).isoformat()
         )
 
     def record_write(
@@ -194,7 +194,7 @@ class TransactionManager:
             item_type: Type of code item ('function', 'class', 'method')
             language: Programming language ('python', 'javascript', 'typescript')
         """
-        timestamp = datetime.utcnow().isoformat()
+        timestamp = datetime.now(UTC).isoformat()
         entry_id = None
 
         if self.git_available:
@@ -263,7 +263,7 @@ Metadata:
             manifest: Transaction manifest to commit
         """
         manifest.status = 'committed'
-        manifest.completed_at = datetime.utcnow().isoformat()
+        manifest.completed_at = datetime.now(UTC).isoformat()
 
         if self.git_available:
             from src.utils.git_helper import GitHelper
@@ -338,7 +338,7 @@ Metadata:
                 restored_count += 1
 
         manifest.status = 'rolled_back'
-        manifest.completed_at = datetime.utcnow().isoformat()
+        manifest.completed_at = datetime.now(UTC).isoformat()
         return restored_count
 
     def save_manifest(self, manifest: TransactionManifest, path: Path) -> None:
@@ -669,7 +669,7 @@ Metadata:
                                     # Build a minimal manifest
                                     manifest = TransactionManifest(
                                         session_id=session_id,
-                                        started_at=datetime.utcnow().isoformat(),
+                                        started_at=datetime.now(UTC).isoformat(),
                                         entries=entries,
                                         status=status
                                     )
