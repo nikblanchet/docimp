@@ -20,6 +20,7 @@ import type { IEditorLauncher } from '../editor/IEditorLauncher.js';
 import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
 import type { IInteractiveSession } from './IInteractiveSession.js';
 import { ProgressTracker } from './ProgressTracker.js';
+import { UserCancellationError } from '../commands/improve.js';
 
 /**
  * Options for interactive session.
@@ -142,6 +143,9 @@ export class InteractiveSession implements IInteractiveSession {
         try {
           await this.pythonBridge.commitTransaction(this.sessionId);
           console.log(chalk.green('\nSession finalized. Changes committed.'));
+          const shortId = this.sessionId.substring(0, 8);
+          console.log(chalk.dim(`Session ID: ${shortId}... (full: ${this.sessionId})`));
+          console.log(chalk.dim(`Use 'docimp list-changes ${this.sessionId}' to review changes.`));
         } catch (error) {
           console.warn(
             chalk.yellow('Warning: Failed to finalize transaction:'),
@@ -151,8 +155,14 @@ export class InteractiveSession implements IInteractiveSession {
       }
     } catch (error) {
       // ERROR/CANCELLATION: Leave transaction uncommitted
-      if (this.sessionId) {
-        console.log(chalk.yellow('\nSession interrupted. Changes left uncommitted.'));
+      if (this.sessionId && this.transactionActive) {
+        if (error instanceof UserCancellationError) {
+          // Expected: User quit mid-session
+          console.log(chalk.yellow('\nSession cancelled. Changes left uncommitted.'));
+        } else {
+          // Unexpected error (network failure, disk full, etc.)
+          console.error(chalk.red('\nSession failed due to error. Changes left uncommitted.'));
+        }
         console.log(chalk.dim(`Use 'docimp rollback-session ${this.sessionId}' to undo changes.`));
       }
       throw error;
