@@ -54,6 +54,7 @@ describe('InteractiveSession', () => {
     // Suppress console output
     consoleSpy = jest.spyOn(console, 'log').mockImplementation();
     jest.spyOn(console, 'error').mockImplementation();
+    jest.spyOn(console, 'warn').mockImplementation();
 
     // Create mock config
     mockConfig = {
@@ -976,6 +977,11 @@ describe('InteractiveSession', () => {
   describe('undo functionality', () => {
     beforeEach(() => {
       // Setup transaction mocks
+      // These mocks enable the transaction lifecycle:
+      // 1. beginTransaction succeeds -> sets transactionActive = true
+      // 2. apply succeeds -> writes documentation
+      // 3. recordWrite succeeds -> increments changeCount
+      // 4. rollbackChange handles undo requests
       mockPythonBridge.beginTransaction = jest.fn().mockResolvedValue(undefined);
       mockPythonBridge.recordWrite = jest.fn().mockResolvedValue(undefined);
       mockPythonBridge.commitTransaction = jest.fn().mockResolvedValue(undefined);
@@ -1051,8 +1057,7 @@ describe('InteractiveSession', () => {
       expect(undoChoice?.title).toBe('Undo last change');
     });
 
-    // TODO: Fix transaction lifecycle mocks - see .scratch/undo-tests-todo.md
-    it.skip('should successfully undo last change', async () => {
+    it('should successfully undo last change', async () => {
       const session = new InteractiveSession({
         config: mockConfig,
         pythonBridge: mockPythonBridge,
@@ -1063,19 +1068,49 @@ describe('InteractiveSession', () => {
         basePath: process.cwd(),
       });
 
-      // Accept first change, then undo, then quit
-      mockPrompts
-        .mockResolvedValueOnce({ action: 'accept' })
-        .mockResolvedValueOnce({ action: 'undo' })
-        .mockResolvedValueOnce({ action: 'quit' });
+      const secondItem: PlanItem = { ...mockPlanItem, name: 'secondFunction', line_number: 20 };
 
-      await session.run([mockPlanItem]);
+      // Accept first item, then on second item: undo, then quit
+      mockPrompts
+        .mockResolvedValueOnce({ action: 'accept' })  // Accept first item
+        .mockResolvedValueOnce({ action: 'undo' })     // Undo on second item
+        .mockResolvedValueOnce({ action: 'quit' });    // Quit on second item
+
+      await session.run([mockPlanItem, secondItem]);
+
+      // Verify transaction lifecycle was executed
+      expect(mockPythonBridge.beginTransaction).toHaveBeenCalledTimes(1);
+      expect(mockPythonBridge.beginTransaction).toHaveBeenCalledWith(
+        expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+      );
+
+      // Verify documentation was written and recorded for first item
+      expect(mockPythonBridge.apply).toHaveBeenCalledTimes(1);
+      expect(mockPythonBridge.apply).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filepath: 'test.js',
+          item_name: 'testFunction',
+          docstring: '/** Generated docs */',
+          backup_path: expect.stringMatching(/test\.js\..*\.bak$/),
+        })
+      );
+
+      expect(mockPythonBridge.recordWrite).toHaveBeenCalledTimes(1);
+      expect(mockPythonBridge.recordWrite).toHaveBeenCalledWith(
+        expect.any(String),
+        'test.js',
+        expect.stringMatching(/test\.js\..*\.bak$/),
+        'testFunction',
+        'function',
+        'javascript'
+      );
 
       // Verify rollbackChange was called with 'last'
       expect(mockPythonBridge.rollbackChange).toHaveBeenCalledWith('last');
+      expect(mockPythonBridge.rollbackChange).toHaveBeenCalledTimes(1);
     });
 
-    it.skip('should stay on current item after undo', async () => {
+    it('should stay on current item after undo', async () => {
       const session = new InteractiveSession({
         config: mockConfig,
         pythonBridge: mockPythonBridge,
@@ -1086,18 +1121,47 @@ describe('InteractiveSession', () => {
         basePath: process.cwd(),
       });
 
-      // Accept change, undo, then accept again
+      const secondItem: PlanItem = { ...mockPlanItem, name: 'secondFunction', line_number: 20 };
+
+      // Accept first item, undo on second item, then accept second item
       mockPrompts
-        .mockResolvedValueOnce({ action: 'accept' })   // Accept first
-        .mockResolvedValueOnce({ action: 'undo' })      // Undo
-        .mockResolvedValueOnce({ action: 'accept' });   // Accept again (same item)
+        .mockResolvedValueOnce({ action: 'accept' })   // Accept first item
+        .mockResolvedValueOnce({ action: 'undo' })      // Undo on second item (reverts first)
+        .mockResolvedValueOnce({ action: 'accept' });   // Accept second item (re-presented)
 
-      await session.run([mockPlanItem]);
+      await session.run([mockPlanItem, secondItem]);
 
-      // Verify suggest was called once (undo doesn't re-request suggestion)
-      // but apply was called twice (first accept, then accept after undo)
-      expect(mockPythonBridge.suggest).toHaveBeenCalledTimes(1);
+      // Verify transaction lifecycle
+      expect(mockPythonBridge.beginTransaction).toHaveBeenCalledTimes(1);
+
+      // Verify suggest was called twice (once per item)
+      expect(mockPythonBridge.suggest).toHaveBeenCalledTimes(2);
+      expect(mockPythonBridge.suggest).toHaveBeenNthCalledWith(1, {
+        target: 'test.js:testFunction',
+        styleGuide: 'jsdoc-vanilla',
+        tone: 'concise',
+        timeout: undefined,
+        maxRetries: undefined,
+        retryDelay: undefined,
+      });
+      expect(mockPythonBridge.suggest).toHaveBeenNthCalledWith(2, {
+        target: 'test.js:secondFunction',
+        styleGuide: 'jsdoc-vanilla',
+        tone: 'concise',
+        timeout: undefined,
+        maxRetries: undefined,
+        retryDelay: undefined,
+      });
+
+      // Verify apply was called twice (first item accepted, second item accepted after undo)
       expect(mockPythonBridge.apply).toHaveBeenCalledTimes(2);
+
+      // Verify recordWrite was called twice (once per accept)
+      expect(mockPythonBridge.recordWrite).toHaveBeenCalledTimes(2);
+
+      // Verify rollbackChange was called once (undo first item)
+      expect(mockPythonBridge.rollbackChange).toHaveBeenCalledWith('last');
+      expect(mockPythonBridge.rollbackChange).toHaveBeenCalledTimes(1);
     });
 
     it('should handle undo when no changes made yet', async () => {
@@ -1126,7 +1190,7 @@ describe('InteractiveSession', () => {
       expect(hasNoChangesWarning).toBe(true);
     });
 
-    it.skip('should handle undo failures gracefully', async () => {
+    it('should handle undo failures gracefully', async () => {
       const session = new InteractiveSession({
         config: mockConfig,
         pythonBridge: mockPythonBridge,
@@ -1136,6 +1200,8 @@ describe('InteractiveSession', () => {
         tone: 'concise',
         basePath: process.cwd(),
       });
+
+      const secondItem: PlanItem = { ...mockPlanItem, name: 'secondFunction', line_number: 20 };
 
       // Override rollbackChange to fail with conflicts AFTER session creation
       mockPythonBridge.rollbackChange.mockResolvedValueOnce({
@@ -1147,22 +1213,30 @@ describe('InteractiveSession', () => {
         message: 'Conflict detected',
       });
 
-      // Accept, undo (fails), quit
+      // Accept first item, then on second item: undo (fails), quit
       mockPrompts
-        .mockResolvedValueOnce({ action: 'accept' })
-        .mockResolvedValueOnce({ action: 'undo' })
-        .mockResolvedValueOnce({ action: 'quit' });
+        .mockResolvedValueOnce({ action: 'accept' })  // Accept first item
+        .mockResolvedValueOnce({ action: 'undo' })     // Undo on second item (fails)
+        .mockResolvedValueOnce({ action: 'quit' });    // Quit on second item
 
-      await session.run([mockPlanItem]);
+      await session.run([mockPlanItem, secondItem]);
+
+      // Verify transaction lifecycle executed up to undo
+      expect(mockPythonBridge.beginTransaction).toHaveBeenCalledTimes(1);
+      expect(mockPythonBridge.apply).toHaveBeenCalledTimes(1);
+      expect(mockPythonBridge.recordWrite).toHaveBeenCalledTimes(1);
 
       // Verify rollbackChange was called
       expect(mockPythonBridge.rollbackChange).toHaveBeenCalledWith('last');
+      expect(mockPythonBridge.rollbackChange).toHaveBeenCalledTimes(1);
+
       // Verify error message was shown (check for all console.log calls)
       const allLogs = consoleSpy.mock.calls.map((call: any[]) => call.join(' '));
       const hasUndoFailed = allLogs.some((log: string) => log.includes('Undo failed'));
       const hasConflicts = allLogs.some((log: string) => log.includes('Conflicts detected'));
       expect(hasUndoFailed).toBe(true);
       expect(hasConflicts).toBe(true);
+      expect(allLogs.some((log: string) => log.includes('test.js'))).toBe(true);
     });
 
     it('should decrement changeCount after successful undo', async () => {
@@ -1194,7 +1268,7 @@ describe('InteractiveSession', () => {
       expect(hasUndo).toBe(false);
     });
 
-    it.skip('should display item metadata on successful undo', async () => {
+    it('should display item metadata on successful undo', async () => {
       const session = new InteractiveSession({
         config: mockConfig,
         pythonBridge: mockPythonBridge,
@@ -1204,6 +1278,8 @@ describe('InteractiveSession', () => {
         tone: 'concise',
         basePath: process.cwd(),
       });
+
+      const secondItem: PlanItem = { ...mockPlanItem, name: 'secondFunction', line_number: 20 };
 
       // Override rollbackChange with metadata AFTER session creation
       mockPythonBridge.rollbackChange.mockResolvedValueOnce({
@@ -1218,22 +1294,39 @@ describe('InteractiveSession', () => {
         filepath: 'custom/path/file.py',
       });
 
-      // Accept, undo, quit
+      // Accept first item, then on second item: undo, quit
       mockPrompts
-        .mockResolvedValueOnce({ action: 'accept' })
-        .mockResolvedValueOnce({ action: 'undo' })
-        .mockResolvedValueOnce({ action: 'quit' });
+        .mockResolvedValueOnce({ action: 'accept' })  // Accept first item
+        .mockResolvedValueOnce({ action: 'undo' })     // Undo on second item
+        .mockResolvedValueOnce({ action: 'quit' });    // Quit on second item
 
-      await session.run([mockPlanItem]);
+      await session.run([mockPlanItem, secondItem]);
+
+      // Verify transaction lifecycle
+      expect(mockPythonBridge.beginTransaction).toHaveBeenCalledTimes(1);
+      expect(mockPythonBridge.apply).toHaveBeenCalledTimes(1);
+      expect(mockPythonBridge.recordWrite).toHaveBeenCalledTimes(1);
+      expect(mockPythonBridge.rollbackChange).toHaveBeenCalledWith('last');
 
       // Verify success message includes item details (check all console.log calls)
       const allLogs = consoleSpy.mock.calls.map((call: any[]) => call.join(' '));
+
+      // The implementation displays: "Reverted documentation for myCustomFunction (function)"
       const hasItemName = allLogs.some((log: string) => log.includes('myCustomFunction'));
       const hasItemType = allLogs.some((log: string) => log.includes('function'));
+
+      // The implementation displays: "  File: custom/path/file.py"
       const hasFilepath = allLogs.some((log: string) => log.includes('custom/path/file.py'));
+
       expect(hasItemName).toBe(true);
       expect(hasItemType).toBe(true);
       expect(hasFilepath).toBe(true);
+
+      // Verify the success message format
+      const hasRevertedMessage = allLogs.some((log: string) =>
+        log.includes('Reverted documentation for')
+      );
+      expect(hasRevertedMessage).toBe(true);
     });
   });
 });
