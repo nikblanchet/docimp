@@ -260,3 +260,88 @@ export interface PlanResult {
   /** Number of items with poor quality docs */
   poor_quality_count: number;
 }
+
+/**
+ * Transaction tracking types for rollback capability.
+ * These types mirror the Python dataclasses in analyzer/src/writer/transaction_manager.py
+ */
+
+/**
+ * Summary of a documentation improvement session for display purposes.
+ * Used by list-sessions command to show active sessions.
+ */
+export interface SessionSummary {
+  /** Unique session identifier (UUID) */
+  session_id: string;
+
+  /** ISO timestamp when session started */
+  started_at: string;
+
+  /** ISO timestamp when session ended (null if in progress) */
+  completed_at: string | null;
+
+  /** Number of changes in this session */
+  change_count: number;
+
+  /** Session status */
+  status: 'in_progress' | 'committed' | 'rolled_back' | 'partial_rollback';
+}
+
+/**
+ * Record of a single file modification during an improve session.
+ * Parsed from git commits in the side-car repository.
+ */
+export interface TransactionEntry {
+  /** Git commit SHA (short hash) or generated ID */
+  entry_id: string;
+
+  /** Absolute path to modified file */
+  filepath: string;
+
+  /** ISO timestamp of modification */
+  timestamp: string;
+
+  /** Name of documented function/class/method */
+  item_name: string;
+
+  /** Type of code item */
+  item_type: string;
+
+  /** Programming language */
+  language: string;
+
+  /** Whether write operation succeeded */
+  success: boolean;
+}
+
+/**
+ * Result of a rollback operation (individual change or session).
+ */
+export interface RollbackResult {
+  /** Whether rollback completed successfully */
+  success: boolean;
+
+  /** Number of files successfully rolled back */
+  restored_count: number;
+
+  /** Number of files that failed to roll back */
+  failed_count: number;
+
+  /** Overall status */
+  status: 'completed' | 'partial_rollback' | 'failed';
+
+  /** List of file paths with merge conflicts */
+  conflicts: string[];
+
+  /** Human-readable message */
+  message: string;
+
+  /** Name of function/class/method that was rolled back (undefined for multiple changes) */
+  item_name?: string;
+
+  /** Type of code item ('function', 'class', 'method', undefined for multiple changes) */
+  item_type?: string;
+
+  /** Path to the file that was modified (undefined for multiple changes) */
+  filepath?: string;
+}

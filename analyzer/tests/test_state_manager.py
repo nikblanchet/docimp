@@ -244,3 +244,67 @@ class TestStateManager:
         error_message = str(exc_info.value).lower()
         assert 'permission' in error_message
         assert 'does not exist' in error_message or 'directory' in error_message
+
+    def test_get_transactions_dir_returns_correct_path(self, temp_dir):
+        """Test that get_transactions_dir returns correct path."""
+        transactions_dir = StateManager.get_transactions_dir(temp_dir)
+        expected = temp_dir / '.docimp' / 'session-reports' / 'transactions'
+        assert transactions_dir == expected.resolve()
+
+    def test_get_transaction_file_returns_correct_path(self, temp_dir):
+        """Test that get_transaction_file returns correct path for session ID."""
+        session_id = 'abc-123-def'
+        transaction_file = StateManager.get_transaction_file(session_id, temp_dir)
+        expected = temp_dir / '.docimp' / 'session-reports' / 'transactions' / 'transaction-abc-123-def.json'
+        assert transaction_file == expected.resolve()
+
+    def test_list_transaction_files_empty_directory(self, temp_dir):
+        """Test list_transaction_files when transactions directory doesn't exist."""
+        files = StateManager.list_transaction_files(temp_dir)
+        assert files == []
+
+    def test_list_transaction_files_returns_sorted_files(self, temp_dir):
+        """Test that list_transaction_files returns files sorted by modification time."""
+        import time
+
+        transactions_dir = StateManager.get_transactions_dir(temp_dir)
+        transactions_dir.mkdir(parents=True)
+
+        # Create files with delays to ensure different timestamps
+        file1 = transactions_dir / 'transaction-1.json'
+        file1.write_text('{}')
+        time.sleep(0.01)
+
+        file2 = transactions_dir / 'transaction-2.json'
+        file2.write_text('{}')
+        time.sleep(0.01)
+
+        file3 = transactions_dir / 'transaction-3.json'
+        file3.write_text('{}')
+
+        files = StateManager.list_transaction_files(temp_dir)
+
+        # Should be sorted newest first
+        assert len(files) == 3
+        assert files[0].name == 'transaction-3.json'
+        assert files[1].name == 'transaction-2.json'
+        assert files[2].name == 'transaction-1.json'
+
+    def test_list_transaction_files_ignores_non_transaction_files(self, temp_dir):
+        """Test that list_transaction_files only returns transaction-*.json files."""
+        transactions_dir = StateManager.get_transactions_dir(temp_dir)
+        transactions_dir.mkdir(parents=True)
+
+        # Create transaction files
+        (transactions_dir / 'transaction-1.json').write_text('{}')
+        (transactions_dir / 'transaction-2.json').write_text('{}')
+
+        # Create non-transaction files (should be ignored)
+        (transactions_dir / 'other-file.json').write_text('{}')
+        (transactions_dir / 'README.md').write_text('# Transactions')
+
+        files = StateManager.list_transaction_files(temp_dir)
+
+        # Should only return transaction-* files
+        assert len(files) == 2
+        assert all('transaction-' in f.name for f in files)

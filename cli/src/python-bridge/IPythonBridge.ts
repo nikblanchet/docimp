@@ -6,7 +6,7 @@
  * configuration, and parse JSON responses.
  */
 
-import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult } from '../types/analysis.js';
+import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult, SessionSummary, TransactionEntry, RollbackResult } from '../types/analysis.js';
 import type { IConfig } from '../config/IConfig.js';
 
 /**
@@ -110,6 +110,9 @@ export interface ApplyData {
 
   /** Base directory for path validation (files must be within this directory) */
   base_path?: string;
+
+  /** Optional explicit backup path for transaction tracking */
+  backup_path?: string;
 }
 
 /**
@@ -170,4 +173,90 @@ export interface IPythonBridge {
    * @throws Error if Python process fails or write fails
    */
   apply(data: ApplyData): Promise<void>;
+
+  /**
+   * List all documentation improvement sessions.
+   *
+   * @returns Promise resolving to array of session summaries
+   * @throws Error if Python process fails or returns invalid JSON
+   */
+  listSessions(): Promise<SessionSummary[]>;
+
+  /**
+   * List changes in a specific session.
+   *
+   * @param sessionId - Session UUID or 'last' for most recent
+   * @returns Promise resolving to array of transaction entries
+   * @throws Error if Python process fails or returns invalid JSON
+   */
+  listChanges(sessionId: string): Promise<TransactionEntry[]>;
+
+  /**
+   * Rollback an entire session (revert all changes).
+   *
+   * @param sessionId - Session UUID or 'last' for most recent
+   * @returns Promise resolving to rollback result
+   * @throws Error if Python process fails or rollback fails
+   */
+  rollbackSession(sessionId: string): Promise<RollbackResult>;
+
+  /**
+   * Rollback a specific change.
+   *
+   * @param entryId - Change entry ID or 'last' for most recent
+   * @returns Promise resolving to rollback result
+   * @throws Error if Python process fails or rollback fails
+   */
+  rollbackChange(entryId: string): Promise<RollbackResult>;
+
+  /**
+   * Begin a new transaction for tracking documentation changes.
+   *
+   * Creates a new git branch in the side-car repository and initializes
+   * a transaction manifest for tracking all changes in this session.
+   *
+   * @param sessionId - Unique identifier for this improve session (UUID)
+   * @returns Promise resolving when transaction is initialized
+   * @throws Error if git backend unavailable or initialization fails
+   */
+  beginTransaction(sessionId: string): Promise<void>;
+
+  /**
+   * Record a documentation write in the current transaction.
+   *
+   * Creates a git commit in the side-car repository with metadata about the
+   * change. Must be called after each accepted documentation modification.
+   *
+   * @param sessionId - Transaction session identifier
+   * @param filepath - Absolute path to modified file
+   * @param backupPath - Path to backup file for rollback
+   * @param itemName - Name of documented item (function/class/method)
+   * @param itemType - Type of item ('function', 'class', 'method')
+   * @param language - Programming language ('python', 'typescript', 'javascript')
+   * @returns Promise resolving when write is recorded
+   * @throws Error if transaction not active or git commit fails
+   */
+  recordWrite(
+    sessionId: string,
+    filepath: string,
+    backupPath: string,
+    itemName: string,
+    itemType: string,
+    language: string
+  ): Promise<void>;
+
+  /**
+   * Finalize transaction by squash-merging to main branch.
+   *
+   * Performs the following operations:
+   * 1. Squash merge session branch onto main
+   * 2. Create single commit with session summary
+   * 3. Preserve session branch for individual change rollback
+   * 4. Delete all backup files (changes now committed)
+   *
+   * @param sessionId - Transaction session identifier
+   * @returns Promise resolving when transaction is committed
+   * @throws Error if no active transaction or merge fails
+   */
+  commitTransaction(sessionId: string): Promise<void>;
 }

@@ -11,6 +11,7 @@
 
 import prompts from 'prompts';
 import chalk from 'chalk';
+import { v4 as uuidv4 } from 'uuid';
 import type { PlanItem, SupportedLanguage } from '../types/analysis.js';
 import type { IConfig } from '../config/IConfig.js';
 import type { PluginResult, CodeItemMetadata } from '../plugins/IPlugin.js';
@@ -19,6 +20,7 @@ import type { IEditorLauncher } from '../editor/IEditorLauncher.js';
 import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
 import type { IInteractiveSession } from './IInteractiveSession.js';
 import { ProgressTracker } from './ProgressTracker.js';
+import { UserCancellationError } from '../commands/improve.js';
 
 /**
  * Options for interactive session.
@@ -49,7 +51,7 @@ export interface SessionOptions {
 /**
  * User action choices.
  */
-type UserAction = 'accept' | 'edit' | 'regenerate' | 'skip' | 'quit';
+type UserAction = 'accept' | 'edit' | 'regenerate' | 'skip' | 'undo' | 'quit';
 
 /**
  * Manages an interactive documentation improvement session.
@@ -62,6 +64,9 @@ export class InteractiveSession implements IInteractiveSession {
   private tone: string;
   private editorLauncher: IEditorLauncher;
   private basePath: string;
+  private sessionId?: string;
+  private transactionActive: boolean = false;
+  private changeCount: number = 0;
 
   /**
    * Create a new interactive session.
@@ -90,28 +95,79 @@ export class InteractiveSession implements IInteractiveSession {
       return;
     }
 
+    // Initialize transaction for tracking documentation changes
+    this.sessionId = uuidv4();
+
+    try {
+      await this.pythonBridge.beginTransaction(this.sessionId);
+      this.transactionActive = true;
+    } catch (error) {
+      console.warn(
+        chalk.yellow('Warning: Failed to initialize transaction tracking:'),
+        chalk.dim(error instanceof Error ? error.message : String(error))
+      );
+      console.warn(chalk.yellow('Session will continue without rollback capability.\n'));
+      this.transactionActive = false;
+    }
+
     console.log(chalk.bold(`\n Starting interactive improvement session`));
-    console.log(chalk.dim(`Found ${items.length} items to improve\n`));
+    console.log(chalk.dim(`Found ${items.length} items to improve`));
+    if (this.transactionActive) {
+      console.log(chalk.dim(`Transaction tracking: enabled (session ${this.sessionId?.substring(0, 8)}...)\n`));
+    } else {
+      console.log(chalk.dim(`Transaction tracking: disabled\n`));
+    }
 
     const tracker = new ProgressTracker(items.length);
 
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
+    try {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
 
-      // Show progress
-      console.log(chalk.dim(`\n[${i + 1}/${items.length}] ${tracker.getProgressString()}`));
+        // Show progress
+        console.log(chalk.dim(`\n[${i + 1}/${items.length}] ${tracker.getProgressString()}`));
 
-      // Process this item
-      const shouldContinue = await this.processItem(item, i, tracker);
+        // Process this item
+        const shouldContinue = await this.processItem(item, i, tracker);
 
-      if (!shouldContinue) {
-        tracker.recordQuit(i);
-        break;
+        if (!shouldContinue) {
+          tracker.recordQuit(i);
+          break;
+        }
       }
-    }
 
-    // Show final summary
-    this.showSummary(tracker);
+      // Show final summary
+      this.showSummary(tracker);
+
+      // SUCCESS: Finalize transaction
+      if (this.transactionActive && this.sessionId) {
+        try {
+          await this.pythonBridge.commitTransaction(this.sessionId);
+          console.log(chalk.green('\nSession finalized. Changes committed.'));
+          const shortId = this.sessionId.substring(0, 8);
+          console.log(chalk.dim(`Session ID: ${shortId}... (full: ${this.sessionId})`));
+          console.log(chalk.dim(`Use 'docimp list-changes ${this.sessionId}' to review changes.`));
+        } catch (error) {
+          console.warn(
+            chalk.yellow('Warning: Failed to finalize transaction:'),
+            chalk.dim(error instanceof Error ? error.message : String(error))
+          );
+        }
+      }
+    } catch (error) {
+      // ERROR/CANCELLATION: Leave transaction uncommitted
+      if (this.sessionId && this.transactionActive) {
+        if (error instanceof UserCancellationError) {
+          // Expected: User quit mid-session
+          console.log(chalk.yellow('\nSession cancelled. Changes left uncommitted.'));
+        } else {
+          // Unexpected error (network failure, disk full, etc.)
+          console.error(chalk.red('\nSession failed due to error. Changes left uncommitted.'));
+        }
+        console.log(chalk.dim(`Use 'docimp rollback-session ${this.sessionId}' to undo changes.`));
+      }
+      throw error;
+    }
   }
 
   /**
@@ -195,6 +251,11 @@ export class InteractiveSession implements IInteractiveSession {
         tracker.recordSkipped();
         console.log(chalk.yellow('Skipping item'));
         return true; // Continue to next item
+
+      } else if (action === 'undo') {
+        await this.handleUndo();
+        // Stay on current item - continue loop to re-present
+        continue;
 
       } else if (action === 'quit') {
         return false; // Stop processing
@@ -333,17 +394,26 @@ export class InteractiveSession implements IInteractiveSession {
   private async promptUserAction(validationResults: PluginResult[]): Promise<UserAction> {
     const hasFailures = validationResults.some(r => !r.accept);
 
+    // Build choices array - conditionally include undo
+    const choices = [
+      { title: hasFailures ? 'Accept anyway' : 'Accept', value: 'accept' },
+      { title: 'Edit manually', value: 'edit' },
+      { title: 'Regenerate with feedback', value: 'regenerate' },
+      { title: 'Skip this item', value: 'skip' },
+    ];
+
+    // Add undo option only if changes have been made and transaction is active
+    if (this.changeCount > 0 && this.transactionActive) {
+      choices.splice(4, 0, { title: 'Undo last change', value: 'undo' });
+    }
+
+    choices.push({ title: 'Quit session', value: 'quit' });
+
     const response = await prompts({
       type: 'select',
       name: 'action',
       message: 'What would you like to do?',
-      choices: [
-        { title: hasFailures ? 'Accept anyway' : 'Accept', value: 'accept' },
-        { title: 'Edit manually', value: 'edit' },
-        { title: 'Regenerate with feedback', value: 'regenerate' },
-        { title: 'Skip this item', value: 'skip' },
-        { title: 'Quit session', value: 'quit' },
-      ],
+      choices,
     });
 
     return response.action || 'skip';
@@ -393,6 +463,10 @@ export class InteractiveSession implements IInteractiveSession {
    * @returns Promise resolving to true if successful
    */
   private async writeDocstring(item: PlanItem, docstring: string): Promise<boolean> {
+    // Generate timestamp-based backup path for transaction tracking
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('Z', '');
+    const backupPath = `${item.filepath}.${timestamp}.bak`;
+
     try {
       await this.pythonBridge.apply({
         filepath: item.filepath,
@@ -402,7 +476,33 @@ export class InteractiveSession implements IInteractiveSession {
         language: item.language,
         line_number: item.line_number,
         base_path: this.basePath,
+        backup_path: backupPath,
       });
+
+      // Record the write in transaction (if transaction is active)
+      if (this.transactionActive && this.sessionId) {
+        try {
+          await this.pythonBridge.recordWrite(
+            this.sessionId,
+            item.filepath,
+            backupPath,
+            item.name,
+            item.type,
+            item.language
+          );
+
+          // Increment change count for undo tracking
+          this.changeCount++;
+        } catch (error) {
+          // Log warning but don't fail the write operation
+          const message = error instanceof Error ? error.message : String(error);
+          console.warn(
+            chalk.yellow('Warning: Failed to record change in transaction:'),
+            chalk.dim(message)
+          );
+          console.warn(chalk.yellow('Documentation was written but rollback may not work for this change.\n'));
+        }
+      }
 
       return true;
 
@@ -410,6 +510,57 @@ export class InteractiveSession implements IInteractiveSession {
       const message = error instanceof Error ? error.message : String(error);
       console.error(chalk.red(`Error writing documentation: ${message}`));
       return false;
+    }
+  }
+
+  /**
+   * Handle undo of the most recent change using git history.
+   *
+   * Calls Python bridge with 'last' to rollback HEAD commit on session branch.
+   * Displays item name/type from commit metadata.
+   *
+   * @returns Promise resolving when undo is complete
+   */
+  private async handleUndo(): Promise<void> {
+    if (this.changeCount === 0) {
+      console.log(chalk.yellow('\nNo changes to undo yet'));
+      return;
+    }
+
+    if (!this.transactionActive || !this.sessionId) {
+      console.log(chalk.yellow('\nUndo unavailable: transaction tracking not active'));
+      return;
+    }
+
+    try {
+      console.log(chalk.dim('\nRolling back last change...'));
+
+      const result = await this.pythonBridge.rollbackChange('last');
+
+      if (result.success) {
+        // Enhanced feedback with metadata
+        const itemDesc = result.item_name
+          ? `${result.item_name} (${result.item_type})`
+          : 'change';
+        console.log(chalk.green(`Reverted documentation for ${itemDesc}`));
+        if (result.filepath) {
+          console.log(chalk.dim(`  File: ${result.filepath}`));
+        }
+
+        // Decrement change count
+        this.changeCount--;
+      } else {
+        console.log(chalk.red('Undo failed'));
+        if (result.conflicts.length > 0) {
+          console.log(chalk.yellow('Conflicts detected:'));
+          result.conflicts.forEach(file => {
+            console.log(chalk.yellow(`  - ${file}`));
+          });
+        }
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(chalk.red(`Error during undo: ${message}`));
     }
   }
 

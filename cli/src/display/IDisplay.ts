@@ -7,7 +7,7 @@
  * using console.log directly.
  */
 
-import type { AnalysisResult, CodeItem, AuditSummary } from '../types/analysis.js';
+import type { AnalysisResult, CodeItem, AuditSummary, SessionSummary, TransactionEntry, RollbackResult } from '../types/analysis.js';
 
 /**
  * Display interface for terminal output with dependency injection support.
@@ -131,4 +131,35 @@ export interface IDisplay {
    * @param totalLines - Total number of lines in the full code
    */
   showSignature(signature: string, totalLines: number): void;
+
+  /**
+   * Display list of documentation improvement sessions.
+   *
+   * Shows all active sessions in a formatted table with session ID,
+   * start time, change count, and status.
+   *
+   * @param sessions - Array of session summaries to display
+   */
+  showSessionList(sessions: SessionSummary[]): void;
+
+  /**
+   * Display list of changes in a session.
+   *
+   * Shows all changes in a session in a formatted table with entry ID,
+   * file path, item name, and timestamp.
+   *
+   * @param changes - Array of transaction entries to display
+   * @param sessionId - Session identifier for the header
+   */
+  showChangeList(changes: TransactionEntry[], sessionId: string): void;
+
+  /**
+   * Display rollback operation result.
+   *
+   * Shows the result of a rollback operation including success/failure status,
+   * number of files restored, and any conflicts that occurred.
+   *
+   * @param result - Rollback result to display
+   */
+  showRollbackResult(result: RollbackResult): void;
 }

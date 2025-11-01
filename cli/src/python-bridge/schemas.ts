@@ -129,6 +129,59 @@ export const PlanResultSchema = z.object({
 }).passthrough();
 
 /**
+ * Transaction tracking schemas for rollback capability.
+ * These schemas validate JSON responses from Python rollback commands.
+ */
+
+/**
+ * Schema for SessionSummary.
+ * Summary of a documentation improvement session.
+ */
+export const SessionSummarySchema = z.object({
+  session_id: z.string(),
+  started_at: z.string(),
+  completed_at: z.string().nullable(),
+  change_count: z.number().int().nonnegative(),
+  status: z.enum(['in_progress', 'committed', 'rolled_back', 'partial_rollback']),
+}).passthrough();
+
+/**
+ * Schema for TransactionEntry.
+ * Record of a single file modification.
+ */
+export const TransactionEntrySchema = z.object({
+  entry_id: z.string(),
+  filepath: z.string(),
+  timestamp: z.string(),
+  item_name: z.string(),
+  item_type: z.string(),
+  language: z.string(),
+  success: z.boolean(),
+}).passthrough();
+
+/**
+ * Schema for RollbackResult.
+ * Result of a rollback operation.
+ */
+export const RollbackResultSchema = z.object({
+  success: z.boolean(),
+  restored_count: z.number().int().nonnegative(),
+  failed_count: z.number().int().nonnegative(),
+  status: z.enum(['completed', 'partial_rollback', 'failed']),
+  conflicts: z.array(z.string()),
+  message: z.string(),
+}).passthrough();
+
+/**
+ * Generic success response schema for simple Python commands.
+ */
+export const GenericSuccessSchema = z.object({
+  success: z.boolean(),
+  error: z.string().optional(),
+  message: z.string().optional(),
+}).passthrough();
+
+/**
  * Helper to format Zod validation errors into user-friendly messages.
  *
  * @param error - Zod validation error

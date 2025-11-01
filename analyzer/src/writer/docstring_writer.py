@@ -174,7 +174,8 @@ class DocstringWriter:
         item_type: str,
         docstring: str,
         language: str,
-        line_number: Optional[int] = None
+        line_number: Optional[int] = None,
+        explicit_backup_path: Optional[str] = None
     ) -> bool:
         """Write documentation to a source file.
 
@@ -264,9 +265,13 @@ class DocstringWriter:
         self._check_disk_space(file_path, required_bytes)
 
         # Create backup and temp file paths
-        # Use timestamp to avoid collisions with existing .bak files
-        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-        backup_path = file_path.with_suffix(f'{file_path.suffix}.{timestamp}.bak')
+        # Use explicit_backup_path if provided (for transaction tracking), otherwise generate timestamp-based path
+        if explicit_backup_path:
+            backup_path = Path(explicit_backup_path)
+        else:
+            # Use timestamp to avoid collisions with existing .bak files
+            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+            backup_path = file_path.with_suffix(f'{file_path.suffix}.{timestamp}.bak')
 
         # Safety check: verify backup path is unique (should always be true with microseconds)
         if backup_path.exists():
@@ -311,9 +316,8 @@ class DocstringWriter:
                 self._safe_restore(backup_path, file_path)
             raise
         finally:
-            # Always cleanup backup and temp files
-            if backup_path.exists():
-                backup_path.unlink()
+            # Cleanup temp file only (preserve backup for transaction tracking)
+            # Backup files are deleted only when transaction commits, not here
             if temp_path and temp_path.exists():
                 temp_path.unlink()
 

@@ -3,6 +3,9 @@ export default {
   testEnvironment: 'node',
   extensionsToTreatAsEsm: ['.ts'],
   setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
+  // Force sequential execution to avoid race conditions in integration tests
+  // that share the same .docimp/state directory via Python subprocess
+  maxWorkers: 1,
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^@/(.*)$': '<rootDir>/src/$1',
@@ -34,7 +37,7 @@ export default {
     ],
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(chalk|cli-table3|ora|prompts|ansi-regex|strip-ansi|ansi-styles|#ansi-styles)/)',
+    'node_modules/(?!(chalk|cli-table3|ora|prompts|uuid|ansi-regex|strip-ansi|ansi-styles|#ansi-styles)/)',
   ],
   testMatch: [
     '**/__tests__/**/*.test.ts',

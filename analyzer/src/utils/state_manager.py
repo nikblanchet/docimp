@@ -6,7 +6,7 @@ where all working files (audit results, plans, session reports) are stored.
 
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 
 class StateManager:
@@ -14,11 +14,14 @@ class StateManager:
 
     The state directory structure:
         .docimp/
-        ├── session-reports/    # Current session data (ephemeral)
+        ├── session-reports/        # Current session data (ephemeral)
         │   ├── audit.json
         │   ├── plan.json
-        │   └── analyze-latest.json
-        └── history/            # Long-term data (future feature)
+        │   ├── analyze-latest.json
+        │   └── transactions/       # Transaction manifests for rollback
+        │       ├── transaction-{uuid-1}.json
+        │       └── transaction-{uuid-2}.json
+        └── history/                # Long-term data (future feature)
 
     All methods return absolute paths resolved from the current working directory.
     """
@@ -26,6 +29,8 @@ class StateManager:
     STATE_DIR_NAME = '.docimp'
     SESSION_REPORTS_DIR = 'session-reports'
     HISTORY_DIR = 'history'
+    TRANSACTION_DIR = 'transactions'
+    GIT_STATE_DIR = 'state'
 
     AUDIT_FILE = 'audit.json'
     PLAN_FILE = 'plan.json'
@@ -204,3 +209,96 @@ class StateManager:
                     f"You don't have write access to create {file_path.name}. "
                     f"Please check directory permissions and try again."
                 )
+
+    @classmethod
+    def get_transactions_dir(cls, base_path: Optional[Path] = None) -> Path:
+        """Get the absolute path to the transactions/ directory.
+
+        This directory stores transaction manifests for rollback capability.
+        Each transaction is stored as transaction-{session_id}.json.
+
+        Args:
+            base_path: Base directory to resolve from. If None, uses current working directory.
+
+        Returns:
+            Absolute path to .docimp/session-reports/transactions/ directory.
+        """
+        return cls.get_session_reports_dir(base_path) / cls.TRANSACTION_DIR
+
+    @classmethod
+    def get_transaction_file(cls, session_id: str, base_path: Optional[Path] = None) -> Path:
+        """Get the absolute path to a specific transaction manifest file.
+
+        Args:
+            session_id: UUID of the transaction session
+            base_path: Base directory to resolve from. If None, uses current working directory.
+
+        Returns:
+            Absolute path to .docimp/session-reports/transactions/transaction-{session_id}.json.
+        """
+        return cls.get_transactions_dir(base_path) / f'transaction-{session_id}.json'
+
+    @classmethod
+    def list_transaction_files(cls, base_path: Optional[Path] = None) -> List[Path]:
+        """List all transaction manifest files, sorted by modification time.
+
+        Returns transaction files sorted by modification time (newest first).
+        If the transactions directory doesn't exist, returns an empty list.
+
+        Args:
+            base_path: Base directory to resolve from. If None, uses current working directory.
+
+        Returns:
+            List of Paths to transaction manifest files, newest first.
+        """
+        transactions_dir = cls.get_transactions_dir(base_path)
+        if not transactions_dir.exists():
+            return []
+
+        return sorted(
+            transactions_dir.glob('transaction-*.json'),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True
+        )
+
+    @classmethod
+    def get_git_state_dir(cls, base_path: Optional[Path] = None) -> Path:
+        """Get the absolute path to the .docimp/state directory.
+
+        This directory contains the side-car git repository used for
+        transaction tracking and rollback capability.
+
+        Args:
+            base_path: Base directory to resolve from. If None, uses current working directory.
+
+        Returns:
+            Absolute path to .docimp/state/ directory.
+        """
+        return cls.get_state_dir(base_path) / cls.GIT_STATE_DIR
+
+    @classmethod
+    def ensure_git_state(cls, base_path: Optional[Path] = None) -> bool:
+        """Ensure git state directory exists and is initialized.
+
+        This method initializes the side-car git repository if git is available.
+        If git is not available, it returns False but does not raise an error
+        (graceful degradation).
+
+        Args:
+            base_path: Base directory to resolve from. If None, uses current working directory.
+
+        Returns:
+            True if git state was successfully initialized, False if git unavailable.
+
+        Raises:
+            subprocess.CalledProcessError: If git command fails.
+        """
+        from src.utils.git_helper import GitHelper
+
+        # First ensure base state directory exists
+        cls.ensure_state_dir(base_path)
+
+        # Initialize git repository
+        if base_path is None:
+            base_path = Path.cwd()
+        return GitHelper.init_sidecar_repo(base_path)
