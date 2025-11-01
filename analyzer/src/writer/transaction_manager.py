@@ -16,7 +16,7 @@ from typing import List, Optional
 from pathlib import Path
 import json
 import shutil
-from datetime import datetime
+from datetime import datetime, UTC
 
 
 @dataclass
@@ -80,12 +80,18 @@ class RollbackResult:
         failed_count: Number of changes that failed to revert
         conflicts: List of file paths that have merge conflicts
         status: Overall status ('completed', 'partial_rollback', 'failed')
+        item_name: Name of the function/class/method that was rolled back (None for multiple changes)
+        item_type: Type of code item ('function', 'class', 'method', None for multiple changes)
+        filepath: Path to the file that was modified (None for multiple changes)
     """
     success: bool
     restored_count: int
     failed_count: int
     conflicts: List[str] = field(default_factory=list)
     status: str = 'completed'
+    item_name: Optional[str] = None
+    item_type: Optional[str] = None
+    filepath: Optional[str] = None
 
 
 class TransactionManager:
@@ -163,7 +169,7 @@ class TransactionManager:
 
         return TransactionManifest(
             session_id=session_id,
-            started_at=datetime.utcnow().isoformat()
+            started_at=datetime.now(UTC).isoformat()
         )
 
     def record_write(
@@ -188,7 +194,7 @@ class TransactionManager:
             item_type: Type of code item ('function', 'class', 'method')
             language: Programming language ('python', 'javascript', 'typescript')
         """
-        timestamp = datetime.utcnow().isoformat()
+        timestamp = datetime.now(UTC).isoformat()
         entry_id = None
 
         if self.git_available:
@@ -257,7 +263,7 @@ Metadata:
             manifest: Transaction manifest to commit
         """
         manifest.status = 'committed'
-        manifest.completed_at = datetime.utcnow().isoformat()
+        manifest.completed_at = datetime.now(UTC).isoformat()
 
         if self.git_available:
             from src.utils.git_helper import GitHelper
@@ -332,7 +338,7 @@ Metadata:
                 restored_count += 1
 
         manifest.status = 'rolled_back'
-        manifest.completed_at = datetime.utcnow().isoformat()
+        manifest.completed_at = datetime.now(UTC).isoformat()
         return restored_count
 
     def save_manifest(self, manifest: TransactionManifest, path: Path) -> None:
@@ -663,7 +669,7 @@ Metadata:
                                     # Build a minimal manifest
                                     manifest = TransactionManifest(
                                         session_id=session_id,
-                                        started_at=datetime.utcnow().isoformat(),
+                                        started_at=datetime.now(UTC).isoformat(),
                                         entries=entries,
                                         status=status
                                     )
@@ -800,7 +806,10 @@ Metadata:
                         restored_count=0,
                         failed_count=1,
                         conflicts=conflicts,
-                        status='failed'
+                        status='failed',
+                        item_name=entry.item_name,
+                        item_type=entry.item_type,
+                        filepath=entry.filepath
                     )
 
             # Commit the revert on session branch
@@ -833,7 +842,10 @@ Metadata:
                         restored_count=0,
                         failed_count=1,
                         conflicts=conflicts,
-                        status='failed'
+                        status='failed',
+                        item_name=entry.item_name,
+                        item_type=entry.item_type,
+                        filepath=entry.filepath
                     )
 
                 # Check if there are no changes to commit
@@ -898,7 +910,10 @@ Metadata:
                 restored_count=1,
                 failed_count=0,
                 conflicts=[],
-                status='completed'
+                status='completed',
+                item_name=entry.item_name,
+                item_type=entry.item_type,
+                filepath=entry.filepath
             )
 
         except Exception as e:
@@ -954,7 +969,10 @@ Metadata:
                     restored_count=0,
                     failed_count=1,
                     conflicts=conflicts,
-                    status='failed'
+                    status='failed',
+                    item_name=entry.item_name,
+                    item_type=entry.item_type,
+                    filepath=entry.filepath
                 )
             else:
                 # Non-conflict error
@@ -963,7 +981,10 @@ Metadata:
                     restored_count=0,
                     failed_count=1,
                     conflicts=[],
-                    status='failed'
+                    status='failed',
+                    item_name=entry.item_name,
+                    item_type=entry.item_type,
+                    filepath=entry.filepath
                 )
 
         # Commit the revert
@@ -977,7 +998,10 @@ Metadata:
             restored_count=1,
             failed_count=0,
             conflicts=[],
-            status='completed'
+            status='completed',
+            item_name=entry.item_name,
+            item_type=entry.item_type,
+            filepath=entry.filepath
         )
 
     def _detect_conflicts(self) -> List[str]:

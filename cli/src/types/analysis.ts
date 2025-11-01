@@ -335,4 +335,13 @@ export interface RollbackResult {
 
   /** Human-readable message */
   message: string;
+
+  /** Name of function/class/method that was rolled back (undefined for multiple changes) */
+  item_name?: string;
+
+  /** Type of code item ('function', 'class', 'method', undefined for multiple changes) */
+  item_type?: string;
+
+  /** Path to the file that was modified (undefined for multiple changes) */
+  filepath?: string;
 }

@@ -51,7 +51,7 @@ export interface SessionOptions {
 /**
  * User action choices.
  */
-type UserAction = 'accept' | 'edit' | 'regenerate' | 'skip' | 'quit';
+type UserAction = 'accept' | 'edit' | 'regenerate' | 'skip' | 'undo' | 'quit';
 
 /**
  * Manages an interactive documentation improvement session.
@@ -66,6 +66,7 @@ export class InteractiveSession implements IInteractiveSession {
   private basePath: string;
   private sessionId?: string;
   private transactionActive: boolean = false;
+  private changeCount: number = 0;
 
   /**
    * Create a new interactive session.
@@ -251,6 +252,11 @@ export class InteractiveSession implements IInteractiveSession {
         console.log(chalk.yellow('Skipping item'));
         return true; // Continue to next item
 
+      } else if (action === 'undo') {
+        await this.handleUndo();
+        // Stay on current item - continue loop to re-present
+        continue;
+
       } else if (action === 'quit') {
         return false; // Stop processing
       }
@@ -388,17 +394,26 @@ export class InteractiveSession implements IInteractiveSession {
   private async promptUserAction(validationResults: PluginResult[]): Promise<UserAction> {
     const hasFailures = validationResults.some(r => !r.accept);
 
+    // Build choices array - conditionally include undo
+    const choices = [
+      { title: hasFailures ? 'Accept anyway' : 'Accept', value: 'accept' },
+      { title: 'Edit manually', value: 'edit' },
+      { title: 'Regenerate with feedback', value: 'regenerate' },
+      { title: 'Skip this item', value: 'skip' },
+    ];
+
+    // Add undo option only if changes have been made and transaction is active
+    if (this.changeCount > 0 && this.transactionActive) {
+      choices.splice(4, 0, { title: 'Undo last change', value: 'undo' });
+    }
+
+    choices.push({ title: 'Quit session', value: 'quit' });
+
     const response = await prompts({
       type: 'select',
       name: 'action',
       message: 'What would you like to do?',
-      choices: [
-        { title: hasFailures ? 'Accept anyway' : 'Accept', value: 'accept' },
-        { title: 'Edit manually', value: 'edit' },
-        { title: 'Regenerate with feedback', value: 'regenerate' },
-        { title: 'Skip this item', value: 'skip' },
-        { title: 'Quit session', value: 'quit' },
-      ],
+      choices,
     });
 
     return response.action || 'skip';
@@ -475,6 +490,9 @@ export class InteractiveSession implements IInteractiveSession {
             item.type,
             item.language
           );
+
+          // Increment change count for undo tracking
+          this.changeCount++;
         } catch (error) {
           // Log warning but don't fail the write operation
           const message = error instanceof Error ? error.message : String(error);
@@ -492,6 +510,57 @@ export class InteractiveSession implements IInteractiveSession {
       const message = error instanceof Error ? error.message : String(error);
       console.error(chalk.red(`Error writing documentation: ${message}`));
       return false;
+    }
+  }
+
+  /**
+   * Handle undo of the most recent change using git history.
+   *
+   * Calls Python bridge with 'last' to rollback HEAD commit on session branch.
+   * Displays item name/type from commit metadata.
+   *
+   * @returns Promise resolving when undo is complete
+   */
+  private async handleUndo(): Promise<void> {
+    if (this.changeCount === 0) {
+      console.log(chalk.yellow('\nNo changes to undo yet'));
+      return;
+    }
+
+    if (!this.transactionActive || !this.sessionId) {
+      console.log(chalk.yellow('\nUndo unavailable: transaction tracking not active'));
+      return;
+    }
+
+    try {
+      console.log(chalk.dim('\nRolling back last change...'));
+
+      const result = await this.pythonBridge.rollbackChange('last');
+
+      if (result.success) {
+        // Enhanced feedback with metadata
+        const itemDesc = result.item_name
+          ? `${result.item_name} (${result.item_type})`
+          : 'change';
+        console.log(chalk.green(`Reverted documentation for ${itemDesc}`));
+        if (result.filepath) {
+          console.log(chalk.dim(`  File: ${result.filepath}`));
+        }
+
+        // Decrement change count
+        this.changeCount--;
+      } else {
+        console.log(chalk.red('Undo failed'));
+        if (result.conflicts.length > 0) {
+          console.log(chalk.yellow('Conflicts detected:'));
+          result.conflicts.forEach(file => {
+            console.log(chalk.yellow(`  - ${file}`));
+          });
+        }
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(chalk.red(`Error during undo: ${message}`));
     }
   }
 
