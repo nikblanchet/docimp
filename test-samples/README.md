@@ -281,6 +281,60 @@ When ClaudeClient mocking is implemented, this manual procedure can be converted
 - Test all code paths (accept, edit, regenerate, skip)
 - Run in CI without API key requirement
 
+## Testing Undo Feature
+
+The undo feature integration test verifies the complete undo workflow with real file system operations. This test validates that:
+- Accept change adds documentation to a file
+- Undo reverts the file to its original state
+- Git transaction history records both operations (accept + revert commits)
+
+### Integration Test Procedure
+
+Run the automated integration test:
+
+```bash
+cd test-samples/
+
+# Ensure API key is set
+export ANTHROPIC_API_KEY=sk-ant-...
+
+# Run undo integration test
+chmod +x test-undo-integration.sh
+./test-undo-integration.sh
+```
+
+The script will:
+1. Verify prerequisites (API key, git, docimp)
+2. Create temporary test directory with sample code
+3. Run analyze and plan
+4. Execute improve workflow: Accept -> Undo -> Quit
+5. Verify file content matches original after undo
+6. Verify git history shows accept commit and revert commit
+7. Display test results and clean up
+
+### What the Test Validates
+
+The integration test covers the complete undo workflow end-to-end:
+
+1. **File restoration**: File content exactly matches original after undo (no residual changes)
+2. **Git history**: Side-car repository contains both accept and revert commits
+3. **Transaction integrity**: Undo operations integrate correctly with git-based transaction system
+4. **Real file operations**: Uses actual file system and git commands (not mocks)
+
+### Test Coverage
+
+This integration test complements the unit tests in `cli/src/__tests__/session/InteractiveSession.test.ts`:
+- **Unit tests** (9 tests): Mock PythonBridge, fast execution, isolated components
+- **Integration test** (this): Real file I/O, real git operations, catches integration issues
+
+### Future Enhancement
+
+When ClaudeClient mocking is implemented, this integration test could be extended to test more complex undo scenarios:
+- Multiple accepts followed by multiple undos
+- Undo after editing a suggestion
+- Undo with file conflicts
+- Session with mixed accept/skip/undo operations
+
 ## Adding to CI
 
 To run these tests in CI/CD:
