@@ -80,12 +80,18 @@ class RollbackResult:
         failed_count: Number of changes that failed to revert
         conflicts: List of file paths that have merge conflicts
         status: Overall status ('completed', 'partial_rollback', 'failed')
+        item_name: Name of the function/class/method that was rolled back (None for multiple changes)
+        item_type: Type of code item ('function', 'class', 'method', None for multiple changes)
+        filepath: Path to the file that was modified (None for multiple changes)
     """
     success: bool
     restored_count: int
     failed_count: int
     conflicts: List[str] = field(default_factory=list)
     status: str = 'completed'
+    item_name: Optional[str] = None
+    item_type: Optional[str] = None
+    filepath: Optional[str] = None
 
 
 class TransactionManager:
@@ -800,7 +806,10 @@ Metadata:
                         restored_count=0,
                         failed_count=1,
                         conflicts=conflicts,
-                        status='failed'
+                        status='failed',
+                        item_name=entry.item_name,
+                        item_type=entry.item_type,
+                        filepath=entry.filepath
                     )
 
             # Commit the revert on session branch
@@ -833,7 +842,10 @@ Metadata:
                         restored_count=0,
                         failed_count=1,
                         conflicts=conflicts,
-                        status='failed'
+                        status='failed',
+                        item_name=entry.item_name,
+                        item_type=entry.item_type,
+                        filepath=entry.filepath
                     )
 
                 # Check if there are no changes to commit
@@ -898,7 +910,10 @@ Metadata:
                 restored_count=1,
                 failed_count=0,
                 conflicts=[],
-                status='completed'
+                status='completed',
+                item_name=entry.item_name,
+                item_type=entry.item_type,
+                filepath=entry.filepath
             )
 
         except Exception as e:
@@ -954,7 +969,10 @@ Metadata:
                     restored_count=0,
                     failed_count=1,
                     conflicts=conflicts,
-                    status='failed'
+                    status='failed',
+                    item_name=entry.item_name,
+                    item_type=entry.item_type,
+                    filepath=entry.filepath
                 )
             else:
                 # Non-conflict error
@@ -963,7 +981,10 @@ Metadata:
                     restored_count=0,
                     failed_count=1,
                     conflicts=[],
-                    status='failed'
+                    status='failed',
+                    item_name=entry.item_name,
+                    item_type=entry.item_type,
+                    filepath=entry.filepath
                 )
 
         # Commit the revert
@@ -977,7 +998,10 @@ Metadata:
             restored_count=1,
             failed_count=0,
             conflicts=[],
-            status='completed'
+            status='completed',
+            item_name=entry.item_name,
+            item_type=entry.item_type,
+            filepath=entry.filepath
         )
 
     def _detect_conflicts(self) -> List[str]:
