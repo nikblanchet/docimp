@@ -1,14 +1,37 @@
 /**
  * Launches external editor for manual editing of documentation.
  *
+ * Uses the tmp library for automatic temp file cleanup on process exit.
+ * Cleanup failures are logged but don't fail the operation.
+ *
  * Supports common editors like vim, emacs, nano, VS Code, etc.
  */
 
 import { spawn } from 'child_process';
-import { writeFileSync, readFileSync, unlinkSync } from 'fs';
-import { tmpdir } from 'os';
-import { join } from 'path';
-import type { IEditorLauncher } from './IEditorLauncher.js';
+import { promises as fs, close as fsCloseCallback } from 'fs';
+import { promisify } from 'util';
+import tmp from 'tmp';
+import type { IEditorLauncher} from './IEditorLauncher.js';
+
+// Promisify tmp.file for async/await usage
+const tmpFile = (options: tmp.FileOptions): Promise<{
+  name: string;
+  fd: number;
+  removeCallback: () => void;
+}> => {
+  return new Promise((resolve, reject) => {
+    tmp.file(options, (err, name, fd, removeCallback) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve({ name, fd, removeCallback });
+      }
+    });
+  });
+};
+
+// Promisify fs.close for closing file descriptors
+const fsClose = promisify(fsCloseCallback);
 
 /**
  * Launches an external editor for editing text.
@@ -31,17 +54,28 @@ export class EditorLauncher implements IEditorLauncher {
    * Creates a temporary file, opens it in the user's preferred editor,
    * waits for the editor to close, then reads the edited content.
    *
+   * Uses tmp library for automatic cleanup on process exit.
+   *
    * @param initialText - Initial text to edit
    * @param extension - File extension for syntax highlighting (default: '.txt')
    * @returns Promise resolving to edited text, or null if editing was cancelled
    */
   async editText(initialText: string, extension: string = '.txt'): Promise<string | null> {
-    // Create temporary file
-    const tempPath = join(tmpdir(), `docimp-edit-${Date.now()}${extension}`);
+    // Create temporary file with automatic cleanup
+    // tmp.file returns: { name: string, fd: number, removeCallback: () => void }
+    const { name: tempPath, fd, removeCallback } = await tmpFile({
+      prefix: 'docimp-edit-',
+      postfix: extension,
+      keep: false,  // Auto-cleanup on process exit
+      discardDescriptor: false  // We need the file descriptor
+    });
 
     try {
+      // Close the file descriptor (tmp opens it, we don't need it)
+      await fsClose(fd);
+
       // Write initial text to temp file
-      writeFileSync(tempPath, initialText, 'utf-8');
+      await fs.writeFile(tempPath, initialText, 'utf-8');
 
       // Get editor command
       const editorCmd = this.getEditorCommand();
@@ -50,10 +84,17 @@ export class EditorLauncher implements IEditorLauncher {
       await this.launchEditor(editorCmd, tempPath);
 
       // Read edited content
-      const editedText = readFileSync(tempPath, 'utf-8');
+      const editedText = await fs.readFile(tempPath, 'utf-8');
 
-      // Clean up temp file
-      unlinkSync(tempPath);
+      // Manual cleanup (removeCallback)
+      // tmp library will also cleanup on process exit as fallback
+      try {
+        removeCallback();
+      } catch (cleanupError) {
+        // Log cleanup failure but don't fail the operation
+        console.warn(`Warning: Failed to cleanup temp file ${tempPath}:`, cleanupError);
+        // File will still be cleaned up on process exit
+      }
 
       // Check if content changed
       if (editedText.trim() === initialText.trim()) {
@@ -63,13 +104,12 @@ export class EditorLauncher implements IEditorLauncher {
       return editedText;
 
     } catch (error) {
-      // Clean up temp file on error
+      // Cleanup on error
       try {
-        unlinkSync(tempPath);
-      } catch {
-        // Ignore cleanup errors
+        removeCallback();
+      } catch (cleanupError) {
+        console.warn(`Warning: Failed to cleanup temp file ${tempPath} after error:`, cleanupError);
       }
-
       throw error;
     }
   }
