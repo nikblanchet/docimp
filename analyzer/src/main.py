@@ -18,8 +18,10 @@ from .parsers.python_parser import PythonParser
 from .parsers.typescript_parser import TypeScriptParser
 from .planning.plan_generator import generate_plan, save_plan
 from .scoring.impact_scorer import ImpactScorer
+from .utils.git_helper import GitHelper
 from .utils.state_manager import StateManager
 from .writer.docstring_writer import DocstringWriter
+from .writer.transaction_manager import TransactionManager
 
 
 def create_analyzer(
@@ -496,6 +498,7 @@ def cmd_apply(
         docstring = apply_data.get('docstring')
         language = apply_data.get('language')
         line_number = apply_data.get('line_number')
+        backup_path = apply_data.get('backup_path')  # Optional, for transaction tracking
 
         if not all([filepath, item_name, item_type, docstring, language]):
             print("Error: Missing required fields in apply data", file=sys.stderr)
@@ -511,7 +514,8 @@ def cmd_apply(
             item_type=item_type,
             docstring=docstring,
             language=language,
-            line_number=line_number
+            line_number=line_number,
+            explicit_backup_path=backup_path
         )
 
         if success:
@@ -532,6 +536,696 @@ def cmd_apply(
     except FileNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        if args.verbose:
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+        return 1
+
+
+def cmd_list_sessions(
+    args: argparse.Namespace,
+    manager: TransactionManager
+) -> int:
+    """Handle the list-sessions subcommand.
+
+    Args:
+        args: Parsed command-line arguments.
+        manager: TransactionManager instance (dependency injection).
+
+    Returns:
+        Exit code (0 for success, 1 for error).
+    """
+    try:
+        # Check git availability
+        if not GitHelper.check_git_available():
+            print("Error: Git not installed - session tracking unavailable", file=sys.stderr)
+            return 1
+
+        # Get transactions directory
+        transactions_dir = StateManager.get_state_dir() / 'transactions'
+
+        # List uncommitted sessions
+        sessions = manager.list_uncommitted_transactions(transactions_dir)
+
+        if not sessions:
+            if args.format == 'json':
+                print(json.dumps([]))
+            else:
+                print("No active sessions found")
+            return 0
+
+        # Output format
+        if args.format == 'json':
+            # JSON format for TypeScript CLI
+            data = [
+                {
+                    'session_id': session.session_id,
+                    'started_at': session.started_at,
+                    'completed_at': session.completed_at,
+                    'change_count': len(session.entries),
+                    'status': session.status
+                }
+                for session in sessions
+            ]
+            print(json.dumps(data, indent=2))
+        else:
+            # Human-readable table format
+            print("=" * 80)
+            print("Active DocImp Sessions")
+            print("=" * 80)
+            print(f"{'Session ID':<40} {'Started':<20} {'Changes':<10} {'Status':<10}")
+            print("-" * 80)
+
+            for session in sessions:
+                print(f"{session.session_id:<40} {session.started_at:<20} "
+                      f"{len(session.entries):<10} {session.status:<10}")
+
+            print("=" * 80)
+            print(f"\nTotal: {len(sessions)} session(s)")
+
+        return 0
+
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        if args.verbose:
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+        return 1
+
+
+def cmd_list_changes(
+    args: argparse.Namespace,
+    manager: TransactionManager
+) -> int:
+    """Handle the list-changes subcommand.
+
+    Args:
+        args: Parsed command-line arguments.
+        manager: TransactionManager instance (dependency injection).
+
+    Returns:
+        Exit code (0 for success, 1 for error).
+    """
+    try:
+        # Check git availability
+        if not GitHelper.check_git_available():
+            print("Error: Git not installed - session tracking unavailable", file=sys.stderr)
+            return 1
+
+        # List changes in the session
+        try:
+            changes = manager.list_session_changes(args.session_id)
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            print("Use 'docimp list-sessions' to see available sessions", file=sys.stderr)
+            return 1
+
+        if not changes:
+            if args.format == 'json':
+                print(json.dumps([]))
+            else:
+                print(f"No changes found in session: {args.session_id}")
+            return 0
+
+        # Output format
+        if args.format == 'json':
+            # JSON format for TypeScript CLI
+            data = [
+                {
+                    'entry_id': change.entry_id,
+                    'filepath': change.filepath,
+                    'timestamp': change.timestamp,
+                    'item_name': change.item_name,
+                    'item_type': change.item_type,
+                    'language': change.language,
+                    'success': change.success
+                }
+                for change in changes
+            ]
+            print(json.dumps(data, indent=2))
+        else:
+            # Human-readable table format
+            print("=" * 100)
+            print(f"Changes in Session: {args.session_id}")
+            print("=" * 100)
+            print(f"{'Entry ID':<12} {'File':<40} {'Item':<25} {'Timestamp':<20}")
+            print("-" * 100)
+
+            for change in changes:
+                filepath_short = change.filepath[-37:] if len(change.filepath) > 40 else change.filepath
+                item_short = change.item_name[:22] + '...' if len(change.item_name) > 25 else change.item_name
+                timestamp_short = change.timestamp[:19] if len(change.timestamp) > 20 else change.timestamp
+                print(f"{change.entry_id:<12} {filepath_short:<40} {item_short:<25} {timestamp_short:<20}")
+
+            print("=" * 100)
+            print(f"\nTotal: {len(changes)} change(s)")
+
+        return 0
+
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        if args.verbose:
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+        return 1
+
+
+def cmd_begin_transaction(
+    args: argparse.Namespace,
+    manager: TransactionManager
+) -> int:
+    """Handle the begin-transaction subcommand.
+
+    Args:
+        args: Parsed command-line arguments.
+        manager: TransactionManager instance (dependency injection).
+
+    Returns:
+        Exit code (0 for success, 1 for error).
+    """
+    try:
+        # Check git availability
+        if not GitHelper.check_git_available():
+            error_msg = "Git not installed - transaction tracking unavailable"
+            if args.format == 'json':
+                result = {
+                    'success': False,
+                    'error': error_msg
+                }
+                print(json.dumps(result))
+            else:
+                print(f"Error: {error_msg}", file=sys.stderr)
+            return 1
+
+        # Begin the transaction
+        session_id = args.session_id
+        manager.begin_transaction(session_id)
+
+        # Output result
+        if args.format == 'json':
+            result = {
+                'success': True,
+                'message': f'Transaction initialized for session {session_id}'
+            }
+            print(json.dumps(result))
+        else:
+            print(f"Transaction initialized for session: {session_id}")
+
+        return 0
+
+    except Exception as e:
+        error_msg = str(e)
+        if args.format == 'json':
+            result = {
+                'success': False,
+                'error': error_msg
+            }
+            print(json.dumps(result))
+        else:
+            print(f"Error: {error_msg}", file=sys.stderr)
+            if args.verbose:
+                import traceback
+                traceback.print_exc(file=sys.stderr)
+        return 1
+
+
+def cmd_record_write(
+    args: argparse.Namespace,
+    manager: TransactionManager
+) -> int:
+    """Handle the record-write subcommand.
+
+    Args:
+        args: Parsed command-line arguments.
+        manager: TransactionManager instance (dependency injection).
+
+    Returns:
+        Exit code (0 for success, 1 for error).
+    """
+    try:
+        # Check git availability
+        if not GitHelper.check_git_available():
+            error_msg = "Git not installed - transaction tracking unavailable"
+            if args.format == 'json':
+                result = {
+                    'success': False,
+                    'error': error_msg
+                }
+                print(json.dumps(result))
+            else:
+                print(f"Error: {error_msg}", file=sys.stderr)
+            return 1
+
+        # Get parameters
+        session_id = args.session_id
+        filepath = args.filepath
+        backup_path = args.backup_path
+        item_name = args.item_name
+        item_type = args.item_type
+        language = args.language
+
+        # Create a minimal manifest for this session
+        # The manifest is built from git commits, so we just need the session_id
+        from .writer.transaction_manager import TransactionManifest
+        from datetime import datetime, UTC
+        manifest = TransactionManifest(
+            session_id=session_id,
+            started_at=datetime.now(UTC).isoformat()
+        )
+
+        # Record the write (creates git commit)
+        manager.record_write(
+            manifest,
+            filepath,
+            backup_path,
+            item_name,
+            item_type,
+            language
+        )
+
+        # Output result
+        if args.format == 'json':
+            result = {
+                'success': True,
+                'message': f'Recorded write for {item_name} in session {session_id}'
+            }
+            print(json.dumps(result))
+        else:
+            print(f"Recorded write for {item_name} in session: {session_id}")
+
+        return 0
+
+    except Exception as e:
+        error_msg = str(e)
+        if args.format == 'json':
+            result = {
+                'success': False,
+                'error': error_msg
+            }
+            print(json.dumps(result))
+        else:
+            print(f"Error: {error_msg}", file=sys.stderr)
+            if args.verbose:
+                import traceback
+                traceback.print_exc(file=sys.stderr)
+        return 1
+
+
+def cmd_commit_transaction(
+    args: argparse.Namespace,
+    manager: TransactionManager
+) -> int:
+    """Handle the commit-transaction subcommand.
+
+    Finalizes a transaction by squash-merging the session branch to main,
+    creating a single commit for the entire session, and deleting backup files.
+
+    Args:
+        args: Parsed command-line arguments.
+        manager: TransactionManager instance (dependency injection).
+
+    Returns:
+        Exit code (0 for success, 1 for error).
+    """
+    try:
+        # Check git availability
+        if not GitHelper.check_git_available():
+            error_msg = "Git not installed - transaction commit unavailable"
+            if args.format == 'json':
+                result = {
+                    'success': False,
+                    'error': error_msg
+                }
+                print(json.dumps(result))
+            else:
+                print(f"Error: {error_msg}", file=sys.stderr)
+            return 1
+
+        # Get session ID
+        session_id = args.session_id
+
+        # Create a minimal manifest for this session
+        # The manifest will be populated from git commits
+        from .writer.transaction_manager import TransactionManifest
+        from datetime import datetime, UTC
+        manifest = TransactionManifest(
+            session_id=session_id,
+            started_at=datetime.now(UTC).isoformat()
+        )
+
+        # Commit the transaction (squash merge to main, delete backups)
+        manager.commit_transaction(manifest)
+
+        # Output result
+        if args.format == 'json':
+            result = {
+                'success': True,
+                'message': f'Transaction committed for session {session_id}',
+                'squash_commit_sha': manifest.git_commit_sha
+            }
+            print(json.dumps(result))
+        else:
+            print(f"Transaction committed for session: {session_id}")
+            if manifest.git_commit_sha:
+                print(f"Squash commit: {manifest.git_commit_sha}")
+
+        return 0
+
+    except Exception as e:
+        error_msg = str(e)
+        if args.format == 'json':
+            result = {
+                'success': False,
+                'error': error_msg
+            }
+            print(json.dumps(result))
+        else:
+            print(f"Error: {error_msg}", file=sys.stderr)
+            if args.verbose:
+                import traceback
+                traceback.print_exc(file=sys.stderr)
+        return 1
+
+
+def cmd_rollback_session(
+    args: argparse.Namespace,
+    manager: TransactionManager
+) -> int:
+    """Handle the rollback-session subcommand.
+
+    Args:
+        args: Parsed command-line arguments.
+        manager: TransactionManager instance (dependency injection).
+
+    Returns:
+        Exit code (0 for success, 1 for error).
+    """
+    try:
+        # Check git availability
+        if not GitHelper.check_git_available():
+            print("Error: Git not installed - rollback unavailable", file=sys.stderr)
+            return 1
+
+        # Determine session ID (handle --last flag)
+        session_id = args.session_id
+        transactions_dir = StateManager.get_state_dir() / 'transactions'
+
+        if session_id == 'last':
+            # Find most recent session
+            sessions = manager.list_uncommitted_transactions(transactions_dir)
+            if not sessions:
+                print("Error: No active sessions found", file=sys.stderr)
+                return 1
+            # Sort by started_at timestamp (most recent first)
+            sessions.sort(key=lambda s: s.started_at, reverse=True)
+            session_id = sessions[0].session_id
+
+        # Load the session manifest
+        manifest_path = transactions_dir / f'transaction-{session_id}.json'
+
+        if not manifest_path.exists():
+            print(f"Error: Session not found: {session_id}", file=sys.stderr)
+            print("Use 'docimp list-sessions' to see available sessions", file=sys.stderr)
+            return 1
+
+        manifest = manager.load_manifest(manifest_path)
+
+        # Show session details (unless JSON output or no-confirm)
+        if not args.no_confirm:
+            print("=" * 60)
+            print(f"Session: {manifest.session_id}")
+            print(f"Started: {manifest.started_at}")
+            print(f"Changes: {len(manifest.entries)}")
+            print("=" * 60)
+
+            # Prompt for confirmation
+            response = input("\nRollback this session? This will revert all changes. (y/N): ")
+            if response.lower() not in ['y', 'yes']:
+                print("Rollback cancelled")
+                return 0
+
+        # Perform rollback
+        if not args.no_confirm:
+            print("\nRolling back session...")
+
+        restored_count = manager.rollback_transaction(manifest)
+
+        # Output result
+        if args.format == 'json':
+            # JSON format for TypeScript CLI
+            result = {
+                'success': True,
+                'restored_count': restored_count,
+                'status': manifest.status,
+                'message': f'Rolled back {restored_count} file(s)'
+            }
+            print(json.dumps(result, indent=2))
+        else:
+            print(f"\nSuccess! Rolled back {restored_count} file(s)")
+            print(f"Session marked as: {manifest.status}")
+
+        return 0
+
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        if args.verbose:
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+        return 1
+
+
+def cmd_rollback_change(
+    args: argparse.Namespace,
+    manager: TransactionManager
+) -> int:
+    """Handle the rollback-change subcommand.
+
+    Args:
+        args: Parsed command-line arguments.
+        manager: TransactionManager instance (dependency injection).
+
+    Returns:
+        Exit code (0 for success, 1 for error).
+    """
+    try:
+        # Check git availability
+        if not GitHelper.check_git_available():
+            print("Error: Git not installed - rollback unavailable", file=sys.stderr)
+            return 1
+
+        # Determine entry ID (handle --last flag)
+        entry_id = args.entry_id
+
+        if entry_id == 'last':
+            # Find most recent change across all sessions
+            transactions_dir = StateManager.get_state_dir() / 'transactions'
+            sessions = manager.list_uncommitted_transactions(transactions_dir)
+            if not sessions:
+                print("Error: No active sessions found", file=sys.stderr)
+                return 1
+
+            # Get all changes from all sessions and find the most recent
+            all_changes = []
+            for session in sessions:
+                changes = manager.list_session_changes(session.session_id)
+                all_changes.extend(changes)
+
+            if not all_changes:
+                print("Error: No changes found in any session", file=sys.stderr)
+                return 1
+
+            # Sort by timestamp (most recent first)
+            all_changes.sort(key=lambda c: c.timestamp, reverse=True)
+            entry_id = all_changes[0].entry_id
+
+        # Get diff preview
+        try:
+            diff = manager.get_change_diff(entry_id)
+        except Exception:
+            print(f"Error: Change not found: {entry_id}", file=sys.stderr)
+            return 1
+
+        # Show diff (unless no-confirm or JSON output)
+        if not args.no_confirm:
+            print("=" * 60)
+            print(f"Change: {entry_id}")
+            print("=" * 60)
+            print(diff)
+            print("=" * 60)
+
+            # Prompt for confirmation
+            response = input("\nRollback this change? (y/N): ")
+            if response.lower() not in ['y', 'yes']:
+                print("Rollback cancelled")
+                return 0
+
+        # Perform rollback
+        if not args.no_confirm:
+            print("\nRolling back change...")
+
+        result = manager.rollback_change(entry_id)
+
+        # Output result
+        if args.format == 'json':
+            # JSON format for TypeScript CLI
+            result_data = {
+                'success': result.success,
+                'restored_count': result.restored_count,
+                'failed_count': result.failed_count,
+                'status': result.status,
+                'conflicts': result.conflicts,
+                'message': f'Rolled back {result.restored_count} file(s)' if result.success else f'Rollback failed: {result.failed_count} file(s) had conflicts'
+            }
+            print(json.dumps(result_data, indent=2))
+        else:
+            if result.success:
+                print(f"\nSuccess! Rolled back {result.restored_count} file(s)")
+            else:
+                print(f"\nRollback failed: {result.failed_count} file(s) had conflicts", file=sys.stderr)
+                if result.conflicts:
+                    print("\nConflict Details:", file=sys.stderr)
+                    print("The following files have been modified since this change was made:", file=sys.stderr)
+                    for conflict in result.conflicts:
+                        print(f"  - {conflict}", file=sys.stderr)
+                    print("\nResolution Options:", file=sys.stderr)
+                    print("  1. Manually resolve conflicts:", file=sys.stderr)
+                    print("     - Review the file and decide which version to keep", file=sys.stderr)
+                    print("     - Retry rollback after resolving", file=sys.stderr)
+                    print("  2. Accept partial rollback:", file=sys.stderr)
+                    print("     - Non-conflicting files were rolled back successfully", file=sys.stderr)
+                    print("     - Conflicting files remain in their current state", file=sys.stderr)
+                    print("  3. Use git directly:", file=sys.stderr)
+                    print("     - git --git-dir=.docimp/state/.git --work-tree=. revert <commit-sha>", file=sys.stderr)
+
+        return 0 if result.success else 1
+
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        if args.verbose:
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+        return 1
+
+
+def cmd_interactive_rollback(
+    args: argparse.Namespace,
+    manager: TransactionManager
+) -> int:
+    """Handle the interactive-rollback subcommand.
+
+    Args:
+        args: Parsed command-line arguments.
+        manager: TransactionManager instance (dependency injection).
+
+    Returns:
+        Exit code (0 for success, 1 for error).
+    """
+    try:
+        # Check git availability
+        if not GitHelper.check_git_available():
+            print("Error: Git not installed - rollback unavailable", file=sys.stderr)
+            return 1
+
+        # Step 1: List sessions
+        transactions_dir = StateManager.get_state_dir() / 'transactions'
+        sessions = manager.list_uncommitted_transactions(transactions_dir)
+
+        if not sessions:
+            print("No active sessions found")
+            return 0
+
+        print("=" * 60)
+        print("Select a session to rollback:")
+        print("=" * 60)
+
+        for i, session in enumerate(sessions, 1):
+            print(f"{i}. {session.session_id} ({len(session.entries)} changes)")
+
+        # Get session selection
+        while True:
+            response = input(f"\nEnter session number (1-{len(sessions)}) or 'q' to quit: ")
+            if response.lower() == 'q':
+                print("Cancelled")
+                return 0
+            try:
+                session_idx = int(response) - 1
+                if 0 <= session_idx < len(sessions):
+                    break
+                print(f"Please enter a number between 1 and {len(sessions)}")
+            except ValueError:
+                print("Please enter a valid number")
+
+        selected_session = sessions[session_idx]
+
+        # Step 2: List changes in selected session
+        changes = manager.list_session_changes(selected_session.session_id)
+
+        print("\n" + "=" * 60)
+        print(f"Changes in session: {selected_session.session_id}")
+        print("=" * 60)
+
+        for i, change in enumerate(changes, 1):
+            print(f"{i}. {change.item_name} in {change.filepath}")
+
+        print(f"{len(changes) + 1}. Rollback entire session")
+
+        # Get change selection
+        while True:
+            response = input(f"\nEnter change number (1-{len(changes) + 1}) or 'q' to quit: ")
+            if response.lower() == 'q':
+                print("Cancelled")
+                return 0
+            try:
+                change_idx = int(response) - 1
+                if 0 <= change_idx <= len(changes):
+                    break
+                print(f"Please enter a number between 1 and {len(changes) + 1}")
+            except ValueError:
+                print("Please enter a valid number")
+
+        # Step 3: Confirm and rollback
+        if change_idx == len(changes):
+            # Rollback entire session
+            response = input(f"\nRollback entire session ({len(changes)} changes)? (y/N): ")
+            if response.lower() not in ['y', 'yes']:
+                print("Cancelled")
+                return 0
+
+            manifest_path = transactions_dir / f'transaction-{selected_session.session_id}.json'
+            manifest = manager.load_manifest(manifest_path)
+            restored_count = manager.rollback_transaction(manifest)
+            print(f"\nSuccess! Rolled back {restored_count} file(s)")
+        else:
+            # Rollback individual change
+            selected_change = changes[change_idx]
+            response = input(f"\nRollback change to {selected_change.item_name}? (y/N): ")
+            if response.lower() not in ['y', 'yes']:
+                print("Cancelled")
+                return 0
+
+            result = manager.rollback_change(selected_change.entry_id)
+            if result.success:
+                print(f"\nSuccess! Rolled back {result.restored_count} file(s)")
+            else:
+                print(f"\nRollback failed: {result.failed_count} file(s) had conflicts", file=sys.stderr)
+                if result.conflicts:
+                    print("\nConflict Details:", file=sys.stderr)
+                    print("The following files have been modified since this change was made:", file=sys.stderr)
+                    for conflict in result.conflicts:
+                        print(f"  - {conflict}", file=sys.stderr)
+                    print("\nResolution Options:", file=sys.stderr)
+                    print("  1. Manually resolve conflicts and retry", file=sys.stderr)
+                    print("  2. Accept partial rollback (non-conflicting files rolled back)", file=sys.stderr)
+                    print("  3. Use git directly with --git-dir=.docimp/state/.git", file=sys.stderr)
+                return 1
+
+        return 0
+
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         if args.verbose:
@@ -724,6 +1418,190 @@ def main(argv: Optional[list] = None) -> int:
         help='Enable verbose output'
     )
 
+    # List-sessions command (list active sessions)
+    list_sessions_parser = subparsers.add_parser(
+        'list-sessions',
+        help='List active DocImp sessions'
+    )
+    list_sessions_parser.add_argument(
+        '--format',
+        choices=['json', 'table'],
+        default='table',
+        help='Output format (default: table)'
+    )
+    list_sessions_parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Enable verbose output'
+    )
+
+    # List-changes command (list changes in a session)
+    list_changes_parser = subparsers.add_parser(
+        'list-changes',
+        help='List changes in a specific session'
+    )
+    list_changes_parser.add_argument(
+        'session_id',
+        help='Session ID to list changes for'
+    )
+    list_changes_parser.add_argument(
+        '--format',
+        choices=['json', 'table'],
+        default='table',
+        help='Output format (default: table)'
+    )
+    list_changes_parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Enable verbose output'
+    )
+
+    # Begin-transaction command (initialize transaction tracking)
+    begin_transaction_parser = subparsers.add_parser(
+        'begin-transaction',
+        help='Initialize transaction tracking for a session'
+    )
+    begin_transaction_parser.add_argument(
+        'session_id',
+        help='Session UUID'
+    )
+    begin_transaction_parser.add_argument(
+        '--format',
+        choices=['json', 'text'],
+        default='text',
+        help='Output format (json or text)'
+    )
+    begin_transaction_parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Enable verbose output'
+    )
+
+    # Record-write command (record a documentation write in transaction)
+    record_write_parser = subparsers.add_parser(
+        'record-write',
+        help='Record a documentation write in the current transaction'
+    )
+    record_write_parser.add_argument(
+        'session_id',
+        help='Session UUID'
+    )
+    record_write_parser.add_argument(
+        'filepath',
+        help='Absolute path to the modified file'
+    )
+    record_write_parser.add_argument(
+        'backup_path',
+        help='Path to the backup file'
+    )
+    record_write_parser.add_argument(
+        'item_name',
+        help='Name of the documented function/class/method'
+    )
+    record_write_parser.add_argument(
+        'item_type',
+        help='Type of code item (function, class, method)'
+    )
+    record_write_parser.add_argument(
+        'language',
+        help='Programming language (python, javascript, typescript)'
+    )
+    record_write_parser.add_argument(
+        '--format',
+        choices=['json', 'text'],
+        default='text',
+        help='Output format (json or text)'
+    )
+    record_write_parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Enable verbose output'
+    )
+
+    # Commit-transaction command (finalize transaction with squash merge)
+    commit_transaction_parser = subparsers.add_parser(
+        'commit-transaction',
+        help='Finalize transaction by squash-merging session to main'
+    )
+    commit_transaction_parser.add_argument(
+        'session_id',
+        help='Session UUID'
+    )
+    commit_transaction_parser.add_argument(
+        '--format',
+        choices=['json', 'text'],
+        default='text',
+        help='Output format (json or text)'
+    )
+    commit_transaction_parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Enable verbose output'
+    )
+
+    # Rollback-session command (rollback entire session)
+    rollback_session_parser = subparsers.add_parser(
+        'rollback-session',
+        help='Rollback an entire session (revert all changes)'
+    )
+    rollback_session_parser.add_argument(
+        'session_id',
+        help='Session ID to rollback, or "last" for most recent session'
+    )
+    rollback_session_parser.add_argument(
+        '--format',
+        choices=['json', 'table'],
+        default='table',
+        help='Output format (default: table)'
+    )
+    rollback_session_parser.add_argument(
+        '--no-confirm',
+        action='store_true',
+        help='Skip confirmation prompt (for scripting)'
+    )
+    rollback_session_parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Enable verbose output'
+    )
+
+    # Rollback-change command (rollback individual change)
+    rollback_change_parser = subparsers.add_parser(
+        'rollback-change',
+        help='Rollback a specific change'
+    )
+    rollback_change_parser.add_argument(
+        'entry_id',
+        help='Entry ID (commit SHA) to rollback, or "last" for most recent change'
+    )
+    rollback_change_parser.add_argument(
+        '--format',
+        choices=['json', 'table'],
+        default='table',
+        help='Output format (default: table)'
+    )
+    rollback_change_parser.add_argument(
+        '--no-confirm',
+        action='store_true',
+        help='Skip confirmation prompt (for scripting)'
+    )
+    rollback_change_parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Enable verbose output'
+    )
+
+    # Interactive-rollback command (interactive session/change selection)
+    interactive_rollback_parser = subparsers.add_parser(
+        'interactive-rollback',
+        help='Interactive rollback with session and change selection'
+    )
+    interactive_rollback_parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Enable verbose output'
+    )
+
     # Parse arguments
     args = parser.parse_args(argv)
 
@@ -776,6 +1654,45 @@ def main(argv: Optional[list] = None) -> int:
         import io
         sys.stdin = io.StringIO(json.dumps(apply_data))
         return cmd_apply(args, docstring_writer)
+    elif args.command == 'list-sessions':
+        # Create transaction manager for session listing
+        manager = TransactionManager()
+        return cmd_list_sessions(args, manager)
+    elif args.command == 'list-changes':
+        # Create transaction manager for change listing
+        base_path = Path.cwd()
+        manager = TransactionManager(base_path=base_path)
+        return cmd_list_changes(args, manager)
+    elif args.command == 'begin-transaction':
+        # Create transaction manager for beginning transaction
+        base_path = Path.cwd()
+        manager = TransactionManager(base_path=base_path)
+        return cmd_begin_transaction(args, manager)
+    elif args.command == 'record-write':
+        # Create transaction manager for recording write
+        base_path = Path.cwd()
+        manager = TransactionManager(base_path=base_path)
+        return cmd_record_write(args, manager)
+    elif args.command == 'commit-transaction':
+        # Create transaction manager for committing transaction
+        base_path = Path.cwd()
+        manager = TransactionManager(base_path=base_path)
+        return cmd_commit_transaction(args, manager)
+    elif args.command == 'rollback-session':
+        # Create transaction manager for session rollback
+        base_path = Path.cwd()
+        manager = TransactionManager(base_path=base_path)
+        return cmd_rollback_session(args, manager)
+    elif args.command == 'rollback-change':
+        # Create transaction manager for change rollback
+        base_path = Path.cwd()
+        manager = TransactionManager(base_path=base_path)
+        return cmd_rollback_change(args, manager)
+    elif args.command == 'interactive-rollback':
+        # Create transaction manager for interactive rollback
+        base_path = Path.cwd()
+        manager = TransactionManager(base_path=base_path)
+        return cmd_interactive_rollback(args, manager)
 
     return 1
 

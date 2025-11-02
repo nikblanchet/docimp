@@ -319,7 +319,7 @@ def test_arrow_function_with_dollar_param(writer):
 
 
 def test_backup_cleanup_on_successful_write(writer):
-    """Test that backup files are deleted after successful writes."""
+    """Test that backup files are PRESERVED after successful writes (for transaction tracking)."""
     code = "function test() {\n  return true;\n}"
     jsdoc = "Test function"
 
@@ -340,19 +340,20 @@ def test_backup_cleanup_on_successful_write(writer):
 
         assert success, "Write should succeed"
 
-        # Verify backup file does NOT exist
-        backup_path = Path(temp_path + '.bak')
-        assert not backup_path.exists(), \
-            "Backup file should be deleted after successful write"
+        # Verify backup file DOES exist (preserved for transaction tracking)
+        backup_files = list(Path(temp_path).parent.glob(f'{Path(temp_path).name}.*.bak'))
+        assert len(backup_files) == 1, \
+            "Backup file should be preserved after successful write for transaction tracking"
 
     finally:
-        # Clean up temp file only (backup should already be gone)
+        # Clean up temp file and backup
         Path(temp_path).unlink(missing_ok=True)
-        Path(temp_path + '.bak').unlink(missing_ok=True)
+        for backup in Path(temp_path).parent.glob(f'{Path(temp_path).name}.*.bak'):
+            backup.unlink(missing_ok=True)
 
 
 def test_backup_cleanup_on_idempotent_write(writer):
-    """Test that backup files are deleted when content is unchanged."""
+    """Test that no backup is created when content is unchanged (idempotent operation)."""
     code = "/**\n * Test function\n */\nfunction test() {\n  return true;\n}"
     jsdoc = "Test function"
 
@@ -373,15 +374,14 @@ def test_backup_cleanup_on_idempotent_write(writer):
 
         assert success, "Write should succeed"
 
-        # Verify backup file does NOT exist
-        backup_path = Path(temp_path + '.bak')
-        assert not backup_path.exists(), \
-            "Backup file should be deleted on idempotent operation"
+        # Verify no backup file created (no change = no backup needed)
+        backup_files = list(Path(temp_path).parent.glob(f'{Path(temp_path).name}.*.bak'))
+        assert len(backup_files) == 0, \
+            "No backup should be created for idempotent operation (content unchanged)"
 
     finally:
-        # Clean up temp file only (backup should already be gone)
+        # Clean up temp file only (no backup to clean)
         Path(temp_path).unlink(missing_ok=True)
-        Path(temp_path + '.bak').unlink(missing_ok=True)
 
 
 def test_backup_cleanup_on_write_failure(writer):
@@ -870,9 +870,9 @@ class TestAtomicWrites:
             assert '"""' in test_content, "Docstring should be present"
             assert 'New documentation' in test_content, "Docstring content should be in file"
 
-            # Verify no timestamp backup remains (should be cleaned up in finally block)
+            # Verify timestamp backup IS preserved (for transaction tracking)
             timestamp_backups = list(Path(temp_dir).glob('test.py.*.bak'))
             # Filter out the user's manual .bak file
             timestamp_backups = [b for b in timestamp_backups if b != user_backup]
-            assert len(timestamp_backups) == 0, \
-                "Timestamp-based backup should be cleaned up"
+            assert len(timestamp_backups) == 1, \
+                "Timestamp-based backup should be preserved for transaction tracking"

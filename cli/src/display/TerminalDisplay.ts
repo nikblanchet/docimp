@@ -9,7 +9,7 @@ import chalk from 'chalk';
 import Table from 'cli-table3';
 import ora, { Ora } from 'ora';
 import type { IDisplay } from './IDisplay.js';
-import type { AnalysisResult, CodeItem, LanguageMetrics, AuditSummary, ParseFailure } from '../types/analysis.js';
+import type { AnalysisResult, CodeItem, LanguageMetrics, AuditSummary, ParseFailure, SessionSummary, TransactionEntry, RollbackResult } from '../types/analysis.js';
 
 /**
  * Terminal display implementation with rich formatting.
@@ -538,5 +538,126 @@ export class TerminalDisplay implements IDisplay {
     console.log(signature);
     console.log('');
     console.log(`(Full code: ${totalLines} lines, press C to see all)`);
+  }
+
+  /**
+   * Display list of documentation improvement sessions.
+   *
+   * Shows all active sessions in a formatted table.
+   */
+  public showSessionList(sessions: SessionSummary[]): void {
+    if (sessions.length === 0) {
+      console.log(chalk.dim('No active sessions found.'));
+      return;
+    }
+
+    console.log(chalk.bold('\nActive Documentation Sessions\n'));
+
+    const table = new Table({
+      head: [
+        chalk.cyan('Session ID'),
+        chalk.cyan('Started'),
+        chalk.cyan('Changes'),
+        chalk.cyan('Status')
+      ],
+      colWidths: [38, 20, 10, 20],
+      style: {
+        head: [],
+        border: []
+      }
+    });
+
+    for (const session of sessions) {
+      const statusColor = session.status === 'in_progress' ? chalk.yellow :
+                         session.status === 'committed' ? chalk.green :
+                         chalk.gray;
+
+      table.push([
+        session.session_id,
+        session.started_at.substring(0, 19).replace('T', ' '),
+        session.change_count.toString(),
+        statusColor(session.status)
+      ]);
+    }
+
+    console.log(table.toString());
+    console.log(chalk.dim(`\nTotal: ${sessions.length} session(s)\n`));
+  }
+
+  /**
+   * Display list of changes in a session.
+   *
+   * Shows all changes in a formatted table.
+   */
+  public showChangeList(changes: TransactionEntry[], sessionId: string): void {
+    if (changes.length === 0) {
+      console.log(chalk.dim(`No changes found in session: ${sessionId}`));
+      return;
+    }
+
+    console.log(chalk.bold(`\nChanges in Session: ${sessionId}\n`));
+
+    const table = new Table({
+      head: [
+        chalk.cyan('Entry ID'),
+        chalk.cyan('File'),
+        chalk.cyan('Item'),
+        chalk.cyan('Timestamp')
+      ],
+      colWidths: [12, 40, 25, 20],
+      style: {
+        head: [],
+        border: []
+      }
+    });
+
+    for (const change of changes) {
+      // Truncate filepath if too long
+      const filepath = change.filepath.length > 37
+        ? '...' + change.filepath.slice(-37)
+        : change.filepath;
+
+      // Truncate item name if too long
+      const itemName = change.item_name.length > 22
+        ? change.item_name.slice(0, 22) + '...'
+        : change.item_name;
+
+      table.push([
+        change.entry_id,
+        filepath,
+        itemName,
+        change.timestamp.substring(0, 19).replace('T', ' ')
+      ]);
+    }
+
+    console.log(table.toString());
+    console.log(chalk.dim(`\nTotal: ${changes.length} change(s)\n`));
+  }
+
+  /**
+   * Display rollback operation result.
+   *
+   * Shows success/failure with appropriate formatting.
+   */
+  public showRollbackResult(result: RollbackResult): void {
+    console.log('');
+
+    if (result.success) {
+      console.log(chalk.green('✓ Rollback successful!'));
+      console.log(chalk.dim(`Restored ${result.restored_count} file(s)`));
+    } else {
+      console.log(chalk.red('✗ Rollback failed'));
+      console.log(chalk.dim(`Failed: ${result.failed_count} file(s) had conflicts`));
+
+      if (result.conflicts && result.conflicts.length > 0) {
+        console.log('');
+        console.log(chalk.yellow('Conflicts in:'));
+        for (const conflict of result.conflicts) {
+          console.log(chalk.dim(`  - ${conflict}`));
+        }
+      }
+    }
+
+    console.log('');
   }
 }

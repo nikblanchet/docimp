@@ -10,8 +10,8 @@ import { resolve } from 'path';
 import { existsSync } from 'fs';
 import { z } from 'zod';
 import type { IPythonBridge, AnalyzeOptions, AuditOptions, PlanOptions, SuggestOptions, ApplyData } from './IPythonBridge.js';
-import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult } from '../types/analysis.js';
-import { AnalysisResultSchema, AuditListResultSchema, PlanResultSchema, formatValidationError } from './schemas.js';
+import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult, SessionSummary, TransactionEntry, RollbackResult } from '../types/analysis.js';
+import { AnalysisResultSchema, AuditListResultSchema, PlanResultSchema, SessionSummarySchema, TransactionEntrySchema, RollbackResultSchema, GenericSuccessSchema, formatValidationError } from './schemas.js';
 import type { IConfig } from '../config/IConfig.js';
 import { defaultConfig } from '../config/IConfig.js';
 
@@ -733,6 +733,222 @@ export class PythonBridge implements IPythonBridge {
       return await Promise.race([processPromise, timeoutPromise]);
     } finally {
       cleanup();
+    }
+  }
+
+  /**
+   * List all documentation improvement sessions.
+   *
+   * @returns Promise resolving to array of session summaries
+   * @throws Error if Python process fails or returns invalid JSON
+   */
+  async listSessions(): Promise<SessionSummary[]> {
+    const args = [
+      '-m',
+      'analyzer',
+      'list-sessions',
+      '--format',
+      'json'
+    ];
+
+    // Validate with array schema
+    const result = await this.executePython<SessionSummary[]>(
+      args,
+      false,
+      z.array(SessionSummarySchema)
+    );
+
+    return result;
+  }
+
+  /**
+   * List changes in a specific session.
+   *
+   * @param sessionId - Session UUID or 'last' for most recent
+   * @returns Promise resolving to array of transaction entries
+   * @throws Error if Python process fails or returns invalid JSON
+   */
+  async listChanges(sessionId: string): Promise<TransactionEntry[]> {
+    const args = [
+      '-m',
+      'analyzer',
+      'list-changes',
+      sessionId,
+      '--format',
+      'json'
+    ];
+
+    // Validate with array schema
+    const result = await this.executePython<TransactionEntry[]>(
+      args,
+      false,
+      z.array(TransactionEntrySchema)
+    );
+
+    return result;
+  }
+
+  /**
+   * Rollback an entire session (revert all changes).
+   *
+   * @param sessionId - Session UUID or 'last' for most recent
+   * @returns Promise resolving to rollback result
+   * @throws Error if Python process fails or rollback fails
+   */
+  async rollbackSession(sessionId: string): Promise<RollbackResult> {
+    const args = [
+      '-m',
+      'analyzer',
+      'rollback-session',
+      sessionId,
+      '--format',
+      'json',
+      '--no-confirm'
+    ];
+
+    const result = await this.executePython<RollbackResult>(
+      args,
+      false,
+      RollbackResultSchema
+    );
+
+    return result;
+  }
+
+  /**
+   * Rollback a specific change.
+   *
+   * @param entryId - Change entry ID or 'last' for most recent
+   * @returns Promise resolving to rollback result
+   * @throws Error if Python process fails or rollback fails
+   */
+  async rollbackChange(entryId: string): Promise<RollbackResult> {
+    const args = [
+      '-m',
+      'analyzer',
+      'rollback-change',
+      entryId,
+      '--format',
+      'json',
+      '--no-confirm'
+    ];
+
+    const result = await this.executePython<RollbackResult>(
+      args,
+      false,
+      RollbackResultSchema
+    );
+
+    return result;
+  }
+
+  /**
+   * Begin a new transaction for tracking documentation changes.
+   *
+   * Creates a new git branch in the side-car repository and initializes
+   * a transaction manifest for tracking all changes in this session.
+   *
+   * @param sessionId - Unique identifier for this improve session (UUID)
+   * @returns Promise resolving when transaction is initialized
+   * @throws Error if git backend unavailable or initialization fails
+   */
+  async beginTransaction(sessionId: string): Promise<void> {
+    const args = [
+      '-m',
+      'src.main',
+      'begin-transaction',
+      sessionId,
+      '--format',
+      'json'
+    ];
+
+    const result = await this.executePython<z.infer<typeof GenericSuccessSchema>>(
+      args,
+      false,
+      GenericSuccessSchema
+    );
+
+    if (!result.success) {
+      throw new Error(`Failed to begin transaction: ${result.error || 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Record a documentation write in the current transaction.
+   *
+   * Creates a git commit in the side-car repository with metadata about the
+   * change. Must be called after each accepted documentation modification.
+   *
+   * @param sessionId - Transaction session identifier
+   * @param filepath - Absolute path to modified file
+   * @param backupPath - Path to backup file for rollback
+   * @param itemName - Name of documented item (function/class/method)
+   * @param itemType - Type of item ('function', 'class', 'method')
+   * @param language - Programming language ('python', 'typescript', 'javascript')
+   * @returns Promise resolving when write is recorded
+   * @throws Error if transaction not active or git commit fails
+   */
+  async recordWrite(
+    sessionId: string,
+    filepath: string,
+    backupPath: string,
+    itemName: string,
+    itemType: string,
+    language: string
+  ): Promise<void> {
+    const args = [
+      '-m',
+      'src.main',
+      'record-write',
+      sessionId,
+      filepath,
+      backupPath,
+      itemName,
+      itemType,
+      language,
+      '--format',
+      'json'
+    ];
+
+    const result = await this.executePython<z.infer<typeof GenericSuccessSchema>>(
+      args,
+      false,
+      GenericSuccessSchema
+    );
+
+    if (!result.success) {
+      throw new Error(`Failed to record write: ${result.error || 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Finalize transaction by squash-merging to main branch.
+   *
+   * Performs squash merge, creates commit, preserves session branch, and
+   * deletes backup files.
+   *
+   * @param sessionId - Transaction session identifier
+   * @returns Promise resolving when transaction is committed
+   * @throws Error if no active transaction or merge fails
+   */
+  async commitTransaction(sessionId: string): Promise<void> {
+    const args = [
+      '-m',
+      'src.main',
+      'commit-transaction',
+      sessionId,
+      '--format',
+      'json'
+    ];
+
+    const result = await this.executePython<z.infer<typeof GenericSuccessSchema>>(
+      args,
+      false,
+      GenericSuccessSchema
+    );
+
+    if (!result.success) {
+      throw new Error(`Failed to commit transaction: ${result.error || 'Unknown error'}`);
     }
   }
 }

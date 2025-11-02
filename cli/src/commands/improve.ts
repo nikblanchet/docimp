@@ -33,7 +33,7 @@ import type { IInteractiveSession } from '../session/IInteractiveSession.js';
  * User cancelled the operation.
  * This is a special case that should exit with code 0 (not an error).
  */
-class UserCancellationError extends Error {
+export class UserCancellationError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'UserCancellationError';

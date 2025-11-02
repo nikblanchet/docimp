@@ -12,6 +12,10 @@ import { analyzeCommand } from './commands/analyze.js';
 import { auditCommand } from './commands/audit.js';
 import { planCommand } from './commands/plan.js';
 import { improveCommand } from './commands/improve.js';
+import { listSessionsCommand } from './commands/listSessions.js';
+import { listChangesCommand } from './commands/listChanges.js';
+import { rollbackSessionCommand } from './commands/rollbackSession.js';
+import { rollbackChangeCommand } from './commands/rollbackChange.js';
 import { EXIT_CODE } from './constants/exitCodes.js';
 import { StateManager } from './utils/StateManager.js';
 import { PythonBridge } from './python-bridge/PythonBridge.js';
@@ -153,6 +157,89 @@ program
       }
     } catch (error) {
       // Unexpected error (commands should return exit codes, not throw)
+      const errorDisplay = new TerminalDisplay();
+      errorDisplay.showError(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(EXIT_CODE.ERROR);
+    }
+  });
+
+// List-sessions command (transaction tracking)
+program
+  .command('list-sessions')
+  .description('List all documentation improvement sessions')
+  .action(async () => {
+    try {
+      const display = new TerminalDisplay();
+      const bridge = new PythonBridge();
+
+      const exitCode = await listSessionsCommand(bridge, display);
+      if (exitCode !== EXIT_CODE.SUCCESS) {
+        process.exit(exitCode);
+      }
+    } catch (error) {
+      const errorDisplay = new TerminalDisplay();
+      errorDisplay.showError(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(EXIT_CODE.ERROR);
+    }
+  });
+
+// List-changes command (transaction tracking)
+program
+  .command('list-changes')
+  .description('List changes in a specific session')
+  .argument('<session-id>', 'Session UUID or "last" for most recent')
+  .action(async (sessionId) => {
+    try {
+      const display = new TerminalDisplay();
+      const bridge = new PythonBridge();
+
+      const exitCode = await listChangesCommand(sessionId, bridge, display);
+      if (exitCode !== EXIT_CODE.SUCCESS) {
+        process.exit(exitCode);
+      }
+    } catch (error) {
+      const errorDisplay = new TerminalDisplay();
+      errorDisplay.showError(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(EXIT_CODE.ERROR);
+    }
+  });
+
+// Rollback-session command (transaction rollback)
+program
+  .command('rollback-session')
+  .description('Rollback an entire session (revert all changes)')
+  .argument('<session-id>', 'Session UUID or "last" for most recent')
+  .action(async (sessionId) => {
+    try {
+      const display = new TerminalDisplay();
+      const bridge = new PythonBridge();
+
+      const exitCode = await rollbackSessionCommand(sessionId, bridge, display);
+      if (exitCode !== EXIT_CODE.SUCCESS) {
+        process.exit(exitCode);
+      }
+    } catch (error) {
+      const errorDisplay = new TerminalDisplay();
+      errorDisplay.showError(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(EXIT_CODE.ERROR);
+    }
+  });
+
+// Rollback-change command (transaction rollback)
+program
+  .command('rollback-change')
+  .description('Rollback a specific change')
+  .argument('<entry-id>', 'Change entry ID or "last" for most recent')
+  .action(async (entryId) => {
+    try {
+      const display = new TerminalDisplay();
+      const bridge = new PythonBridge();
+
+      const exitCode = await rollbackChangeCommand(entryId, bridge, display);
+      if (exitCode !== EXIT_CODE.SUCCESS) {
+        process.exit(exitCode);
+      }
+    } catch (error) {
       const errorDisplay = new TerminalDisplay();
       errorDisplay.showError(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
       process.exit(EXIT_CODE.ERROR);
