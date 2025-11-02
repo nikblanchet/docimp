@@ -448,7 +448,8 @@ def cmd_suggest(
             code=target_code,
             item_name=item_name,
             item_type='function',  # Simplified for MVP
-            language=language
+            language=language,
+            feedback=args.feedback
         )
 
         if args.verbose:
@@ -1405,6 +1406,12 @@ def main(argv: Optional[list] = None) -> int:
         '--verbose',
         action='store_true',
         help='Enable verbose output'
+    )
+    suggest_parser.add_argument(
+        '--feedback',
+        type=str,
+        default=None,
+        help='User feedback for regeneration (optional)'
     )
 
     # Apply command (write documentation to files)
