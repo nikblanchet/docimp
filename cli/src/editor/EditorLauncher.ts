@@ -8,13 +8,30 @@
  */
 
 import { spawn } from 'child_process';
-import { promises as fs } from 'fs';
+import { promises as fs, close as fsCloseCallback } from 'fs';
 import { promisify } from 'util';
 import tmp from 'tmp';
-import type { IEditorLauncher } from './IEditorLauncher.js';
+import type { IEditorLauncher} from './IEditorLauncher.js';
 
-// Promisify tmp for async/await usage
-const tmpFile = promisify(tmp.file);
+// Promisify tmp.file for async/await usage
+const tmpFile = (options: tmp.FileOptions): Promise<{
+  name: string;
+  fd: number;
+  removeCallback: () => void;
+}> => {
+  return new Promise((resolve, reject) => {
+    tmp.file(options, (err, name, fd, removeCallback) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve({ name, fd, removeCallback });
+      }
+    });
+  });
+};
+
+// Promisify fs.close for closing file descriptors
+const fsClose = promisify(fsCloseCallback);
 
 /**
  * Launches an external editor for editing text.
@@ -55,7 +72,7 @@ export class EditorLauncher implements IEditorLauncher {
 
     try {
       // Close the file descriptor (tmp opens it, we don't need it)
-      await fs.close(fd);
+      await fsClose(fd);
 
       // Write initial text to temp file
       await fs.writeFile(tempPath, initialText, 'utf-8');
