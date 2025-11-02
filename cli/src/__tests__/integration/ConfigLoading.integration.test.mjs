@@ -179,7 +179,7 @@ describe('ConfigLoader - File Loading Integration', () => {
           await loader.load(malformedPath);
         },
         {
-          message: /Failed to load configuration file/,
+          message: /Configuration file has invalid JavaScript syntax/,
         }
       );
     });
