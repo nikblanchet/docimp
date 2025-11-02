@@ -6,29 +6,46 @@
 
 import { EditorLauncher } from '../../editor/EditorLauncher.js';
 import { spawn } from 'child_process';
-import { writeFileSync, readFileSync, unlinkSync } from 'fs';
-import { tmpdir } from 'os';
+import { promises as fs } from 'fs';
+import tmp from 'tmp';
 import { EventEmitter } from 'events';
 
-// Mock child_process, fs, and os modules
+// Mock child_process, fs, and tmp modules
 jest.mock('child_process');
-jest.mock('fs');
-jest.mock('os');
+jest.mock('fs', () => ({
+  promises: {
+    writeFile: jest.fn(),
+    readFile: jest.fn(),
+    close: jest.fn(),
+  }
+}));
+jest.mock('tmp');
 
 const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
-const mockWriteFileSync = writeFileSync as jest.MockedFunction<typeof writeFileSync>;
-const mockReadFileSync = readFileSync as jest.MockedFunction<typeof readFileSync>;
-const mockUnlinkSync = unlinkSync as jest.MockedFunction<typeof unlinkSync>;
-const mockTmpdir = tmpdir as jest.MockedFunction<typeof tmpdir>;
+const mockWriteFile = fs.writeFile as jest.MockedFunction<typeof fs.writeFile>;
+const mockReadFile = fs.readFile as jest.MockedFunction<typeof fs.readFile>;
+const mockClose = fs.close as jest.MockedFunction<typeof fs.close>;
+const mockTmpFile = tmp.file as jest.MockedFunction<typeof tmp.file>;
 
 describe('EditorLauncher', () => {
   let launcher: EditorLauncher;
   let originalEnv: NodeJS.ProcessEnv;
+  let mockRemoveCallback: jest.Mock;
 
   beforeEach(() => {
     launcher = new EditorLauncher();
     originalEnv = { ...process.env };
-    mockTmpdir.mockReturnValue('/tmp');
+
+    // Mock tmp.file to return temp file info with removeCallback
+    mockRemoveCallback = jest.fn();
+    mockTmpFile.mockImplementation((options, callback) => {
+      callback(null, '/tmp/docimp-edit-123456.txt', 3, mockRemoveCallback);
+    });
+
+    // Mock fs operations to succeed by default
+    mockClose.mockResolvedValue(undefined);
+    mockWriteFile.mockResolvedValue(undefined);
+    mockReadFile.mockResolvedValue('edited content');
   });
 
   afterEach(() => {
@@ -44,7 +61,7 @@ describe('EditorLauncher', () => {
       mockProcess.stdout = undefined;
       mockProcess.stderr = undefined;
       mockSpawn.mockReturnValue(mockProcess);
-      mockReadFileSync.mockReturnValue('edited content');
+      mockReadFile.mockResolvedValue('edited content');
 
       const promise = launcher.editText('initial text');
 
@@ -69,7 +86,7 @@ describe('EditorLauncher', () => {
       mockProcess.stdout = undefined;
       mockProcess.stderr = undefined;
       mockSpawn.mockReturnValue(mockProcess);
-      mockReadFileSync.mockReturnValue('edited content');
+      mockReadFile.mockResolvedValue('edited content');
 
       const promise = launcher.editText('initial text');
 
@@ -92,7 +109,7 @@ describe('EditorLauncher', () => {
       mockProcess.stdout = undefined;
       mockProcess.stderr = undefined;
       mockSpawn.mockReturnValue(mockProcess);
-      mockReadFileSync.mockReturnValue('edited content');
+      mockReadFile.mockResolvedValue('edited content');
 
       const promise = launcher.editText('initial text');
 
@@ -115,7 +132,12 @@ describe('EditorLauncher', () => {
       mockProcess.stdout = undefined;
       mockProcess.stderr = undefined;
       mockSpawn.mockReturnValue(mockProcess);
-      mockReadFileSync.mockReturnValue('edited content');
+      mockReadFile.mockResolvedValue('edited content');
+
+      // Mock tmpFile to return .js extension
+      mockTmpFile.mockImplementation((options, callback) => {
+        callback(null, '/tmp/docimp-edit-123456.js', 3, mockRemoveCallback);
+      });
 
       const promise = launcher.editText('initial text', '.js');
 
@@ -123,8 +145,8 @@ describe('EditorLauncher', () => {
 
       await promise;
 
-      expect(mockWriteFileSync).toHaveBeenCalledWith(
-        expect.stringMatching(/docimp-edit-.*\.js$/),
+      expect(mockWriteFile).toHaveBeenCalledWith(
+        '/tmp/docimp-edit-123456.js',
         'initial text',
         'utf-8'
       );
@@ -136,7 +158,7 @@ describe('EditorLauncher', () => {
       mockProcess.stdout = undefined;
       mockProcess.stderr = undefined;
       mockSpawn.mockReturnValue(mockProcess);
-      mockReadFileSync.mockReturnValue('edited content');
+      mockReadFile.mockResolvedValue('edited content');
 
       const promise = launcher.editText('initial text');
 
@@ -144,10 +166,10 @@ describe('EditorLauncher', () => {
 
       await promise;
 
-      expect(mockWriteFileSync).toHaveBeenCalledWith(
-        expect.stringMatching(/\.txt$/),
-        'initial text',
-        'utf-8'
+      // Verify tmpFile was called with correct options (postfix: '.txt')
+      expect(mockTmpFile).toHaveBeenCalledWith(
+        expect.objectContaining({ postfix: '.txt' }),
+        expect.any(Function)
       );
     });
 
@@ -157,7 +179,7 @@ describe('EditorLauncher', () => {
       mockProcess.stdout = undefined;
       mockProcess.stderr = undefined;
       mockSpawn.mockReturnValue(mockProcess);
-      mockReadFileSync.mockReturnValue('edited content');
+      mockReadFile.mockResolvedValue('edited content');
 
       const promise = launcher.editText('initial text');
 
@@ -174,7 +196,7 @@ describe('EditorLauncher', () => {
       mockProcess.stdout = undefined;
       mockProcess.stderr = undefined;
       mockSpawn.mockReturnValue(mockProcess);
-      mockReadFileSync.mockReturnValue('initial text');
+      mockReadFile.mockResolvedValue('initial text');
 
       const promise = launcher.editText('initial text');
 
@@ -191,7 +213,7 @@ describe('EditorLauncher', () => {
       mockProcess.stdout = undefined;
       mockProcess.stderr = undefined;
       mockSpawn.mockReturnValue(mockProcess);
-      mockReadFileSync.mockReturnValue('  initial text  \n');
+      mockReadFile.mockResolvedValue('  initial text  \n');
 
       const promise = launcher.editText('initial text');
 
@@ -208,7 +230,7 @@ describe('EditorLauncher', () => {
       mockProcess.stdout = undefined;
       mockProcess.stderr = undefined;
       mockSpawn.mockReturnValue(mockProcess);
-      mockReadFileSync.mockReturnValue('edited content');
+      mockReadFile.mockResolvedValue('edited content');
 
       const promise = launcher.editText('initial text');
 
@@ -216,9 +238,7 @@ describe('EditorLauncher', () => {
 
       await promise;
 
-      expect(mockUnlinkSync).toHaveBeenCalledWith(
-        expect.stringMatching(/docimp-edit-.*\.txt$/)
-      );
+      expect(mockRemoveCallback).toHaveBeenCalledTimes(1);
     });
 
     it('should reject when editor exits with non-zero code', async () => {
@@ -249,59 +269,118 @@ describe('EditorLauncher', () => {
       await expect(promise).rejects.toThrow('Failed to launch editor: spawn failed');
     });
 
-    it('should clean up temp file on error', async () => {
+    it('should clean up temp file on editor error', async () => {
       const mockProcess = new EventEmitter() as any;
       mockProcess.stdin = undefined;
       mockProcess.stdout = undefined;
       mockProcess.stderr = undefined;
       mockSpawn.mockReturnValue(mockProcess);
-      mockUnlinkSync.mockImplementation(() => {
-        // Mock successful cleanup
-      });
 
       const promise = launcher.editText('initial text');
 
+      setImmediate(() => mockProcess.emit('error', new Error('spawn failed')));
+
+      await expect(promise).rejects.toThrow('Failed to launch editor: spawn failed');
+
+      expect(mockRemoveCallback).toHaveBeenCalled();
+    });
+  });
+
+  describe('temp file cleanup', () => {
+    it('should call removeCallback on successful edit', async () => {
+      const mockProcess = new EventEmitter() as any;
+      mockProcess.stdin = undefined;
+      mockProcess.stdout = undefined;
+      mockProcess.stderr = undefined;
+      mockSpawn.mockReturnValue(mockProcess);
+      mockReadFile.mockResolvedValue('edited content');
+
+      const promise = launcher.editText('initial text');
+      setImmediate(() => mockProcess.emit('exit', 0));
+      await promise;
+
+      expect(mockRemoveCallback).toHaveBeenCalledTimes(1);
+    });
+
+    it('should log warning when cleanup fails but continue successfully', async () => {
+      const mockProcess = new EventEmitter() as any;
+      mockProcess.stdin = undefined;
+      mockProcess.stdout = undefined;
+      mockProcess.stderr = undefined;
+      mockSpawn.mockReturnValue(mockProcess);
+      mockReadFile.mockResolvedValue('edited content');
+
+      // Mock cleanup failure
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      mockRemoveCallback.mockImplementation(() => {
+        throw new Error('EACCES: permission denied');
+      });
+
+      const promise = launcher.editText('initial text');
+      setImmediate(() => mockProcess.emit('exit', 0));
+      const result = await promise;
+
+      expect(result).toBe('edited content');
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to cleanup temp file'),
+        expect.any(Error)
+      );
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('should call removeCallback on editor error', async () => {
+      const mockProcess = new EventEmitter() as any;
+      mockProcess.stdin = undefined;
+      mockProcess.stdout = undefined;
+      mockProcess.stderr = undefined;
+      mockSpawn.mockReturnValue(mockProcess);
+
+      const promise = launcher.editText('initial text');
       setImmediate(() => mockProcess.emit('error', new Error('spawn failed')));
 
       await expect(promise).rejects.toThrow();
-
-      expect(mockUnlinkSync).toHaveBeenCalled();
+      expect(mockRemoveCallback).toHaveBeenCalledTimes(1);
     });
 
-    it('should handle cleanup errors gracefully', async () => {
+    it('should log warning when error-path cleanup fails', async () => {
       const mockProcess = new EventEmitter() as any;
       mockProcess.stdin = undefined;
       mockProcess.stdout = undefined;
       mockProcess.stderr = undefined;
       mockSpawn.mockReturnValue(mockProcess);
-      mockUnlinkSync.mockImplementation(() => {
-        throw new Error('cleanup failed');
+
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      mockRemoveCallback.mockImplementation(() => {
+        throw new Error('ENOENT: file not found');
       });
 
       const promise = launcher.editText('initial text');
-
       setImmediate(() => mockProcess.emit('error', new Error('spawn failed')));
 
-      // Should still reject with spawn error, not cleanup error
-      await expect(promise).rejects.toThrow('Failed to launch editor: spawn failed');
+      await expect(promise).rejects.toThrow('Failed to launch editor');
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to cleanup temp file'),
+        expect.any(Error)
+      );
+
+      consoleWarnSpy.mockRestore();
     });
   });
 
   describe('file extension handling', () => {
-    beforeEach(() => {
-      // Reset mock to not throw for these tests
-      mockUnlinkSync.mockImplementation(() => {
-        // Successful cleanup
-      });
-    });
-
     it('should use .py extension for Python syntax highlighting', async () => {
       const mockProcess = new EventEmitter() as any;
       mockProcess.stdin = undefined;
       mockProcess.stdout = undefined;
       mockProcess.stderr = undefined;
       mockSpawn.mockReturnValue(mockProcess);
-      mockReadFileSync.mockReturnValue('edited content');
+      mockReadFile.mockResolvedValue('edited content');
+
+      // Mock tmpFile to return .py extension
+      mockTmpFile.mockImplementation((options, callback) => {
+        callback(null, '/tmp/docimp-edit-123456.py', 3, mockRemoveCallback);
+      });
 
       const promise = launcher.editText('def foo():', '.py');
 
@@ -309,10 +388,9 @@ describe('EditorLauncher', () => {
 
       await promise;
 
-      expect(mockWriteFileSync).toHaveBeenCalledWith(
-        expect.stringMatching(/\.py$/),
-        'def foo():',
-        'utf-8'
+      expect(mockTmpFile).toHaveBeenCalledWith(
+        expect.objectContaining({ postfix: '.py' }),
+        expect.any(Function)
       );
     });
 
@@ -322,7 +400,12 @@ describe('EditorLauncher', () => {
       mockProcess.stdout = undefined;
       mockProcess.stderr = undefined;
       mockSpawn.mockReturnValue(mockProcess);
-      mockReadFileSync.mockReturnValue('edited content');
+      mockReadFile.mockResolvedValue('edited content');
+
+      // Mock tmpFile to return .js extension
+      mockTmpFile.mockImplementation((options, callback) => {
+        callback(null, '/tmp/docimp-edit-123456.js', 3, mockRemoveCallback);
+      });
 
       const promise = launcher.editText('function foo() {}', '.js');
 
@@ -330,10 +413,9 @@ describe('EditorLauncher', () => {
 
       await promise;
 
-      expect(mockWriteFileSync).toHaveBeenCalledWith(
-        expect.stringMatching(/\.js$/),
-        'function foo() {}',
-        'utf-8'
+      expect(mockTmpFile).toHaveBeenCalledWith(
+        expect.objectContaining({ postfix: '.js' }),
+        expect.any(Function)
       );
     });
   });
@@ -346,7 +428,7 @@ describe('EditorLauncher', () => {
       mockProcess.stdout = undefined;
       mockProcess.stderr = undefined;
       mockSpawn.mockReturnValue(mockProcess);
-      mockReadFileSync.mockReturnValue('edited content');
+      mockReadFile.mockResolvedValue('edited content');
 
       const promise = launcher.editText('initial text');
 
@@ -366,7 +448,7 @@ describe('EditorLauncher', () => {
       mockProcess.stdout = undefined;
       mockProcess.stderr = undefined;
       mockSpawn.mockReturnValue(mockProcess);
-      mockReadFileSync.mockReturnValue('edited content');
+      mockReadFile.mockResolvedValue('edited content');
 
       const promise = launcher.editText('initial text');
 
@@ -389,7 +471,7 @@ describe('EditorLauncher', () => {
       mockProcess.stdout = undefined;
       mockProcess.stderr = undefined;
       mockSpawn.mockReturnValue(mockProcess);
-      mockReadFileSync.mockReturnValue('edited content');
+      mockReadFile.mockResolvedValue('edited content');
 
       const promise = launcher.editText('initial text');
 
@@ -438,7 +520,7 @@ describe('EditorLauncher', () => {
       mockProcess.stdout = undefined;
       mockProcess.stderr = undefined;
       mockSpawn.mockReturnValue(mockProcess);
-      mockReadFileSync.mockReturnValue('edited content');
+      mockReadFile.mockResolvedValue('edited content');
 
       const promise = launcher.editText('initial text');
 
