@@ -597,6 +597,23 @@ describe('InteractiveSession', () => {
       await session.run([mockPlanItem]);
 
       expect(mockPythonBridge.suggest).toHaveBeenCalledTimes(2);
+
+      // Verify first call has no feedback
+      expect(mockPythonBridge.suggest).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        target: 'test.js:testFunction',
+        styleGuide: 'jsdoc-vanilla',
+        tone: 'concise',
+        feedback: undefined,
+      }));
+
+      // Verify second call includes feedback
+      expect(mockPythonBridge.suggest).toHaveBeenNthCalledWith(2, expect.objectContaining({
+        target: 'test.js:testFunction',
+        styleGuide: 'jsdoc-vanilla',
+        tone: 'concise',
+        feedback: 'Make it better',
+      }));
+
       expect(mockPythonBridge.apply).toHaveBeenCalledWith(
         expect.objectContaining({
           docstring: '/** Second suggestion */',
