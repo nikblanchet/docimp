@@ -19,8 +19,8 @@ jest.mock('fs', () => {
     promises: {
       writeFile: jest.fn(),
       readFile: jest.fn(),
-      close: jest.fn(),
     },
+    close: jest.fn((fd, callback) => callback(null)), // Mock callback-based close
     constants: actualFs.constants, // tmp library needs these
   };
 });
@@ -29,7 +29,6 @@ jest.mock('tmp');
 const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
 const mockWriteFile = fs.writeFile as jest.MockedFunction<typeof fs.writeFile>;
 const mockReadFile = fs.readFile as jest.MockedFunction<typeof fs.readFile>;
-const mockClose = fs.close as jest.MockedFunction<typeof fs.close>;
 const mockTmpFile = tmp.file as jest.MockedFunction<typeof tmp.file>;
 
 describe('EditorLauncher', () => {
@@ -48,7 +47,6 @@ describe('EditorLauncher', () => {
     });
 
     // Mock fs operations to succeed by default
-    mockClose.mockResolvedValue(undefined);
     mockWriteFile.mockResolvedValue(undefined);
     mockReadFile.mockResolvedValue('edited content');
   });
