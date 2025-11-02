@@ -7,16 +7,14 @@ module patterns, JSDoc edge cases, and complexity calculation accuracy.
 import sys
 from pathlib import Path
 import pytest
-import tempfile
 import subprocess
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import os
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.parsers.typescript_parser import TypeScriptParser
-from src.models.code_item import CodeItem
 
 # Test fixture paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -60,7 +58,7 @@ class TestTypeScriptParserFileSystemErrors:
             # Restore permissions for cleanup
             try:
                 os.chmod(restricted_file, 0o644)
-            except:
+            except OSError:
                 pass
 
     def test_empty_file_handling(self, parser, tmp_path):
