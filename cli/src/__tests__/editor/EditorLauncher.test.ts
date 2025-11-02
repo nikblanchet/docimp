@@ -12,13 +12,18 @@ import { EventEmitter } from 'events';
 
 // Mock child_process, fs, and tmp modules
 jest.mock('child_process');
-jest.mock('fs', () => ({
-  promises: {
-    writeFile: jest.fn(),
-    readFile: jest.fn(),
-    close: jest.fn(),
-  }
-}));
+jest.mock('fs', () => {
+  const actualFs = jest.requireActual('fs');
+  return {
+    ...actualFs,
+    promises: {
+      writeFile: jest.fn(),
+      readFile: jest.fn(),
+      close: jest.fn(),
+    },
+    constants: actualFs.constants, // tmp library needs these
+  };
+});
 jest.mock('tmp');
 
 const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
