@@ -4,7 +4,7 @@
 
 DocImp analyzes your Python, TypeScript, and JavaScript codebases to identify undocumented code, prioritizes it by impact score, and uses Claude AI to generate high-quality documentation with validation gates.
 
-[![CI Status](https://github.com/USERNAME/docimp/workflows/CI/badge.svg)](https://github.com/USERNAME/docimp/actions)
+[![CI Status](https://github.com/nikblanchet/docimp/workflows/CI/badge.svg)](https://github.com/nikblanchet/docimp/actions)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![Node.js 22](https://img.shields.io/badge/node-22-green.svg)](https://nodejs.org/)
 [![License: AGPL-3.0 or Commercial](https://img.shields.io/badge/License-AGPL%20v3%20%7C%20Commercial-blue.svg)](./LICENSE)
@@ -88,7 +88,7 @@ DocImp treats JavaScript as a **first-class language**, not just "TypeScript tha
 
 ```bash
 # Clone and install from source
-git clone https://github.com/USERNAME/docimp.git
+git clone https://github.com/nikblanchet/docimp.git
 cd docimp
 
 # Install Python dependencies
@@ -148,16 +148,16 @@ docimp improve ./src
 
 - **Python**: 3.13 (untested on other versions)
 - **Node.js**: 22 (untested on other versions)
-- **Git**: 2.x or higher (Git CLI is required for rollback/undo functionality)
+- **Git**: 2.28 or later (Git CLI is required for rollback/undo functionality)
 - **Claude API Key**: From [console.anthropic.com](https://console.anthropic.com)
 
-**Note on Git**: DocImp uses the Git CLI to track documentation changes for rollback capability. If Git is not installed, DocImp will run without rollback features (graceful degradation). Future versions will include Dulwich (Apache 2.0 license) as a pure-Python fallback.
+**Note on Git**: DocImp uses the Git CLI to track documentation changes for rollback capability. The transaction system requires Git 2.28+ (released July 2020) for improved working tree handling with `--git-dir` and `--work-tree` flags. Check your version with `git --version`. If Git is not installed or is older than 2.28, DocImp will run without rollback features (graceful degradation). See the [Git installation guide](https://git-scm.com/downloads) for installation instructions. Future versions will include Dulwich (Apache 2.0 license) as a pure-Python fallback.
 
 ### Install from Source
 
 ```bash
 # Clone repository
-git clone https://github.com/USERNAME/docimp.git
+git clone https://github.com/nikblanchet/docimp.git
 cd docimp
 
 # Install Python dependencies
@@ -1080,7 +1080,7 @@ Contributions welcome! See `CONTRIBUTING.md` for guidelines.
 
 ```bash
 # Clone repository
-git clone https://github.com/USERNAME/docimp.git
+git clone https://github.com/nikblanchet/docimp.git
 cd docimp
 
 # Python setup
