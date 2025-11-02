@@ -411,6 +411,10 @@ export class PythonBridge implements IPythonBridge {
       args.push('--verbose');
     }
 
+    if (options.feedback) {
+      args.push('--feedback', options.feedback);
+    }
+
     // suggest command returns plain text, not JSON
     return this.executePythonText(args, options.verbose);
   }

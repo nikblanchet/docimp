@@ -334,3 +334,133 @@ class TestAllStyleGuidesAvailable:
         for style in ts_styles:
             builder = PromptBuilder(style_guide=style)
             assert builder.style_guide == style
+
+
+class TestFeedbackIntegration:
+    """Test feedback integration for documentation regeneration."""
+
+    def test_prompt_without_feedback(self):
+        """Test that prompt without feedback does not include feedback section."""
+        builder = PromptBuilder(style_guide='google', tone='concise')
+        prompt = builder.build_prompt(
+            code='def add(a, b):\n    return a + b',
+            item_name='add',
+            item_type='function',
+            language='python'
+        )
+
+        assert 'User Feedback from Previous Attempt:' not in prompt
+        assert 'IMPORTANT: Address the above feedback' not in prompt
+
+    def test_prompt_with_feedback(self):
+        """Test that prompt with feedback includes feedback section."""
+        builder = PromptBuilder(style_guide='google', tone='concise')
+        feedback_text = 'Add more detail about error handling and edge cases'
+        prompt = builder.build_prompt(
+            code='def add(a, b):\n    return a + b',
+            item_name='add',
+            item_type='function',
+            language='python',
+            feedback=feedback_text
+        )
+
+        assert 'User Feedback from Previous Attempt:' in prompt
+        assert feedback_text in prompt
+        assert 'IMPORTANT: Address the above feedback in your revised documentation.' in prompt
+
+    def test_prompt_with_multiline_feedback(self):
+        """Test that prompt correctly handles multiline feedback."""
+        builder = PromptBuilder(style_guide='google', tone='concise')
+        feedback_text = '''Please improve the documentation by:
+1. Adding more details about parameters
+2. Including examples of edge cases
+3. Explaining the return value more clearly'''
+        prompt = builder.build_prompt(
+            code='def add(a, b):\n    return a + b',
+            item_name='add',
+            item_type='function',
+            language='python',
+            feedback=feedback_text
+        )
+
+        assert 'User Feedback from Previous Attempt:' in prompt
+        assert 'Adding more details about parameters' in prompt
+        assert 'Including examples of edge cases' in prompt
+        assert 'Explaining the return value more clearly' in prompt
+
+    def test_prompt_with_special_characters_in_feedback(self):
+        """Test that prompt handles special characters in feedback."""
+        builder = PromptBuilder(style_guide='google', tone='concise')
+        feedback_text = 'Include @param annotations, use `code` formatting, and add "quotes"'
+        prompt = builder.build_prompt(
+            code='def add(a, b):\n    return a + b',
+            item_name='add',
+            item_type='function',
+            language='python',
+            feedback=feedback_text
+        )
+
+        assert 'User Feedback from Previous Attempt:' in prompt
+        assert '@param annotations' in prompt
+        assert '`code` formatting' in prompt
+        assert '"quotes"' in prompt
+
+    def test_feedback_stripped_of_whitespace(self):
+        """Test that feedback is stripped of leading/trailing whitespace."""
+        builder = PromptBuilder(style_guide='google', tone='concise')
+        feedback_text = '   Add more details   \n\n'
+        prompt = builder.build_prompt(
+            code='def add(a, b):\n    return a + b',
+            item_name='add',
+            item_type='function',
+            language='python',
+            feedback=feedback_text
+        )
+
+        assert 'User Feedback from Previous Attempt:' in prompt
+        assert 'Add more details' in prompt
+        # Ensure no extra whitespace around feedback
+        assert '   Add more details   \n\n' not in prompt
+
+    def test_feedback_placement_after_context(self):
+        """Test that feedback appears after context but before requirements."""
+        builder = PromptBuilder(style_guide='google', tone='concise')
+        prompt = builder.build_prompt(
+            code='def add(a, b):\n    return a + b',
+            item_name='add',
+            item_type='function',
+            language='python',
+            context='# Math utilities',
+            feedback='Add more detail'
+        )
+
+        # Find positions of key sections
+        context_pos = prompt.find('Surrounding context:')
+        feedback_pos = prompt.find('User Feedback from Previous Attempt:')
+        requirements_pos = prompt.find('Requirements:')
+
+        # Feedback should appear after context and before requirements
+        assert context_pos < feedback_pos < requirements_pos
+
+    def test_feedback_works_with_all_style_guides(self):
+        """Test that feedback integration works with all style guides."""
+        test_styles = [
+            ('google', 'python'),
+            ('numpy-rest', 'python'),
+            ('jsdoc-vanilla', 'javascript'),
+            ('tsdoc-typedoc', 'typescript'),
+        ]
+
+        for style, language in test_styles:
+            builder = PromptBuilder(style_guide=style, tone='concise')
+            prompt = builder.build_prompt(
+                code='function test() {}',
+                item_name='test',
+                item_type='function',
+                language=language,
+                feedback='Add more detail'
+            )
+
+            assert 'User Feedback from Previous Attempt:' in prompt
+            assert 'Add more detail' in prompt
+            assert 'IMPORTANT: Address the above feedback' in prompt

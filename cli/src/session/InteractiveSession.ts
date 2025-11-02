@@ -295,9 +295,7 @@ export class InteractiveSession implements IInteractiveSession {
       const target = `${item.filepath}:${item.name}`;
 
       if (feedback) {
-        // For regeneration, we'd need to extend the Python CLI to accept feedback
-        // For MVP, just note this limitation
-        console.log(chalk.yellow('Note: Feedback integration is a future enhancement'));
+        console.log(chalk.dim('Regenerating with your feedback...'));
       }
 
       // Lookup style guide for this item's language
@@ -314,6 +312,7 @@ export class InteractiveSession implements IInteractiveSession {
         timeout: this.config.claude?.timeout,
         maxRetries: this.config.claude?.maxRetries,
         retryDelay: this.config.claude?.retryDelay,
+        feedback,
       });
 
       return result.trim();

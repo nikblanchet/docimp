@@ -214,7 +214,8 @@ Calculate the sum of two numbers.
         item_name: str,
         item_type: str,
         language: str,
-        context: Optional[str] = None
+        context: Optional[str] = None,
+        feedback: Optional[str] = None
     ) -> str:
         """
         Build a documentation generation prompt.
@@ -231,6 +232,9 @@ Calculate the sum of two numbers.
             Programming language: 'python', 'javascript', 'typescript'.
         context : str, optional
             Additional surrounding code context.
+        feedback : str, optional
+            User feedback from a previous documentation attempt, used when
+            regenerating documentation to address specific user concerns.
 
         Returns
         -------
@@ -262,6 +266,15 @@ Calculate the sum of two numbers.
                 "```" + language,
                 context.strip(),
                 "```",
+            ])
+
+        if feedback:
+            prompt_parts.extend([
+                "",
+                "User Feedback from Previous Attempt:",
+                feedback.strip(),
+                "",
+                "IMPORTANT: Address the above feedback in your revised documentation.",
             ])
 
         prompt_parts.extend([

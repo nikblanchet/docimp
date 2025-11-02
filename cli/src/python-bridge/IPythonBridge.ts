@@ -84,6 +84,9 @@ export interface SuggestOptions {
 
   /** Enable verbose output */
   verbose?: boolean;
+
+  /** User feedback for regeneration */
+  feedback?: string;
 }
 
 /**
