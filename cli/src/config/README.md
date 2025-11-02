@@ -320,6 +320,104 @@ If you don't provide a configuration file, DocImp uses these defaults:
 }
 ```
 
+## Error Messages
+
+ConfigLoader provides categorized error messages to help diagnose configuration loading issues.
+
+### Syntax Errors
+
+Invalid JavaScript in the config file (missing commas, unclosed brackets, etc.):
+
+**Example Error:**
+```
+Configuration file has invalid JavaScript syntax
+
+Config file: /path/to/docimp.config.js
+
+Technical details:
+Unexpected token } (line 5, column 3)
+
+Suggestions:
+  - Check for missing commas between object properties
+  - Verify all brackets and braces are properly closed
+  - Validate JavaScript syntax in your editor
+  - Try testing your config with: node docimp.config.js
+```
+
+**Common Causes:**
+- Missing comma between object properties
+- Unclosed brackets or braces
+- Invalid JavaScript syntax
+
+**How to Fix:**
+1. Check the line number in "Technical details"
+2. Look for missing commas or brackets near that location
+3. Test your config with `node docimp.config.js` to see Node's native error
+4. Use an editor with JavaScript syntax highlighting
+
+### Runtime Errors
+
+Config file is valid JavaScript but fails to execute (missing imports, invalid exports, etc.):
+
+**Example Error:**
+```
+Configuration file failed to load
+
+Config file: /path/to/docimp.config.js
+
+Technical details:
+Cannot find module './missing-module.js'
+
+Suggestions:
+  - Verify all import/require paths are correct
+  - Check that imported modules exist
+  - Ensure relative paths start with ./ or ../
+  - Try testing your config with: node docimp.config.js
+```
+
+**Common Causes:**
+- Missing or incorrect import paths
+- Module not found
+- Incorrect export syntax
+- Circular dependencies
+
+**How to Fix:**
+1. Verify all `import` or `require` statements have correct paths
+2. Check that imported files exist
+3. Ensure relative paths start with `./` or `../`
+4. Test with `node docimp.config.js` for detailed error messages
+
+### Path Errors
+
+File not found or invalid path:
+
+**Example Error:**
+```
+Config file not found: /path/to/nonexistent.js
+
+Please check that the config file exists and try again.
+```
+
+**How to Fix:**
+1. Verify the file path is correct
+2. Check file exists at the specified location
+3. Use absolute paths or paths relative to current directory
+4. For auto-discovery, ensure file is named `docimp.config.js` in current directory
+
+### Testing Your Configuration
+
+The best way to debug configuration issues is to test the file directly with Node.js:
+
+```bash
+# Test if your config file loads correctly
+node docimp.config.js
+
+# If it loads without errors, you should see no output
+# If there are errors, Node.js will show detailed error messages
+```
+
+This bypasses DocImp and shows you exactly what Node.js sees.
+
 ## Troubleshooting
 
 ### Configuration Not Loading

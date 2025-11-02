@@ -13,6 +13,7 @@ import type { IConfig } from './IConfig.js';
 import { defaultConfig } from './IConfig.js';
 import { validateAndMerge } from './ConfigValidator.js';
 import type { IConfigLoader } from './IConfigLoader.js';
+import { ConfigErrorClassifier } from './ConfigErrorClassifier.js';
 
 /**
  * Configuration loader class.
@@ -70,9 +71,28 @@ export class ConfigLoader implements IConfigLoader {
       // Handle both CommonJS (default export) and ESM
       userConfig = module.default || module;
     } catch (error) {
-      throw new Error(
-        `Failed to load configuration file: ${resolvedPath}\n${error instanceof Error ? error.message : String(error)}`
-      );
+      // Classify the error and provide helpful feedback
+      const errorDetails = ConfigErrorClassifier.classify(error, resolvedPath);
+
+      // Build comprehensive error message
+      const errorMessage = [
+        errorDetails.userMessage,
+        '',
+        `Config file: ${resolvedPath}`,
+        '',
+        'Technical details:',
+        errorDetails.technicalDetails,
+      ];
+
+      if (errorDetails.suggestions.length > 0) {
+        errorMessage.push('');
+        errorMessage.push('Suggestions:');
+        errorDetails.suggestions.forEach((suggestion) => {
+          errorMessage.push(`  - ${suggestion}`);
+        });
+      }
+
+      throw new Error(errorMessage.join('\n'));
     }
 
     // Validate and merge with defaults
