@@ -10,12 +10,41 @@ import Table from 'cli-table3';
 import ora, { Ora } from 'ora';
 import type { IDisplay } from './IDisplay.js';
 import type { AnalysisResult, CodeItem, LanguageMetrics, AuditSummary, ParseFailure, SessionSummary, TransactionEntry, RollbackResult } from '../types/analysis.js';
+import { shouldUseCompactMode, COMPACT_TABLE_CHARS, COMPACT_TABLE_STYLE } from '../utils/terminalWidth.js';
 
 /**
  * Terminal display implementation with rich formatting.
  */
 export class TerminalDisplay implements IDisplay {
   private spinner: Ora | null = null;
+
+  /**
+   * Create a responsive table that adapts to terminal width.
+   *
+   * For terminals >= 80 columns, creates a full table with borders.
+   * For narrow terminals (< 80 columns), creates a compact borderless table.
+   *
+   * @param headers - Column headers
+   * @param fullWidths - Column widths for full table mode (>= 80 cols)
+   * @param compactWidths - Column widths for compact mode (< 80 cols)
+   * @returns Configured cli-table3 Table instance
+   */
+  private createResponsiveTable(
+    headers: string[],
+    fullWidths: number[],
+    compactWidths: number[]
+  ) {
+    const isCompact = shouldUseCompactMode(80);
+
+    return new Table({
+      head: headers,
+      colWidths: isCompact ? compactWidths : fullWidths,
+      chars: isCompact ? COMPACT_TABLE_CHARS : undefined,
+      style: isCompact
+        ? COMPACT_TABLE_STYLE
+        : { head: [], border: ['grey'] }
+    });
+  }
 
   /**
    * Display complete analysis results with formatting.
@@ -79,20 +108,17 @@ export class TerminalDisplay implements IDisplay {
     console.log(chalk.bold('By Language:'));
     console.log('');
 
-    const table = new Table({
-      head: [
+    const table = this.createResponsiveTable(
+      [
         chalk.cyan('Language'),
         chalk.cyan('Coverage'),
         chalk.cyan('Items'),
         chalk.cyan('Avg Complexity'),
         chalk.cyan('Avg Impact')
       ],
-      colWidths: [15, 15, 15, 18, 15],
-      style: {
-        head: [],
-        border: ['grey']
-      }
-    });
+      [15, 15, 15, 18, 15],  // Full widths
+      [12, 12, 12, 14, 12]   // Compact widths
+    );
 
     // Sort languages alphabetically
     const languages = Object.keys(byLanguage).sort();
@@ -127,19 +153,16 @@ export class TerminalDisplay implements IDisplay {
       .sort((a, b) => b.impact_score - a.impact_score)
       .slice(0, 10);
 
-    const table = new Table({
-      head: [
+    const table = this.createResponsiveTable(
+      [
         chalk.cyan('Score'),
         chalk.cyan('Type'),
         chalk.cyan('Name'),
         chalk.cyan('Location')
       ],
-      colWidths: [10, 12, 30, 40],
-      style: {
-        head: [],
-        border: ['grey']
-      }
-    });
+      [10, 12, 30, 40],  // Full widths
+      [8, 10, 20, 28]    // Compact widths
+    );
 
     for (const item of sorted) {
       const scoreColor = this.getImpactColor(item.impact_score);
@@ -246,20 +269,17 @@ export class TerminalDisplay implements IDisplay {
       console.log('');
     }
 
-    const table = new Table({
-      head: [
+    const table = this.createResponsiveTable(
+      [
         chalk.cyan('Name'),
         chalk.cyan('Type'),
         chalk.cyan('Language'),
         chalk.cyan('Impact'),
         chalk.cyan('Location')
       ],
-      colWidths: [25, 12, 12, 10, 35],
-      style: {
-        head: [],
-        border: ['grey']
-      }
-    });
+      [25, 12, 12, 10, 35],  // Full widths
+      [18, 10, 10, 8, 20]    // Compact widths
+    );
 
     for (const item of items) {
       const scoreColor = this.getImpactColor(item.impact_score);
@@ -553,19 +573,16 @@ export class TerminalDisplay implements IDisplay {
 
     console.log(chalk.bold('\nActive Documentation Sessions\n'));
 
-    const table = new Table({
-      head: [
+    const table = this.createResponsiveTable(
+      [
         chalk.cyan('Session ID'),
         chalk.cyan('Started'),
         chalk.cyan('Changes'),
         chalk.cyan('Status')
       ],
-      colWidths: [38, 20, 10, 20],
-      style: {
-        head: [],
-        border: []
-      }
-    });
+      [38, 20, 10, 20],  // Full widths
+      [28, 16, 8, 14]    // Compact widths
+    );
 
     for (const session of sessions) {
       const statusColor = session.status === 'in_progress' ? chalk.yellow :
@@ -597,19 +614,16 @@ export class TerminalDisplay implements IDisplay {
 
     console.log(chalk.bold(`\nChanges in Session: ${sessionId}\n`));
 
-    const table = new Table({
-      head: [
+    const table = this.createResponsiveTable(
+      [
         chalk.cyan('Entry ID'),
         chalk.cyan('File'),
         chalk.cyan('Item'),
         chalk.cyan('Timestamp')
       ],
-      colWidths: [12, 40, 25, 20],
-      style: {
-        head: [],
-        border: []
-      }
-    });
+      [12, 40, 25, 20],  // Full widths
+      [10, 28, 18, 16]   // Compact widths
+    );
 
     for (const change of changes) {
       // Truncate filepath if too long
