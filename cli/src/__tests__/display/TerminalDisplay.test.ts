@@ -2,6 +2,27 @@
  * Integration tests for TerminalDisplay responsive behavior.
  */
 
+// Mock ESM modules
+jest.mock('ora', () => ({
+  default: () => ({
+    start: () => ({ stop: () => {}, succeed: () => {}, fail: () => {} }),
+  }),
+}));
+
+jest.mock('chalk', () => {
+  const createChainableChalk = (): any => {
+    const chalkMock: any = (str: string) => str;
+    const methods = ['bold', 'dim', 'green', 'yellow', 'red', 'blue', 'cyan', 'gray'];
+    methods.forEach(method => {
+      chalkMock[method] = chalkMock;
+    });
+    return chalkMock;
+  };
+
+  const chalk = createChainableChalk();
+  return { default: chalk, ...chalk };
+});
+
 import { TerminalDisplay } from '../../display/TerminalDisplay.js';
 import type { AnalysisResult, CodeItem, LanguageMetrics, SessionSummary, TransactionEntry } from '../../types/analysis.js';
 
