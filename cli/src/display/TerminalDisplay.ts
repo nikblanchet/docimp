@@ -33,7 +33,7 @@ export class TerminalDisplay implements IDisplay {
     headers: string[],
     fullWidths: number[],
     compactWidths: number[]
-  ): Table {
+  ) {
     const isCompact = shouldUseCompactMode(80);
 
     return new Table({

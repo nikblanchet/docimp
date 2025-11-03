@@ -9,7 +9,7 @@
  * Character set for compact tables without borders.
  * Used when terminal width is below threshold to maximize content space.
  */
-export const COMPACT_TABLE_CHARS = {
+export const COMPACT_TABLE_CHARS: Record<string, string> = {
   'top': '',
   'top-mid': '',
   'top-left': '',
@@ -25,17 +25,17 @@ export const COMPACT_TABLE_CHARS = {
   'right': '',
   'right-mid': '',
   'middle': ' '
-} as const;
+};
 
 /**
  * Compact table style configuration for narrow terminals.
  * Removes padding and header styling to conserve space.
  */
-export const COMPACT_TABLE_STYLE = {
+export const COMPACT_TABLE_STYLE: { 'padding-left': number; 'padding-right': number; head: string[] } = {
   'padding-left': 0,
   'padding-right': 1,
   head: []
-} as const;
+};
 
 /**
  * Gets the current terminal width in columns.
