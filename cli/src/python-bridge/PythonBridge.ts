@@ -130,6 +130,10 @@ export class PythonBridge implements IPythonBridge {
   private readonly defaultTimeout: number;
   private readonly suggestTimeout: number;
   private readonly killEscalationDelay: number;
+  private readonly gitTimeoutBase: number;
+  private readonly gitTimeoutFastScale: number;
+  private readonly gitTimeoutSlowScale: number;
+  private readonly gitTimeoutMax: number;
 
   /**
    * Create a new Python bridge.
@@ -195,6 +199,60 @@ export class PythonBridge implements IPythonBridge {
         `Delay must be a finite number (not Infinity or NaN).`
       );
     }
+
+    // Load git timeout settings from config or use defaults
+    this.gitTimeoutBase = config?.transaction?.git?.baseTimeout ?? defaultConfig.transaction!.git!.baseTimeout!;
+    this.gitTimeoutFastScale = config?.transaction?.git?.fastScale ?? defaultConfig.transaction!.git!.fastScale!;
+    this.gitTimeoutSlowScale = config?.transaction?.git?.slowScale ?? defaultConfig.transaction!.git!.slowScale!;
+    this.gitTimeoutMax = config?.transaction?.git?.maxTimeout ?? defaultConfig.transaction!.git!.maxTimeout!;
+
+    // Validate git timeout values
+    if (this.gitTimeoutBase <= 0 || !Number.isFinite(this.gitTimeoutBase)) {
+      throw new Error(
+        `Invalid transaction.git.baseTimeout: ${this.gitTimeoutBase}. ` +
+        `Must be a positive finite number (milliseconds).`
+      );
+    }
+    if (this.gitTimeoutFastScale <= 0 || !Number.isFinite(this.gitTimeoutFastScale)) {
+      throw new Error(
+        `Invalid transaction.git.fastScale: ${this.gitTimeoutFastScale}. ` +
+        `Must be a positive finite number.`
+      );
+    }
+    if (this.gitTimeoutSlowScale <= 0 || !Number.isFinite(this.gitTimeoutSlowScale)) {
+      throw new Error(
+        `Invalid transaction.git.slowScale: ${this.gitTimeoutSlowScale}. ` +
+        `Must be a positive finite number.`
+      );
+    }
+    if (this.gitTimeoutMax <= 0 || !Number.isFinite(this.gitTimeoutMax)) {
+      throw new Error(
+        `Invalid transaction.git.maxTimeout: ${this.gitTimeoutMax}. ` +
+        `Must be a positive finite number (milliseconds).`
+      );
+    }
+  }
+
+  /**
+   * Build git timeout CLI arguments from config.
+   *
+   * Generates --git-timeout-base, --git-timeout-fast-scale, --git-timeout-slow-scale,
+   * and --git-timeout-max arguments for transaction commands.
+   *
+   * @returns Array of CLI argument strings
+   * @private
+   */
+  private buildGitTimeoutArgs(): string[] {
+    return [
+      '--git-timeout-base',
+      this.gitTimeoutBase.toString(),
+      '--git-timeout-fast-scale',
+      this.gitTimeoutFastScale.toString(),
+      '--git-timeout-slow-scale',
+      this.gitTimeoutSlowScale.toString(),
+      '--git-timeout-max',
+      this.gitTimeoutMax.toString()
+    ];
   }
 
   /**
@@ -863,7 +921,8 @@ export class PythonBridge implements IPythonBridge {
       'begin-transaction',
       sessionId,
       '--format',
-      'json'
+      'json',
+      ...this.buildGitTimeoutArgs()
     ];
 
     const result = await this.executePython<z.infer<typeof GenericSuccessSchema>>(
@@ -911,7 +970,8 @@ export class PythonBridge implements IPythonBridge {
       itemType,
       language,
       '--format',
-      'json'
+      'json',
+      ...this.buildGitTimeoutArgs()
     ];
 
     const result = await this.executePython<z.infer<typeof GenericSuccessSchema>>(
@@ -942,7 +1002,8 @@ export class PythonBridge implements IPythonBridge {
       'commit-transaction',
       sessionId,
       '--format',
-      'json'
+      'json',
+      ...this.buildGitTimeoutArgs()
     ];
 
     const result = await this.executePython<z.infer<typeof GenericSuccessSchema>>(

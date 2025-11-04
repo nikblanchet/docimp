@@ -18,7 +18,7 @@ from .parsers.python_parser import PythonParser
 from .parsers.typescript_parser import TypeScriptParser
 from .planning.plan_generator import generate_plan, save_plan
 from .scoring.impact_scorer import ImpactScorer
-from .utils.git_helper import GitHelper
+from .utils.git_helper import GitHelper, GitTimeoutConfig
 from .utils.state_manager import StateManager
 from .writer.docstring_writer import DocstringWriter
 from .writer.transaction_manager import TransactionManager
@@ -691,6 +691,23 @@ def cmd_list_changes(
             import traceback
             traceback.print_exc(file=sys.stderr)
         return 1
+
+
+def _build_git_timeout_config(args: argparse.Namespace) -> GitTimeoutConfig:
+    """Build GitTimeoutConfig from CLI arguments.
+
+    Args:
+        args: Parsed command-line arguments with git timeout flags.
+
+    Returns:
+        GitTimeoutConfig instance with values from CLI or defaults.
+    """
+    return GitTimeoutConfig(
+        base_timeout_ms=getattr(args, 'git_timeout_base', 30000),
+        fast_scale=getattr(args, 'git_timeout_fast_scale', 0.167),
+        slow_scale=getattr(args, 'git_timeout_slow_scale', 4.0),
+        max_timeout_ms=getattr(args, 'git_timeout_max', 300000)
+    )
 
 
 def cmd_begin_transaction(
@@ -1483,6 +1500,30 @@ def main(argv: Optional[list] = None) -> int:
         action='store_true',
         help='Enable verbose output'
     )
+    begin_transaction_parser.add_argument(
+        '--git-timeout-base',
+        type=int,
+        default=30000,
+        help='Base timeout for default git operations (milliseconds, default: 30000)'
+    )
+    begin_transaction_parser.add_argument(
+        '--git-timeout-fast-scale',
+        type=float,
+        default=0.167,
+        help='Scale factor for fast git operations (default: 0.167, produces 5s)'
+    )
+    begin_transaction_parser.add_argument(
+        '--git-timeout-slow-scale',
+        type=float,
+        default=4.0,
+        help='Scale factor for slow git operations (default: 4.0, produces 120s)'
+    )
+    begin_transaction_parser.add_argument(
+        '--git-timeout-max',
+        type=int,
+        default=300000,
+        help='Maximum timeout cap for any git operation (milliseconds, default: 300000)'
+    )
 
     # Record-write command (record a documentation write in transaction)
     record_write_parser = subparsers.add_parser(
@@ -1524,6 +1565,30 @@ def main(argv: Optional[list] = None) -> int:
         action='store_true',
         help='Enable verbose output'
     )
+    record_write_parser.add_argument(
+        '--git-timeout-base',
+        type=int,
+        default=30000,
+        help='Base timeout for default git operations (milliseconds, default: 30000)'
+    )
+    record_write_parser.add_argument(
+        '--git-timeout-fast-scale',
+        type=float,
+        default=0.167,
+        help='Scale factor for fast git operations (default: 0.167, produces 5s)'
+    )
+    record_write_parser.add_argument(
+        '--git-timeout-slow-scale',
+        type=float,
+        default=4.0,
+        help='Scale factor for slow git operations (default: 4.0, produces 120s)'
+    )
+    record_write_parser.add_argument(
+        '--git-timeout-max',
+        type=int,
+        default=300000,
+        help='Maximum timeout cap for any git operation (milliseconds, default: 300000)'
+    )
 
     # Commit-transaction command (finalize transaction with squash merge)
     commit_transaction_parser = subparsers.add_parser(
@@ -1544,6 +1609,30 @@ def main(argv: Optional[list] = None) -> int:
         '--verbose',
         action='store_true',
         help='Enable verbose output'
+    )
+    commit_transaction_parser.add_argument(
+        '--git-timeout-base',
+        type=int,
+        default=30000,
+        help='Base timeout for default git operations (milliseconds, default: 30000)'
+    )
+    commit_transaction_parser.add_argument(
+        '--git-timeout-fast-scale',
+        type=float,
+        default=0.167,
+        help='Scale factor for fast git operations (default: 0.167, produces 5s)'
+    )
+    commit_transaction_parser.add_argument(
+        '--git-timeout-slow-scale',
+        type=float,
+        default=4.0,
+        help='Scale factor for slow git operations (default: 4.0, produces 120s)'
+    )
+    commit_transaction_parser.add_argument(
+        '--git-timeout-max',
+        type=int,
+        default=300000,
+        help='Maximum timeout cap for any git operation (milliseconds, default: 300000)'
     )
 
     # Rollback-session command (rollback entire session)
@@ -1673,17 +1762,20 @@ def main(argv: Optional[list] = None) -> int:
     elif args.command == 'begin-transaction':
         # Create transaction manager for beginning transaction
         base_path = Path.cwd()
-        manager = TransactionManager(base_path=base_path)
+        timeout_config = _build_git_timeout_config(args)
+        manager = TransactionManager(base_path=base_path, timeout_config=timeout_config)
         return cmd_begin_transaction(args, manager)
     elif args.command == 'record-write':
         # Create transaction manager for recording write
         base_path = Path.cwd()
-        manager = TransactionManager(base_path=base_path)
+        timeout_config = _build_git_timeout_config(args)
+        manager = TransactionManager(base_path=base_path, timeout_config=timeout_config)
         return cmd_record_write(args, manager)
     elif args.command == 'commit-transaction':
         # Create transaction manager for committing transaction
         base_path = Path.cwd()
-        manager = TransactionManager(base_path=base_path)
+        timeout_config = _build_git_timeout_config(args)
+        manager = TransactionManager(base_path=base_path, timeout_config=timeout_config)
         return cmd_commit_transaction(args, manager)
     elif args.command == 'rollback-session':
         # Create transaction manager for session rollback

@@ -914,3 +914,359 @@ describe('PythonBridge Analyzer Path Resolution', () => {
     });
   });
 });
+
+describe('PythonBridge Git Timeout Configuration', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  /**
+   * Helper to create a mock child process that completes successfully.
+   */
+  function mockSuccessfulProcess(jsonOutput: string): void {
+    const mockProcess = {
+      stdout: {
+        on: jest.fn((event: string, callback: (data: Buffer) => void) => {
+          if (event === 'data') {
+            callback(Buffer.from(jsonOutput));
+          }
+        }),
+      },
+      stderr: {
+        on: jest.fn(),
+      },
+      on: jest.fn((event: string, callback: (code: number) => void) => {
+        if (event === 'close') {
+          callback(0);
+        }
+      }),
+    };
+    mockSpawn.mockReturnValue(mockProcess as any);
+  }
+
+  describe('buildGitTimeoutArgs() behavior via transaction methods', () => {
+    it('should include git timeout args in beginTransaction call', async () => {
+      const config: IConfig = {
+        styleGuides: {},
+        tone: 'concise',
+        transaction: {
+          git: {
+            baseTimeout: 45000,
+            fastScale: 0.2,
+            slowScale: 5.0,
+            maxTimeout: 400000,
+          },
+        },
+      };
+
+      const bridge = new PythonBridge('python3', '/mock/analyzer', config);
+      mockSuccessfulProcess(JSON.stringify({ success: true }));
+
+      await bridge.beginTransaction('test-session-123');
+
+      // Verify spawn was called with expected git timeout args
+      const spawnCall = mockSpawn.mock.calls[0];
+      const args = spawnCall[1] as string[];
+
+      expect(args).toContain('--git-timeout-base');
+      expect(args[args.indexOf('--git-timeout-base') + 1]).toBe('45000');
+      expect(args).toContain('--git-timeout-fast-scale');
+      expect(args[args.indexOf('--git-timeout-fast-scale') + 1]).toBe('0.2');
+      expect(args).toContain('--git-timeout-slow-scale');
+      expect(args[args.indexOf('--git-timeout-slow-scale') + 1]).toBe('5');
+      expect(args).toContain('--git-timeout-max');
+      expect(args[args.indexOf('--git-timeout-max') + 1]).toBe('400000');
+    });
+
+    it('should use default git timeout values when config not provided', async () => {
+      const bridge = new PythonBridge('python3', '/mock/analyzer');
+      mockSuccessfulProcess(JSON.stringify({ success: true }));
+
+      await bridge.beginTransaction('test-session-123');
+
+      // Verify default values are used
+      const spawnCall = mockSpawn.mock.calls[0];
+      const args = spawnCall[1] as string[];
+
+      expect(args).toContain('--git-timeout-base');
+      expect(args[args.indexOf('--git-timeout-base') + 1]).toBe('30000');
+      expect(args).toContain('--git-timeout-fast-scale');
+      expect(args[args.indexOf('--git-timeout-fast-scale') + 1]).toBe('0.167');
+      expect(args).toContain('--git-timeout-slow-scale');
+      expect(args[args.indexOf('--git-timeout-slow-scale') + 1]).toBe('4');
+      expect(args).toContain('--git-timeout-max');
+      expect(args[args.indexOf('--git-timeout-max') + 1]).toBe('300000');
+    });
+
+    it('should include git timeout args in recordWrite call', async () => {
+      const config: IConfig = {
+        styleGuides: {},
+        tone: 'concise',
+        transaction: {
+          git: {
+            baseTimeout: 60000,
+            fastScale: 0.3,
+            slowScale: 6.0,
+            maxTimeout: 500000,
+          },
+        },
+      };
+
+      const bridge = new PythonBridge('python3', '/mock/analyzer', config);
+      mockSuccessfulProcess(JSON.stringify({ success: true }));
+
+      await bridge.recordWrite(
+        'session-123',
+        '/path/to/file.py',
+        '/path/to/backup.bak',
+        'test_function',
+        'function',
+        'python'
+      );
+
+      const spawnCall = mockSpawn.mock.calls[0];
+      const args = spawnCall[1] as string[];
+
+      expect(args[args.indexOf('--git-timeout-base') + 1]).toBe('60000');
+      expect(args[args.indexOf('--git-timeout-fast-scale') + 1]).toBe('0.3');
+      expect(args[args.indexOf('--git-timeout-slow-scale') + 1]).toBe('6');
+      expect(args[args.indexOf('--git-timeout-max') + 1]).toBe('500000');
+    });
+
+    it('should include git timeout args in commitTransaction call', async () => {
+      const config: IConfig = {
+        styleGuides: {},
+        tone: 'concise',
+        transaction: {
+          git: {
+            baseTimeout: 40000,
+            fastScale: 0.15,
+            slowScale: 4.5,
+            maxTimeout: 350000,
+          },
+        },
+      };
+
+      const bridge = new PythonBridge('python3', '/mock/analyzer', config);
+      mockSuccessfulProcess(JSON.stringify({ success: true }));
+
+      await bridge.commitTransaction('session-final');
+
+      const spawnCall = mockSpawn.mock.calls[0];
+      const args = spawnCall[1] as string[];
+
+      expect(args[args.indexOf('--git-timeout-base') + 1]).toBe('40000');
+      expect(args[args.indexOf('--git-timeout-fast-scale') + 1]).toBe('0.15');
+      expect(args[args.indexOf('--git-timeout-slow-scale') + 1]).toBe('4.5');
+      expect(args[args.indexOf('--git-timeout-max') + 1]).toBe('350000');
+    });
+
+    it('should use default git timeouts when transaction.git config missing', async () => {
+      const configWithoutGit: IConfig = {
+        styleGuides: {},
+        tone: 'concise',
+        // No transaction.git section
+      };
+
+      const bridge = new PythonBridge('python3', '/mock/analyzer', configWithoutGit);
+      mockSuccessfulProcess(JSON.stringify({ success: true }));
+
+      await bridge.beginTransaction('session-default');
+
+      const spawnCall = mockSpawn.mock.calls[0];
+      const args = spawnCall[1] as string[];
+
+      // Verify default values from defaultConfig
+      expect(args[args.indexOf('--git-timeout-base') + 1]).toBe('30000');
+      expect(args[args.indexOf('--git-timeout-fast-scale') + 1]).toBe('0.167');
+      expect(args[args.indexOf('--git-timeout-slow-scale') + 1]).toBe('4');
+      expect(args[args.indexOf('--git-timeout-max') + 1]).toBe('300000');
+    });
+  });
+
+  describe('Git timeout configuration validation', () => {
+    it('should throw error for negative baseTimeout', () => {
+      const invalidConfig: IConfig = {
+        styleGuides: {},
+        tone: 'concise',
+        transaction: {
+          git: { baseTimeout: -5000, fastScale: 0.167, slowScale: 4.0, maxTimeout: 300000 },
+        },
+      };
+
+      expect(() => {
+        new PythonBridge('python3', '/mock/analyzer', invalidConfig);
+      }).toThrow(/Invalid transaction\.git\.baseTimeout.*Must be a positive finite number/);
+    });
+
+    it('should throw error for zero baseTimeout', () => {
+      const invalidConfig: IConfig = {
+        styleGuides: {},
+        tone: 'concise',
+        transaction: {
+          git: { baseTimeout: 0, fastScale: 0.167, slowScale: 4.0, maxTimeout: 300000 },
+        },
+      };
+
+      expect(() => {
+        new PythonBridge('python3', '/mock/analyzer', invalidConfig);
+      }).toThrow(/Invalid transaction\.git\.baseTimeout.*Must be a positive finite number/);
+    });
+
+    it('should throw error for Infinity baseTimeout', () => {
+      const invalidConfig: IConfig = {
+        styleGuides: {},
+        tone: 'concise',
+        transaction: {
+          git: { baseTimeout: Infinity, fastScale: 0.167, slowScale: 4.0, maxTimeout: 300000 },
+        },
+      };
+
+      expect(() => {
+        new PythonBridge('python3', '/mock/analyzer', invalidConfig);
+      }).toThrow(/Invalid transaction\.git\.baseTimeout.*Must be a positive finite number/);
+    });
+
+    it('should throw error for NaN baseTimeout', () => {
+      const invalidConfig: IConfig = {
+        styleGuides: {},
+        tone: 'concise',
+        transaction: {
+          git: { baseTimeout: NaN, fastScale: 0.167, slowScale: 4.0, maxTimeout: 300000 },
+        },
+      };
+
+      expect(() => {
+        new PythonBridge('python3', '/mock/analyzer', invalidConfig);
+      }).toThrow(/Invalid transaction\.git\.baseTimeout/);
+    });
+
+    it('should throw error for negative fastScale', () => {
+      const invalidConfig: IConfig = {
+        styleGuides: {},
+        tone: 'concise',
+        transaction: {
+          git: { baseTimeout: 30000, fastScale: -0.1, slowScale: 4.0, maxTimeout: 300000 },
+        },
+      };
+
+      expect(() => {
+        new PythonBridge('python3', '/mock/analyzer', invalidConfig);
+      }).toThrow(/Invalid transaction\.git\.fastScale.*Must be a positive finite number/);
+    });
+
+    it('should throw error for zero fastScale', () => {
+      const invalidConfig: IConfig = {
+        styleGuides: {},
+        tone: 'concise',
+        transaction: {
+          git: { baseTimeout: 30000, fastScale: 0, slowScale: 4.0, maxTimeout: 300000 },
+        },
+      };
+
+      expect(() => {
+        new PythonBridge('python3', '/mock/analyzer', invalidConfig);
+      }).toThrow(/Invalid transaction\.git\.fastScale.*Must be a positive finite number/);
+    });
+
+    it('should throw error for negative slowScale', () => {
+      const invalidConfig: IConfig = {
+        styleGuides: {},
+        tone: 'concise',
+        transaction: {
+          git: { baseTimeout: 30000, fastScale: 0.167, slowScale: -4.0, maxTimeout: 300000 },
+        },
+      };
+
+      expect(() => {
+        new PythonBridge('python3', '/mock/analyzer', invalidConfig);
+      }).toThrow(/Invalid transaction\.git\.slowScale.*Must be a positive finite number/);
+    });
+
+    it('should throw error for zero slowScale', () => {
+      const invalidConfig: IConfig = {
+        styleGuides: {},
+        tone: 'concise',
+        transaction: {
+          git: { baseTimeout: 30000, fastScale: 0.167, slowScale: 0, maxTimeout: 300000 },
+        },
+      };
+
+      expect(() => {
+        new PythonBridge('python3', '/mock/analyzer', invalidConfig);
+      }).toThrow(/Invalid transaction\.git\.slowScale.*Must be a positive finite number/);
+    });
+
+    it('should throw error for negative maxTimeout', () => {
+      const invalidConfig: IConfig = {
+        styleGuides: {},
+        tone: 'concise',
+        transaction: {
+          git: { baseTimeout: 30000, fastScale: 0.167, slowScale: 4.0, maxTimeout: -10000 },
+        },
+      };
+
+      expect(() => {
+        new PythonBridge('python3', '/mock/analyzer', invalidConfig);
+      }).toThrow(/Invalid transaction\.git\.maxTimeout.*Must be a positive finite number/);
+    });
+
+    it('should throw error for zero maxTimeout', () => {
+      const invalidConfig: IConfig = {
+        styleGuides: {},
+        tone: 'concise',
+        transaction: {
+          git: { baseTimeout: 30000, fastScale: 0.167, slowScale: 4.0, maxTimeout: 0 },
+        },
+      };
+
+      expect(() => {
+        new PythonBridge('python3', '/mock/analyzer', invalidConfig);
+      }).toThrow(/Invalid transaction\.git\.maxTimeout.*Must be a positive finite number/);
+    });
+
+    it('should accept valid git timeout config', () => {
+      const validConfig: IConfig = {
+        styleGuides: {},
+        tone: 'concise',
+        transaction: {
+          git: { baseTimeout: 60000, fastScale: 0.5, slowScale: 10.0, maxTimeout: 600000 },
+        },
+      };
+
+      expect(() => {
+        new PythonBridge('python3', '/mock/analyzer', validConfig);
+      }).not.toThrow();
+    });
+  });
+
+  describe('Partial git timeout configuration', () => {
+    it('should merge partial git timeout config with defaults', async () => {
+      const partialConfig: IConfig = {
+        styleGuides: {},
+        tone: 'concise',
+        transaction: {
+          git: {
+            baseTimeout: 50000, // Override base only
+            // Other fields should use defaults
+          },
+        },
+      };
+
+      const bridge = new PythonBridge('python3', '/mock/analyzer', partialConfig);
+      mockSuccessfulProcess(JSON.stringify({ success: true }));
+
+      await bridge.beginTransaction('session-partial');
+
+      const spawnCall = mockSpawn.mock.calls[0];
+      const args = spawnCall[1] as string[];
+
+      // Custom value
+      expect(args[args.indexOf('--git-timeout-base') + 1]).toBe('50000');
+      // Defaults
+      expect(args[args.indexOf('--git-timeout-fast-scale') + 1]).toBe('0.167');
+      expect(args[args.indexOf('--git-timeout-slow-scale') + 1]).toBe('4');
+      expect(args[args.indexOf('--git-timeout-max') + 1]).toBe('300000');
+    });
+  });
+});

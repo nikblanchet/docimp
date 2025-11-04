@@ -186,6 +186,64 @@ export default {
     retryDelay: 1.0,
   },
 
+  // Transaction system configuration.
+  //
+  // Controls git operation timeouts for the transaction and rollback system.
+  // The transaction system uses a side-car git repository to track all
+  // documentation changes, enabling full rollback capability.
+  //
+  // Use cases:
+  // - Network-mounted filesystems: Increase baseTimeout and slowScale
+  // - Very large repositories (100K+ files): Increase slowScale to 6.0 or higher
+  // - SSDs with fast git operations: Decrease baseTimeout to 15000 (15s)
+  // - Severely degraded systems: Increase maxTimeout to 600000 (10 minutes)
+  // - Quick failure for CI/CD: Decrease maxTimeout to 120000 (2 minutes)
+  transaction: {
+    git: {
+      // Base timeout for default git operations in milliseconds.
+      //
+      // Operations like add, commit, checkout use this value directly.
+      // Fast operations get baseTimeout * fastScale (5s with defaults).
+      // Slow operations get baseTimeout * slowScale (120s with defaults).
+      //
+      // Default: 30000 (30 seconds)
+      baseTimeout: 30000,
+
+      // Scale factor for fast git operations.
+      //
+      // Fast operations (status, rev-parse, branch, show, diff) are
+      // typically query operations that don't modify state.
+      // With baseTimeout=30000 and fastScale=0.167, fast ops get 5 seconds.
+      //
+      // Default: 0.167 (produces 5s timeout with 30s base)
+      fastScale: 0.167,
+
+      // Scale factor for slow git operations.
+      //
+      // Slow operations (merge, revert, reset, init) involve significant
+      // work or modification. With baseTimeout=30000 and slowScale=4.0,
+      // slow ops get 120 seconds.
+      //
+      // Increase this for large repositories or slow filesystems:
+      // - slowScale: 6.0 -> 180s for slow ops (3 minutes)
+      // - slowScale: 10.0 -> 300s for slow ops (5 minutes)
+      //
+      // Default: 4.0 (produces 120s timeout with 30s base)
+      slowScale: 4.0,
+
+      // Absolute maximum timeout cap in milliseconds.
+      //
+      // No git operation will exceed this timeout regardless of scaling.
+      // Prevents indefinite hangs on severely degraded filesystems.
+      // If any operation takes longer than this, it's likely a system issue
+      // (disk failure, network mount disconnected, etc.) rather than just
+      // slow performance.
+      //
+      // Default: 300000 (5 minutes)
+      maxTimeout: 300000,
+    },
+  },
+
   // Impact scoring weights.
   //
   // Controls how DocImp prioritizes undocumented code.

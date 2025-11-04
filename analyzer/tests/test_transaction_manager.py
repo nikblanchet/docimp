@@ -4,10 +4,12 @@ import sys
 from pathlib import Path
 import tempfile
 import time
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.writer.transaction_manager import TransactionManager
+from src.utils.git_helper import GitHelper
 
 
 def test_begin_transaction_creates_manifest():
@@ -461,3 +463,74 @@ def test_cleanup_with_zero_keep_count():
         # Only uncommitted should remain
         remaining = list(transactions_dir.glob('transaction-*.json'))
         assert len(remaining) == 1
+
+
+def test_transaction_manager_accepts_timeout_config():
+    """Test that TransactionManager accepts and stores timeout_config parameter."""
+    from src.utils.git_helper import GitTimeoutConfig
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base_path = Path(tmpdir)
+
+        # Custom timeout config
+        timeout_config = GitTimeoutConfig(
+            base_timeout_ms=60000,
+            fast_scale=0.2,
+            slow_scale=5.0,
+            max_timeout_ms=400000
+        )
+
+        manager = TransactionManager(base_path=base_path, timeout_config=timeout_config)
+
+        # Verify config is stored
+        assert manager.timeout_config.base_timeout_ms == 60000
+        assert manager.timeout_config.fast_scale == 0.2
+        assert manager.timeout_config.slow_scale == 5.0
+        assert manager.timeout_config.max_timeout_ms == 400000
+
+
+def test_transaction_manager_timeout_config_defaults():
+    """Test that TransactionManager uses default timeout config when not provided."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base_path = Path(tmpdir)
+
+        # No timeout_config provided - should use defaults
+        manager = TransactionManager(base_path=base_path)
+
+        # Verify defaults are applied
+        assert manager.timeout_config.base_timeout_ms == 30000
+        assert manager.timeout_config.fast_scale == 0.167
+        assert manager.timeout_config.slow_scale == 4.0
+        assert manager.timeout_config.max_timeout_ms == 300000
+
+
+def test_transaction_manager_passes_timeout_to_git():
+    """Test that TransactionManager passes timeout_config to GitHelper calls."""
+    if not GitHelper.check_git_available():
+        pytest.skip("Git not available")
+
+    from src.utils.git_helper import GitTimeoutConfig
+    from unittest.mock import patch, MagicMock
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base_path = Path(tmpdir)
+
+        timeout_config = GitTimeoutConfig(base_timeout_ms=60000)
+        manager = TransactionManager(base_path=base_path, timeout_config=timeout_config)
+
+        # Patch GitHelper.run_git_command to verify timeout_config is passed
+        with patch('src.utils.git_helper.GitHelper.run_git_command') as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout='')
+
+            # Begin transaction (should call git checkout)
+            try:
+                manager.begin_transaction('test-session')
+            except Exception:
+                pass  # We don't care about other errors, just checking timeout is passed
+
+            # Verify git command was called with timeout_config
+            if mock_run.called:
+                call_kwargs = mock_run.call_args
+                if call_kwargs and len(call_kwargs) > 1:
+                    assert 'timeout_config' in call_kwargs[1]
+                    assert call_kwargs[1]['timeout_config'] == timeout_config

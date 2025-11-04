@@ -12,8 +12,11 @@ Key components:
 """
 
 from dataclasses import dataclass, asdict, field
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from pathlib import Path
+
+if TYPE_CHECKING:
+    from src.utils.git_helper import GitTimeoutConfig
 import json
 import shutil
 from datetime import datetime, UTC
@@ -122,17 +125,27 @@ class TransactionManager:
         >>> manager.commit_transaction(manifest)
     """
 
-    def __init__(self, base_path: Optional[Path] = None, use_git: bool = True):
-        """Initialize TransactionManager with optional git support.
+    def __init__(
+        self,
+        base_path: Optional[Path] = None,
+        use_git: bool = True,
+        timeout_config: Optional['GitTimeoutConfig'] = None
+    ):
+        """Initialize TransactionManager with optional git support and timeout config.
 
         Args:
             base_path: Project root directory. If None, disables git (for backward compat).
             use_git: Whether to use git backend. Defaults to True.
+            timeout_config: Git operation timeout configuration. If None, uses defaults
+                          (base=30s, fast_scale=0.167, slow_scale=4.0, max=300s).
         """
-        from src.utils.git_helper import GitHelper
+        from src.utils.git_helper import GitHelper, GitTimeoutConfig
         from src.utils.state_manager import StateManager
 
         self.base_path = base_path if base_path else Path.cwd()
+
+        # Store timeout config (use defaults if not provided)
+        self.timeout_config = timeout_config if timeout_config is not None else GitTimeoutConfig()
 
         # Only use git if explicitly requested AND base_path is set AND git is available
         self.git_available = (
@@ -164,7 +177,8 @@ class TransactionManager:
             branch_name = f'docimp/session-{session_id}'
             GitHelper.run_git_command(
                 ['checkout', '-b', branch_name],
-                self.base_path
+                self.base_path,
+                timeout_config=self.timeout_config
             )
 
         return TransactionManifest(
@@ -212,7 +226,11 @@ class TransactionManager:
                 entry_id = f'entry-{len(manifest.entries)}'
             else:
                 # Git add the modified file (using relative path)
-                GitHelper.run_git_command(['add', str(rel_filepath)], self.base_path)
+                GitHelper.run_git_command(
+                    ['add', str(rel_filepath)],
+                    self.base_path,
+                    timeout_config=self.timeout_config
+                )
 
                 # Create commit with metadata in message (version 1 schema)
                 commit_msg = f"""docimp: Add docs to {item_name}
@@ -228,13 +246,15 @@ Metadata:
 
                 GitHelper.run_git_command(
                     ['commit', '-m', commit_msg],
-                    self.base_path
+                    self.base_path,
+                    timeout_config=self.timeout_config
                 )
 
                 # Get the commit SHA (short hash)
                 result = GitHelper.run_git_command(
                     ['rev-parse', '--short', 'HEAD'],
-                    self.base_path
+                    self.base_path,
+                    timeout_config=self.timeout_config
                 )
                 entry_id = result.stdout.strip()
         else:
@@ -271,13 +291,18 @@ Metadata:
             branch_name = f'docimp/session-{manifest.session_id}'
 
             # Checkout main branch
-            GitHelper.run_git_command(['checkout', 'main'], self.base_path)
+            GitHelper.run_git_command(
+                ['checkout', 'main'],
+                self.base_path,
+                timeout_config=self.timeout_config
+            )
 
             # Merge session branch with squash
             GitHelper.run_git_command(
                 ['merge', '--squash', branch_name],
                 self.base_path,
-                check=False  # May fail if no changes
+                check=False,  # May fail if no changes
+                timeout_config=self.timeout_config
             )
 
             # Create squash commit
@@ -285,14 +310,16 @@ Metadata:
             result = GitHelper.run_git_command(
                 ['commit', '-m', squash_msg],
                 self.base_path,
-                check=False  # May fail if nothing to commit
+                check=False,  # May fail if nothing to commit
+                timeout_config=self.timeout_config
             )
 
             # Get squash commit SHA if successful
             if result.returncode == 0:
                 sha_result = GitHelper.run_git_command(
                     ['rev-parse', '--short', 'HEAD'],
-                    self.base_path
+                    self.base_path,
+                    timeout_config=self.timeout_config
                 )
                 manifest.git_commit_sha = sha_result.stdout.strip()
 
@@ -488,7 +515,8 @@ Metadata:
         result = GitHelper.run_git_command(
             ['rev-parse', '--verify', branch_name],
             self.base_path,
-            check=False
+            check=False,
+            timeout_config=self.timeout_config
         )
         if result.returncode != 0:
             raise ValueError(f"Session branch {branch_name} does not exist")
@@ -496,7 +524,8 @@ Metadata:
         # Get commit SHAs in the session branch
         result = GitHelper.run_git_command(
             ['log', branch_name, '--format=%H', '--reverse'],
-            self.base_path
+            self.base_path,
+            timeout_config=self.timeout_config
         )
 
         commit_shas = result.stdout.strip().split('\n') if result.stdout.strip() else []
@@ -506,7 +535,8 @@ Metadata:
             # Get commit message with metadata
             msg_result = GitHelper.run_git_command(
                 ['log', '-1', '--format=%B', commit_sha],
-                self.base_path
+                self.base_path,
+                timeout_config=self.timeout_config
             )
 
             # Parse metadata from commit message
@@ -581,7 +611,8 @@ Metadata:
         from src.utils.git_helper import GitHelper
         short_result = GitHelper.run_git_command(
             ['rev-parse', '--short', commit_sha],
-            self.base_path
+            self.base_path,
+            timeout_config=self.timeout_config
         )
         entry_id = short_result.stdout.strip()
 
@@ -634,7 +665,8 @@ Metadata:
             branches_result = GitHelper.run_git_command(
                 ['branch', '--list', 'docimp/session-*'],
                 self.base_path,
-                check=False
+                check=False,
+                timeout_config=self.timeout_config
             )
 
             if branches_result.returncode == 0:
@@ -661,7 +693,8 @@ Metadata:
                                     check_main = GitHelper.run_git_command(
                                         ['log', '--oneline', '--grep', f'docimp session {session_id} (squash)', 'main'],
                                         self.base_path,
-                                        check=False
+                                        check=False,
+                                        timeout_config=self.timeout_config
                                     )
 
                                     status = 'committed' if check_main.returncode == 0 and check_main.stdout.strip() else 'in_progress'
@@ -747,7 +780,8 @@ Metadata:
         branch_check = GitHelper.run_git_command(
             ['rev-parse', '--verify', session_branch],
             self.base_path,
-            check=False
+            check=False,
+            timeout_config=self.timeout_config
         )
 
         if branch_check.returncode != 0:
@@ -759,7 +793,8 @@ Metadata:
         # Save current branch to restore later
         current_branch_result = GitHelper.run_git_command(
             ['rev-parse', '--abbrev-ref', 'HEAD'],
-            self.base_path
+            self.base_path,
+            timeout_config=self.timeout_config
         )
         original_branch = current_branch_result.stdout.strip()
 
@@ -767,13 +802,15 @@ Metadata:
             # Checkout session branch
             GitHelper.run_git_command(
                 ['checkout', session_branch],
-                self.base_path
+                self.base_path,
+                timeout_config=self.timeout_config
             )
 
             # Verify we're on the session branch
             current_check = GitHelper.run_git_command(
                 ['rev-parse', '--abbrev-ref', 'HEAD'],
-                self.base_path
+                self.base_path,
+                timeout_config=self.timeout_config
             )
             if session_branch not in current_check.stdout:
                 raise ValueError(f"Failed to checkout session branch {session_branch}")
@@ -782,7 +819,8 @@ Metadata:
             revert_result = GitHelper.run_git_command(
                 ['revert', '--no-commit', entry_id],
                 self.base_path,
-                check=False
+                check=False,
+                timeout_config=self.timeout_config
             )
 
             # Check for conflicts
@@ -793,13 +831,15 @@ Metadata:
                     GitHelper.run_git_command(
                         ['revert', '--abort'],
                         self.base_path,
-                        check=False
+                        check=False,
+                        timeout_config=self.timeout_config
                     )
                     # Restore original branch
                     GitHelper.run_git_command(
                         ['checkout', original_branch],
                         self.base_path,
-                        check=False
+                        check=False,
+                        timeout_config=self.timeout_config
                     )
                     return RollbackResult(
                         success=False,
@@ -816,7 +856,8 @@ Metadata:
             commit_revert_result = GitHelper.run_git_command(
                 ['commit', '-m', f'Revert change {entry_id}'],
                 self.base_path,
-                check=False
+                check=False,
+                timeout_config=self.timeout_config
             )
 
             # If commit failed, check why
@@ -829,13 +870,15 @@ Metadata:
                     GitHelper.run_git_command(
                         ['revert', '--abort'],
                         self.base_path,
-                        check=False
+                        check=False,
+                        timeout_config=self.timeout_config
                     )
                     # Restore original branch
                     GitHelper.run_git_command(
                         ['checkout', original_branch],
                         self.base_path,
-                        check=False
+                        check=False,
+                        timeout_config=self.timeout_config
                     )
                     return RollbackResult(
                         success=False,
@@ -851,7 +894,8 @@ Metadata:
                 # Check if there are no changes to commit
                 status_check = GitHelper.run_git_command(
                     ['status', '--short'],
-                    self.base_path
+                    self.base_path,
+                    timeout_config=self.timeout_config
                 )
                 if not status_check.stdout.strip():
                     # No changes - revert was a no-op, which is okay
@@ -861,26 +905,31 @@ Metadata:
                     raise ValueError(f"Failed to commit revert on session branch: {commit_revert_result.stderr}")
 
             # Checkout main
-            GitHelper.run_git_command(['checkout', 'main'], self.base_path)
+            GitHelper.run_git_command(['checkout', 'main'], self.base_path,
+                timeout_config=self.timeout_config
+            )
 
             # Find the previous squash commit (parent of current HEAD)
             parent_result = GitHelper.run_git_command(
                 ['rev-parse', 'HEAD^'],
-                self.base_path
+                self.base_path,
+                timeout_config=self.timeout_config
             )
             parent_sha = parent_result.stdout.strip()
 
             # Reset main to before previous squash
             GitHelper.run_git_command(
                 ['reset', '--hard', parent_sha],
-                self.base_path
+                self.base_path,
+                timeout_config=self.timeout_config
             )
 
             # Re-squash merge session branch (now with reverted commit)
             GitHelper.run_git_command(
                 ['merge', '--squash', session_branch],
                 self.base_path,
-                check=False
+                check=False,
+                timeout_config=self.timeout_config
             )
 
             # Create new squash commit (only if there are changes to commit)
@@ -888,7 +937,8 @@ Metadata:
             commit_result = GitHelper.run_git_command(
                 ['commit', '-m', squash_msg],
                 self.base_path,
-                check=False
+                check=False,
+                timeout_config=self.timeout_config
             )
 
             # If commit failed, it might be because there were no changes
@@ -898,7 +948,8 @@ Metadata:
                 GitHelper.run_git_command(
                     ['reset', '--hard', 'HEAD'],
                     self.base_path,
-                    check=False
+                    check=False,
+                    timeout_config=self.timeout_config
                 )
 
             # Update manifest to track reverted change
@@ -921,7 +972,8 @@ Metadata:
             GitHelper.run_git_command(
                 ['checkout', original_branch],
                 self.base_path,
-                check=False
+                check=False,
+                timeout_config=self.timeout_config
             )
             raise ValueError(f"Failed to rollback change: {str(e)}")
 
@@ -949,7 +1001,8 @@ Metadata:
         result = GitHelper.run_git_command(
             ['revert', '--no-commit', entry_id],
             self.base_path,
-            check=False
+            check=False,
+            timeout_config=self.timeout_config
         )
 
         # Check for conflicts
@@ -961,7 +1014,8 @@ Metadata:
                 GitHelper.run_git_command(
                     ['revert', '--abort'],
                     self.base_path,
-                    check=False
+                    check=False,
+                    timeout_config=self.timeout_config
                 )
 
                 return RollbackResult(
@@ -990,7 +1044,8 @@ Metadata:
         # Commit the revert
         GitHelper.run_git_command(
             ['commit', '-m', f'Revert change {entry_id}'],
-            self.base_path
+            self.base_path,
+            timeout_config=self.timeout_config
         )
 
         return RollbackResult(
@@ -1023,7 +1078,8 @@ Metadata:
 
         status_result = GitHelper.run_git_command(
             ['status', '--short'],
-            self.base_path
+            self.base_path,
+            timeout_config=self.timeout_config
         )
 
         # All conflict markers in git status --short
@@ -1105,7 +1161,8 @@ Metadata:
 
         result = GitHelper.run_git_command(
             ['show', entry_id],
-            self.base_path
+            self.base_path,
+            timeout_config=self.timeout_config
         )
 
         return result.stdout
