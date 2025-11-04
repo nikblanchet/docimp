@@ -4,10 +4,12 @@ import sys
 from pathlib import Path
 import tempfile
 import time
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.writer.transaction_manager import TransactionManager
+from src.utils.git_helper import GitHelper
 
 
 def test_begin_transaction_creates_manifest():
@@ -519,7 +521,7 @@ def test_transaction_manager_passes_timeout_to_git():
         manager = TransactionManager(base_path=base_path, timeout_config=timeout_config)
 
         # Patch GitHelper.run_git_command to verify timeout_config is passed
-        with patch('src.writer.transaction_manager.GitHelper.run_git_command') as mock_run:
+        with patch('src.utils.git_helper.GitHelper.run_git_command') as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout='')
 
             # Begin transaction (should call git checkout)
