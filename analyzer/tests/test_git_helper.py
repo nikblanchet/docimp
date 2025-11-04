@@ -194,8 +194,6 @@ class TestGitHelper:
 
     def test_categorize_operation_fast(self):
         """Test that fast operations are correctly categorized."""
-        from src.utils.git_helper import GitTimeoutConfig
-
         # Fast operations: status, rev-parse, branch, show, diff
         assert GitHelper._categorize_operation(['status']) == 'fast'
         assert GitHelper._categorize_operation(['rev-parse', '--short', 'HEAD']) == 'fast'

@@ -491,8 +491,6 @@ def test_transaction_manager_accepts_timeout_config():
 
 def test_transaction_manager_timeout_config_defaults():
     """Test that TransactionManager uses default timeout config when not provided."""
-    from src.utils.git_helper import GitTimeoutConfig
-
     with tempfile.TemporaryDirectory() as tmpdir:
         base_path = Path(tmpdir)
 

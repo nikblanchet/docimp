@@ -18,7 +18,7 @@ from .parsers.python_parser import PythonParser
 from .parsers.typescript_parser import TypeScriptParser
 from .planning.plan_generator import generate_plan, save_plan
 from .scoring.impact_scorer import ImpactScorer
-from .utils.git_helper import GitHelper
+from .utils.git_helper import GitHelper, GitTimeoutConfig
 from .utils.state_manager import StateManager
 from .writer.docstring_writer import DocstringWriter
 from .writer.transaction_manager import TransactionManager
@@ -693,7 +693,7 @@ def cmd_list_changes(
         return 1
 
 
-def _build_git_timeout_config(args: argparse.Namespace) -> 'GitTimeoutConfig':
+def _build_git_timeout_config(args: argparse.Namespace) -> GitTimeoutConfig:
     """Build GitTimeoutConfig from CLI arguments.
 
     Args:
@@ -702,8 +702,6 @@ def _build_git_timeout_config(args: argparse.Namespace) -> 'GitTimeoutConfig':
     Returns:
         GitTimeoutConfig instance with values from CLI or defaults.
     """
-    from src.utils.git_helper import GitTimeoutConfig
-
     return GitTimeoutConfig(
         base_timeout_ms=getattr(args, 'git_timeout_base', 30000),
         fast_scale=getattr(args, 'git_timeout_fast_scale', 0.167),

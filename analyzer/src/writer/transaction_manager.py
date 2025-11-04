@@ -12,8 +12,11 @@ Key components:
 """
 
 from dataclasses import dataclass, asdict, field
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from pathlib import Path
+
+if TYPE_CHECKING:
+    from src.utils.git_helper import GitTimeoutConfig
 import json
 import shutil
 from datetime import datetime, UTC
