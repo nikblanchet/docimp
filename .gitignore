@@ -17,6 +17,7 @@ dist/
 .vscode/
 .idea/
 .warp/              # Warp terminal configuration
+WARP.md             # Warp terminal AI documentation (symlinked)
 
 # Editor temporary files
 *~
