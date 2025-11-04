@@ -112,6 +112,11 @@ export interface IConfig {
    * Python bridge configuration.
    */
   pythonBridge?: IPythonBridgeConfig;
+
+  /**
+   * Transaction system configuration.
+   */
+  transaction?: ITransactionConfig;
 }
 
 /**
@@ -256,6 +261,55 @@ export interface IPythonBridgeConfig {
 }
 
 /**
+ * Git timeout configuration for transaction system.
+ *
+ * Uses progressive scaling: operations are automatically categorized as
+ * fast/default/slow, and timeouts are calculated by scaling baseTimeout.
+ */
+export interface IGitTimeoutConfig {
+  /**
+   * Base timeout for default git operations in milliseconds.
+   * Operations like add, commit, checkout use this value directly.
+   * Default: 30000 (30 seconds)
+   */
+  baseTimeout?: number;
+
+  /**
+   * Scale factor for fast git operations.
+   * Fast operations (status, rev-parse, branch) get baseTimeout * fastScale.
+   * Default: 0.167 (produces 5s with 30s base)
+   */
+  fastScale?: number;
+
+  /**
+   * Scale factor for slow git operations.
+   * Slow operations (merge, revert, reset) get baseTimeout * slowScale.
+   * Default: 4.0 (produces 120s with 30s base)
+   */
+  slowScale?: number;
+
+  /**
+   * Absolute maximum timeout cap in milliseconds.
+   * No git operation will exceed this timeout regardless of scaling.
+   * Prevents hung processes on severely degraded filesystems.
+   * Default: 300000 (5 minutes)
+   */
+  maxTimeout?: number;
+}
+
+/**
+ * Transaction system configuration.
+ */
+export interface ITransactionConfig {
+  /**
+   * Git operation timeout configuration.
+   * Controls timeouts for all git operations performed during transaction workflows
+   * (begin, record, commit, rollback).
+   */
+  git?: IGitTimeoutConfig;
+}
+
+/**
  * Default configuration values.
  */
 export const defaultConfig: IConfig = {
@@ -304,5 +358,13 @@ export const defaultConfig: IConfig = {
     defaultTimeout: 60000,      // 60 seconds
     suggestTimeout: 300000,     // 5 minutes
     killEscalationDelay: 5000,  // 5 seconds
+  },
+  transaction: {
+    git: {
+      baseTimeout: 30000,       // 30 seconds (default operations)
+      fastScale: 0.167,         // 30s * 0.167 = 5s (fast operations)
+      slowScale: 4.0,           // 30s * 4.0 = 120s (slow operations)
+      maxTimeout: 300000,       // 5 minutes (absolute maximum)
+    },
   },
 };
