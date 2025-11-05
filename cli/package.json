@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "test": "jest",
+    "test": "jest --forceExit",
     "test:integration": "node --test src/__tests__/integration/*.mjs",
     "test:all": "npm test && npm run test:integration",
     "lint": "eslint src --ext .ts",
