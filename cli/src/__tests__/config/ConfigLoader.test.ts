@@ -236,7 +236,7 @@ export default {
       await expect(configLoader.load(configPath)).rejects.toThrow(
         'Failed to load'
       );
-      await expect(configLoader.load(configPath)).rejects.toThrow('import');
+      await expect(configLoader.load(configPath)).rejects.toThrow('module');
     });
 
     it('should provide helpful message for runtime errors (invalid export)', async () => {
