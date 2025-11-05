@@ -10,6 +10,10 @@
 
 import { Command } from 'commander';
 import { analyzeCommand } from './commands/analyze.js';
+import {
+  deleteAuditSessionCommand,
+  listAuditSessionsCommand,
+} from './commands/audit-sessions.js';
 import { auditCommand } from './commands/audit.js';
 import { improveCommand } from './commands/improve.js';
 import { listChangesCommand } from './commands/list-changes.js';
@@ -309,6 +313,46 @@ program
       const bridge = new PythonBridge();
 
       const exitCode = await rollbackChangeCommand(entryId, bridge, display);
+      if (exitCode !== EXIT_CODE.SUCCESS) {
+        process.exit(exitCode);
+      }
+    } catch (error) {
+      const errorDisplay = new TerminalDisplay();
+      errorDisplay.showError(
+        `Unexpected error: ${error instanceof Error ? error.message : String(error)}`
+      );
+      process.exit(EXIT_CODE.ERROR);
+    }
+  });
+
+// List-audit-sessions command (audit session management)
+program
+  .command('list-audit-sessions')
+  .description('List all audit sessions')
+  .action(async () => {
+    try {
+      const exitCode = await listAuditSessionsCommand();
+      if (exitCode !== EXIT_CODE.SUCCESS) {
+        process.exit(exitCode);
+      }
+    } catch (error) {
+      const errorDisplay = new TerminalDisplay();
+      errorDisplay.showError(
+        `Unexpected error: ${error instanceof Error ? error.message : String(error)}`
+      );
+      process.exit(EXIT_CODE.ERROR);
+    }
+  });
+
+// Delete-audit-session command (audit session management)
+program
+  .command('delete-audit-session [session-id]')
+  .description('Delete audit session(s)')
+  .option('--all', 'Delete all audit sessions')
+  .option('--no-confirm', 'Skip confirmation prompt')
+  .action(async (sessionId, options) => {
+    try {
+      const exitCode = await deleteAuditSessionCommand(sessionId, options);
       if (exitCode !== EXIT_CODE.SUCCESS) {
         process.exit(exitCode);
       }
