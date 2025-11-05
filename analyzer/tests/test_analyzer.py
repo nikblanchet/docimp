@@ -353,6 +353,9 @@ class TestDocumentationAnalyzer:
             test_file.write_text("def foo():\n    pass")
 
             # Mock parser to raise unexpected exception
+            # Note: Combined with statements clean up right-to-left (pytest.raises
+            # exits before patch). This is safe when contexts are independent, as
+            # they are here (all our combined contexts are mocks/test fixtures).
             with (
                 patch.object(
                     analyzer.parsers["python"],
