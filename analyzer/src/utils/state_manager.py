@@ -319,3 +319,35 @@ class StateManager:
         if base_path is None:
             base_path = Path.cwd()
         return GitHelper.init_sidecar_repo(base_path)
+
+    @classmethod
+    def get_audit_session_file(
+        cls, session_id: str, base_path: Path | None = None
+    ) -> Path:
+        """Get the absolute path to an audit session state file.
+
+        Args:
+            session_id: UUID of the audit session
+            base_path: Base directory to resolve from. If None, uses current
+                working directory.
+
+        Returns:
+            Absolute path to .docimp/session-reports/audit-session-{session_id}.json.
+        """
+        return cls.get_session_reports_dir(base_path) / f"audit-session-{session_id}.json"
+
+    @classmethod
+    def get_improve_session_file(
+        cls, session_id: str, base_path: Path | None = None
+    ) -> Path:
+        """Get the absolute path to an improve session state file.
+
+        Args:
+            session_id: UUID of the improve session
+            base_path: Base directory to resolve from. If None, uses current
+                working directory.
+
+        Returns:
+            Absolute path to .docimp/session-reports/improve-session-{session_id}.json.
+        """
+        return cls.get_session_reports_dir(base_path) / f"improve-session-{session_id}.json"
