@@ -13,14 +13,14 @@ import chalk from 'chalk';
 import prompts from 'prompts';
 import { v4 as uuidv4 } from 'uuid';
 import { UserCancellationError } from '../commands/improve.js';
-import type { IConfig } from '../config/IConfig.js';
-import type { IEditorLauncher } from '../editor/IEditorLauncher.js';
+import type { IConfig } from '../config/i-config.js';
+import type { IEditorLauncher } from '../editor/i-editor-launcher.js';
 import type { PluginResult, CodeItemMetadata } from '../plugins/IPlugin.js';
-import type { IPluginManager } from '../plugins/IPluginManager.js';
-import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
+import type { IPluginManager } from '../plugins/i-plugin-manager.js';
+import type { IPythonBridge } from '../python-bridge/i-python-bridge.js';
 import type { PlanItem, SupportedLanguage } from '../types/analysis.js';
-import type { IInteractiveSession } from './IInteractiveSession.js';
-import { ProgressTracker } from './ProgressTracker.js';
+import type { IInteractiveSession } from './i-interactive-session.js';
+import { ProgressTracker } from './progress-tracker.js';
 
 /**
  * Options for interactive session.

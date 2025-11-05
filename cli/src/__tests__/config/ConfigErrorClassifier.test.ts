@@ -4,8 +4,8 @@
  * Validates error categorization, message generation, and suggestion creation.
  */
 
-import { ConfigErrorClassifier } from '../../config/ConfigErrorClassifier.js';
-import type { ConfigErrorDetails } from '../../config/ConfigErrorClassifier.js';
+import { ConfigErrorClassifier } from '../../config/config-error-classifier.js';
+import type { ConfigErrorDetails } from '../../config/config-error-classifier.js';
 
 describe('ConfigErrorClassifier', () => {
   describe('classify - syntax errors', () => {

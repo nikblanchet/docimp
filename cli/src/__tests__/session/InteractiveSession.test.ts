@@ -4,18 +4,18 @@
  * Tests the main interactive documentation improvement workflow.
  */
 
-import { InteractiveSession } from '../../session/InteractiveSession.js';
-import { PythonBridge } from '../../python-bridge/PythonBridge.js';
-import { PluginManager } from '../../plugins/PluginManager.js';
-import { EditorLauncher } from '../../editor/EditorLauncher.js';
+import { InteractiveSession } from '../../session/interactive-session.js';
+import { PythonBridge } from '../../python-bridge/python-bridge.js';
+import { PluginManager } from '../../plugins/plugin-manager.js';
+import { EditorLauncher } from '../../editor/editor-launcher.js';
 import prompts from 'prompts';
 import type { PlanItem } from '../../types/analysis.js';
-import type { IConfig } from '../../config/IConfig.js';
+import type { IConfig } from '../../config/i-config.js';
 
 // Mock dependencies
-jest.mock('../../python-bridge/PythonBridge.js');
-jest.mock('../../plugins/PluginManager.js');
-jest.mock('../../editor/EditorLauncher.js');
+jest.mock('../../python-bridge/python-bridge.js');
+jest.mock('../../plugins/plugin-manager.js');
+jest.mock('../../editor/editor-launcher.js');
 jest.mock('prompts');
 jest.mock('chalk', () => ({
   default: {

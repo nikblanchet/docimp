@@ -4,10 +4,10 @@
  * Tests the full transaction initialization flow with actual Python subprocess.
  */
 
-import { PythonBridge } from '../../python-bridge/PythonBridge.js';
+import { PythonBridge } from '../../python-bridge/python-bridge.js';
 import { existsSync, rmSync } from 'fs';
 import { resolve } from 'path';
-import { defaultConfig } from '../../config/IConfig.js';
+import { defaultConfig } from '../../config/i-config.js';
 
 describe('Transaction Lifecycle Integration', () => {
   let pythonBridge: PythonBridge;

@@ -8,8 +8,8 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { resolve } from 'node:path';
 import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
-import { PluginManager } from '../../plugins/PluginManager.js';
-import { defaultConfig } from '../../config/IConfig.js';
+import { PluginManager } from '../../plugins/plugin-manager.js';
+import { defaultConfig } from '../../config/i-config.js';
 import type { IPlugin } from '../../plugins/IPlugin.js';
 
 describe('PluginManager', () => {

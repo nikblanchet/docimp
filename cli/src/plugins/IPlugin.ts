@@ -11,7 +11,7 @@
  * - Default: only load from ./plugins/ or paths in config
  */
 
-import type { IConfig } from '../config/IConfig.js';
+import type { IConfig } from '../config/i-config.js';
 
 /**
  * Dependencies injected into plugin hooks.

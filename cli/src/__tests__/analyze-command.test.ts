@@ -272,8 +272,8 @@ describe('analyze command auto-clean', () => {
       expect(existsSync(planFile)).toBe(true);
 
       // Verify content is unchanged
-      const auditContent = JSON.parse(readFileSync(auditFile, 'utf-8'));
-      const planContent = JSON.parse(readFileSync(planFile, 'utf-8'));
+      const auditContent = JSON.parse(readFileSync(auditFile, 'utf8'));
+      const planContent = JSON.parse(readFileSync(planFile, 'utf8'));
       expect(auditContent.ratings.test).toBe('data');
       expect(planContent.items[0].name).toBe('test');
 
@@ -353,7 +353,7 @@ describe('analyze command auto-clean', () => {
       expect(existsSync(analyzeFile)).toBe(true);
 
       // Verify content
-      const content = JSON.parse(readFileSync(analyzeFile, 'utf-8'));
+      const content = JSON.parse(readFileSync(analyzeFile, 'utf8'));
       expect(content).toEqual(mockResult);
     });
 

@@ -14,7 +14,7 @@ import {
   afterEach,
 } from '@jest/globals';
 import { spawn } from 'child_process';
-import { PythonBridge } from '../../python-bridge/PythonBridge.js';
+import { PythonBridge } from '../../python-bridge/python-bridge.js';
 
 // Mock child_process
 jest.mock('child_process');

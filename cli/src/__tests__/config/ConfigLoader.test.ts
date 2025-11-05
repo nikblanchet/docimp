@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { ConfigLoader } from '../../config/ConfigLoader.js';
+import { ConfigLoader } from '../../config/config-loader.js';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as os from 'node:os';

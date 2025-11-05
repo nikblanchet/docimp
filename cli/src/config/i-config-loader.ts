@@ -4,7 +4,7 @@
  * Defines the contract for loading and validating DocImp configuration.
  */
 
-import type { IConfig } from './IConfig.js';
+import type { IConfig } from './i-config.js';
 
 /**
  * Configuration loader interface.

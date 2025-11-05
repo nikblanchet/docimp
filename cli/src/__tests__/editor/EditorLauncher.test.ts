@@ -4,7 +4,7 @@
  * Tests external editor integration for manual editing of documentation.
  */
 
-import { EditorLauncher } from '../../editor/EditorLauncher.js';
+import { EditorLauncher } from '../../editor/editor-launcher.js';
 import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import tmp from 'tmp';
@@ -151,7 +151,7 @@ describe('EditorLauncher', () => {
       expect(mockWriteFile).toHaveBeenCalledWith(
         '/tmp/docimp-edit-123456.js',
         'initial text',
-        'utf-8'
+        'utf8'
       );
     });
 

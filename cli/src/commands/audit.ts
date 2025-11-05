@@ -6,14 +6,14 @@
  */
 
 import prompts from 'prompts';
-import type { IConfigLoader } from '../config/IConfigLoader.js';
-import { EXIT_CODE, type ExitCode } from '../constants/exitCodes.js';
-import type { IDisplay } from '../display/IDisplay.js';
-import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
+import type { IConfigLoader } from '../config/i-config-loader.js';
+import { EXIT_CODE, type ExitCode } from '../constants/exit-codes.js';
+import type { IDisplay } from '../display/i-display.js';
+import type { IPythonBridge } from '../python-bridge/i-python-bridge.js';
 import type { AuditRatings, AuditSummary } from '../types/analysis.js';
-import { CodeExtractor } from '../utils/CodeExtractor.js';
-import { PathValidator } from '../utils/PathValidator.js';
-import { StateManager } from '../utils/StateManager.js';
+import { CodeExtractor } from '../utils/code-extractor.js';
+import { PathValidator } from '../utils/path-validator.js';
+import { StateManager } from '../utils/state-manager.js';
 
 /**
  * Calculate audit summary statistics from ratings.

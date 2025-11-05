@@ -4,7 +4,7 @@
  * Defines the contract for loading and executing validation plugins.
  */
 
-import type { IConfig } from '../config/IConfig.js';
+import type { IConfig } from '../config/i-config.js';
 import type { PluginResult, CodeItemMetadata } from './IPlugin.js';
 
 /**

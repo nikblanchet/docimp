@@ -17,13 +17,13 @@ import {
 import { spawn } from 'child_process';
 import { EventEmitter } from 'events';
 import { resolve } from 'path';
-import { PythonBridge } from '../../python-bridge/PythonBridge.js';
+import { PythonBridge } from '../../python-bridge/python-bridge.js';
 import type {
   AnalysisResult,
   AuditListResult,
   PlanResult,
 } from '../../types/analysis.js';
-import type { IConfig } from '../../config/IConfig.js';
+import type { IConfig } from '../../config/i-config.js';
 
 // Mock child_process
 jest.mock('child_process');

@@ -25,6 +25,11 @@ export default [
       'unicorn/no-array-reduce': 'warn',  // Reduce is sometimes clearest
       'unicorn/prefer-top-level-await': 'warn',  // Not always possible
       'unicorn/no-null': 'off',  // External APIs like prompts use null
+      'unicorn/prevent-abbreviations': ['error', {
+        replacements: {
+          i: false,  // "i" in i-config.ts means "interface" not "index"
+        }
+      }],
 
       // Node: Target Node 24+
       'n/no-unsupported-features/node-builtins': ['error', {

@@ -22,8 +22,8 @@ import {
   shouldUseCompactMode,
   COMPACT_TABLE_CHARS,
   COMPACT_TABLE_STYLE,
-} from '../utils/terminalWidth.js';
-import type { IDisplay } from './IDisplay.js';
+} from '../utils/terminal-width.js';
+import type { IDisplay } from './i-display.js';
 
 /**
  * Terminal display implementation with rich formatting.

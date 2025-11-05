@@ -6,7 +6,7 @@
  * configuration, and parse JSON responses.
  */
 
-import type { IConfig } from '../config/IConfig.js';
+import type { IConfig } from '../config/i-config.js';
 import type {
   AnalysisResult,
   AuditListResult,

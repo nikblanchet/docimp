@@ -5,8 +5,8 @@
  * Separated from ConfigLoader to enable testing without file I/O.
  */
 
-import type { IConfig } from './IConfig.js';
-import { defaultConfig } from './IConfig.js';
+import type { IConfig } from './i-config.js';
+import { defaultConfig } from './i-config.js';
 
 /**
  * Validate user configuration and merge with defaults.
