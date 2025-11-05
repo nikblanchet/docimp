@@ -18,16 +18,14 @@ def temp_state_dir(tmp_path, monkeypatch):
     session_reports_dir.mkdir(parents=True)
 
     # Monkeypatch StateManager to use temp directory
-    monkeypatch.setattr(
-        StateManager, "get_state_dir", lambda: state_dir
-    )
+    monkeypatch.setattr(StateManager, "get_state_dir", lambda: state_dir)
     monkeypatch.setattr(
         StateManager, "get_session_reports_dir", lambda: session_reports_dir
     )
     monkeypatch.setattr(
-        StateManager, "ensure_state_dir", lambda: session_reports_dir.mkdir(
-            parents=True, exist_ok=True
-        )
+        StateManager,
+        "ensure_state_dir",
+        lambda: session_reports_dir.mkdir(parents=True, exist_ok=True),
     )
 
     return session_reports_dir
@@ -53,7 +51,7 @@ def test_save_session_state_audit(temp_state_dir):
     assert expected_path.exists()
 
     # Verify contents
-    with open(expected_path, encoding="utf-8") as f:
+    with expected_path.open(encoding="utf-8") as f:
         loaded = json.load(f)
         assert loaded == state
 
@@ -131,7 +129,7 @@ def test_load_session_state_corrupted_json(temp_state_dir):
     file_path = temp_state_dir / f"audit-session-{session_id}.json"
 
     # Write invalid JSON
-    with open(file_path, "w", encoding="utf-8") as f:
+    with file_path.open("w", encoding="utf-8") as f:
         f.write("{ invalid json }")
 
     with pytest.raises(json.JSONDecodeError):
@@ -146,7 +144,7 @@ def test_list_sessions(temp_state_dir):
         session_id = str(uuid.uuid4())
         state = {
             "session_id": session_id,
-            "started_at": f"2025-11-05T{10+i:02d}:00:00",
+            "started_at": f"2025-11-05T{10 + i:02d}:00:00",
             "data": f"session{i}",
         }
         SessionStateManager.save_session_state(state, "audit")

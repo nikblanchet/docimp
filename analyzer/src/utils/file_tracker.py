@@ -78,7 +78,7 @@ class FileTracker:
 
                 # Compute SHA256 checksum
                 sha256_hash = hashlib.sha256()
-                with open(path, "rb") as f:
+                with path.open("rb") as f:
                     # Read in chunks to handle large files efficiently
                     for chunk in iter(lambda: f.read(8192), b""):
                         sha256_hash.update(chunk)
@@ -128,7 +128,7 @@ class FileTracker:
             try:
                 # Recompute checksum
                 sha256_hash = hashlib.sha256()
-                with open(path, "rb") as f:
+                with path.open("rb") as f:
                     for chunk in iter(lambda: f.read(8192), b""):
                         sha256_hash.update(chunk)
                 new_checksum = sha256_hash.hexdigest()
@@ -155,4 +155,6 @@ class FileTracker:
             list: Items whose filepath is in changed_files
         """
         changed_set = set(changed_files)
-        return [item for item in items if getattr(item, "filepath", None) in changed_set]
+        return [
+            item for item in items if getattr(item, "filepath", None) in changed_set
+        ]

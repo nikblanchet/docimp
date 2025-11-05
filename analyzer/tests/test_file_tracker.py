@@ -1,6 +1,5 @@
 """Tests for FileTracker utility."""
 
-
 import pytest
 
 from src.utils.file_tracker import FileSnapshot, FileTracker
@@ -67,7 +66,9 @@ def test_detect_changes_file_modified_content(temp_files):
     snapshot = FileTracker.create_snapshot(filepaths)
 
     # Modify file1 content
-    temp_files["file1"].write_text("def func1_modified():\n    return 1\n", encoding="utf-8")
+    temp_files["file1"].write_text(
+        "def func1_modified():\n    return 1\n", encoding="utf-8"
+    )
 
     changed = FileTracker.detect_changes(snapshot)
 
@@ -108,6 +109,7 @@ def test_detect_changes_timestamp_only(temp_files):
 
     # Touch file (update timestamp without changing content)
     import time
+
     time.sleep(0.01)  # Ensure timestamp changes
     temp_files["file1"].touch()
 
@@ -117,7 +119,7 @@ def test_detect_changes_timestamp_only(temp_files):
     new = new_snapshot[str(temp_files["file1"])]
 
     assert new.timestamp != old_snapshot.timestamp  # Timestamp changed
-    assert new.checksum == old_snapshot.checksum     # Checksum same
+    assert new.checksum == old_snapshot.checksum  # Checksum same
 
     # Should NOT be detected as changed
     changed = FileTracker.detect_changes(snapshot)
@@ -126,6 +128,7 @@ def test_detect_changes_timestamp_only(temp_files):
 
 def test_get_changed_items(temp_files):
     """Test filtering items by changed files."""
+
     # Mock CodeItem objects
     class MockCodeItem:
         def __init__(self, filepath, name):
@@ -149,6 +152,7 @@ def test_get_changed_items(temp_files):
 
 def test_get_changed_items_empty(temp_files):
     """Test filtering items with no changed files."""
+
     class MockCodeItem:
         def __init__(self, filepath, name):
             self.filepath = filepath

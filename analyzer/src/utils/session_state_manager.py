@@ -4,7 +4,6 @@ Provides atomic save/load operations for session state with file-based persisten
 """
 
 import json
-import os
 from typing import Any
 
 from src.utils.state_manager import StateManager
@@ -51,11 +50,11 @@ class SessionStateManager:
         tmp_path = session_reports_dir / f"{filename}.tmp"
         try:
             # Write to temp file
-            with open(tmp_path, "w", encoding="utf-8") as f:
+            with tmp_path.open("w", encoding="utf-8") as f:
                 json.dump(state, f, indent=2, ensure_ascii=False)
 
             # Atomic rename
-            os.rename(tmp_path, target_path)
+            tmp_path.rename(target_path)
 
             return session_id
 
@@ -96,7 +95,7 @@ class SessionStateManager:
                 f"Session may not exist or was deleted."
             )
 
-        with open(file_path, encoding="utf-8") as f:
+        with file_path.open(encoding="utf-8") as f:
             return json.load(f)
 
     @staticmethod
@@ -131,7 +130,7 @@ class SessionStateManager:
         sessions: list[dict[str, Any]] = []
         for file_path in session_files:
             try:
-                with open(file_path, encoding="utf-8") as f:
+                with file_path.open(encoding="utf-8") as f:
                     session = json.load(f)
                     sessions.append(session)
             except (json.JSONDecodeError, OSError):
