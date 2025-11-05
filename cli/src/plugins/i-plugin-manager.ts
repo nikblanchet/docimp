@@ -18,7 +18,7 @@ export interface IPluginManager {
    *
    * @param pluginPaths - Array of paths to plugin files
    * @param projectRoot - Project root directory (for relative path resolution)
-   * @param additionalAllowedDirs - Additional directories to allow plugin loading from (for testing only)
+   * @param additionalAllowedDirectories - Additional directories to allow plugin loading from (for testing only)
    * @throws Error if plugin loading fails
    */
   loadPlugins(
