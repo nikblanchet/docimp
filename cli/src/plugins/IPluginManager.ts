@@ -4,8 +4,8 @@
  * Defines the contract for loading and executing validation plugins.
  */
 
-import type { PluginResult, CodeItemMetadata } from './IPlugin.js';
 import type { IConfig } from '../config/IConfig.js';
+import type { PluginResult, CodeItemMetadata } from './IPlugin.js';
 
 /**
  * Plugin manager interface.
@@ -24,7 +24,7 @@ export interface IPluginManager {
   loadPlugins(
     pluginPaths: string[],
     projectRoot?: string,
-    additionalAllowedDirs?: string[]
+    additionalAllowedDirectories?: string[]
   ): Promise<void>;
 
   /**

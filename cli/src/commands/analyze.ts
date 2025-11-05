@@ -5,13 +5,13 @@
  * the Python analyzer via subprocess.
  */
 
-import { writeFileSync } from 'fs';
-import { StateManager } from '../utils/StateManager.js';
-import { PathValidator } from '../utils/PathValidator.js';
-import { EXIT_CODE, type ExitCode } from '../constants/exitCodes.js';
-import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
-import type { IDisplay } from '../display/IDisplay.js';
+import { writeFileSync } from 'node:fs';
 import type { IConfigLoader } from '../config/IConfigLoader.js';
+import { EXIT_CODE, type ExitCode } from '../constants/exitCodes.js';
+import type { IDisplay } from '../display/IDisplay.js';
+import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
+import { PathValidator } from '../utils/PathValidator.js';
+import { StateManager } from '../utils/StateManager.js';
 
 /**
  * Core analyze logic (extracted for testability).

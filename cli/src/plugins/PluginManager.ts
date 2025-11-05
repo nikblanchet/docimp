@@ -8,22 +8,22 @@
  * - Security validation (path restrictions)
  */
 
-import { pathToFileURL } from 'node:url';
-import { resolve, sep, extname } from 'node:path';
 import { existsSync, realpathSync } from 'node:fs';
+import { resolve, sep, extname } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { parse as commentParserParse } from 'comment-parser';
+import * as typescript from 'typescript';
+import type { IConfig } from '../config/IConfig.js';
+import { isPluginConfig } from '../config/IConfig.js';
 import type {
   IPlugin,
   PluginResult,
   CodeItemMetadata,
   PluginDependencies,
 } from './IPlugin.js';
-import type { IConfig } from '../config/IConfig.js';
-import { isPluginConfig } from '../config/IConfig.js';
 import type { IPluginManager } from './IPluginManager.js';
 
 // Import dependencies to inject into plugins
-import * as typescript from 'typescript';
-import { parse as commentParserParse } from 'comment-parser';
 
 /**
  * Manages plugin loading and execution.
@@ -53,13 +53,13 @@ export class PluginManager implements IPluginManager {
   async loadPlugins(
     pluginPaths: string[],
     projectRoot?: string,
-    additionalAllowedDirs?: string[]
+    additionalAllowedDirectories?: string[]
   ): Promise<void> {
     const root = projectRoot || process.cwd();
 
     for (const pluginPath of pluginPaths) {
       try {
-        await this.loadPlugin(pluginPath, root, additionalAllowedDirs);
+        await this.loadPlugin(pluginPath, root, additionalAllowedDirectories);
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
@@ -80,7 +80,7 @@ export class PluginManager implements IPluginManager {
   private async loadPlugin(
     pluginPath: string,
     projectRoot: string,
-    additionalAllowedDirs?: string[]
+    additionalAllowedDirectories?: string[]
   ): Promise<void> {
     // Resolve relative paths from project root
     const absolutePath = resolve(projectRoot, pluginPath);
@@ -90,7 +90,7 @@ export class PluginManager implements IPluginManager {
       absolutePath,
       projectRoot,
       pluginPath,
-      additionalAllowedDirs
+      additionalAllowedDirectories
     );
 
     // Prevent duplicate loading
@@ -140,7 +140,7 @@ export class PluginManager implements IPluginManager {
     absolutePath: string,
     projectRoot: string,
     originalPath: string,
-    additionalAllowedDirs?: string[]
+    additionalAllowedDirectories?: string[]
   ): void {
     // Check if file exists
     if (!existsSync(absolutePath)) {
@@ -158,23 +158,23 @@ export class PluginManager implements IPluginManager {
     }
 
     // Validate file extension
-    const ext = extname(canonicalPath);
+    const extension = extname(canonicalPath);
     const validExtensions = ['.js', '.mjs', '.cjs'];
-    if (!validExtensions.includes(ext)) {
+    if (!validExtensions.includes(extension)) {
       throw new Error(
-        `Plugin file must have .js, .mjs, or .cjs extension. Got: ${ext} (${originalPath})`
+        `Plugin file must have .js, .mjs, or .cjs extension. Got: ${extension} (${originalPath})`
       );
     }
 
     // Define allowed directories (whitelist)
-    const allowedDirs = [
+    const allowedDirectories = [
       resolve(projectRoot, 'plugins'),
       resolve(projectRoot, 'node_modules'),
-      ...(additionalAllowedDirs || []),
+      ...(additionalAllowedDirectories || []),
     ];
 
     // Check if canonical path is within allowed directories
-    const isAllowed = allowedDirs.some((dir) =>
+    const isAllowed = allowedDirectories.some((dir) =>
       canonicalPath.startsWith(dir + sep)
     );
 
@@ -202,13 +202,13 @@ export class PluginManager implements IPluginManager {
     const p = plugin as Record<string, unknown>;
 
     if (typeof p.name !== 'string') {
-      throw new Error(
+      throw new TypeError(
         `Plugin at ${pluginPath} must have a 'name' property (string)`
       );
     }
 
     if (typeof p.version !== 'string') {
-      throw new Error(
+      throw new TypeError(
         `Plugin at ${pluginPath} must have a 'version' property (string)`
       );
     }
@@ -258,9 +258,9 @@ export class PluginManager implements IPluginManager {
    */
   private getDefaultTimeout(): number {
     if (isPluginConfig(this.config?.plugins)) {
-      return this.config.plugins.timeout ?? 10000;
+      return this.config.plugins.timeout ?? 10_000;
     }
-    return 10000;
+    return 10_000;
   }
 
   /**

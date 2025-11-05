@@ -9,18 +9,18 @@
  * 5. Writing accepted documentation to files
  */
 
-import prompts from 'prompts';
 import chalk from 'chalk';
+import prompts from 'prompts';
 import { v4 as uuidv4 } from 'uuid';
-import type { PlanItem, SupportedLanguage } from '../types/analysis.js';
+import { UserCancellationError } from '../commands/improve.js';
 import type { IConfig } from '../config/IConfig.js';
+import type { IEditorLauncher } from '../editor/IEditorLauncher.js';
 import type { PluginResult, CodeItemMetadata } from '../plugins/IPlugin.js';
 import type { IPluginManager } from '../plugins/IPluginManager.js';
-import type { IEditorLauncher } from '../editor/IEditorLauncher.js';
 import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
+import type { PlanItem, SupportedLanguage } from '../types/analysis.js';
 import type { IInteractiveSession } from './IInteractiveSession.js';
 import { ProgressTracker } from './ProgressTracker.js';
-import { UserCancellationError } from '../commands/improve.js';
 
 /**
  * Options for interactive session.
@@ -117,7 +117,7 @@ export class InteractiveSession implements IInteractiveSession {
     if (this.transactionActive) {
       console.log(
         chalk.dim(
-          `Transaction tracking: enabled (session ${this.sessionId?.substring(0, 8)}...)\n`
+          `Transaction tracking: enabled (session ${this.sessionId?.slice(0, 8)}...)\n`
         )
       );
     } else {
@@ -127,21 +127,21 @@ export class InteractiveSession implements IInteractiveSession {
     const tracker = new ProgressTracker(items.length);
 
     try {
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
+      for (let index = 0; index < items.length; index++) {
+        const item = items[index];
 
         // Show progress
         console.log(
           chalk.dim(
-            `\n[${i + 1}/${items.length}] ${tracker.getProgressString()}`
+            `\n[${index + 1}/${items.length}] ${tracker.getProgressString()}`
           )
         );
 
         // Process this item
-        const shouldContinue = await this.processItem(item, i, tracker);
+        const shouldContinue = await this.processItem(item, index, tracker);
 
         if (!shouldContinue) {
-          tracker.recordQuit(i);
+          tracker.recordQuit(index);
           break;
         }
       }
@@ -154,7 +154,7 @@ export class InteractiveSession implements IInteractiveSession {
         try {
           await this.pythonBridge.commitTransaction(this.sessionId);
           console.log(chalk.green('\nSession finalized. Changes committed.'));
-          const shortId = this.sessionId.substring(0, 8);
+          const shortId = this.sessionId.slice(0, 8);
           console.log(
             chalk.dim(`Session ID: ${shortId}... (full: ${this.sessionId})`)
           );
@@ -238,7 +238,8 @@ export class InteractiveSession implements IInteractiveSession {
       // Get user action
       const action = await this.promptUserAction(validationResults);
 
-      if (action === 'accept') {
+      switch (action) {
+      case 'accept': {
         // Write to file
         const success = await this.writeDocstring(item, currentDocstring);
         if (success) {
@@ -251,7 +252,8 @@ export class InteractiveSession implements IInteractiveSession {
           tracker.recordError();
         }
         return true; // Continue to next item
-      } else if (action === 'edit') {
+      }
+      case 'edit': {
         // Launch editor
         const edited = await this.editDocstring(
           currentDocstring,
@@ -265,7 +267,10 @@ export class InteractiveSession implements IInteractiveSession {
           console.log(chalk.yellow('No changes made in editor'));
           continue;
         }
-      } else if (action === 'regenerate') {
+      
+      break;
+      }
+      case 'regenerate': {
         // Prompt for feedback
         feedback = await this.promptFeedback();
         if (feedback) {
@@ -282,16 +287,25 @@ export class InteractiveSession implements IInteractiveSession {
         } else {
           continue;
         }
-      } else if (action === 'skip') {
+      
+      break;
+      }
+      case 'skip': {
         tracker.recordSkipped();
         console.log(chalk.yellow('Skipping item'));
         return true; // Continue to next item
-      } else if (action === 'undo') {
+      }
+      case 'undo': {
         await this.handleUndo();
         // Stay on current item - continue loop to re-present
         continue;
-      } else if (action === 'quit') {
+      
+      break;
+      }
+      case 'quit': {
         return false; // Stop processing
+      }
+      // No default
       }
     }
   }
@@ -516,7 +530,7 @@ export class InteractiveSession implements IInteractiveSession {
     // Generate timestamp-based backup path for transaction tracking
     const timestamp = new Date()
       .toISOString()
-      .replace(/[:.]/g, '-')
+      .replaceAll(/[:.]/g, '-')
       .replace('Z', '');
     const backupPath = `${item.filepath}.${timestamp}.bak`;
 
@@ -612,9 +626,9 @@ export class InteractiveSession implements IInteractiveSession {
         console.log(chalk.red('Undo failed'));
         if (result.conflicts.length > 0) {
           console.log(chalk.yellow('Conflicts detected:'));
-          result.conflicts.forEach((file) => {
+          for (const file of result.conflicts) {
             console.log(chalk.yellow(`  - ${file}`));
-          });
+          }
         }
       }
     } catch (error) {

@@ -8,7 +8,6 @@
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import ora, { Ora } from 'ora';
-import type { IDisplay } from './IDisplay.js';
 import type {
   AnalysisResult,
   CodeItem,
@@ -24,6 +23,7 @@ import {
   COMPACT_TABLE_CHARS,
   COMPACT_TABLE_STYLE,
 } from '../utils/terminalWidth.js';
+import type { IDisplay } from './IDisplay.js';
 
 /**
  * Terminal display implementation with rich formatting.
@@ -430,9 +430,9 @@ export class TerminalDisplay implements IDisplay {
    * Truncate string to specified length.
    * @returns Truncated string with ellipsis if needed.
    */
-  private truncate(str: string, maxLength: number): string {
-    if (str.length <= maxLength) return str;
-    return str.slice(0, maxLength - 3) + '...';
+  private truncate(string_: string, maxLength: number): string {
+    if (string_.length <= maxLength) return string_;
+    return string_.slice(0, maxLength - 3) + '...';
   }
 
   /**
@@ -506,12 +506,12 @@ export class TerminalDisplay implements IDisplay {
    * Pad string to center it within specified width.
    * @returns Centered and padded string.
    */
-  private padCenter(str: string, width: number): string {
-    const strippedLength = this.stripAnsiLength(str);
+  private padCenter(string_: string, width: number): string {
+    const strippedLength = this.stripAnsiLength(string_);
     const padding = width - strippedLength;
     const leftPad = Math.floor(padding / 2);
     const rightPad = padding - leftPad;
-    return ' '.repeat(leftPad) + str + ' '.repeat(rightPad);
+    return ' '.repeat(leftPad) + string_ + ' '.repeat(rightPad);
   }
 
   /**
@@ -519,27 +519,27 @@ export class TerminalDisplay implements IDisplay {
    * @returns Left-aligned and padded string.
    */
   private padLeft(
-    str: string,
+    string_: string,
     width: number,
     hasColor: boolean = false
   ): string {
-    const strippedLength = hasColor ? this.stripAnsiLength(str) : str.length;
+    const strippedLength = hasColor ? this.stripAnsiLength(string_) : string_.length;
     const padding = width - strippedLength;
     // Handle case where string exceeds width (no padding)
     if (padding < 2) {
-      return '  ' + str;
+      return '  ' + string_;
     }
-    return '  ' + str + ' '.repeat(padding - 2);
+    return '  ' + string_ + ' '.repeat(padding - 2);
   }
 
   /**
    * Get length of string excluding ANSI color codes.
    * @returns String length without ANSI codes.
    */
-  private stripAnsiLength(str: string): number {
+  private stripAnsiLength(string_: string): number {
     // Remove ANSI escape codes to get true display length
     // eslint-disable-next-line no-control-regex
-    const stripped = str.replace(/\u001b\[[0-9;]*m/g, '');
+    const stripped = string_.replaceAll(/\u001B\[[0-9;]*m/g, '');
     return stripped.length;
   }
 
@@ -650,7 +650,7 @@ export class TerminalDisplay implements IDisplay {
 
       table.push([
         session.session_id,
-        session.started_at.substring(0, 19).replace('T', ' '),
+        session.started_at.slice(0, 19).replace('T', ' '),
         session.change_count.toString(),
         statusColor(session.status),
       ]);
@@ -701,7 +701,7 @@ export class TerminalDisplay implements IDisplay {
         change.entry_id,
         filepath,
         itemName,
-        change.timestamp.substring(0, 19).replace('T', ' '),
+        change.timestamp.slice(0, 19).replace('T', ' '),
       ]);
     }
 

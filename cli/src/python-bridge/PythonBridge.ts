@@ -5,18 +5,12 @@
  * and parses JSON responses from stdout.
  */
 
-import { spawn, spawnSync, ChildProcess } from 'child_process';
-import { resolve } from 'path';
-import { existsSync } from 'fs';
+import { spawn, spawnSync, ChildProcess } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { z } from 'zod';
-import type {
-  IPythonBridge,
-  AnalyzeOptions,
-  AuditOptions,
-  PlanOptions,
-  SuggestOptions,
-  ApplyData,
-} from './IPythonBridge.js';
+import type { IConfig } from '../config/IConfig.js';
+import { defaultConfig } from '../config/IConfig.js';
 import type {
   AnalysisResult,
   AuditListResult,
@@ -26,6 +20,14 @@ import type {
   TransactionEntry,
   RollbackResult,
 } from '../types/analysis.js';
+import type {
+  IPythonBridge,
+  AnalyzeOptions,
+  AuditOptions,
+  PlanOptions,
+  SuggestOptions,
+  ApplyData,
+} from './IPythonBridge.js';
 import {
   AnalysisResultSchema,
   AuditListResultSchema,
@@ -36,8 +38,6 @@ import {
   GenericSuccessSchema,
   formatValidationError,
 } from './schemas.js';
-import type { IConfig } from '../config/IConfig.js';
-import { defaultConfig } from '../config/IConfig.js';
 
 /**
  * Find the analyzer directory.
@@ -59,13 +59,13 @@ import { defaultConfig } from '../config/IConfig.js';
  */
 function findAnalyzerDir(): string {
   // Check environment variable first (allows custom installations)
-  const envPath = process.env.DOCIMP_ANALYZER_PATH;
-  if (envPath) {
-    if (existsSync(envPath)) {
-      return resolve(envPath);
+  const environmentPath = process.env.DOCIMP_ANALYZER_PATH;
+  if (environmentPath) {
+    if (existsSync(environmentPath)) {
+      return resolve(environmentPath);
     }
     throw new Error(
-      `DOCIMP_ANALYZER_PATH is set to "${envPath}" but directory does not exist.\n` +
+      `DOCIMP_ANALYZER_PATH is set to "${environmentPath}" but directory does not exist.\n` +
         `Please check the path or unset the environment variable.`
     );
   }
@@ -131,9 +131,9 @@ function detectPythonExecutable(): string {
   }
 
   // Check for explicit path from environment (for CI)
-  const envPath = process.env.DOCIMP_PYTHON_PATH;
-  if (envPath) {
-    return envPath;
+  const environmentPath = process.env.DOCIMP_PYTHON_PATH;
+  if (environmentPath) {
+    return environmentPath;
   }
 
   const candidates = ['python3', 'python', 'py'];
@@ -179,11 +179,7 @@ export class PythonBridge implements IPythonBridge {
 
     // Auto-detect analyzer path relative to module location
     // This works regardless of user's cwd, global install, or directory structure
-    if (!analyzerPath) {
-      this.analyzerModule = findAnalyzerDir();
-    } else {
-      this.analyzerModule = analyzerPath;
-    }
+    this.analyzerModule = analyzerPath ? analyzerPath : findAnalyzerDir();
 
     // Load timeout settings from config or use defaults
     this.defaultTimeout =
@@ -210,13 +206,13 @@ export class PythonBridge implements IPythonBridge {
       );
     }
     if (!Number.isFinite(this.defaultTimeout)) {
-      throw new Error(
+      throw new TypeError(
         `Invalid pythonBridge.defaultTimeout: ${this.defaultTimeout}. ` +
           `Timeout must be a finite number (not Infinity or NaN).`
       );
     }
     if (!Number.isFinite(this.suggestTimeout)) {
-      throw new Error(
+      throw new TypeError(
         `Invalid pythonBridge.suggestTimeout: ${this.suggestTimeout}. ` +
           `Timeout must be a finite number (not Infinity or NaN).`
       );
@@ -228,7 +224,7 @@ export class PythonBridge implements IPythonBridge {
       );
     }
     if (!Number.isFinite(this.killEscalationDelay)) {
-      throw new Error(
+      throw new TypeError(
         `Invalid pythonBridge.killEscalationDelay: ${this.killEscalationDelay}. ` +
           `Delay must be a finite number (not Infinity or NaN).`
       );
@@ -315,7 +311,7 @@ export class PythonBridge implements IPythonBridge {
     // This is necessary because the subprocess runs with CWD set to analyzer/
     const absolutePath = resolve(process.cwd(), options.path);
 
-    const args = [
+    const arguments_ = [
       '-m',
       'src.main',
       'analyze',
@@ -325,15 +321,15 @@ export class PythonBridge implements IPythonBridge {
     ];
 
     if (options.verbose) {
-      args.push('--verbose');
+      arguments_.push('--verbose');
     }
 
     if (options.strict) {
-      args.push('--strict');
+      arguments_.push('--strict');
     }
 
     return this.executePython<AnalysisResult>(
-      args,
+      arguments_,
       options.verbose,
       AnalysisResultSchema
     );
@@ -350,20 +346,20 @@ export class PythonBridge implements IPythonBridge {
     // Resolve path to absolute before passing to Python subprocess
     const absolutePath = resolve(process.cwd(), options.path);
 
-    const args = ['-m', 'src.main', 'audit', absolutePath];
+    const arguments_ = ['-m', 'src.main', 'audit', absolutePath];
 
     if (options.auditFile) {
       // Resolve audit file to absolute path (Python subprocess runs in analyzer/ dir)
       const absoluteAuditFile = resolve(process.cwd(), options.auditFile);
-      args.push('--audit-file', absoluteAuditFile);
+      arguments_.push('--audit-file', absoluteAuditFile);
     }
 
     if (options.verbose) {
-      args.push('--verbose');
+      arguments_.push('--verbose');
     }
 
     return this.executePython<AuditListResult>(
-      args,
+      arguments_,
       options.verbose,
       AuditListResultSchema
     );
@@ -378,15 +374,15 @@ export class PythonBridge implements IPythonBridge {
    * @throws Error if Python process fails
    */
   async applyAudit(ratings: AuditRatings, auditFile?: string): Promise<void> {
-    const args = ['-m', 'src.main', 'apply-audit'];
+    const arguments_ = ['-m', 'src.main', 'apply-audit'];
 
     if (auditFile) {
       // Resolve audit file to absolute path (Python subprocess runs in analyzer/ dir)
       const absoluteAuditFile = resolve(process.cwd(), auditFile);
-      args.push('--audit-file', absoluteAuditFile);
+      arguments_.push('--audit-file', absoluteAuditFile);
     }
 
-    const childProcess = spawn(this.pythonPath, args, {
+    const childProcess = spawn(this.pythonPath, arguments_, {
       cwd: this.analyzerModule,
       env: { ...process.env },
     });
@@ -452,30 +448,30 @@ export class PythonBridge implements IPythonBridge {
     // Resolve path to absolute before passing to Python subprocess
     const absolutePath = resolve(process.cwd(), options.path);
 
-    const args = ['-m', 'src.main', 'plan', absolutePath];
+    const arguments_ = ['-m', 'src.main', 'plan', absolutePath];
 
     if (options.auditFile) {
       // Resolve audit file to absolute path (Python subprocess runs in analyzer/ dir)
       const absoluteAuditFile = resolve(process.cwd(), options.auditFile);
-      args.push('--audit-file', absoluteAuditFile);
+      arguments_.push('--audit-file', absoluteAuditFile);
     }
 
     if (options.planFile) {
       // Resolve plan file to absolute path (Python subprocess runs in analyzer/ dir)
       const absolutePlanFile = resolve(process.cwd(), options.planFile);
-      args.push('--plan-file', absolutePlanFile);
+      arguments_.push('--plan-file', absolutePlanFile);
     }
 
     if (options.qualityThreshold !== undefined) {
-      args.push('--quality-threshold', String(options.qualityThreshold));
+      arguments_.push('--quality-threshold', String(options.qualityThreshold));
     }
 
     if (options.verbose) {
-      args.push('--verbose');
+      arguments_.push('--verbose');
     }
 
     return this.executePython<PlanResult>(
-      args,
+      arguments_,
       options.verbose,
       PlanResultSchema
     );
@@ -489,7 +485,7 @@ export class PythonBridge implements IPythonBridge {
    * @throws Error if Python process fails or Claude API error
    */
   async suggest(options: SuggestOptions): Promise<string> {
-    const args = [
+    const arguments_ = [
       '-m',
       'src.main',
       'suggest',
@@ -501,27 +497,27 @@ export class PythonBridge implements IPythonBridge {
     ];
 
     if (options.timeout !== undefined) {
-      args.push('--timeout', String(options.timeout));
+      arguments_.push('--timeout', String(options.timeout));
     }
 
     if (options.maxRetries !== undefined) {
-      args.push('--max-retries', String(options.maxRetries));
+      arguments_.push('--max-retries', String(options.maxRetries));
     }
 
     if (options.retryDelay !== undefined) {
-      args.push('--retry-delay', String(options.retryDelay));
+      arguments_.push('--retry-delay', String(options.retryDelay));
     }
 
     if (options.verbose) {
-      args.push('--verbose');
+      arguments_.push('--verbose');
     }
 
     if (options.feedback) {
-      args.push('--feedback', options.feedback);
+      arguments_.push('--feedback', options.feedback);
     }
 
     // suggest command returns plain text, not JSON
-    return this.executePythonText(args, options.verbose);
+    return this.executePythonText(arguments_, options.verbose);
   }
 
   /**
@@ -532,9 +528,9 @@ export class PythonBridge implements IPythonBridge {
    * @throws Error if Python process fails or write fails
    */
   async apply(data: ApplyData): Promise<void> {
-    const args = ['-m', 'src.main', 'apply'];
+    const arguments_ = ['-m', 'src.main', 'apply'];
 
-    const childProcess = spawn(this.pythonPath, args, {
+    const childProcess = spawn(this.pythonPath, arguments_, {
       cwd: this.analyzerModule,
       env: { ...process.env },
     });
@@ -653,17 +649,17 @@ export class PythonBridge implements IPythonBridge {
    * @throws Error if process fails
    */
   private async executePythonText(
-    args: string[],
+    arguments_: string[],
     verbose: boolean = false,
     timeoutMs?: number
   ): Promise<string> {
-    const childProcess = spawn(this.pythonPath, args, {
+    const childProcess = spawn(this.pythonPath, arguments_, {
       cwd: this.analyzerModule,
       env: { ...process.env },
     });
 
     // Extract command name for timeout error messages
-    const commandName = args[2] || 'unknown';
+    const commandName = arguments_[2] || 'unknown';
     // Default to suggestTimeout for suggest command, defaultTimeout otherwise
     const timeout =
       timeoutMs ??
@@ -739,18 +735,18 @@ export class PythonBridge implements IPythonBridge {
    * @throws Error if process fails, JSON is invalid, or validation fails
    */
   private async executePython<T>(
-    args: string[],
+    arguments_: string[],
     verbose: boolean = false,
     schema?: z.ZodType<T>,
     timeoutMs?: number
   ): Promise<T> {
-    const childProcess = spawn(this.pythonPath, args, {
+    const childProcess = spawn(this.pythonPath, arguments_, {
       cwd: this.analyzerModule,
       env: { ...process.env },
     });
 
     // Extract command name for timeout error messages
-    const commandName = args[2] || 'unknown';
+    const commandName = arguments_[2] || 'unknown';
     const timeout = timeoutMs ?? this.defaultTimeout;
 
     // Setup timeout handling
@@ -847,11 +843,11 @@ export class PythonBridge implements IPythonBridge {
    * @throws Error if Python process fails or returns invalid JSON
    */
   async listSessions(): Promise<SessionSummary[]> {
-    const args = ['-m', 'analyzer', 'list-sessions', '--format', 'json'];
+    const arguments_ = ['-m', 'analyzer', 'list-sessions', '--format', 'json'];
 
     // Validate with array schema
     const result = await this.executePython<SessionSummary[]>(
-      args,
+      arguments_,
       false,
       z.array(SessionSummarySchema)
     );
@@ -867,7 +863,7 @@ export class PythonBridge implements IPythonBridge {
    * @throws Error if Python process fails or returns invalid JSON
    */
   async listChanges(sessionId: string): Promise<TransactionEntry[]> {
-    const args = [
+    const arguments_ = [
       '-m',
       'analyzer',
       'list-changes',
@@ -878,7 +874,7 @@ export class PythonBridge implements IPythonBridge {
 
     // Validate with array schema
     const result = await this.executePython<TransactionEntry[]>(
-      args,
+      arguments_,
       false,
       z.array(TransactionEntrySchema)
     );
@@ -894,7 +890,7 @@ export class PythonBridge implements IPythonBridge {
    * @throws Error if Python process fails or rollback fails
    */
   async rollbackSession(sessionId: string): Promise<RollbackResult> {
-    const args = [
+    const arguments_ = [
       '-m',
       'analyzer',
       'rollback-session',
@@ -905,7 +901,7 @@ export class PythonBridge implements IPythonBridge {
     ];
 
     const result = await this.executePython<RollbackResult>(
-      args,
+      arguments_,
       false,
       RollbackResultSchema
     );
@@ -921,7 +917,7 @@ export class PythonBridge implements IPythonBridge {
    * @throws Error if Python process fails or rollback fails
    */
   async rollbackChange(entryId: string): Promise<RollbackResult> {
-    const args = [
+    const arguments_ = [
       '-m',
       'analyzer',
       'rollback-change',
@@ -932,7 +928,7 @@ export class PythonBridge implements IPythonBridge {
     ];
 
     const result = await this.executePython<RollbackResult>(
-      args,
+      arguments_,
       false,
       RollbackResultSchema
     );
@@ -951,7 +947,7 @@ export class PythonBridge implements IPythonBridge {
    * @throws Error if git backend unavailable or initialization fails
    */
   async beginTransaction(sessionId: string): Promise<void> {
-    const args = [
+    const arguments_ = [
       '-m',
       'src.main',
       'begin-transaction',
@@ -963,7 +959,7 @@ export class PythonBridge implements IPythonBridge {
 
     const result = await this.executePython<
       z.infer<typeof GenericSuccessSchema>
-    >(args, false, GenericSuccessSchema);
+    >(arguments_, false, GenericSuccessSchema);
 
     if (!result.success) {
       throw new Error(
@@ -995,7 +991,7 @@ export class PythonBridge implements IPythonBridge {
     itemType: string,
     language: string
   ): Promise<void> {
-    const args = [
+    const arguments_ = [
       '-m',
       'src.main',
       'record-write',
@@ -1012,7 +1008,7 @@ export class PythonBridge implements IPythonBridge {
 
     const result = await this.executePython<
       z.infer<typeof GenericSuccessSchema>
-    >(args, false, GenericSuccessSchema);
+    >(arguments_, false, GenericSuccessSchema);
 
     if (!result.success) {
       throw new Error(
@@ -1032,7 +1028,7 @@ export class PythonBridge implements IPythonBridge {
    * @throws Error if no active transaction or merge fails
    */
   async commitTransaction(sessionId: string): Promise<void> {
-    const args = [
+    const arguments_ = [
       '-m',
       'src.main',
       'commit-transaction',
@@ -1044,7 +1040,7 @@ export class PythonBridge implements IPythonBridge {
 
     const result = await this.executePython<
       z.infer<typeof GenericSuccessSchema>
-    >(args, false, GenericSuccessSchema);
+    >(arguments_, false, GenericSuccessSchema);
 
     if (!result.success) {
       throw new Error(
