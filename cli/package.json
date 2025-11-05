@@ -15,8 +15,8 @@
     "test:all": "npm test && npm run test:integration",
     "lint": "eslint src --ext .ts",
     "lint:jsdoc": "eslint src --ext .ts,.js,.mjs,.cjs",
-    "format": "prettier --write \"src/**/*.{ts,js,mjs,cjs}\" \"../plugins/**/*.{js,mjs,cjs}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,js,mjs,cjs}\" \"../plugins/**/*.{js,mjs,cjs}\"",
+    "format": "prettier --write --ignore-path ../.prettierignore \"src/**/*.{ts,js,mjs,cjs}\" \"../plugins/**/*.{js,mjs,cjs}\"",
+    "format:check": "prettier --check --ignore-path ../.prettierignore \"src/**/*.{ts,js,mjs,cjs}\" \"../plugins/**/*.{js,mjs,cjs}\"",
     "format:ts": "prettier --write \"src/**/*.ts\"",
     "format:js": "prettier --write \"src/**/*.{js,mjs,cjs}\" \"../plugins/**/*.{js,mjs,cjs}\"",
     "prepare": "husky"
