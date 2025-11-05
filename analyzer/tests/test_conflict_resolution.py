@@ -31,19 +31,21 @@ class TestMultiFileRollback:
             # Create three files
             originals = {}
             for i in range(3):
-                filepath = base_path / f'file{i}.py'
-                content = f'# Original file {i}\n'
+                filepath = base_path / f"file{i}.py"
+                content = f"# Original file {i}\n"
                 filepath.write_text(content)
                 originals[str(filepath)] = content
 
             # Record transaction for all three
-            manifest = manager.begin_transaction('test-session')
+            manifest = manager.begin_transaction("test-session")
             for i in range(3):
-                filepath = base_path / f'file{i}.py'
-                backup = str(filepath) + '.bak'
+                filepath = base_path / f"file{i}.py"
+                backup = str(filepath) + ".bak"
                 Path(backup).write_text(originals[str(filepath)])
-                filepath.write_text(f'def func{i}(): pass\n')
-                manager.record_write(manifest, str(filepath), backup, f'func{i}', 'function', 'python')
+                filepath.write_text(f"def func{i}(): pass\n")
+                manager.record_write(
+                    manifest, str(filepath), backup, f"func{i}", "function", "python"
+                )
 
             # Rollback all changes
             result = manager.rollback_transaction(manifest)
@@ -51,7 +53,7 @@ class TestMultiFileRollback:
 
             # Verify all files restored
             for i in range(3):
-                filepath = base_path / f'file{i}.py'
+                filepath = base_path / f"file{i}.py"
                 assert filepath.read_text() == originals[str(filepath)]
 
     def test_rollback_partial_on_missing_backup(self):
@@ -64,20 +66,22 @@ class TestMultiFileRollback:
 
             # Create files
             for i in range(3):
-                filepath = base_path / f'file{i}.py'
-                filepath.write_text(f'# Original {i}\n')
+                filepath = base_path / f"file{i}.py"
+                filepath.write_text(f"# Original {i}\n")
 
             # Record transaction
-            manifest = manager.begin_transaction('test-session')
+            manifest = manager.begin_transaction("test-session")
             for i in range(3):
-                filepath = base_path / f'file{i}.py'
-                backup = str(filepath) + '.bak'
-                Path(backup).write_text(f'# Original {i}\n')
-                filepath.write_text(f'# Modified {i}\n')
-                manager.record_write(manifest, str(filepath), backup, f'func{i}', 'function', 'python')
+                filepath = base_path / f"file{i}.py"
+                backup = str(filepath) + ".bak"
+                Path(backup).write_text(f"# Original {i}\n")
+                filepath.write_text(f"# Modified {i}\n")
+                manager.record_write(
+                    manifest, str(filepath), backup, f"func{i}", "function", "python"
+                )
 
             # Delete one backup to simulate missing file
-            backup1 = base_path / 'file1.py.bak'
+            backup1 = base_path / "file1.py.bak"
             backup1.unlink()
 
             # Rollback should restore what it can
@@ -99,20 +103,22 @@ class TestFileStateScenarios:
             manager = TransactionManager(base_path=base_path, use_git=True)
 
             # Create empty file
-            filepath = base_path / 'empty.py'
-            filepath.write_text('')
+            filepath = base_path / "empty.py"
+            filepath.write_text("")
 
             # Record transaction
-            manifest = manager.begin_transaction('test-session')
-            backup = str(filepath) + '.bak'
-            Path(backup).write_text('')
-            filepath.write_text('# Now has content\n')
-            manager.record_write(manifest, str(filepath), backup, 'func', 'function', 'python')
+            manifest = manager.begin_transaction("test-session")
+            backup = str(filepath) + ".bak"
+            Path(backup).write_text("")
+            filepath.write_text("# Now has content\n")
+            manager.record_write(
+                manifest, str(filepath), backup, "func", "function", "python"
+            )
 
             # Rollback
             result = manager.rollback_transaction(manifest)
             assert result == 1
-            assert filepath.read_text() == ''
+            assert filepath.read_text() == ""
 
     def test_rollback_large_file(self):
         """Test rollback of large file."""
@@ -123,19 +129,21 @@ class TestFileStateScenarios:
             manager = TransactionManager(base_path=base_path, use_git=True)
 
             # Create file with many lines
-            filepath = base_path / 'large.py'
-            original_lines = [f'# Line {i}\n' for i in range(1000)]
-            original = ''.join(original_lines)
+            filepath = base_path / "large.py"
+            original_lines = [f"# Line {i}\n" for i in range(1000)]
+            original = "".join(original_lines)
             filepath.write_text(original)
 
             # Record transaction
-            manifest = manager.begin_transaction('test-session')
-            backup = str(filepath) + '.bak'
+            manifest = manager.begin_transaction("test-session")
+            backup = str(filepath) + ".bak"
             Path(backup).write_text(original)
             # Add docs at top
             modified = '"""Module docstring"""\n' + original
             filepath.write_text(modified)
-            manager.record_write(manifest, str(filepath), backup, 'module', 'module', 'python')
+            manager.record_write(
+                manifest, str(filepath), backup, "module", "module", "python"
+            )
 
             # Rollback
             result = manager.rollback_transaction(manifest)
@@ -151,17 +159,19 @@ class TestFileStateScenarios:
             manager = TransactionManager(base_path=base_path, use_git=True)
 
             # Create file with unicode
-            filepath = base_path / 'unicode.py'
-            original = '# 你好世界\n# Привет мир\n# مرحبا بالعالم\n'
+            filepath = base_path / "unicode.py"
+            original = "# 你好世界\n# Привет мир\n# مرحبا بالعالم\n"
             filepath.write_text(original)
 
             # Record transaction
-            manifest = manager.begin_transaction('test-session')
-            backup = str(filepath) + '.bak'
+            manifest = manager.begin_transaction("test-session")
+            backup = str(filepath) + ".bak"
             Path(backup).write_text(original)
             modified = '"""Unicode test: 🔥💯🎉"""\n' + original
             filepath.write_text(modified)
-            manager.record_write(manifest, str(filepath), backup, 'func', 'function', 'python')
+            manager.record_write(
+                manifest, str(filepath), backup, "func", "function", "python"
+            )
 
             # Rollback
             result = manager.rollback_transaction(manifest)
@@ -183,20 +193,22 @@ class TestNestedPaths:
             # Create nested structure a/b/c/d/e/
             nested_paths = []
             for depth in range(5):
-                path_parts = ['a'] * (depth + 1)
+                path_parts = ["a"] * (depth + 1)
                 dirpath = base_path.joinpath(*path_parts)
                 dirpath.mkdir(parents=True, exist_ok=True)
-                filepath = dirpath / 'file.py'
-                filepath.write_text(f'# Depth {depth}\n')
-                nested_paths.append((filepath, f'# Depth {depth}\n'))
+                filepath = dirpath / "file.py"
+                filepath.write_text(f"# Depth {depth}\n")
+                nested_paths.append((filepath, f"# Depth {depth}\n"))
 
             # Record transaction for all
-            manifest = manager.begin_transaction('test-session')
+            manifest = manager.begin_transaction("test-session")
             for filepath, original in nested_paths:
-                backup = str(filepath) + '.bak'
+                backup = str(filepath) + ".bak"
                 Path(backup).write_text(original)
-                filepath.write_text('# Modified\n')
-                manager.record_write(manifest, str(filepath), backup, 'func', 'function', 'python')
+                filepath.write_text("# Modified\n")
+                manager.record_write(
+                    manifest, str(filepath), backup, "func", "function", "python"
+                )
 
             # Rollback all
             result = manager.rollback_transaction(manifest)
@@ -219,32 +231,36 @@ class TestSequentialOperations:
             manager = TransactionManager(base_path=base_path, use_git=True)
 
             # Session 1
-            file1 = base_path / 'file1.py'
-            file1.write_text('v1\n')
-            manifest1 = manager.begin_transaction('session-1')
-            backup1 = str(file1) + '.bak'
-            Path(backup1).write_text('v1\n')
-            file1.write_text('v1-modified\n')
-            manager.record_write(manifest1, str(file1), backup1, 'func1', 'function', 'python')
+            file1 = base_path / "file1.py"
+            file1.write_text("v1\n")
+            manifest1 = manager.begin_transaction("session-1")
+            backup1 = str(file1) + ".bak"
+            Path(backup1).write_text("v1\n")
+            file1.write_text("v1-modified\n")
+            manager.record_write(
+                manifest1, str(file1), backup1, "func1", "function", "python"
+            )
 
             # Rollback session 1
             result1 = manager.rollback_transaction(manifest1)
             assert result1 == 1
-            assert file1.read_text() == 'v1\n'
+            assert file1.read_text() == "v1\n"
 
             # Session 2
-            file2 = base_path / 'file2.py'
-            file2.write_text('v2\n')
-            manifest2 = manager.begin_transaction('session-2')
-            backup2 = str(file2) + '.bak'
-            Path(backup2).write_text('v2\n')
-            file2.write_text('v2-modified\n')
-            manager.record_write(manifest2, str(file2), backup2, 'func2', 'function', 'python')
+            file2 = base_path / "file2.py"
+            file2.write_text("v2\n")
+            manifest2 = manager.begin_transaction("session-2")
+            backup2 = str(file2) + ".bak"
+            Path(backup2).write_text("v2\n")
+            file2.write_text("v2-modified\n")
+            manager.record_write(
+                manifest2, str(file2), backup2, "func2", "function", "python"
+            )
 
             # Rollback session 2
             result2 = manager.rollback_transaction(manifest2)
             assert result2 == 1
-            assert file2.read_text() == 'v2\n'
+            assert file2.read_text() == "v2\n"
 
 
 class TestRollbackVerification:
@@ -261,17 +277,24 @@ class TestRollbackVerification:
             # Create files
             files_and_backups = []
             for i in range(3):
-                filepath = base_path / f'file{i}.py'
-                filepath.write_text(f'original {i}\n')
-                backup = str(filepath) + '.bak'
+                filepath = base_path / f"file{i}.py"
+                filepath.write_text(f"original {i}\n")
+                backup = str(filepath) + ".bak"
                 files_and_backups.append((filepath, Path(backup)))
 
             # Record transaction
-            manifest = manager.begin_transaction('test-session')
+            manifest = manager.begin_transaction("test-session")
             for filepath, backup_path in files_and_backups:
                 backup_path.write_text(filepath.read_text())
-                filepath.write_text('modified\n')
-                manager.record_write(manifest, str(filepath), str(backup_path), 'func', 'function', 'python')
+                filepath.write_text("modified\n")
+                manager.record_write(
+                    manifest,
+                    str(filepath),
+                    str(backup_path),
+                    "func",
+                    "function",
+                    "python",
+                )
 
             # Verify backups exist
             for _, backup_path in files_and_backups:
@@ -294,25 +317,27 @@ class TestRollbackVerification:
             manager = TransactionManager(base_path=base_path, use_git=True)
 
             # Create file
-            filepath = base_path / 'file.py'
-            filepath.write_text('original\n')
+            filepath = base_path / "file.py"
+            filepath.write_text("original\n")
 
             # Record transaction
-            manifest = manager.begin_transaction('test-session')
-            backup = str(filepath) + '.bak'
-            Path(backup).write_text('original\n')
-            filepath.write_text('modified\n')
-            manager.record_write(manifest, str(filepath), backup, 'func', 'function', 'python')
+            manifest = manager.begin_transaction("test-session")
+            backup = str(filepath) + ".bak"
+            Path(backup).write_text("original\n")
+            filepath.write_text("modified\n")
+            manager.record_write(
+                manifest, str(filepath), backup, "func", "function", "python"
+            )
 
             # Check initial status
-            assert manifest.status == 'in_progress'
+            assert manifest.status == "in_progress"
 
             # Rollback
             result = manager.rollback_transaction(manifest)
             assert result == 1
 
             # Check status updated
-            assert manifest.status == 'rolled_back'
+            assert manifest.status == "rolled_back"
             assert manifest.completed_at is not None
 
 
@@ -328,14 +353,16 @@ class TestGitSpecificRollback:
             manager = TransactionManager(base_path=base_path, use_git=True)
 
             # Create and rollback transaction
-            filepath = base_path / 'file.py'
-            filepath.write_text('original\n')
+            filepath = base_path / "file.py"
+            filepath.write_text("original\n")
 
-            manifest = manager.begin_transaction('test-session')
-            backup = str(filepath) + '.bak'
-            Path(backup).write_text('original\n')
-            filepath.write_text('modified\n')
-            manager.record_write(manifest, str(filepath), backup, 'func', 'function', 'python')
+            manifest = manager.begin_transaction("test-session")
+            backup = str(filepath) + ".bak"
+            Path(backup).write_text("original\n")
+            filepath.write_text("modified\n")
+            manager.record_write(
+                manifest, str(filepath), backup, "func", "function", "python"
+            )
 
             # Rollback
             manager.rollback_transaction(manifest)
@@ -343,7 +370,7 @@ class TestGitSpecificRollback:
             # Rollback should leave things clean
             # (Implementation may or may not create additional commits)
             # The important thing is it completes successfully
-            assert manifest.status == 'rolled_back'
+            assert manifest.status == "rolled_back"
 
     def test_git_branch_cleaned_on_rollback(self):
         """Test that session branch is cleaned up after rollback."""
@@ -354,27 +381,29 @@ class TestGitSpecificRollback:
             manager = TransactionManager(base_path=base_path, use_git=True)
 
             # Create transaction
-            filepath = base_path / 'file.py'
-            filepath.write_text('original\n')
+            filepath = base_path / "file.py"
+            filepath.write_text("original\n")
 
-            manifest = manager.begin_transaction('test-session')
-            backup = str(filepath) + '.bak'
-            Path(backup).write_text('original\n')
-            filepath.write_text('modified\n')
-            manager.record_write(manifest, str(filepath), backup, 'func', 'function', 'python')
+            manifest = manager.begin_transaction("test-session")
+            backup = str(filepath) + ".bak"
+            Path(backup).write_text("original\n")
+            filepath.write_text("modified\n")
+            manager.record_write(
+                manifest, str(filepath), backup, "func", "function", "python"
+            )
 
             # Rollback
             manager.rollback_transaction(manifest)
 
             # Check branches
-            git_dir = base_path / '.docimp' / 'state' / '.git'
+            git_dir = base_path / ".docimp" / "state" / ".git"
             result = subprocess.run(
-                ['git', '--git-dir', str(git_dir), 'branch', '--list'],
+                ["git", "--git-dir", str(git_dir), "branch", "--list"],
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
 
             # Should still have main branch but not session branch
-            assert 'main' in result.stdout
+            assert "main" in result.stdout
             # Session branch may or may not be cleaned up - implementation dependent

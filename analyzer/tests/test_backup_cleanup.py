@@ -48,26 +48,29 @@ def test_find_orphaned_backups_tracked_excluded():
         bak_file.write_text("backup content")
 
         # Create a transaction that references this backup
-        manifest = manager.begin_transaction('test-session')
+        manifest = manager.begin_transaction("test-session")
         manifest.entries.append(
             TransactionEntry(
-                entry_id='abc123',
-                filepath=str(base_path / 'tracked.py'),
+                entry_id="abc123",
+                filepath=str(base_path / "tracked.py"),
                 backup_path=str(bak_file),
-                timestamp='2024-01-01T10:00:00',
-                item_name='test_func',
-                item_type='function',
-                language='python',
-                success=True
+                timestamp="2024-01-01T10:00:00",
+                item_name="test_func",
+                item_type="function",
+                language="python",
+                success=True,
             )
         )
 
         # Save the manifest
         from src.utils.state_manager import StateManager
+
         StateManager.ensure_state_dir(base_path)
-        transactions_dir = StateManager.get_state_dir(base_path) / 'session-reports' / 'transactions'
+        transactions_dir = (
+            StateManager.get_state_dir(base_path) / "session-reports" / "transactions"
+        )
         transactions_dir.mkdir(parents=True, exist_ok=True)
-        manifest_path = transactions_dir / f'transaction-{manifest.session_id}.json'
+        manifest_path = transactions_dir / f"transaction-{manifest.session_id}.json"
         manager.save_manifest(manifest, manifest_path)
 
         # Check for orphans
@@ -91,6 +94,7 @@ def test_find_orphaned_backups_age_filter():
         old_time = time.time() - (8 * 24 * 3600)  # 8 days ago
         old_bak.touch()
         import os
+
         os.utime(old_bak, (old_time, old_time))
 
         # Create a recent backup file
@@ -143,6 +147,7 @@ def test_cleanup_orphaned_backups_deletes_files():
         # Make them old (8 days)
         old_time = time.time() - (8 * 24 * 3600)
         import os
+
         for bak in [bak1, bak2]:
             os.utime(bak, (old_time, old_time))
 
@@ -167,6 +172,7 @@ def test_cleanup_orphaned_backups_dry_run():
         # Make it old
         old_time = time.time() - (8 * 24 * 3600)
         import os
+
         os.utime(bak, (old_time, old_time))
 
         # Dry run
@@ -191,6 +197,7 @@ def test_cleanup_orphaned_backups_respects_age():
         # Make one old
         old_time = time.time() - (8 * 24 * 3600)
         import os
+
         os.utime(old_bak, (old_time, old_time))
 
         # Cleanup (7 day threshold)

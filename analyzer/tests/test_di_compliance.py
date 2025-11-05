@@ -42,7 +42,7 @@ class TestDocumentationAnalyzerDI:
                 docstring=None,
                 export_type="internal",
                 module_system="unknown",
-                audit_rating=None
+                audit_rating=None,
             )
         ]
         mock_parser.parse_file.return_value = mock_items
@@ -56,8 +56,7 @@ class TestDocumentationAnalyzerDI:
         mock_scorer.calculate_score.return_value = 15.0
 
         analyzer = DocumentationAnalyzer(
-            parsers={'python': mock_parser},
-            scorer=mock_scorer
+            parsers={"python": mock_parser}, scorer=mock_scorer
         )
 
         # Analyze should use the injected mock parser
@@ -92,7 +91,7 @@ class TestDocumentationAnalyzerDI:
                 docstring=None,
                 export_type="internal",
                 module_system="unknown",
-                audit_rating=None
+                audit_rating=None,
             )
         ]
 
@@ -102,8 +101,7 @@ class TestDocumentationAnalyzerDI:
 
         # Create analyzer with injected dependencies
         analyzer = DocumentationAnalyzer(
-            parsers={'python': mock_parser},
-            scorer=mock_scorer
+            parsers={"python": mock_parser}, scorer=mock_scorer
         )
 
         result = analyzer.analyze(str(test_file))
@@ -135,7 +133,7 @@ class TestPlanGeneratorDI:
                 docstring="Existing docs",
                 export_type="internal",
                 module_system="unknown",
-                audit_rating=None  # Will be set by generate_plan
+                audit_rating=None,  # Will be set by generate_plan
             )
         ]
 
@@ -145,19 +143,18 @@ class TestPlanGeneratorDI:
             total_items=1,
             documented_items=1,
             by_language={},
-            parse_failures=[]
+            parse_failures=[],
         )
 
         # Create audit file
         audit_file = tmp_path / "audit.json"
         audit_data = {
             "ratings": {
-                str(tmp_path / "test.py"): {
-                    "documented_func": 1  # Terrible rating
-                }
+                str(tmp_path / "test.py"): {"documented_func": 1}  # Terrible rating
             }
         }
         import json
+
         audit_file.write_text(json.dumps(audit_data))
 
         # Create mock scorer that returns a specific value
@@ -169,7 +166,7 @@ class TestPlanGeneratorDI:
             result=result,
             audit_file=audit_file,
             quality_threshold=2,
-            scorer=mock_scorer
+            scorer=mock_scorer,
         )
 
         # Verify custom scorer was used
@@ -195,7 +192,7 @@ class TestPlanGeneratorDI:
                 docstring=None,
                 export_type="internal",
                 module_system="unknown",
-                audit_rating=None
+                audit_rating=None,
             )
         ]
 
@@ -205,14 +202,14 @@ class TestPlanGeneratorDI:
             total_items=1,
             documented_items=0,
             by_language={},
-            parse_failures=[]
+            parse_failures=[],
         )
 
         # Generate plan without scorer parameter (should use default)
         plan = generate_plan(
             result=result,
             audit_file=None,
-            quality_threshold=2
+            quality_threshold=2,
             # scorer=None is implicit
         )
 

@@ -1,7 +1,8 @@
 """Plan generator for prioritizing documentation improvements.
 
-This module generates prioritized plans for documentation improvements by combining
-items that need documentation (missing docs or poor quality) and sorting by impact score.
+This module generates prioritized plans for documentation improvements by
+combining items that need documentation (missing docs or poor quality) and
+sorting by impact score.
 """
 
 import json
@@ -60,7 +61,7 @@ class PlanItem:
     reason: str
 
     @classmethod
-    def from_code_item(cls, item: CodeItem, reason: str) -> 'PlanItem':
+    def from_code_item(cls, item: CodeItem, reason: str) -> "PlanItem":
         """Create a PlanItem from a CodeItem.
 
         Args:
@@ -86,7 +87,7 @@ class PlanItem:
             docstring=item.docstring,
             export_type=item.export_type,
             module_system=item.module_system,
-            reason=reason
+            reason=reason,
         )
 
     def to_dict(self) -> dict:
@@ -125,12 +126,12 @@ class PlanResult:
             Dictionary representation with all plan items.
         """
         return {
-            'items': [item.to_dict() for item in self.items],
-            'total_items': self.total_items,
-            'missing_docs_count': self.missing_docs_count,
-            'poor_quality_count': self.poor_quality_count,
-            'invalid_ratings_count': self.invalid_ratings_count,
-            'invalid_ratings': self.invalid_ratings
+            "items": [item.to_dict() for item in self.items],
+            "total_items": self.total_items,
+            "missing_docs_count": self.missing_docs_count,
+            "poor_quality_count": self.poor_quality_count,
+            "invalid_ratings_count": self.invalid_ratings_count,
+            "invalid_ratings": self.invalid_ratings,
         }
 
 
@@ -138,7 +139,7 @@ def generate_plan(
     result: AnalysisResult,
     audit_file: Optional[Path] = None,
     quality_threshold: int = 2,
-    scorer: Optional[ImpactScorer] = None
+    scorer: Optional[ImpactScorer] = None,
 ) -> PlanResult:
     """Generate a prioritized documentation improvement plan.
 
@@ -162,11 +163,13 @@ def generate_plan(
     Args:
         result: Analysis result containing all code items. Items will be modified
                 in-place to apply audit ratings and recalculate impact scores.
-        audit_file: Path to audit results file. If None, uses StateManager.get_audit_file().
-        quality_threshold: Items with audit rating <= this value are included (default: 2).
-                          Scale: 1=Terrible, 2=OK, 3=Good, 4=Excellent.
-        scorer: Impact scorer instance for recalculating scores with audit ratings (dependency injection).
-                If None, creates a new ImpactScorer with default settings.
+        audit_file: Path to audit results file. If None, uses
+                StateManager.get_audit_file().
+        quality_threshold: Items with audit rating <= this value are included
+                (default: 2). Scale: 1=Terrible, 2=OK, 3=Good, 4=Excellent.
+        scorer: Impact scorer instance for recalculating scores with audit
+                ratings (dependency injection). If None, creates a new
+                ImpactScorer with default settings.
 
     Returns:
         PlanResult with prioritized items to improve.
@@ -202,11 +205,9 @@ def generate_plan(
             if rating is not None:
                 # Validate rating is in expected range (1-4)
                 if not (1 <= rating <= 4):
-                    invalid_ratings.append({
-                        'filepath': item.filepath,
-                        'name': item.name,
-                        'rating': rating
-                    })
+                    invalid_ratings.append(
+                        {"filepath": item.filepath, "name": item.name, "rating": rating}
+                    )
                     continue  # Skip this invalid rating
 
                 item.audit_rating = rating
@@ -227,7 +228,9 @@ def generate_plan(
         # Include items with poor quality documentation (if audited)
         elif item.audit_rating is not None and item.audit_rating <= quality_threshold:
             quality_labels = {1: "Terrible", 2: "OK"}
-            quality_label = quality_labels.get(item.audit_rating, f"Rating {item.audit_rating}")
+            quality_label = quality_labels.get(
+                item.audit_rating, f"Rating {item.audit_rating}"
+            )
             reason = f"Poor quality documentation ({quality_label})"
             poor_quality_count += 1
 
@@ -244,7 +247,7 @@ def generate_plan(
         missing_docs_count=missing_docs_count,
         poor_quality_count=poor_quality_count,
         invalid_ratings_count=len(invalid_ratings),
-        invalid_ratings=invalid_ratings
+        invalid_ratings=invalid_ratings,
     )
 
 
@@ -260,5 +263,5 @@ def save_plan(plan: PlanResult, output_file: Optional[Path] = None) -> None:
 
     # Ensure state directory exists before writing
     StateManager.ensure_state_dir()
-    with open(output_file, 'w') as f:
+    with open(output_file, "w") as f:
         json.dump(plan.to_dict(), f, indent=2)

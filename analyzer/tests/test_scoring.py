@@ -24,32 +24,32 @@ class TestImpactScorer:
     def simple_item(self):
         """Return a simple CodeItem with low complexity."""
         return CodeItem(
-            name='add',
-            type='function',
-            filepath='test.py',
+            name="add",
+            type="function",
+            filepath="test.py",
             line_number=1,
             end_line=5,
-            language='python',
+            language="python",
             complexity=1,
             has_docs=False,
-            export_type='internal',
-            module_system='unknown'
+            export_type="internal",
+            module_system="unknown",
         )
 
     @pytest.fixture
     def complex_item(self):
         """Return a complex CodeItem with high complexity."""
         return CodeItem(
-            name='process_payment',
-            type='function',
-            filepath='service.py',
+            name="process_payment",
+            type="function",
+            filepath="service.py",
             line_number=10,
             end_line=25,
-            language='python',
+            language="python",
             complexity=15,
             has_docs=False,
-            export_type='internal',
-            module_system='unknown'
+            export_type="internal",
+            module_system="unknown",
         )
 
     def test_scorer_initialization_valid_weights(self):
@@ -129,16 +129,16 @@ class TestImpactScorer:
     def test_max_complexity_capped_at_100(self, scorer):
         """Test that very high complexity is capped at 100."""
         very_complex = CodeItem(
-            name='monster_function',
-            type='function',
-            filepath='legacy.py',
+            name="monster_function",
+            type="function",
+            filepath="legacy.py",
             line_number=1,
             end_line=50,
-            language='python',
+            language="python",
             complexity=50,  # Would be 250 without cap
             has_docs=False,
-            export_type='internal',
-            module_system='unknown'
+            export_type="internal",
+            module_system="unknown",
         )
 
         score = scorer.calculate_score(very_complex)

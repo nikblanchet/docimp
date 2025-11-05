@@ -94,14 +94,17 @@ class AnalysisResult:
         """
         result = asdict(self)
         # Ensure nested dataclasses are also converted
-        result['items'] = [item.to_dict() if hasattr(item, 'to_dict') else item
-                          for item in self.items]
-        result['by_language'] = {
-            lang: metrics.to_dict() if hasattr(metrics, 'to_dict') else metrics
+        result["items"] = [
+            item.to_dict() if hasattr(item, "to_dict") else item for item in self.items
+        ]
+        result["by_language"] = {
+            lang: metrics.to_dict() if hasattr(metrics, "to_dict") else metrics
             for lang, metrics in self.by_language.items()
         }
-        result['parse_failures'] = [failure.to_dict() if hasattr(failure, 'to_dict') else failure
-                                   for failure in self.parse_failures]
+        result["parse_failures"] = [
+            failure.to_dict() if hasattr(failure, "to_dict") else failure
+            for failure in self.parse_failures
+        ]
         return result
 
     def get_undocumented_items(self) -> list[CodeItem]:

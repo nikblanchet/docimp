@@ -26,22 +26,23 @@ class StateManager:
     All methods return absolute paths resolved from the current working directory.
     """
 
-    STATE_DIR_NAME = '.docimp'
-    SESSION_REPORTS_DIR = 'session-reports'
-    HISTORY_DIR = 'history'
-    TRANSACTION_DIR = 'transactions'
-    GIT_STATE_DIR = 'state'
+    STATE_DIR_NAME = ".docimp"
+    SESSION_REPORTS_DIR = "session-reports"
+    HISTORY_DIR = "history"
+    TRANSACTION_DIR = "transactions"
+    GIT_STATE_DIR = "state"
 
-    AUDIT_FILE = 'audit.json'
-    PLAN_FILE = 'plan.json'
-    ANALYZE_FILE = 'analyze-latest.json'
+    AUDIT_FILE = "audit.json"
+    PLAN_FILE = "plan.json"
+    ANALYZE_FILE = "analyze-latest.json"
 
     @classmethod
     def get_state_dir(cls, base_path: Optional[Path] = None) -> Path:
         """Get the absolute path to the .docimp/ state directory.
 
         Args:
-            base_path: Base directory to resolve from. If None, uses current working directory.
+            base_path: Base directory to resolve from. If None, uses current
+                working directory.
 
         Returns:
             Absolute path to .docimp/ directory.
@@ -55,7 +56,8 @@ class StateManager:
         """Get the absolute path to the session-reports/ directory.
 
         Args:
-            base_path: Base directory to resolve from. If None, uses current working directory.
+            base_path: Base directory to resolve from. If None, uses current
+                working directory.
 
         Returns:
             Absolute path to .docimp/session-reports/ directory.
@@ -67,7 +69,8 @@ class StateManager:
         """Get the absolute path to the history/ directory.
 
         Args:
-            base_path: Base directory to resolve from. If None, uses current working directory.
+            base_path: Base directory to resolve from. If None, uses current
+                working directory.
 
         Returns:
             Absolute path to .docimp/history/ directory.
@@ -79,7 +82,8 @@ class StateManager:
         """Get the absolute path to the audit.json file.
 
         Args:
-            base_path: Base directory to resolve from. If None, uses current working directory.
+            base_path: Base directory to resolve from. If None, uses current
+                working directory.
 
         Returns:
             Absolute path to .docimp/session-reports/audit.json.
@@ -91,7 +95,8 @@ class StateManager:
         """Get the absolute path to the plan.json file.
 
         Args:
-            base_path: Base directory to resolve from. If None, uses current working directory.
+            base_path: Base directory to resolve from. If None, uses current
+                working directory.
 
         Returns:
             Absolute path to .docimp/session-reports/plan.json.
@@ -103,7 +108,8 @@ class StateManager:
         """Get the absolute path to the analyze-latest.json file.
 
         Args:
-            base_path: Base directory to resolve from. If None, uses current working directory.
+            base_path: Base directory to resolve from. If None, uses current
+                working directory.
 
         Returns:
             Absolute path to .docimp/session-reports/analyze-latest.json.
@@ -120,7 +126,8 @@ class StateManager:
         - .docimp/history/
 
         Args:
-            base_path: Base directory to resolve from. If None, uses current working directory.
+            base_path: Base directory to resolve from. If None, uses current
+                working directory.
         """
         state_dir = cls.get_state_dir(base_path)
         session_reports_dir = cls.get_session_reports_dir(base_path)
@@ -140,7 +147,8 @@ class StateManager:
         The history/ directory is NOT touched.
 
         Args:
-            base_path: Base directory to resolve from. If None, uses current working directory.
+            base_path: Base directory to resolve from. If None, uses current
+                working directory.
 
         Returns:
             Number of files removed.
@@ -166,7 +174,8 @@ class StateManager:
         """Check if the state directory exists.
 
         Args:
-            base_path: Base directory to resolve from. If None, uses current working directory.
+            base_path: Base directory to resolve from. If None, uses current
+                working directory.
 
         Returns:
             True if .docimp/ directory exists, False otherwise.
@@ -185,7 +194,8 @@ class StateManager:
             file_path: Path to the file to validate.
 
         Raises:
-            PermissionError: If we don't have write permission with a helpful error message.
+            PermissionError: If we don't have write permission with a helpful
+                error message.
         """
         # If file exists, check if it's writable
         if file_path.exists():
@@ -218,7 +228,8 @@ class StateManager:
         Each transaction is stored as transaction-{session_id}.json.
 
         Args:
-            base_path: Base directory to resolve from. If None, uses current working directory.
+            base_path: Base directory to resolve from. If None, uses current
+                working directory.
 
         Returns:
             Absolute path to .docimp/session-reports/transactions/ directory.
@@ -226,17 +237,21 @@ class StateManager:
         return cls.get_session_reports_dir(base_path) / cls.TRANSACTION_DIR
 
     @classmethod
-    def get_transaction_file(cls, session_id: str, base_path: Optional[Path] = None) -> Path:
+    def get_transaction_file(
+        cls, session_id: str, base_path: Optional[Path] = None
+    ) -> Path:
         """Get the absolute path to a specific transaction manifest file.
 
         Args:
             session_id: UUID of the transaction session
-            base_path: Base directory to resolve from. If None, uses current working directory.
+            base_path: Base directory to resolve from. If None, uses current
+                working directory.
 
         Returns:
-            Absolute path to .docimp/session-reports/transactions/transaction-{session_id}.json.
+            Absolute path to
+            .docimp/session-reports/transactions/transaction-{session_id}.json.
         """
-        return cls.get_transactions_dir(base_path) / f'transaction-{session_id}.json'
+        return cls.get_transactions_dir(base_path) / f"transaction-{session_id}.json"
 
     @classmethod
     def list_transaction_files(cls, base_path: Optional[Path] = None) -> List[Path]:
@@ -246,7 +261,8 @@ class StateManager:
         If the transactions directory doesn't exist, returns an empty list.
 
         Args:
-            base_path: Base directory to resolve from. If None, uses current working directory.
+            base_path: Base directory to resolve from. If None, uses current
+                working directory.
 
         Returns:
             List of Paths to transaction manifest files, newest first.
@@ -256,9 +272,9 @@ class StateManager:
             return []
 
         return sorted(
-            transactions_dir.glob('transaction-*.json'),
+            transactions_dir.glob("transaction-*.json"),
             key=lambda p: p.stat().st_mtime,
-            reverse=True
+            reverse=True,
         )
 
     @classmethod
@@ -269,7 +285,8 @@ class StateManager:
         transaction tracking and rollback capability.
 
         Args:
-            base_path: Base directory to resolve from. If None, uses current working directory.
+            base_path: Base directory to resolve from. If None, uses current
+                working directory.
 
         Returns:
             Absolute path to .docimp/state/ directory.
@@ -285,7 +302,8 @@ class StateManager:
         (graceful degradation).
 
         Args:
-            base_path: Base directory to resolve from. If None, uses current working directory.
+            base_path: Base directory to resolve from. If None, uses current
+                working directory.
 
         Returns:
             True if git state was successfully initialized, False if git unavailable.

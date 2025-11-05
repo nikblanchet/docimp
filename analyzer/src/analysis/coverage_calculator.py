@@ -27,7 +27,9 @@ class CoverageCalculator:
         documented = sum(1 for item in items if item.has_docs)
         return (documented / len(items)) * 100.0
 
-    def calculate_by_language(self, items: List[CodeItem]) -> Dict[str, LanguageMetrics]:
+    def calculate_by_language(
+        self, items: List[CodeItem]
+    ) -> Dict[str, LanguageMetrics]:
         """Calculate coverage metrics broken down by programming language.
 
         Args:
@@ -53,11 +55,13 @@ class CoverageCalculator:
             # Calculate averages
             avg_complexity = (
                 sum(item.complexity for item in lang_items) / total
-                if total > 0 else 0.0
+                if total > 0
+                else 0.0
             )
             avg_impact = (
                 sum(item.impact_score for item in lang_items) / total
-                if total > 0 else 0.0
+                if total > 0
+                else 0.0
             )
 
             metrics[language] = LanguageMetrics(
@@ -66,7 +70,7 @@ class CoverageCalculator:
                 documented_items=documented,
                 coverage_percent=coverage,
                 avg_complexity=avg_complexity,
-                avg_impact_score=avg_impact
+                avg_impact_score=avg_impact,
             )
 
         return metrics

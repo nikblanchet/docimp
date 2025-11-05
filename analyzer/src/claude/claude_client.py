@@ -20,11 +20,13 @@ class ClaudeClient:
     Parameters
     ----------
     api_key : str, optional
-        Anthropic API key. If not provided, reads from ANTHROPIC_API_KEY environment variable.
+        Anthropic API key. If not provided, reads from ANTHROPIC_API_KEY
+        environment variable.
     model : str, optional
         Claude model to use. Defaults to claude-sonnet-4-20250514.
     max_retries : int, optional
-        Maximum number of retry attempts for rate-limited or timed-out requests. Defaults to 3.
+        Maximum number of retry attempts for rate-limited or timed-out
+        requests. Defaults to 3.
     retry_delay : float, optional
         Base delay in seconds between retries. Defaults to 1.0.
     timeout : float, optional
@@ -42,9 +44,9 @@ class ClaudeClient:
         model: str = "claude-sonnet-4-20250514",
         max_retries: int = 3,
         retry_delay: float = 1.0,
-        timeout: float = 30.0
+        timeout: float = 30.0,
     ):
-        self.api_key = api_key or os.environ.get('ANTHROPIC_API_KEY')
+        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         if not self.api_key:
             raise ValueError(
                 "API key must be provided either as parameter or via "
@@ -78,7 +80,7 @@ class ClaudeClient:
         Returns False if max retries would be exceeded.
         """
         if attempt < self.max_retries - 1:
-            delay = self.retry_delay * (2 ** attempt)
+            delay = self.retry_delay * (2**attempt)
             return (True, delay)
         return (False, 0.0)
 
@@ -119,12 +121,7 @@ class ClaudeClient:
                     model=self.model,
                     max_tokens=max_tokens,
                     timeout=self.timeout,
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ]
+                    messages=[{"role": "user", "content": prompt}],
                 )
 
                 # Extract text from response
@@ -133,7 +130,8 @@ class ClaudeClient:
                     return content_block.text
                 else:
                     raise RuntimeError(
-                        f"Unexpected content block type: {type(content_block).__name__}. "
+                        f"Unexpected content block type: "
+                        f"{type(content_block).__name__}. "
                         f"Expected TextBlock with text content."
                     )
 
@@ -144,7 +142,8 @@ class ClaudeClient:
                     continue
                 else:
                     raise RuntimeError(
-                        f"Claude API request timed out after {self.max_retries} attempts. "
+                        f"Claude API request timed out after "
+                        f"{self.max_retries} attempts. "
                         f"Each request has a {self.timeout} second timeout."
                     )
 

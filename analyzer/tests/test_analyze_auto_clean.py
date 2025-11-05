@@ -39,7 +39,7 @@ class TestAnalyzeAutoClean:
                 assert audit_file.exists()
 
                 # Run analyze
-                result = main(['analyze', '.', '--format', 'json'])
+                result = main(["analyze", ".", "--format", "json"])
 
                 # Should succeed
                 assert result == 0
@@ -73,7 +73,7 @@ class TestAnalyzeAutoClean:
                 assert plan_file.exists()
 
                 # Run analyze
-                result = main(['analyze', '.', '--format', 'json'])
+                result = main(["analyze", ".", "--format", "json"])
 
                 # Should succeed
                 assert result == 0
@@ -111,7 +111,9 @@ class TestAnalyzeAutoClean:
                 assert plan_file.exists()
 
                 # Run analyze with --keep-old-reports
-                result = main(['analyze', '.', '--format', 'json', '--keep-old-reports'])
+                result = main(
+                    ["analyze", ".", "--format", "json", "--keep-old-reports"]
+                )
 
                 # Should succeed
                 assert result == 0
@@ -123,8 +125,8 @@ class TestAnalyzeAutoClean:
                 # Verify content is unchanged
                 audit_content = json.loads(audit_file.read_text())
                 plan_content = json.loads(plan_file.read_text())
-                assert audit_content['ratings']['preserved'] == 'audit'
-                assert plan_content['items'][0]['name'] == 'preserved'
+                assert audit_content["ratings"]["preserved"] == "audit"
+                assert plan_content["items"][0]["name"] == "preserved"
             finally:
                 # Restore original working directory
                 os.chdir(original_cwd)
@@ -144,7 +146,7 @@ class TestAnalyzeAutoClean:
                 test_file.write_text("def foo():\n    pass\n")
 
                 # Run analyze
-                result = main(['analyze', '.', '--format', 'json'])
+                result = main(["analyze", ".", "--format", "json"])
 
                 # Should succeed
                 assert result == 0
@@ -155,11 +157,11 @@ class TestAnalyzeAutoClean:
 
                 # Verify content is valid JSON with expected structure
                 content = json.loads(analyze_file.read_text())
-                assert 'coverage_percent' in content
-                assert 'total_items' in content
-                assert 'documented_items' in content
-                assert 'items' in content
-                assert 'by_language' in content
+                assert "coverage_percent" in content
+                assert "total_items" in content
+                assert "documented_items" in content
+                assert "items" in content
+                assert "by_language" in content
             finally:
                 # Restore original working directory
                 os.chdir(original_cwd)
@@ -196,7 +198,7 @@ class TestAnalyzeAutoClean:
                 assert old_analyze_file.exists()
 
                 # Run analyze
-                result = main(['analyze', '.', '--format', 'json'])
+                result = main(["analyze", ".", "--format", "json"])
 
                 # Should succeed
                 assert result == 0
@@ -209,7 +211,9 @@ class TestAnalyzeAutoClean:
                 new_analyze_file = StateManager.get_analyze_file()
                 assert new_analyze_file.exists()
                 new_content = json.loads(new_analyze_file.read_text())
-                assert 'old' not in new_content  # Should be new analysis, not old content
+                assert (
+                    "old" not in new_content
+                )  # Should be new analysis, not old content
             finally:
                 # Restore original working directory
                 os.chdir(original_cwd)
@@ -238,7 +242,7 @@ class TestAnalyzeAutoClean:
                 assert history_file.exists()
 
                 # Run analyze
-                result = main(['analyze', '.', '--format', 'json'])
+                result = main(["analyze", ".", "--format", "json"])
 
                 # Should succeed
                 assert result == 0
@@ -246,7 +250,7 @@ class TestAnalyzeAutoClean:
                 # Verify history file was preserved
                 assert history_file.exists()
                 content = json.loads(history_file.read_text())
-                assert content['historical'] == 'data'
+                assert content["historical"] == "data"
             finally:
                 # Restore original working directory
                 os.chdir(original_cwd)
@@ -270,7 +274,7 @@ class TestAnalyzeAutoClean:
                 assert not state_dir.exists()
 
                 # Run analyze
-                result = main(['analyze', '.', '--format', 'json'])
+                result = main(["analyze", ".", "--format", "json"])
 
                 # Should succeed
                 assert result == 0

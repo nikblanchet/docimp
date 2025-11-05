@@ -1,0 +1,35 @@
+[tool.ruff]
+# Exclude test directories and virtual environments
+exclude = [
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".pytest_cache",
+]
+
+# Python 3.13+ required
+target-version = "py313"
+
+# Line length limit (88 chars is Black default)
+line-length = 88
+
+[tool.ruff.lint]
+# Enable pycodestyle (E), pyflakes (F), and flake8-datetimez (DTZ)
+# E: pycodestyle errors (including E501 line too long)
+# F: pyflakes (undefined names, unused imports, etc.)
+# DTZ: flake8-datetimez (timezone-naive datetime usage)
+#
+# DTZ rules prevent timezone-naive datetime usage:
+# DTZ001: datetime.datetime() without tzinfo
+# DTZ002: datetime.datetime.today()
+# DTZ003: datetime.datetime.utcnow() [deprecated in Python 3.12+]
+# DTZ004: datetime.datetime.utcfromtimestamp() [deprecated in Python 3.12+]
+# DTZ005: datetime.datetime.now() without tz parameter
+# DTZ006: datetime.datetime.fromtimestamp() without tz parameter
+# DTZ007: datetime.datetime.strptime() without %z
+# DTZ011: datetime.date.today()
+# DTZ012: datetime.date.fromtimestamp()
+select = ["E", "F", "DTZ"]
+
+# Don't ignore any rules - we want strict enforcement
+ignore = []

@@ -24,10 +24,11 @@ class GitTimeoutConfig:
         slow_scale: Scale factor for slow operations (4.0 produces 120s).
         max_timeout_ms: Absolute maximum timeout cap (5 minutes).
     """
-    base_timeout_ms: int = 30000      # 30 seconds
-    fast_scale: float = 0.167         # 30s * 0.167 = 5s for fast ops
-    slow_scale: float = 4.0           # 30s * 4.0 = 120s for slow ops
-    max_timeout_ms: int = 300000      # 5 minutes absolute maximum
+
+    base_timeout_ms: int = 30000  # 30 seconds
+    fast_scale: float = 0.167  # 30s * 0.167 = 5s for fast ops
+    slow_scale: float = 4.0  # 30s * 4.0 = 120s for slow ops
+    max_timeout_ms: int = 300000  # 5 minutes absolute maximum
 
 
 class GitHelper:
@@ -52,40 +53,37 @@ class GitHelper:
             'fast', 'default', or 'slow' category.
         """
         if not args:
-            return 'default'
+            return "default"
 
         cmd = args[0].lower()
 
         # Fast operations (< 5s expected)
         # These are query operations that don't modify state
-        if cmd in ('status', 'rev-parse', 'branch', 'show', 'diff'):
-            return 'fast'
+        if cmd in ("status", "rev-parse", "branch", "show", "diff"):
+            return "fast"
 
         # Slow operations (may take minutes on large repos or slow filesystems)
         # These involve significant work or modification
-        if cmd in ('merge', 'revert', 'reset', 'init', 'clone', 'rebase'):
-            return 'slow'
+        if cmd in ("merge", "revert", "reset", "init", "clone", "rebase"):
+            return "slow"
 
         # Check for specific slow sub-commands
-        if cmd == 'reset' and '--hard' in args:
-            return 'slow'
-        if cmd == 'merge' and '--squash' in args:
-            return 'slow'
+        if cmd == "reset" and "--hard" in args:
+            return "slow"
+        if cmd == "merge" and "--squash" in args:
+            return "slow"
 
         # Log operations can be slow with complex history
-        if cmd == 'log' and any(arg.startswith('--format') for arg in args):
+        if cmd == "log" and any(arg.startswith("--format") for arg in args):
             # Simple format queries are fast, but we're conservative
-            return 'default'
+            return "default"
 
         # Default operations (10-30s expected)
         # add, commit, checkout, etc.
-        return 'default'
+        return "default"
 
     @staticmethod
-    def _calculate_timeout(
-        args: List[str],
-        config: GitTimeoutConfig
-    ) -> float:
+    def _calculate_timeout(args: List[str], config: GitTimeoutConfig) -> float:
         """Calculate timeout in seconds based on operation type and config.
 
         Uses progressive scaling: categorize operation, apply scale factor,
@@ -100,9 +98,9 @@ class GitHelper:
         """
         category = GitHelper._categorize_operation(args)
 
-        if category == 'fast':
+        if category == "fast":
             timeout_ms = config.base_timeout_ms * config.fast_scale
-        elif category == 'slow':
+        elif category == "slow":
             timeout_ms = config.base_timeout_ms * config.slow_scale
         else:  # default
             timeout_ms = config.base_timeout_ms
@@ -120,7 +118,7 @@ class GitHelper:
         Returns:
             True if git is available, False otherwise.
         """
-        return shutil.which('git') is not None
+        return shutil.which("git") is not None
 
     @staticmethod
     def init_sidecar_repo(base_path: Path) -> bool:
@@ -148,10 +146,10 @@ class GitHelper:
         from src.utils.state_manager import StateManager
 
         git_state_dir = StateManager.get_git_state_dir(base_path)
-        git_dir = git_state_dir / '.git'
+        git_dir = git_state_dir / ".git"
 
         # If already initialized, return success
-        if git_dir.exists() and (git_dir / 'HEAD').exists():
+        if git_dir.exists() and (git_dir / "HEAD").exists():
             return True
 
         # Create git state directory
@@ -159,35 +157,30 @@ class GitHelper:
 
         # Initialize git repo with explicit git-dir and work-tree
         # Use --initial-branch=main to ensure consistent branch name across git versions
-        GitHelper.run_git_command(['init', '--initial-branch=main'], base_path)
+        GitHelper.run_git_command(["init", "--initial-branch=main"], base_path)
 
         # Create initial commit on main branch
         # This ensures we have a branch to work from
         try:
             # Configure user for the side-car repo (required for commits)
             GitHelper.run_git_command(
-                ['config', 'user.name', 'DocImp Transaction System'],
-                base_path
+                ["config", "user.name", "DocImp Transaction System"], base_path
             )
             GitHelper.run_git_command(
-                ['config', 'user.email', 'docimp@localhost'],
-                base_path
+                ["config", "user.email", "docimp@localhost"], base_path
             )
 
             # Create .docimp/state/.gitignore (ignore everything by default)
-            gitignore_path = git_state_dir / '.gitignore'
+            gitignore_path = git_state_dir / ".gitignore"
             gitignore_path.write_text(
-                '# Side-car git state is ephemeral\n'
-                '# Ignore everything by default\n'
-                '*\n'
+                "# Side-car git state is ephemeral\n# Ignore everything by default\n*\n"
             )
 
             # Add and commit the .gitignore file
             # Use -f to force add the .gitignore file even though it ignores itself
-            GitHelper.run_git_command(['add', '-f', str(gitignore_path)], base_path)
+            GitHelper.run_git_command(["add", "-f", str(gitignore_path)], base_path)
             GitHelper.run_git_command(
-                ['commit', '-m', 'Initialize docimp side-car repo'],
-                base_path
+                ["commit", "-m", "Initialize docimp side-car repo"], base_path
             )
         except subprocess.CalledProcessError:
             # If initial commit fails, repo is still usable
@@ -202,17 +195,17 @@ class GitHelper:
         base_path: Path,
         check: bool = True,
         capture_output: bool = True,
-        timeout_config: Optional[GitTimeoutConfig] = None
+        timeout_config: Optional[GitTimeoutConfig] = None,
     ) -> subprocess.CompletedProcess:
         """Run a git command with proper isolation flags and timeout.
 
         All commands are run with --git-dir=.docimp/state/.git and --work-tree=.
         to ensure complete isolation from the user's git repository.
 
-        Timeouts are automatically calculated based on operation type (fast/default/slow)
-        using progressive scaling. Fast operations (status, rev-parse) get ~5s,
-        default operations (add, commit) get ~30s, slow operations (merge, revert)
-        get ~120s.
+        Timeouts are automatically calculated based on operation type
+        (fast/default/slow) using progressive scaling. Fast operations
+        (status, rev-parse) get ~5s, default operations (add, commit) get ~30s,
+        slow operations (merge, revert) get ~120s.
 
         Args:
             args: Git command arguments (without 'git' prefix).
@@ -241,15 +234,10 @@ class GitHelper:
         timeout_seconds = GitHelper._calculate_timeout(args, timeout_config)
 
         git_state_dir = StateManager.get_git_state_dir(base_path)
-        git_dir = git_state_dir / '.git'
+        git_dir = git_state_dir / ".git"
 
         # Build command with isolation flags
-        cmd = [
-            'git',
-            f'--git-dir={git_dir}',
-            f'--work-tree={base_path}',
-            *args
-        ]
+        cmd = ["git", f"--git-dir={git_dir}", f"--work-tree={base_path}", *args]
 
         try:
             return subprocess.run(
@@ -258,23 +246,33 @@ class GitHelper:
                 capture_output=capture_output,
                 text=True,
                 cwd=base_path,
-                timeout=timeout_seconds
+                timeout=timeout_seconds,
             )
         except subprocess.TimeoutExpired as e:
             # Create detailed error message with operation name and config hint
-            operation = ' '.join(args[:2]) if len(args) >= 2 else args[0] if args else 'unknown'
+            operation = (
+                " ".join(args[:2]) if len(args) >= 2 else args[0] if args else "unknown"
+            )
             category = GitHelper._categorize_operation(args)
 
             # Determine which config field to suggest increasing
-            if category == 'fast':
-                config_hint = f"transaction.git.fastScale (currently {timeout_config.fast_scale})"
-            elif category == 'slow':
-                config_hint = f"transaction.git.slowScale (currently {timeout_config.slow_scale})"
+            if category == "fast":
+                config_hint = (
+                    f"transaction.git.fastScale (currently {timeout_config.fast_scale})"
+                )
+            elif category == "slow":
+                config_hint = (
+                    f"transaction.git.slowScale (currently {timeout_config.slow_scale})"
+                )
             else:
-                config_hint = f"transaction.git.baseTimeout (currently {timeout_config.base_timeout_ms}ms)"
+                config_hint = (
+                    f"transaction.git.baseTimeout "
+                    f"(currently {timeout_config.base_timeout_ms}ms)"
+                )
 
             error_msg = (
-                f"Git operation 'git {operation}' timed out after {timeout_seconds:.1f} seconds. "
+                f"Git operation 'git {operation}' timed out after "
+                f"{timeout_seconds:.1f} seconds. "
                 f"This is a '{category}' operation. "
                 f"Consider increasing {config_hint} in docimp.config.js, "
                 f"or check for filesystem issues (network mounts, disk errors)."

@@ -36,7 +36,7 @@ class PythonParser(BaseParser):
             If the file contains invalid Python syntax
         """
         try:
-            with open(filepath, 'r', encoding='utf-8') as f:
+            with open(filepath, "r", encoding="utf-8") as f:
                 source = f.read()
 
             tree = ast.parse(source, filename=filepath)
@@ -44,8 +44,8 @@ class PythonParser(BaseParser):
 
             # Build parent map to detect methods (functions inside classes)
             # This prevents method duplication while still extracting nested functions.
-            # Uses ast.walk() for full traversal to capture functions at all nesting levels.
-            # See issue #67.
+            # Uses ast.walk() for full traversal to capture functions at all
+            # nesting levels. See issue #67.
             parent_map = {}
             for node in ast.walk(tree):
                 for child in ast.iter_child_nodes(node):
@@ -55,7 +55,8 @@ class PythonParser(BaseParser):
                 if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     parent = parent_map.get(node)
                     if isinstance(parent, ast.ClassDef):
-                        # Skip - this is a method, will be extracted when processing the class
+                        # Skip - this is a method, will be extracted when
+                        # processing the class
                         continue
                     # This is a function (top-level or nested in another function)
                     item = self._extract_function(node, filepath)
@@ -67,8 +68,12 @@ class PythonParser(BaseParser):
                         items.append(item)
                     # Also extract methods from the class
                     for method_node in node.body:
-                        if isinstance(method_node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                            method_item = self._extract_method(method_node, node.name, filepath)
+                        if isinstance(
+                            method_node, (ast.FunctionDef, ast.AsyncFunctionDef)
+                        ):
+                            method_item = self._extract_method(
+                                method_node, node.name, filepath
+                            )
                             if method_item:
                                 items.append(method_item)
 
@@ -79,68 +84,79 @@ class PythonParser(BaseParser):
         except SyntaxError as e:
             raise SyntaxError(f"Syntax error in {filepath}: {e}")
 
-    def _extract_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef, filepath: str) -> Optional[CodeItem]:
+    def _extract_function(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef, filepath: str
+    ) -> Optional[CodeItem]:
         """Extract a function definition as a CodeItem."""
         return CodeItem(
             name=node.name,
-            type='function',
+            type="function",
             filepath=filepath,
             line_number=node.lineno,
             end_line=node.end_lineno if node.end_lineno is not None else node.lineno,
-            language='python',
+            language="python",
             complexity=self._calculate_complexity(node),
             impact_score=0,  # Will be calculated by ImpactScorer
             has_docs=self._has_docstring(node),
             parameters=self._extract_parameters(node),
             return_type=self._extract_return_type(node),
             docstring=ast.get_docstring(node),
-            export_type='internal',  # Python doesn't have explicit exports
-            module_system='unknown'  # Python uses imports, not module systems
+            export_type="internal",  # Python doesn't have explicit exports
+            module_system="unknown",  # Python uses imports, not module systems
         )
 
     def _extract_class(self, node: ast.ClassDef, filepath: str) -> Optional[CodeItem]:
         """Extract a class definition as a CodeItem."""
         return CodeItem(
             name=node.name,
-            type='class',
+            type="class",
             filepath=filepath,
             line_number=node.lineno,
             end_line=node.end_lineno if node.end_lineno is not None else node.lineno,
-            language='python',
+            language="python",
             complexity=self._calculate_complexity(node),
             impact_score=0,  # Will be calculated by ImpactScorer
             has_docs=self._has_docstring(node),
             parameters=[],  # Classes don't have parameters in Python
             return_type=None,
             docstring=ast.get_docstring(node),
-            export_type='internal',
-            module_system='unknown'
+            export_type="internal",
+            module_system="unknown",
         )
 
-    def _extract_method(self, node: ast.FunctionDef | ast.AsyncFunctionDef, class_name: str, filepath: str) -> Optional[CodeItem]:
+    def _extract_method(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+        class_name: str,
+        filepath: str,
+    ) -> Optional[CodeItem]:
         """Extract a method definition as a CodeItem."""
         return CodeItem(
             name=f"{class_name}.{node.name}",
-            type='method',
+            type="method",
             filepath=filepath,
             line_number=node.lineno,
             end_line=node.end_lineno if node.end_lineno is not None else node.lineno,
-            language='python',
+            language="python",
             complexity=self._calculate_complexity(node),
             impact_score=0,  # Will be calculated by ImpactScorer
             has_docs=self._has_docstring(node),
             parameters=self._extract_parameters(node),
             return_type=self._extract_return_type(node),
             docstring=ast.get_docstring(node),
-            export_type='internal',
-            module_system='unknown'
+            export_type="internal",
+            module_system="unknown",
         )
 
-    def _has_docstring(self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef | ast.Module) -> bool:
+    def _has_docstring(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef | ast.Module
+    ) -> bool:
         """Check if a node has a docstring."""
         return ast.get_docstring(node) is not None
 
-    def _extract_parameters(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> List[str]:
+    def _extract_parameters(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef
+    ) -> List[str]:
         """Extract parameter names from a function."""
         params = []
 
@@ -158,7 +174,9 @@ class PythonParser(BaseParser):
 
         return params
 
-    def _extract_return_type(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> Optional[str]:
+    def _extract_return_type(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef
+    ) -> Optional[str]:
         """Extract return type annotation if present."""
         if node.returns:
             return ast.unparse(node.returns)
@@ -193,7 +211,9 @@ class PythonParser(BaseParser):
                     complexity += 1
                 elif isinstance(child, ast.BoolOp):
                     complexity += len(child.values) - 1
-                elif isinstance(child, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
+                elif isinstance(
+                    child, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
+                ):
                     complexity += 1
                 elif isinstance(child, ast.Assert):
                     complexity += 1

@@ -18,8 +18,8 @@ from src.parsers.typescript_parser import TypeScriptParser
 
 # Test fixture paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
-MALFORMED_SAMPLES = PROJECT_ROOT / 'test-samples' / 'malformed'
-EXAMPLES_DIR = PROJECT_ROOT / 'examples'
+MALFORMED_SAMPLES = PROJECT_ROOT / "test-samples" / "malformed"
+EXAMPLES_DIR = PROJECT_ROOT / "examples"
 
 
 class TestTypeScriptParserFileSystemErrors:
@@ -32,7 +32,7 @@ class TestTypeScriptParserFileSystemErrors:
 
     def test_file_not_found_detailed_error(self, parser):
         """Test that FileNotFoundError is raised with detailed error message."""
-        nonexistent_file = '/path/to/nonexistent.ts'
+        nonexistent_file = "/path/to/nonexistent.ts"
 
         with pytest.raises(FileNotFoundError):
             parser.parse_file(nonexistent_file)
@@ -97,7 +97,9 @@ class TestTypeScriptParserSubprocessErrors:
             raise FileNotFoundError("node: command not found")
 
         # Patch subprocess.run in the parser module's namespace
-        with patch('src.parsers.typescript_parser.subprocess.run', side_effect=mock_run):
+        with patch(
+            "src.parsers.typescript_parser.subprocess.run", side_effect=mock_run
+        ):
             # Parser catches FileNotFoundError and re-raises with generic message
             with pytest.raises(FileNotFoundError):
                 parser.parse_file(str(test_file))
@@ -128,13 +130,16 @@ class TestTypeScriptParserSubprocessErrors:
 
         # Mock subprocess.run to raise TimeoutExpired
         def mock_run(*args, **kwargs):
-            raise subprocess.TimeoutExpired(cmd=['node'], timeout=30)
+            raise subprocess.TimeoutExpired(cmd=["node"], timeout=30)
 
-        with patch('subprocess.run', side_effect=mock_run):
+        with patch("subprocess.run", side_effect=mock_run):
             with pytest.raises(RuntimeError) as exc_info:
                 parser.parse_file(str(test_file))
 
-            assert 'timed out' in str(exc_info.value).lower() or 'timeout' in str(exc_info.value).lower()
+            assert (
+                "timed out" in str(exc_info.value).lower()
+                or "timeout" in str(exc_info.value).lower()
+            )
 
     def test_subprocess_crash_nonzero_returncode(self, parser, tmp_path):
         """Test handling of subprocess crash with non-zero return code.
@@ -146,18 +151,18 @@ class TestTypeScriptParserSubprocessErrors:
 
         # Mock subprocess to return non-zero exit code with empty output
         mock_result = subprocess.CompletedProcess(
-            args=['node', 'helper.js'],
+            args=["node", "helper.js"],
             returncode=137,
-            stdout='',
-            stderr='Process killed'
+            stdout="",
+            stderr="Process killed",
         )
 
-        with patch('subprocess.run', return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result):
             with pytest.raises(RuntimeError) as exc_info:
                 parser.parse_file(str(test_file))
 
             error_msg = str(exc_info.value)
-            assert '137' in error_msg or 'killed' in error_msg.lower()
+            assert "137" in error_msg or "killed" in error_msg.lower()
 
     def test_helper_returns_partial_json(self, parser, tmp_path):
         """Test handling of truncated JSON output from helper script.
@@ -170,19 +175,19 @@ class TestTypeScriptParserSubprocessErrors:
 
         # Mock subprocess to return truncated JSON
         mock_result = subprocess.CompletedProcess(
-            args=['node', 'helper.js'],
+            args=["node", "helper.js"],
             returncode=0,
             stdout='{"items": [{"name": "test"',  # Missing closing brackets
-            stderr=''
+            stderr="",
         )
 
-        with patch('subprocess.run', return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result):
             with pytest.raises(RuntimeError) as exc_info:
                 parser.parse_file(str(test_file))
 
             # Should mention JSON parsing error
             error_msg = str(exc_info.value).lower()
-            assert 'json' in error_msg or 'parse' in error_msg
+            assert "json" in error_msg or "parse" in error_msg
 
 
 class TestTypeScriptParserAdvancedFeatures:
@@ -209,10 +214,10 @@ function identity<T>(arg: T): T {
         items = parser.parse_file(str(test_file))
 
         assert len(items) == 1
-        assert items[0].name == 'identity'
-        assert items[0].type == 'function'
-        assert items[0].return_type == 'T'
-        assert 'arg' in items[0].parameters
+        assert items[0].name == "identity"
+        assert items[0].type == "function"
+        assert items[0].return_type == "T"
+        assert "arg" in items[0].parameters
 
     def test_async_generator_functions(self, parser, tmp_path):
         """Test parsing of async generator functions.
@@ -234,8 +239,8 @@ async function* generateSequence() {
         items = parser.parse_file(str(test_file))
 
         assert len(items) == 1
-        assert items[0].name == 'generateSequence'
-        assert items[0].type == 'function'
+        assert items[0].name == "generateSequence"
+        assert items[0].type == "function"
         # Verify function is detected (complexity depends on implementation)
         assert items[0].complexity >= 1
 
@@ -273,9 +278,11 @@ class MyComponent {
         assert len(items) >= 3
 
         # Find the decorated class
-        my_component = next((item for item in items if item.name == 'MyComponent'), None)
+        my_component = next(
+            (item for item in items if item.name == "MyComponent"), None
+        )
         assert my_component is not None
-        assert my_component.type == 'class'
+        assert my_component.type == "class"
 
     def test_namespace_declarations(self, parser, tmp_path):
         """Test parsing of TypeScript namespace declarations.
@@ -301,9 +308,9 @@ namespace Utils {
         # Should extract functions from namespace
         assert len(items) >= 2
 
-        helper = next((item for item in items if item.name == 'helper'), None)
+        helper = next((item for item in items if item.name == "helper"), None)
         assert helper is not None
-        assert helper.type == 'function'
+        assert helper.type == "function"
 
     def test_computed_property_names(self, parser, tmp_path):
         """Test parsing of computed property names in classes.
@@ -334,7 +341,7 @@ class Example {
         # Should at least extract the class and regular method
         assert len(items) >= 1
 
-        example_class = next((item for item in items if item.name == 'Example'), None)
+        example_class = next((item for item in items if item.name == "Example"), None)
         assert example_class is not None
 
     def test_unicode_identifiers(self, parser, tmp_path):
@@ -360,9 +367,9 @@ function calculateCircle() {
         items = parser.parse_file(str(test_file))
 
         # Should extract Unicode function name
-        unicode_func = next((item for item in items if item.name == '你好'), None)
+        unicode_func = next((item for item in items if item.name == "你好"), None)
         assert unicode_func is not None
-        assert unicode_func.type == 'function'
+        assert unicode_func.type == "function"
 
 
 class TestTypeScriptParserModulePatterns:
@@ -393,7 +400,7 @@ module.exports = { cjs: true };
 
         # All items should be classified as ESM
         assert len(items) >= 1
-        assert all(item.module_system == 'esm' for item in items)
+        assert all(item.module_system == "esm" for item in items)
 
     def test_dynamic_import_expressions(self, parser, tmp_path):
         """Test parsing of dynamic import expressions.
@@ -413,8 +420,8 @@ async function loadModule() {
         items = parser.parse_file(str(test_file))
 
         assert len(items) == 1
-        assert items[0].name == 'loadModule'
-        assert items[0].type == 'function'
+        assert items[0].name == "loadModule"
+        assert items[0].type == "function"
         # Verify function is detected (complexity may vary by implementation)
         assert items[0].complexity >= 1
 
@@ -456,9 +463,9 @@ export default class Foo {
         items = parser.parse_file(str(test_file))
 
         # Find the class
-        foo_class = next((item for item in items if item.name == 'Foo'), None)
+        foo_class = next((item for item in items if item.name == "Foo"), None)
         assert foo_class is not None
-        assert foo_class.export_type == 'default'
+        assert foo_class.export_type == "default"
 
 
 class TestTypeScriptParserJSDoc:
@@ -491,7 +498,7 @@ function processItems(items) {
         items = parser.parse_file(str(test_file))
 
         assert len(items) == 1
-        assert items[0].name == 'processItems'
+        assert items[0].name == "processItems"
         assert items[0].has_docs is True
         assert items[0].docstring is not None
 
@@ -517,7 +524,7 @@ function testImportedType(value) {
         items = parser.parse_file(str(test_file))
 
         assert len(items) == 1
-        assert items[0].name == 'testImportedType'
+        assert items[0].name == "testImportedType"
         assert items[0].has_docs is True
 
     def test_jsdoc_missing_param_types(self, parser, tmp_path):
@@ -541,7 +548,7 @@ function testIncomplete(foo) {
         items = parser.parse_file(str(test_file))
 
         assert len(items) == 1
-        assert items[0].name == 'testIncomplete'
+        assert items[0].name == "testIncomplete"
         assert items[0].has_docs is True
 
     def test_multiline_jsdoc_with_special_chars(self, parser, tmp_path):
@@ -566,7 +573,7 @@ function processData(data) {
         items = parser.parse_file(str(test_file))
 
         assert len(items) == 1
-        assert items[0].name == 'processData'
+        assert items[0].name == "processData"
         assert items[0].has_docs is True
         assert items[0].docstring is not None
 
@@ -596,7 +603,7 @@ function checkValue(x) {
         items = parser.parse_file(str(test_file))
 
         assert len(items) == 1
-        assert items[0].name == 'checkValue'
+        assert items[0].name == "checkValue"
         # Base complexity (1) + 2 ternary operators = 3
         assert items[0].complexity >= 3
 
@@ -617,7 +624,7 @@ function validate(a, b, c, d) {
         items = parser.parse_file(str(test_file))
 
         assert len(items) == 1
-        assert items[0].name == 'validate'
+        assert items[0].name == "validate"
         # Should have complexity from logical operators
         assert items[0].complexity >= 3
 
@@ -647,6 +654,6 @@ function handleAction(action) {
         items = parser.parse_file(str(test_file))
 
         assert len(items) == 1
-        assert items[0].name == 'handleAction'
+        assert items[0].name == "handleAction"
         # Base (1) + 3 case clauses = 4 minimum
         assert items[0].complexity >= 4

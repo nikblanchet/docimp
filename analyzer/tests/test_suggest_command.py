@@ -30,17 +30,17 @@ class TestSuggestCommandFeedbackIntegration:
         mock_client.generate_docstring.return_value = "Test docstring"
 
         args = argparse.Namespace(
-            target='test.py:test_function',
-            style_guide='google',
-            tone='concise',
+            target="test.py:test_function",
+            style_guide="google",
+            tone="concise",
             verbose=False,
-            feedback=None  # No feedback
+            feedback=None,  # No feedback
         )
 
         # Mock file reading
-        test_code = 'def test_function():\n    pass'
-        with patch('builtins.open', mock_open(read_data=test_code)):
-            with patch('pathlib.Path.exists', return_value=True):
+        test_code = "def test_function():\n    pass"
+        with patch("builtins.open", mock_open(read_data=test_code)):
+            with patch("pathlib.Path.exists", return_value=True):
                 # Execute
                 exit_code = cmd_suggest(args, mock_client, mock_builder)
 
@@ -48,7 +48,7 @@ class TestSuggestCommandFeedbackIntegration:
         assert exit_code == 0
         mock_builder.build_prompt.assert_called_once()
         call_kwargs = mock_builder.build_prompt.call_args.kwargs
-        assert call_kwargs['feedback'] is None
+        assert call_kwargs["feedback"] is None
         mock_client.generate_docstring.assert_called_once_with("Test prompt")
 
     def test_suggest_with_feedback(self):
@@ -61,17 +61,17 @@ class TestSuggestCommandFeedbackIntegration:
 
         feedback_text = "Add more detail about error handling"
         args = argparse.Namespace(
-            target='test.py:test_function',
-            style_guide='google',
-            tone='concise',
+            target="test.py:test_function",
+            style_guide="google",
+            tone="concise",
             verbose=False,
-            feedback=feedback_text
+            feedback=feedback_text,
         )
 
         # Mock file reading
-        test_code = 'def test_function():\n    pass'
-        with patch('builtins.open', mock_open(read_data=test_code)):
-            with patch('pathlib.Path.exists', return_value=True):
+        test_code = "def test_function():\n    pass"
+        with patch("builtins.open", mock_open(read_data=test_code)):
+            with patch("pathlib.Path.exists", return_value=True):
                 # Execute
                 exit_code = cmd_suggest(args, mock_client, mock_builder)
 
@@ -79,8 +79,10 @@ class TestSuggestCommandFeedbackIntegration:
         assert exit_code == 0
         mock_builder.build_prompt.assert_called_once()
         call_kwargs = mock_builder.build_prompt.call_args.kwargs
-        assert call_kwargs['feedback'] == feedback_text
-        mock_client.generate_docstring.assert_called_once_with("Test prompt with feedback")
+        assert call_kwargs["feedback"] == feedback_text
+        mock_client.generate_docstring.assert_called_once_with(
+            "Test prompt with feedback"
+        )
 
     def test_suggest_with_multiline_feedback(self):
         """Test suggest command handles multiline feedback correctly."""
@@ -96,26 +98,26 @@ class TestSuggestCommandFeedbackIntegration:
 3. Explaining return value"""
 
         args = argparse.Namespace(
-            target='test.py:test_function',
-            style_guide='google',
-            tone='concise',
+            target="test.py:test_function",
+            style_guide="google",
+            tone="concise",
             verbose=False,
-            feedback=multiline_feedback
+            feedback=multiline_feedback,
         )
 
         # Mock file reading
-        test_code = 'def test_function(a, b):\n    return a + b'
-        with patch('builtins.open', mock_open(read_data=test_code)):
-            with patch('pathlib.Path.exists', return_value=True):
+        test_code = "def test_function(a, b):\n    return a + b"
+        with patch("builtins.open", mock_open(read_data=test_code)):
+            with patch("pathlib.Path.exists", return_value=True):
                 # Execute
                 exit_code = cmd_suggest(args, mock_client, mock_builder)
 
         # Verify
         assert exit_code == 0
         call_kwargs = mock_builder.build_prompt.call_args.kwargs
-        assert call_kwargs['feedback'] == multiline_feedback
-        assert 'Adding parameter descriptions' in call_kwargs['feedback']
-        assert 'Including examples' in call_kwargs['feedback']
+        assert call_kwargs["feedback"] == multiline_feedback
+        assert "Adding parameter descriptions" in call_kwargs["feedback"]
+        assert "Including examples" in call_kwargs["feedback"]
 
     def test_suggest_with_special_characters_in_feedback(self):
         """Test suggest command handles special characters in feedback."""
@@ -125,29 +127,31 @@ class TestSuggestCommandFeedbackIntegration:
         mock_builder.build_prompt.return_value = "Test prompt"
         mock_client.generate_docstring.return_value = "Docstring"
 
-        feedback_with_special_chars = 'Use @param tags, add `code` formatting, and "quotes"'
+        feedback_with_special_chars = (
+            'Use @param tags, add `code` formatting, and "quotes"'
+        )
         args = argparse.Namespace(
-            target='test.py:test_function',
-            style_guide='google',
-            tone='concise',
+            target="test.py:test_function",
+            style_guide="google",
+            tone="concise",
             verbose=False,
-            feedback=feedback_with_special_chars
+            feedback=feedback_with_special_chars,
         )
 
         # Mock file reading
-        test_code = 'def test_function():\n    pass'
-        with patch('builtins.open', mock_open(read_data=test_code)):
-            with patch('pathlib.Path.exists', return_value=True):
+        test_code = "def test_function():\n    pass"
+        with patch("builtins.open", mock_open(read_data=test_code)):
+            with patch("pathlib.Path.exists", return_value=True):
                 # Execute
                 exit_code = cmd_suggest(args, mock_client, mock_builder)
 
         # Verify
         assert exit_code == 0
         call_kwargs = mock_builder.build_prompt.call_args.kwargs
-        assert call_kwargs['feedback'] == feedback_with_special_chars
-        assert '@param' in call_kwargs['feedback']
-        assert '`code`' in call_kwargs['feedback']
-        assert '"quotes"' in call_kwargs['feedback']
+        assert call_kwargs["feedback"] == feedback_with_special_chars
+        assert "@param" in call_kwargs["feedback"]
+        assert "`code`" in call_kwargs["feedback"]
+        assert '"quotes"' in call_kwargs["feedback"]
 
     def test_suggest_feedback_passed_for_python_file(self):
         """Test feedback is passed correctly for Python files."""
@@ -158,25 +162,25 @@ class TestSuggestCommandFeedbackIntegration:
         mock_client.generate_docstring.return_value = "Python docstring"
 
         args = argparse.Namespace(
-            target='module.py:my_function',
-            style_guide='google',
-            tone='concise',
+            target="module.py:my_function",
+            style_guide="google",
+            tone="concise",
             verbose=False,
-            feedback='Add examples'
+            feedback="Add examples",
         )
 
         # Mock file reading
-        test_code = 'def my_function(x):\n    return x * 2'
-        with patch('builtins.open', mock_open(read_data=test_code)):
-            with patch('pathlib.Path.exists', return_value=True):
+        test_code = "def my_function(x):\n    return x * 2"
+        with patch("builtins.open", mock_open(read_data=test_code)):
+            with patch("pathlib.Path.exists", return_value=True):
                 # Execute
                 exit_code = cmd_suggest(args, mock_client, mock_builder)
 
         # Verify
         assert exit_code == 0
         call_kwargs = mock_builder.build_prompt.call_args.kwargs
-        assert call_kwargs['language'] == 'python'
-        assert call_kwargs['feedback'] == 'Add examples'
+        assert call_kwargs["language"] == "python"
+        assert call_kwargs["feedback"] == "Add examples"
 
     def test_suggest_feedback_passed_for_typescript_file(self):
         """Test feedback is passed correctly for TypeScript files."""
@@ -187,25 +191,25 @@ class TestSuggestCommandFeedbackIntegration:
         mock_client.generate_docstring.return_value = "TS docstring"
 
         args = argparse.Namespace(
-            target='module.ts:myFunction',
-            style_guide='tsdoc-typedoc',
-            tone='concise',
+            target="module.ts:myFunction",
+            style_guide="tsdoc-typedoc",
+            tone="concise",
             verbose=False,
-            feedback='Use TSDoc format'
+            feedback="Use TSDoc format",
         )
 
         # Mock file reading
-        test_code = 'function myFunction(x: number): number { return x * 2; }'
-        with patch('builtins.open', mock_open(read_data=test_code)):
-            with patch('pathlib.Path.exists', return_value=True):
+        test_code = "function myFunction(x: number): number { return x * 2; }"
+        with patch("builtins.open", mock_open(read_data=test_code)):
+            with patch("pathlib.Path.exists", return_value=True):
                 # Execute
                 exit_code = cmd_suggest(args, mock_client, mock_builder)
 
         # Verify
         assert exit_code == 0
         call_kwargs = mock_builder.build_prompt.call_args.kwargs
-        assert call_kwargs['language'] == 'typescript'
-        assert call_kwargs['feedback'] == 'Use TSDoc format'
+        assert call_kwargs["language"] == "typescript"
+        assert call_kwargs["feedback"] == "Use TSDoc format"
 
     def test_suggest_feedback_passed_for_javascript_file(self):
         """Test feedback is passed correctly for JavaScript files."""
@@ -216,25 +220,25 @@ class TestSuggestCommandFeedbackIntegration:
         mock_client.generate_docstring.return_value = "JS docstring"
 
         args = argparse.Namespace(
-            target='module.js:myFunction',
-            style_guide='jsdoc-vanilla',
-            tone='concise',
+            target="module.js:myFunction",
+            style_guide="jsdoc-vanilla",
+            tone="concise",
             verbose=False,
-            feedback='Add type annotations'
+            feedback="Add type annotations",
         )
 
         # Mock file reading
-        test_code = 'function myFunction(x) { return x * 2; }'
-        with patch('builtins.open', mock_open(read_data=test_code)):
-            with patch('pathlib.Path.exists', return_value=True):
+        test_code = "function myFunction(x) { return x * 2; }"
+        with patch("builtins.open", mock_open(read_data=test_code)):
+            with patch("pathlib.Path.exists", return_value=True):
                 # Execute
                 exit_code = cmd_suggest(args, mock_client, mock_builder)
 
         # Verify
         assert exit_code == 0
         call_kwargs = mock_builder.build_prompt.call_args.kwargs
-        assert call_kwargs['language'] == 'javascript'
-        assert call_kwargs['feedback'] == 'Add type annotations'
+        assert call_kwargs["language"] == "javascript"
+        assert call_kwargs["feedback"] == "Add type annotations"
 
     def test_suggest_verbose_mode_with_feedback(self):
         """Test verbose output doesn't interfere with feedback."""
@@ -245,29 +249,31 @@ class TestSuggestCommandFeedbackIntegration:
         mock_client.generate_docstring.return_value = "Verbose docstring"
 
         args = argparse.Namespace(
-            target='test.py:test_function',
-            style_guide='google',
-            tone='detailed',
+            target="test.py:test_function",
+            style_guide="google",
+            tone="detailed",
             verbose=True,  # Verbose mode
-            feedback='Make it more detailed'
+            feedback="Make it more detailed",
         )
 
         # Mock file reading and stderr
-        test_code = 'def test_function():\n    pass'
-        with patch('builtins.open', mock_open(read_data=test_code)):
-            with patch('pathlib.Path.exists', return_value=True):
-                with patch('sys.stderr'):  # Suppress stderr output in tests
+        test_code = "def test_function():\n    pass"
+        with patch("builtins.open", mock_open(read_data=test_code)):
+            with patch("pathlib.Path.exists", return_value=True):
+                with patch("sys.stderr"):  # Suppress stderr output in tests
                     # Execute
                     exit_code = cmd_suggest(args, mock_client, mock_builder)
 
         # Verify
         assert exit_code == 0
         call_kwargs = mock_builder.build_prompt.call_args.kwargs
-        assert call_kwargs['feedback'] == 'Make it more detailed'
-        # Note: tone is set during PromptBuilder initialization, not in build_prompt call
+        assert call_kwargs["feedback"] == "Make it more detailed"
+        # Note: tone is set during PromptBuilder initialization, not in build_prompt
+        # call
 
     def test_suggest_empty_feedback_treated_as_none(self):
-        """Test that empty string feedback is passed as empty string (not converted to None)."""
+        """Test that empty string feedback is passed as empty string (not
+        converted to None)."""
         # Setup
         mock_client = Mock(spec=ClaudeClient)
         mock_builder = Mock(spec=PromptBuilder)
@@ -275,17 +281,17 @@ class TestSuggestCommandFeedbackIntegration:
         mock_client.generate_docstring.return_value = "Docstring"
 
         args = argparse.Namespace(
-            target='test.py:test_function',
-            style_guide='google',
-            tone='concise',
+            target="test.py:test_function",
+            style_guide="google",
+            tone="concise",
             verbose=False,
-            feedback=''  # Empty string
+            feedback="",  # Empty string
         )
 
         # Mock file reading
-        test_code = 'def test_function():\n    pass'
-        with patch('builtins.open', mock_open(read_data=test_code)):
-            with patch('pathlib.Path.exists', return_value=True):
+        test_code = "def test_function():\n    pass"
+        with patch("builtins.open", mock_open(read_data=test_code)):
+            with patch("pathlib.Path.exists", return_value=True):
                 # Execute
                 exit_code = cmd_suggest(args, mock_client, mock_builder)
 
@@ -293,4 +299,4 @@ class TestSuggestCommandFeedbackIntegration:
         assert exit_code == 0
         call_kwargs = mock_builder.build_prompt.call_args.kwargs
         # Empty string is passed as-is (PromptBuilder will handle stripping)
-        assert call_kwargs['feedback'] == ''
+        assert call_kwargs["feedback"] == ""
