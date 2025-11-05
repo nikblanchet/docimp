@@ -526,8 +526,11 @@ def test_transaction_manager_passes_timeout_to_git():
             mock_run.return_value = MagicMock(returncode=0, stdout="")
 
             # Begin transaction (should call git checkout)
+            # Note: Suppressing all exceptions is acceptable here because this test
+            # only verifies argument passing, not behavior. The transaction may fail
+            # for various reasons (git not available, permissions, etc.) but we only
+            # care that timeout_config was passed to run_git_command correctly.
             with contextlib.suppress(Exception):
-                # We don't care about other errors, just checking timeout is passed
                 manager.begin_transaction("test-session")
 
             # Verify git command was called with timeout_config
