@@ -4,7 +4,6 @@ Provides checksum and timestamp-based file modification detection for session re
 """
 
 import hashlib
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any

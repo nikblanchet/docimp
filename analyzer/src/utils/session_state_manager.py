@@ -5,9 +5,7 @@ Provides atomic save/load operations for session state with file-based persisten
 
 import json
 import os
-import uuid
-from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from src.utils.state_manager import StateManager
 
@@ -173,7 +171,7 @@ class SessionStateManager:
             file_path.unlink()
 
     @staticmethod
-    def get_latest_session(session_type: str) -> Optional[dict[str, Any]]:
+    def get_latest_session(session_type: str) -> dict[str, Any] | None:
         """Get the most recent session (by started_at timestamp).
 
         Args:
