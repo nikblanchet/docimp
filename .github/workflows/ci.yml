@@ -23,10 +23,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
 
-      - name: Set up Node.js 22
+      - name: Set up Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: cli/package-lock.json
 
@@ -67,7 +67,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: ['22']
+        node-version: ['24']
 
     steps:
       - uses: actions/checkout@v4
@@ -145,10 +145,10 @@ jobs:
           python-version: '3.13'
           cache: 'pip'
 
-      - name: Set up Node.js 22
+      - name: Set up Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: cli/package-lock.json
 
@@ -184,10 +184,10 @@ jobs:
           python-version: '3.13'
           cache: 'pip'
 
-      - name: Set up Node.js 22
+      - name: Set up Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: cli/package-lock.json
 
@@ -233,10 +233,10 @@ jobs:
           python-version: '3.13'
           cache: 'pip'
 
-      - name: Set up Node.js 22
+      - name: Set up Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: cli/package-lock.json
 

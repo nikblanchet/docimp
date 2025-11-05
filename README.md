@@ -8,7 +8,7 @@ high-quality documentation with validation gates.
 
 [![CI Status](https://github.com/nikblanchet/docimp/workflows/CI/badge.svg)](https://github.com/nikblanchet/docimp/actions)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
-[![Node.js 22](https://img.shields.io/badge/node-22-green.svg)](https://nodejs.org/)
+[![Node.js 24](https://img.shields.io/badge/node-24-green.svg)](https://nodejs.org/)
 [![License: AGPL-3.0 or Commercial](https://img.shields.io/badge/License-AGPL%20v3%20%7C%20Commercial-blue.svg)](./LICENSE)
 
 ---
@@ -162,7 +162,7 @@ docimp improve ./src
 ### Prerequisites
 
 - **Python**: 3.13 (untested on other versions)
-- **Node.js**: 22 (untested on other versions)
+- **Node.js**: 24 or later (required by package engines field)
 - **Git**: 2.28 or later (Git CLI is required for rollback/undo functionality)
 - **Claude API Key**: From [console.anthropic.com](https://console.anthropic.com)
 
