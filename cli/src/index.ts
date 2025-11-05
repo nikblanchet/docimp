@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 
 /**
  * Main entry point for the DocImp CLI.
@@ -10,19 +9,19 @@
 import { Command } from 'commander';
 import { analyzeCommand } from './commands/analyze.js';
 import { auditCommand } from './commands/audit.js';
-import { planCommand } from './commands/plan.js';
 import { improveCommand } from './commands/improve.js';
-import { listSessionsCommand } from './commands/listSessions.js';
 import { listChangesCommand } from './commands/listChanges.js';
-import { rollbackSessionCommand } from './commands/rollbackSession.js';
+import { listSessionsCommand } from './commands/listSessions.js';
+import { planCommand } from './commands/plan.js';
 import { rollbackChangeCommand } from './commands/rollbackChange.js';
-import { EXIT_CODE } from './constants/exitCodes.js';
-import { StateManager } from './utils/StateManager.js';
-import { PythonBridge } from './python-bridge/PythonBridge.js';
-import { TerminalDisplay } from './display/TerminalDisplay.js';
+import { rollbackSessionCommand } from './commands/rollbackSession.js';
 import { ConfigLoader } from './config/ConfigLoader.js';
-import { PluginManager } from './plugins/PluginManager.js';
+import { EXIT_CODE } from './constants/exitCodes.js';
+import { TerminalDisplay } from './display/TerminalDisplay.js';
 import { EditorLauncher } from './editor/EditorLauncher.js';
+import { PluginManager } from './plugins/PluginManager.js';
+import { PythonBridge } from './python-bridge/PythonBridge.js';
+import { StateManager } from './utils/StateManager.js';
 
 const program = new Command();
 

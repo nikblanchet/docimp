@@ -6,14 +6,14 @@
  */
 
 import prompts from 'prompts';
-import { StateManager } from '../utils/StateManager.js';
+import type { IConfigLoader } from '../config/IConfigLoader.js';
+import { EXIT_CODE, type ExitCode } from '../constants/exitCodes.js';
+import type { IDisplay } from '../display/IDisplay.js';
+import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
+import type { AuditRatings, AuditSummary } from '../types/analysis.js';
 import { CodeExtractor } from '../utils/CodeExtractor.js';
 import { PathValidator } from '../utils/PathValidator.js';
-import { EXIT_CODE, type ExitCode } from '../constants/exitCodes.js';
-import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
-import type { IDisplay } from '../display/IDisplay.js';
-import type { IConfigLoader } from '../config/IConfigLoader.js';
-import type { AuditRatings, AuditSummary } from '../types/analysis.js';
+import { StateManager } from '../utils/StateManager.js';
 
 /**
  * Calculate audit summary statistics from ratings.
@@ -46,16 +46,33 @@ export function calculateAuditSummary(
     for (const rating of Object.values(fileRatings)) {
       auditedItems++;
 
-      if (rating === null) {
+      switch (rating) {
+      case null: {
         ratingCounts.skipped++;
-      } else if (rating === 1) {
+      
+      break;
+      }
+      case 1: {
         ratingCounts.terrible++;
-      } else if (rating === 2) {
+      
+      break;
+      }
+      case 2: {
         ratingCounts.ok++;
-      } else if (rating === 3) {
+      
+      break;
+      }
+      case 3: {
         ratingCounts.good++;
-      } else if (rating === 4) {
+      
+      break;
+      }
+      case 4: {
         ratingCounts.excellent++;
+      
+      break;
+      }
+      // No default
       }
     }
   }
@@ -155,7 +172,8 @@ export async function auditCore(
       // Display code based on mode
       let showCodeOption = false; // Track if [C] option should be shown
 
-      if (showCodeMode === 'complete') {
+      switch (showCodeMode) {
+      case 'complete': {
         // Show full code, no [C] option
         const codeResult = CodeExtractor.extractCodeBlock(
           item.filepath,
@@ -171,7 +189,10 @@ export async function auditCore(
           codeResult.displayedLines
         );
         showCodeOption = false;
-      } else if (showCodeMode === 'truncated') {
+      
+      break;
+      }
+      case 'truncated': {
         // Show code up to maxLines
         const codeResult = CodeExtractor.extractCodeBlock(
           item.filepath,
@@ -188,7 +209,10 @@ export async function auditCore(
         );
         // Show [C] if code was truncated
         showCodeOption = codeResult.truncated;
-      } else if (showCodeMode === 'signature') {
+      
+      break;
+      }
+      case 'signature': {
         // Show just the signature
         const sigResult = CodeExtractor.extractSignature(
           item.filepath,
@@ -199,9 +223,16 @@ export async function auditCore(
         );
         display.showSignature(sigResult.signature, sigResult.totalLines);
         showCodeOption = true; // Always show [C] in signature mode
-      } else if (showCodeMode === 'on-demand') {
+      
+      break;
+      }
+      case 'on-demand': {
         // Don't show code, but make [C] available
         showCodeOption = true;
+      
+      break;
+      }
+      // No default
       }
 
       // Rating loop - allows re-prompting if user presses [C]
@@ -308,7 +339,7 @@ export async function auditCore(
       }
 
       // Save the numeric rating (1-4)
-      const numericRating = parseInt(userRating, 10);
+      const numericRating = Number.parseInt(userRating, 10);
       if (!ratings.ratings[item.filepath]) {
         ratings.ratings[item.filepath] = {};
       }

@@ -6,6 +6,7 @@
  * configuration, and parse JSON responses.
  */
 
+import type { IConfig } from '../config/IConfig.js';
 import type {
   AnalysisResult,
   AuditListResult,
@@ -15,7 +16,6 @@ import type {
   TransactionEntry,
   RollbackResult,
 } from '../types/analysis.js';
-import type { IConfig } from '../config/IConfig.js';
 
 /**
  * Options for Python analyzer invocation.

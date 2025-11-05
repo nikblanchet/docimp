@@ -7,14 +7,14 @@
  * Supports common editors like vim, emacs, nano, VS Code, etc.
  */
 
-import { spawn } from 'child_process';
-import { promises as fs, close as fsCloseCallback } from 'fs';
-import { promisify } from 'util';
+import { spawn } from 'node:child_process';
+import { promises as fs, close as fsCloseCallback } from 'node:fs';
+import { promisify } from 'node:util';
 import tmp from 'tmp';
 import type { IEditorLauncher } from './IEditorLauncher.js';
 
 // Promisify tmp.file for async/await usage
-const tmpFile = (
+const temporaryFile = (
   options: tmp.FileOptions
 ): Promise<{
   name: string;
@@ -22,9 +22,9 @@ const tmpFile = (
   removeCallback: () => void;
 }> => {
   return new Promise((resolve, reject) => {
-    tmp.file(options, (err, name, fd, removeCallback) => {
-      if (err) {
-        reject(err);
+    tmp.file(options, (error, name, fd, removeCallback) => {
+      if (error) {
+        reject(error);
       } else {
         resolve({ name, fd, removeCallback });
       }
@@ -69,10 +69,10 @@ export class EditorLauncher implements IEditorLauncher {
     // Create temporary file with automatic cleanup
     // tmp.file returns: { name: string, fd: number, removeCallback: () => void }
     const {
-      name: tempPath,
+      name: temporaryPath,
       fd,
       removeCallback,
-    } = await tmpFile({
+    } = await temporaryFile({
       prefix: 'docimp-edit-',
       postfix: extension,
       keep: false, // Auto-cleanup on process exit
@@ -84,16 +84,16 @@ export class EditorLauncher implements IEditorLauncher {
       await fsClose(fd);
 
       // Write initial text to temp file
-      await fs.writeFile(tempPath, initialText, 'utf-8');
+      await fs.writeFile(temporaryPath, initialText, 'utf-8');
 
       // Get editor command
       const editorCmd = this.getEditorCommand();
 
       // Launch editor
-      await this.launchEditor(editorCmd, tempPath);
+      await this.launchEditor(editorCmd, temporaryPath);
 
       // Read edited content
-      const editedText = await fs.readFile(tempPath, 'utf-8');
+      const editedText = await fs.readFile(temporaryPath, 'utf8');
 
       // Manual cleanup (removeCallback)
       // tmp library will also cleanup on process exit as fallback
@@ -102,7 +102,7 @@ export class EditorLauncher implements IEditorLauncher {
       } catch (cleanupError) {
         // Log cleanup failure but don't fail the operation
         console.warn(
-          `Warning: Failed to cleanup temp file ${tempPath}:`,
+          `Warning: Failed to cleanup temp file ${temporaryPath}:`,
           cleanupError
         );
         // File will still be cleaned up on process exit
@@ -120,7 +120,7 @@ export class EditorLauncher implements IEditorLauncher {
         removeCallback();
       } catch (cleanupError) {
         console.warn(
-          `Warning: Failed to cleanup temp file ${tempPath} after error:`,
+          `Warning: Failed to cleanup temp file ${temporaryPath} after error:`,
           cleanupError
         );
       }
@@ -141,9 +141,9 @@ export class EditorLauncher implements IEditorLauncher {
       // Split on spaces to handle editors with flags (e.g., "code --wait")
       const parts = editorCmd.trim().split(/\s+/);
       const cmd = parts[0];
-      const args = [...parts.slice(1), filepath];
+      const arguments_ = [...parts.slice(1), filepath];
 
-      const editor = spawn(cmd, args, {
+      const editor = spawn(cmd, arguments_, {
         stdio: 'inherit', // Connect editor to terminal
         // NOTE: shell:true removed to prevent command injection vulnerability
       });

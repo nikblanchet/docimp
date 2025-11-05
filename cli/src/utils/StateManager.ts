@@ -5,8 +5,8 @@
  * where all working files (audit results, plans, session reports) are stored.
  */
 
-import { existsSync, mkdirSync, readdirSync, unlinkSync, statSync } from 'fs';
-import { resolve, join } from 'path';
+import { existsSync, mkdirSync, readdirSync, unlinkSync, statSync } from 'node:fs';
+import { resolve, join } from 'node:path';
 
 /**
  * Manages the .docimp/ state directory for working files.

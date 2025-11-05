@@ -5,13 +5,13 @@
  * with Claude AI assistance and plugin validation.
  */
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import prompts from 'prompts';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import chalk from 'chalk';
-import { StateManager } from '../utils/StateManager.js';
-import { PathValidator } from '../utils/PathValidator.js';
-import { InteractiveSession } from '../session/InteractiveSession.js';
+import prompts from 'prompts';
+import type { IConfig } from '../config/IConfig.js';
+import { isPluginConfig } from '../config/IConfig.js';
+import type { IConfigLoader } from '../config/IConfigLoader.js';
 import { EXIT_CODE, type ExitCode } from '../constants/exitCodes.js';
 import {
   STYLE_GUIDE_CHOICES,
@@ -19,15 +19,15 @@ import {
   VALID_TONES,
   TONE_CHOICES,
 } from '../constants/styleGuides.js';
-import type { PlanResult, SupportedLanguage } from '../types/analysis.js';
-import type { IConfig } from '../config/IConfig.js';
-import { isPluginConfig } from '../config/IConfig.js';
-import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
-import type { IConfigLoader } from '../config/IConfigLoader.js';
-import type { IPluginManager } from '../plugins/IPluginManager.js';
 import type { IDisplay } from '../display/IDisplay.js';
 import type { IEditorLauncher } from '../editor/IEditorLauncher.js';
+import type { IPluginManager } from '../plugins/IPluginManager.js';
+import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
 import type { IInteractiveSession } from '../session/IInteractiveSession.js';
+import { InteractiveSession } from '../session/InteractiveSession.js';
+import type { PlanResult, SupportedLanguage } from '../types/analysis.js';
+import { PathValidator } from '../utils/PathValidator.js';
+import { StateManager } from '../utils/StateManager.js';
 
 /**
  * User cancelled the operation.
@@ -84,24 +84,24 @@ export async function improveCore(
     display.showMessage(chalk.bold('\nAvailable style guides:\n'));
 
     display.showMessage(chalk.cyan('Python:'));
-    VALID_STYLE_GUIDES.python.forEach((style) => {
+    for (const style of VALID_STYLE_GUIDES.python) {
       display.showMessage(`  - ${style}`);
-    });
+    }
 
     display.showMessage(chalk.cyan('\nJavaScript:'));
-    VALID_STYLE_GUIDES.javascript.forEach((style) => {
+    for (const style of VALID_STYLE_GUIDES.javascript) {
       display.showMessage(`  - ${style}`);
-    });
+    }
 
     display.showMessage(chalk.cyan('\nTypeScript:'));
-    VALID_STYLE_GUIDES.typescript.forEach((style) => {
+    for (const style of VALID_STYLE_GUIDES.typescript) {
       display.showMessage(`  - ${style}`);
-    });
+    }
 
     display.showMessage(chalk.cyan('\nTones:'));
-    VALID_TONES.forEach((tone) => {
+    for (const tone of VALID_TONES) {
       display.showMessage(`  - ${tone}`);
-    });
+    }
 
     display.showMessage('');
     return;
@@ -286,7 +286,7 @@ export async function improveCore(
         name: 'styleGuide',
         message: `Select documentation style guide for ${chalk.cyan(lang)}:`,
         choices,
-        initial: initialIndex >= 0 ? initialIndex : 0,
+        initial: Math.max(initialIndex, 0),
       });
 
       if (response.styleGuide) {
@@ -339,7 +339,7 @@ export async function improveCore(
       name: 'tone',
       message: 'Select documentation tone (applies to all languages):',
       choices: TONE_CHOICES,
-      initial: toneInitialIndex >= 0 ? toneInitialIndex : 0,
+      initial: Math.max(toneInitialIndex, 0),
     });
 
     tone = toneResponse.tone || 'concise';

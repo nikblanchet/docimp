@@ -79,7 +79,7 @@ export interface IConfig {
   /**
    * JSDoc-specific configuration options.
    */
-  jsdocStyle?: IJSDocStyle;
+  jsdocStyle?: IJSDocumentStyle;
 
   /**
    * Weights for impact scoring algorithm.
@@ -122,7 +122,7 @@ export interface IConfig {
 /**
  * JSDoc-specific style options.
  */
-export interface IJSDocStyle {
+export interface IJSDocumentStyle {
   /**
    * Preferred tag aliases.
    * Maps alternative tag names to the preferred form.
@@ -350,21 +350,21 @@ export const defaultConfig: IConfig = {
     },
   },
   claude: {
-    timeout: 30.0,
+    timeout: 30,
     maxRetries: 3,
-    retryDelay: 1.0,
+    retryDelay: 1,
   },
   pythonBridge: {
-    defaultTimeout: 60000, // 60 seconds
-    suggestTimeout: 300000, // 5 minutes
+    defaultTimeout: 60_000, // 60 seconds
+    suggestTimeout: 300_000, // 5 minutes
     killEscalationDelay: 5000, // 5 seconds
   },
   transaction: {
     git: {
-      baseTimeout: 30000, // 30 seconds (default operations)
+      baseTimeout: 30_000, // 30 seconds (default operations)
       fastScale: 0.167, // 30s * 0.167 = 5s (fast operations)
-      slowScale: 4.0, // 30s * 4.0 = 120s (slow operations)
-      maxTimeout: 300000, // 5 minutes (absolute maximum)
+      slowScale: 4, // 30s * 4.0 = 120s (slow operations)
+      maxTimeout: 300_000, // 5 minutes (absolute maximum)
     },
   },
 };

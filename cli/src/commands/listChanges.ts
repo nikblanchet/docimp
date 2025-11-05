@@ -5,8 +5,8 @@
  */
 
 import { EXIT_CODE, type ExitCode } from '../constants/exitCodes.js';
-import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
 import type { IDisplay } from '../display/IDisplay.js';
+import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
 
 /**
  * Core list-changes logic (extracted for testability).

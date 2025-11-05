@@ -52,8 +52,7 @@ export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
   }
 
   // Validate jsdocStyle
-  if (userConfig.jsdocStyle !== undefined) {
-    if (userConfig.jsdocStyle.requireExamples !== undefined) {
+  if (userConfig.jsdocStyle !== undefined && userConfig.jsdocStyle.requireExamples !== undefined) {
       const validValues = ['all', 'public', 'none'];
       if (!validValues.includes(userConfig.jsdocStyle.requireExamples)) {
         throw new Error(
@@ -61,31 +60,26 @@ export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
         );
       }
     }
-  }
 
   // Validate impactWeights
   if (userConfig.impactWeights !== undefined) {
     const { complexity, quality } = userConfig.impactWeights;
-    if (complexity !== undefined) {
-      if (complexity < 0 || complexity > 1) {
+    if (complexity !== undefined && (complexity < 0 || complexity > 1)) {
         throw new Error(
           `Invalid impactWeights.complexity: ${complexity}. Must be between 0 and 1`
         );
       }
-    }
-    if (quality !== undefined) {
-      if (quality < 0 || quality > 1) {
+    if (quality !== undefined && (quality < 0 || quality > 1)) {
         throw new Error(
           `Invalid impactWeights.quality: ${quality}. Must be between 0 and 1`
         );
       }
-    }
     // Warn if weights don't sum to 1
     const complexityWeight =
       complexity ?? defaultConfig.impactWeights!.complexity;
     const qualityWeight = quality ?? defaultConfig.impactWeights!.quality;
     const sum = complexityWeight + qualityWeight;
-    if (Math.abs(sum - 1.0) > 0.01) {
+    if (Math.abs(sum - 1) > 0.01) {
       console.warn(
         `Warning: impactWeights.complexity (${complexityWeight}) + impactWeights.quality (${qualityWeight}) = ${sum}, not 1.0`
       );
@@ -95,11 +89,11 @@ export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
   // Validate plugins array
   if (userConfig.plugins !== undefined) {
     if (!Array.isArray(userConfig.plugins)) {
-      throw new Error('plugins must be an array of strings');
+      throw new TypeError('plugins must be an array of strings');
     }
     for (const plugin of userConfig.plugins) {
       if (typeof plugin !== 'string') {
-        throw new Error('Each plugin must be a string path');
+        throw new TypeError('Each plugin must be a string path');
       }
     }
   }
@@ -107,11 +101,11 @@ export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
   // Validate exclude array
   if (userConfig.exclude !== undefined) {
     if (!Array.isArray(userConfig.exclude)) {
-      throw new Error('exclude must be an array of strings');
+      throw new TypeError('exclude must be an array of strings');
     }
     for (const pattern of userConfig.exclude) {
       if (typeof pattern !== 'string') {
-        throw new Error('Each exclude pattern must be a string');
+        throw new TypeError('Each exclude pattern must be a string');
       }
     }
   }
@@ -135,7 +129,7 @@ export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
         throw new Error('claude.timeout must be a positive number');
       }
       if (!Number.isFinite(userConfig.claude.timeout)) {
-        throw new Error(
+        throw new TypeError(
           `claude.timeout must be a finite number (not Infinity or NaN). ` +
             `Got: ${userConfig.claude.timeout}`
         );
@@ -150,16 +144,16 @@ export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
     }
     if (userConfig.claude.maxRetries !== undefined) {
       if (typeof userConfig.claude.maxRetries !== 'number') {
-        throw new Error('claude.maxRetries must be a number');
+        throw new TypeError('claude.maxRetries must be a number');
       }
       if (!Number.isFinite(userConfig.claude.maxRetries)) {
-        throw new Error(
+        throw new TypeError(
           `claude.maxRetries must be a finite number (not Infinity or NaN). ` +
             `Got: ${userConfig.claude.maxRetries}`
         );
       }
       if (!Number.isInteger(userConfig.claude.maxRetries)) {
-        throw new Error('claude.maxRetries must be an integer (not a decimal)');
+        throw new TypeError('claude.maxRetries must be an integer (not a decimal)');
       }
       if (userConfig.claude.maxRetries < 0) {
         throw new Error('claude.maxRetries must be non-negative');
@@ -173,7 +167,7 @@ export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
         throw new Error('claude.retryDelay must be a positive number');
       }
       if (!Number.isFinite(userConfig.claude.retryDelay)) {
-        throw new Error(
+        throw new TypeError(
           `claude.retryDelay must be a finite number (not Infinity or NaN). ` +
             `Got: ${userConfig.claude.retryDelay}`
         );
