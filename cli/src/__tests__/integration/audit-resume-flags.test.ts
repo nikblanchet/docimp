@@ -305,4 +305,255 @@ describe('Audit Resume Flag Tests', () => {
       'audit'
     );
   });
+
+  it('should load specific session file with --resume-file flag', async () => {
+    // Mock: session file specified directly
+    const existingSession: AuditSessionState = {
+      session_id: '550e8400-e29b-41d4-a716-446655440030',
+      started_at: new Date(Date.now() - 3600 * 1000).toISOString(),
+      current_index: 2,
+      total_items: 5,
+      partial_ratings: {
+        '/test/file.ts': {
+          func1: 3,
+          func2: 4,
+          testFunction: null,
+        },
+      },
+      file_snapshot: {},
+      config: {
+        showCodeMode: 'truncated',
+        maxLines: 20,
+      },
+      completed_at: null,
+    };
+
+    // Mock: load session from file
+    (SessionStateManager.loadSessionState as jest.Mock).mockResolvedValue(
+      existingSession
+    );
+
+    // Mock user rating
+    (prompts as jest.MockedFunction<typeof prompts>).mockResolvedValue({
+      rating: '3',
+    });
+
+    await auditCore(
+      '/test/path',
+      {
+        resume: true,
+        resumeFile: '/path/to/session.json',
+      },
+      mockBridge,
+      mockDisplay,
+      mockConfigLoader
+    );
+
+    // Should have loaded the session file directly (no list prompt)
+    expect(SessionStateManager.loadSessionState).toHaveBeenCalledWith(
+      '/path/to/session.json',
+      'audit'
+    );
+
+    // Should NOT have prompted for session selection
+    expect(prompts).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'number',
+      })
+    );
+
+    // Should have shown resume message
+    expect(mockDisplay.showMessage).toHaveBeenCalledWith(
+      expect.stringContaining('Resuming session')
+    );
+  });
+
+  it('should detect file changes and re-analyze on resume', async () => {
+    // Mock: session with one rated item
+    const existingSession: AuditSessionState = {
+      session_id: '550e8400-e29b-41d4-a716-446655440040',
+      started_at: new Date(Date.now() - 3600 * 1000).toISOString(),
+      current_index: 1,
+      total_items: 2,
+      partial_ratings: {
+        '/test/file.ts': {
+          func1: 3,
+          testFunction: null,
+        },
+      },
+      file_snapshot: {
+        '/test/file.ts': {
+          filepath: '/test/file.ts',
+          timestamp: Date.now() - 7200 * 1000,
+          checksum: 'old-checksum-123',
+          size: 100,
+        },
+      },
+      config: {
+        showCodeMode: 'truncated',
+        maxLines: 20,
+      },
+      completed_at: null,
+    };
+
+    (SessionStateManager.listSessions as jest.Mock).mockResolvedValue([
+      existingSession,
+    ]);
+
+    // Mock: load session
+    (SessionStateManager.loadSessionState as jest.Mock).mockResolvedValue(
+      existingSession
+    );
+
+    // Mock: file has changed (detected by FileTracker)
+    (FileTracker.detectChanges as jest.Mock).mockResolvedValue([
+      '/test/file.ts',
+    ]);
+
+    // Mock: re-analysis returns updated items
+    (mockBridge.audit as jest.Mock).mockResolvedValueOnce({
+      items: [
+        {
+          name: 'func1',
+          type: 'function',
+          filepath: '/test/file.ts',
+          line_number: 5,
+          end_line: 15,
+          language: 'typescript',
+          complexity: 8, // Changed complexity
+          docstring: 'Updated docstring',
+          audit_rating: null,
+        },
+        {
+          name: 'testFunction',
+          type: 'function',
+          filepath: '/test/file.ts',
+          line_number: 20,
+          end_line: 30,
+          language: 'typescript',
+          complexity: 6,
+          docstring: 'Test',
+          audit_rating: null,
+        },
+      ],
+    });
+
+    // Mock: user selects session and rates items
+    let promptCallCount = 0;
+    (prompts as jest.MockedFunction<typeof prompts>).mockImplementation(() => {
+      promptCallCount++;
+      if (promptCallCount === 1) {
+        // Auto-detection prompt: accept resume
+        return Promise.resolve({ value: true });
+      }
+      // Ratings
+      return Promise.resolve({ rating: '3' });
+    });
+
+    await auditCore(
+      '/test/path',
+      {}, // No flags - triggers auto-detection
+      mockBridge,
+      mockDisplay,
+      mockConfigLoader
+    );
+
+    // Should have detected file changes
+    expect(FileTracker.detectChanges).toHaveBeenCalledWith(
+      existingSession.file_snapshot
+    );
+
+    // Should have shown warning about file changes
+    expect(mockDisplay.showMessage).toHaveBeenCalledWith(
+      expect.stringContaining('Warning')
+    );
+    expect(mockDisplay.showMessage).toHaveBeenCalledWith(
+      expect.stringContaining('modified')
+    );
+
+    // Should have re-analyzed the changed file
+    expect(mockBridge.audit).toHaveBeenCalledWith({
+      path: '/test/file.ts',
+    });
+
+    // Should have created new snapshot for changed files
+    expect(FileTracker.createSnapshot).toHaveBeenCalledWith(['/test/file.ts']);
+  });
+
+  it('should handle deleted files on resume with error', async () => {
+    // Mock: session referencing a file
+    const existingSession: AuditSessionState = {
+      session_id: '550e8400-e29b-41d4-a716-446655440050',
+      started_at: new Date(Date.now() - 3600 * 1000).toISOString(),
+      current_index: 0,
+      total_items: 1,
+      partial_ratings: {
+        '/test/deleted-file.ts': {
+          deletedFunction: null,
+        },
+      },
+      file_snapshot: {
+        '/test/deleted-file.ts': {
+          filepath: '/test/deleted-file.ts',
+          timestamp: Date.now() - 7200 * 1000,
+          checksum: 'old-checksum-456',
+          size: 150,
+        },
+      },
+      config: {
+        showCodeMode: 'truncated',
+        maxLines: 20,
+      },
+      completed_at: null,
+    };
+
+    (SessionStateManager.listSessions as jest.Mock).mockResolvedValue([
+      existingSession,
+    ]);
+
+    (SessionStateManager.loadSessionState as jest.Mock).mockResolvedValue(
+      existingSession
+    );
+
+    // Mock: file has been deleted
+    (FileTracker.detectChanges as jest.Mock).mockResolvedValue([
+      '/test/deleted-file.ts',
+    ]);
+
+    // Mock: initial audit succeeds (returns empty for deleted file)
+    // Then re-analysis fails because file is deleted
+    (mockBridge.audit as jest.Mock)
+      .mockResolvedValueOnce({
+        items: [], // Initial audit returns no items
+      })
+      .mockRejectedValueOnce(
+        new Error('File not found: /test/deleted-file.ts')
+      );
+
+    // Mock: auto-detection prompt
+    (prompts as jest.MockedFunction<typeof prompts>).mockResolvedValue({
+      value: true,
+    });
+
+    await auditCore(
+      '/test/path',
+      {}, // No flags
+      mockBridge,
+      mockDisplay,
+      mockConfigLoader
+    );
+
+    // Should have attempted re-analysis
+    expect(mockBridge.audit).toHaveBeenCalledWith({
+      path: '/test/deleted-file.ts',
+    });
+
+    // Should have shown error message about failed re-analysis
+    expect(mockDisplay.showMessage).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to re-analyze')
+    );
+    expect(mockDisplay.showMessage).toHaveBeenCalledWith(
+      expect.stringContaining('/test/deleted-file.ts')
+    );
+  });
 });
