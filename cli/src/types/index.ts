@@ -6,3 +6,4 @@
 
 export * from './analysis.js';
 export * from './audit-session-state.js';
+export * from './improve-session-state.js';
