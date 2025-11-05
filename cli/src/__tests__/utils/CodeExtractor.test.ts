@@ -5,7 +5,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { CodeExtractor } from '../../utils/CodeExtractor';
+import { CodeExtractor } from '../../utils/code-extractor';
 
 describe('CodeExtractor', () => {
   let testDir: string;

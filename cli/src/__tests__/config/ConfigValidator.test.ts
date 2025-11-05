@@ -5,8 +5,8 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { validateAndMerge } from '../../config/ConfigValidator.js';
-import type { IConfig } from '../../config/IConfig.js';
+import { validateAndMerge } from '../../config/config-validator.js';
+import type { IConfig } from '../../config/i-config.js';
 
 describe('ConfigValidator', () => {
   let consoleWarnSpy: jest.SpiedFunction<typeof console.warn>;

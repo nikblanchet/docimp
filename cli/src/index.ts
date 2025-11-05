@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 /**
  * Main entry point for the DocImp CLI.
  *
@@ -7,22 +5,25 @@
  * auditing, planning, and improving documentation coverage.
  */
 
+/* eslint-disable unicorn/no-process-exit, n/no-process-exit */
+// This is a CLI entry point - process.exit() is appropriate here
+
 import { Command } from 'commander';
 import { analyzeCommand } from './commands/analyze.js';
 import { auditCommand } from './commands/audit.js';
-import { planCommand } from './commands/plan.js';
 import { improveCommand } from './commands/improve.js';
-import { listSessionsCommand } from './commands/listSessions.js';
-import { listChangesCommand } from './commands/listChanges.js';
-import { rollbackSessionCommand } from './commands/rollbackSession.js';
-import { rollbackChangeCommand } from './commands/rollbackChange.js';
-import { EXIT_CODE } from './constants/exitCodes.js';
-import { StateManager } from './utils/StateManager.js';
-import { PythonBridge } from './python-bridge/PythonBridge.js';
-import { TerminalDisplay } from './display/TerminalDisplay.js';
-import { ConfigLoader } from './config/ConfigLoader.js';
-import { PluginManager } from './plugins/PluginManager.js';
-import { EditorLauncher } from './editor/EditorLauncher.js';
+import { listChangesCommand } from './commands/list-changes.js';
+import { listSessionsCommand } from './commands/list-sessions.js';
+import { planCommand } from './commands/plan.js';
+import { rollbackChangeCommand } from './commands/rollback-change.js';
+import { rollbackSessionCommand } from './commands/rollback-session.js';
+import { ConfigLoader } from './config/config-loader.js';
+import { EXIT_CODE } from './constants/exit-codes.js';
+import { TerminalDisplay } from './display/terminal-display.js';
+import { EditorLauncher } from './editor/editor-launcher.js';
+import { PluginManager } from './plugins/plugin-manager.js';
+import { PythonBridge } from './python-bridge/python-bridge.js';
+import { StateManager } from './utils/state-manager.js';
 
 const program = new Command();
 

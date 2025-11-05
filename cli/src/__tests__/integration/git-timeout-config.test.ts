@@ -9,9 +9,9 @@
  */
 
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { PythonBridge } from '../../python-bridge/PythonBridge.js';
+import { PythonBridge } from '../../python-bridge/python-bridge.js';
 import { spawn } from 'child_process';
-import type { IConfig } from '../../config/IConfig.js';
+import type { IConfig } from '../../config/i-config.js';
 
 // Mock child_process
 jest.mock('child_process');

@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { ConfigLoader } from '../../config/ConfigLoader.js';
+import { ConfigLoader } from '../../config/config-loader.js';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -234,9 +234,9 @@ export default {
       );
 
       await expect(configLoader.load(configPath)).rejects.toThrow(
-        'failed to load'
+        'Failed to load'
       );
-      await expect(configLoader.load(configPath)).rejects.toThrow('import');
+      await expect(configLoader.load(configPath)).rejects.toThrow('module');
     });
 
     it('should provide helpful message for runtime errors (invalid export)', async () => {
@@ -248,7 +248,7 @@ module.exports = config;`
       );
 
       await expect(configLoader.load(configPath)).rejects.toThrow(
-        'failed to load'
+        'Failed to load'
       );
       await expect(configLoader.load(configPath)).rejects.toThrow(
         'Config file:'

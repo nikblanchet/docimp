@@ -5,7 +5,7 @@
  * from source files with line numbers and truncation support.
  */
 
-import * as fs from 'fs';
+import * as fs from 'node:fs';
 
 /**
  * Result from extracting a code block.
@@ -34,7 +34,7 @@ export interface SignatureExtractionResult {
 /**
  * Utility class for extracting code blocks from source files.
  */
-export class CodeExtractor {
+export const CodeExtractor = {
   /**
    * Extract code block from file given line range.
    *
@@ -45,7 +45,7 @@ export class CodeExtractor {
    * @param includeLineNumbers - Add line numbers to each line
    * @returns Extraction result with truncation info
    */
-  static extractCodeBlock(
+  extractCodeBlock(
     filepath: string,
     startLine: number,
     endLine: number,
@@ -53,13 +53,13 @@ export class CodeExtractor {
     includeLineNumbers: boolean = true
   ): CodeExtractionResult {
     // Read file and split into lines
-    const fileContent = fs.readFileSync(filepath, 'utf-8');
+    const fileContent = fs.readFileSync(filepath, 'utf8');
     const allLines = fileContent.split('\n');
 
     // Extract the target range (1-indexed to 0-indexed)
-    const startIdx = startLine - 1;
-    const endIdx = endLine; // endLine is inclusive, so we use endLine (not endLine - 1) for slice
-    const codeLines = allLines.slice(startIdx, endIdx);
+    const startIndex = startLine - 1;
+    const endIndex = endLine; // endLine is inclusive, so we use endLine (not endLine - 1) for slice
+    const codeLines = allLines.slice(startIndex, endIndex);
 
     const totalLines = codeLines.length;
     let displayedLines = totalLines;
@@ -74,12 +74,12 @@ export class CodeExtractor {
 
     // Format lines with line numbers if requested
     const formattedLines = codeLines.map((line, index) => {
-      const lineNum = startLine + index;
+      const lineNumber = startLine + index;
       if (includeLineNumbers) {
         // Format: "  45 | code here"
         // Right-align line numbers to 4 characters for consistency
-        const paddedLineNum = String(lineNum).padStart(4, ' ');
-        return `${paddedLineNum} | ${line}`;
+        const paddedLineNumber = String(lineNumber).padStart(4, ' ');
+        return `${paddedLineNumber} | ${line}`;
       }
       return line;
     });
@@ -90,7 +90,7 @@ export class CodeExtractor {
       totalLines,
       displayedLines,
     };
-  }
+  },
 
   /**
    * Extract just the signature (first line or opening bracket) of a code block.
@@ -102,7 +102,7 @@ export class CodeExtractor {
    * @param maxLines - Maximum lines for signature (usually small)
    * @returns Signature extraction result
    */
-  static extractSignature(
+  extractSignature(
     filepath: string,
     startLine: number,
     endLine: number,
@@ -110,30 +110,30 @@ export class CodeExtractor {
     maxLines: number = 5
   ): SignatureExtractionResult {
     // Read file and split into lines
-    const fileContent = fs.readFileSync(filepath, 'utf-8');
+    const fileContent = fs.readFileSync(filepath, 'utf8');
     const allLines = fileContent.split('\n');
 
     // Extract the target range
-    const startIdx = startLine - 1;
-    const endIdx = endLine;
-    const codeLines = allLines.slice(startIdx, endIdx);
+    const startIndex = startLine - 1;
+    const endIndex = endLine;
+    const codeLines = allLines.slice(startIndex, endIndex);
     const totalLines = codeLines.length;
 
     // Find the signature based on language conventions
     const signatureLines: string[] = [];
 
-    for (let i = 0; i < Math.min(codeLines.length, maxLines); i++) {
-      const line = codeLines[i];
+    for (let index = 0; index < Math.min(codeLines.length, maxLines); index++) {
+      const line = codeLines[index];
       const trimmed = line.trim();
 
       signatureLines.push(line);
 
       // For languages with braces (JavaScript, TypeScript, Java, C++, etc.)
-      if (language === 'javascript' || language === 'typescript') {
-        // Check if line contains opening brace
-        if (trimmed.includes('{')) {
-          break;
-        }
+      if (
+        (language === 'javascript' || language === 'typescript') && // Check if line contains opening brace
+        trimmed.includes('{')
+      ) {
+        break;
       }
 
       // For Python, just take the first line (def or class line)
@@ -145,14 +145,14 @@ export class CodeExtractor {
 
     // Format with line numbers
     const formattedLines = signatureLines.map((line, index) => {
-      const lineNum = startLine + index;
-      const paddedLineNum = String(lineNum).padStart(4, ' ');
-      return `${paddedLineNum} | ${line}`;
+      const lineNumber = startLine + index;
+      const paddedLineNumber = String(lineNumber).padStart(4, ' ');
+      return `${paddedLineNumber} | ${line}`;
     });
 
     return {
       signature: formattedLines.join('\n'),
       totalLines,
     };
-  }
-}
+  },
+};

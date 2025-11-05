@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     /* Language and Environment */
-    "target": "ES2022",
-    "lib": ["ES2022"],
+    "target": "ES2024",
+    "lib": ["ES2024"],
 
     /* Modules */
     "module": "NodeNext",
@@ -40,6 +40,7 @@
     "dist",
     "**/*.test.ts",
     "**/__tests__/fixtures/**",
-    "**/__tests__/integration/**"
+    "**/__tests__/integration/**",
+    "**/__mocks__/**"
   ]
 }

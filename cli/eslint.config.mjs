@@ -3,9 +3,49 @@ import tseslint from '@typescript-eslint/eslint-plugin';
 import tsparser from '@typescript-eslint/parser';
 import jsdoc from 'eslint-plugin-jsdoc';
 import prettierConfig from 'eslint-config-prettier';
+import unicorn from 'eslint-plugin-unicorn';
+import n from 'eslint-plugin-n';
+import promise from 'eslint-plugin-promise';
+import importPlugin from 'eslint-plugin-import';
 
 export default [
   eslint.configs.recommended,
+
+  // Modern JavaScript/Node.js best practices
+  unicorn.configs['flat/recommended'],
+  n.configs['flat/recommended-module'],
+  promise.configs['flat/recommended'],
+  importPlugin.flatConfigs.recommended,
+  importPlugin.flatConfigs.typescript,
+
+  // Customize aggressive rules
+  {
+    rules: {
+      // Unicorn: Only downgrade truly problematic rules per Issue #354
+      'unicorn/no-array-reduce': 'warn',  // Reduce is sometimes clearest
+      'unicorn/prefer-top-level-await': 'warn',  // Not always possible
+      'unicorn/no-null': 'off',  // External APIs like prompts use null
+      'unicorn/prevent-abbreviations': ['error', {
+        replacements: {
+          i: false,  // "i" in i-config.ts means "interface" not "index"
+        }
+      }],
+
+      // Node: Target Node 24+
+      'n/no-unsupported-features/node-builtins': ['error', {
+        version: '>=24.0.0'
+      }],
+
+      // Import: Consistent ordering
+      'import/order': ['error', {
+        groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
+        'newlines-between': 'never',
+        alphabetize: { order: 'asc', caseInsensitive: true }
+      }],
+      'import/no-unresolved': 'off',  // TypeScript handles this
+    }
+  },
+
   {
     files: ['**/*.ts'],
     languageOptions: {

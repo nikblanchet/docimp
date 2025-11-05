@@ -6,14 +6,14 @@
  */
 
 import prompts from 'prompts';
-import { StateManager } from '../utils/StateManager.js';
-import { CodeExtractor } from '../utils/CodeExtractor.js';
-import { PathValidator } from '../utils/PathValidator.js';
-import { EXIT_CODE, type ExitCode } from '../constants/exitCodes.js';
-import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
-import type { IDisplay } from '../display/IDisplay.js';
-import type { IConfigLoader } from '../config/IConfigLoader.js';
+import type { IConfigLoader } from '../config/i-config-loader.js';
+import { EXIT_CODE, type ExitCode } from '../constants/exit-codes.js';
+import type { IDisplay } from '../display/i-display.js';
+import type { IPythonBridge } from '../python-bridge/i-python-bridge.js';
 import type { AuditRatings, AuditSummary } from '../types/analysis.js';
+import { CodeExtractor } from '../utils/code-extractor.js';
+import { PathValidator } from '../utils/path-validator.js';
+import { StateManager } from '../utils/state-manager.js';
 
 /**
  * Calculate audit summary statistics from ratings.
@@ -46,16 +46,33 @@ export function calculateAuditSummary(
     for (const rating of Object.values(fileRatings)) {
       auditedItems++;
 
-      if (rating === null) {
-        ratingCounts.skipped++;
-      } else if (rating === 1) {
-        ratingCounts.terrible++;
-      } else if (rating === 2) {
-        ratingCounts.ok++;
-      } else if (rating === 3) {
-        ratingCounts.good++;
-      } else if (rating === 4) {
-        ratingCounts.excellent++;
+      switch (rating) {
+        case null: {
+          ratingCounts.skipped++;
+
+          break;
+        }
+        case 1: {
+          ratingCounts.terrible++;
+
+          break;
+        }
+        case 2: {
+          ratingCounts.ok++;
+
+          break;
+        }
+        case 3: {
+          ratingCounts.good++;
+
+          break;
+        }
+        case 4: {
+          ratingCounts.excellent++;
+
+          break;
+        }
+        // No default
       }
     }
   }
@@ -155,53 +172,67 @@ export async function auditCore(
       // Display code based on mode
       let showCodeOption = false; // Track if [C] option should be shown
 
-      if (showCodeMode === 'complete') {
-        // Show full code, no [C] option
-        const codeResult = CodeExtractor.extractCodeBlock(
-          item.filepath,
-          item.line_number,
-          item.end_line,
-          0, // maxLines = 0 means no truncation
-          true // include line numbers
-        );
-        display.showCodeBlock(
-          codeResult.code,
-          codeResult.truncated,
-          codeResult.totalLines,
-          codeResult.displayedLines
-        );
-        showCodeOption = false;
-      } else if (showCodeMode === 'truncated') {
-        // Show code up to maxLines
-        const codeResult = CodeExtractor.extractCodeBlock(
-          item.filepath,
-          item.line_number,
-          item.end_line,
-          maxLines,
-          true // include line numbers
-        );
-        display.showCodeBlock(
-          codeResult.code,
-          codeResult.truncated,
-          codeResult.totalLines,
-          codeResult.displayedLines
-        );
-        // Show [C] if code was truncated
-        showCodeOption = codeResult.truncated;
-      } else if (showCodeMode === 'signature') {
-        // Show just the signature
-        const sigResult = CodeExtractor.extractSignature(
-          item.filepath,
-          item.line_number,
-          item.end_line,
-          item.language,
-          5 // maxLines for signature
-        );
-        display.showSignature(sigResult.signature, sigResult.totalLines);
-        showCodeOption = true; // Always show [C] in signature mode
-      } else if (showCodeMode === 'on-demand') {
-        // Don't show code, but make [C] available
-        showCodeOption = true;
+      switch (showCodeMode) {
+        case 'complete': {
+          // Show full code, no [C] option
+          const codeResult = CodeExtractor.extractCodeBlock(
+            item.filepath,
+            item.line_number,
+            item.end_line,
+            0, // maxLines = 0 means no truncation
+            true // include line numbers
+          );
+          display.showCodeBlock(
+            codeResult.code,
+            codeResult.truncated,
+            codeResult.totalLines,
+            codeResult.displayedLines
+          );
+          showCodeOption = false;
+
+          break;
+        }
+        case 'truncated': {
+          // Show code up to maxLines
+          const codeResult = CodeExtractor.extractCodeBlock(
+            item.filepath,
+            item.line_number,
+            item.end_line,
+            maxLines,
+            true // include line numbers
+          );
+          display.showCodeBlock(
+            codeResult.code,
+            codeResult.truncated,
+            codeResult.totalLines,
+            codeResult.displayedLines
+          );
+          // Show [C] if code was truncated
+          showCodeOption = codeResult.truncated;
+
+          break;
+        }
+        case 'signature': {
+          // Show just the signature
+          const sigResult = CodeExtractor.extractSignature(
+            item.filepath,
+            item.line_number,
+            item.end_line,
+            item.language,
+            5 // maxLines for signature
+          );
+          display.showSignature(sigResult.signature, sigResult.totalLines);
+          showCodeOption = true; // Always show [C] in signature mode
+
+          break;
+        }
+        case 'on-demand': {
+          // Don't show code, but make [C] available
+          showCodeOption = true;
+
+          break;
+        }
+        // No default
       }
 
       // Rating loop - allows re-prompting if user presses [C]
@@ -213,14 +244,10 @@ export async function auditCore(
 
         if (showCodeOption) {
           // [C] option available - different messages for different modes
-          if (showCodeMode === 'truncated') {
-            promptMessage =
-              '[1] Terrible  [2] Poor  [3] Good  [4] Excellent  [C] Full code  [S] Skip  [Q] Quit\n\nYour rating:';
-          } else {
-            // signature and on-demand modes
-            promptMessage =
-              '[1] Terrible  [2] Poor  [3] Good  [4] Excellent  [C] Show code  [S] Skip  [Q] Quit\n\nYour rating:';
-          }
+          promptMessage =
+            showCodeMode === 'truncated'
+              ? '[1] Terrible  [2] Poor  [3] Good  [4] Excellent  [C] Full code  [S] Skip  [Q] Quit\n\nYour rating:'
+              : '[1] Terrible  [2] Poor  [3] Good  [4] Excellent  [C] Show code  [S] Skip  [Q] Quit\n\nYour rating:';
           validOptions = ['1', '2', '3', '4', 'C', 'S', 'Q'];
         } else {
           // No [C] option (complete mode)
@@ -308,7 +335,7 @@ export async function auditCore(
       }
 
       // Save the numeric rating (1-4)
-      const numericRating = parseInt(userRating, 10);
+      const numericRating = Number.parseInt(userRating, 10);
       if (!ratings.ratings[item.filepath]) {
         ratings.ratings[item.filepath] = {};
       }

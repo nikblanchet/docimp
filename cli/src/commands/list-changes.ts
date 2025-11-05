@@ -4,9 +4,9 @@
  * This command lists all changes in a specific documentation improvement session.
  */
 
-import { EXIT_CODE, type ExitCode } from '../constants/exitCodes.js';
-import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
-import type { IDisplay } from '../display/IDisplay.js';
+import { EXIT_CODE, type ExitCode } from '../constants/exit-codes.js';
+import type { IDisplay } from '../display/i-display.js';
+import type { IPythonBridge } from '../python-bridge/i-python-bridge.js';
 
 /**
  * Core list-changes logic (extracted for testability).

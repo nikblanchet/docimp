@@ -12,11 +12,11 @@ import {
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { analyzeCore } from '../commands/analyze';
-import type { IPythonBridge } from '../python-bridge/IPythonBridge';
-import type { IDisplay } from '../display/IDisplay';
-import type { IConfigLoader } from '../config/IConfigLoader';
+import type { IPythonBridge } from '../python-bridge/i-python-bridge';
+import type { IDisplay } from '../display/i-display';
+import type { IConfigLoader } from '../config/i-config-loader';
 import type { AnalysisResult } from '../types/AnalysisResult';
-import { defaultConfig } from '../config/IConfig';
+import { defaultConfig } from '../config/i-config';
 
 // Mock ESM modules that Jest can't handle
 jest.mock('chalk', () => ({
@@ -272,8 +272,8 @@ describe('analyze command auto-clean', () => {
       expect(existsSync(planFile)).toBe(true);
 
       // Verify content is unchanged
-      const auditContent = JSON.parse(readFileSync(auditFile, 'utf-8'));
-      const planContent = JSON.parse(readFileSync(planFile, 'utf-8'));
+      const auditContent = JSON.parse(readFileSync(auditFile, 'utf8'));
+      const planContent = JSON.parse(readFileSync(planFile, 'utf8'));
       expect(auditContent.ratings.test).toBe('data');
       expect(planContent.items[0].name).toBe('test');
 
@@ -353,7 +353,7 @@ describe('analyze command auto-clean', () => {
       expect(existsSync(analyzeFile)).toBe(true);
 
       // Verify content
-      const content = JSON.parse(readFileSync(analyzeFile, 'utf-8'));
+      const content = JSON.parse(readFileSync(analyzeFile, 'utf8'));
       expect(content).toEqual(mockResult);
     });
 

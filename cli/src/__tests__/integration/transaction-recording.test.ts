@@ -4,7 +4,7 @@
  * Tests the full change tracking flow with actual Python subprocess calls.
  */
 
-import { PythonBridge } from '../../python-bridge/PythonBridge.js';
+import { PythonBridge } from '../../python-bridge/python-bridge.js';
 import { existsSync, rmSync, writeFileSync, readFileSync, mkdirSync } from 'fs';
 import { resolve } from 'path';
 import { exec } from 'child_process';
@@ -183,7 +183,7 @@ describe('Transaction Recording Integration', () => {
         expect(existsSync(backupPath)).toBe(true);
 
         // Verify backup contains original content
-        const backupContent = readFileSync(backupPath, 'utf-8');
+        const backupContent = readFileSync(backupPath, 'utf8');
         expect(backupContent).toBe(originalContent);
       } finally {
         // Clean up

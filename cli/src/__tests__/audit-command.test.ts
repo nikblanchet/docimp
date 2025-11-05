@@ -41,10 +41,10 @@ jest.mock('prompts');
 import { calculateAuditSummary, auditCore } from '../commands/audit';
 import prompts from 'prompts';
 import type { AuditRatings, AuditSummary, CodeItem } from '../types/analysis';
-import type { IPythonBridge } from '../python-bridge/IPythonBridge';
-import type { IDisplay } from '../display/IDisplay';
-import type { IConfigLoader } from '../config/IConfigLoader';
-import { defaultConfig } from '../config/IConfig';
+import type { IPythonBridge } from '../python-bridge/i-python-bridge';
+import type { IDisplay } from '../display/i-display';
+import type { IConfigLoader } from '../config/i-config-loader';
+import { defaultConfig } from '../config/i-config';
 
 describe('calculateAuditSummary', () => {
   const auditFile = '.docimp/session-reports/audit.json';

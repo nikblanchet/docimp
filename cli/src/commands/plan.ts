@@ -5,11 +5,11 @@
  * by combining items with missing or poor quality documentation.
  */
 
-import { StateManager } from '../utils/StateManager.js';
-import { PathValidator } from '../utils/PathValidator.js';
-import { EXIT_CODE, type ExitCode } from '../constants/exitCodes.js';
-import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
-import type { IDisplay } from '../display/IDisplay.js';
+import { EXIT_CODE, type ExitCode } from '../constants/exit-codes.js';
+import type { IDisplay } from '../display/i-display.js';
+import type { IPythonBridge } from '../python-bridge/i-python-bridge.js';
+import { PathValidator } from '../utils/path-validator.js';
+import { StateManager } from '../utils/state-manager.js';
 
 /**
  * Core plan logic (extracted for testability).

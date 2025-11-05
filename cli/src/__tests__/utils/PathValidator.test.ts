@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { PathValidator } from '../../utils/PathValidator';
+import { PathValidator } from '../../utils/path-validator';
 
 describe('PathValidator', () => {
   let tempDir: string;

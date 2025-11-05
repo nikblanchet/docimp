@@ -4,8 +4,8 @@
  * Defines the contract for loading and executing validation plugins.
  */
 
-import type { PluginResult, CodeItemMetadata } from './IPlugin.js';
-import type { IConfig } from '../config/IConfig.js';
+import type { IConfig } from '../config/i-config.js';
+import type { PluginResult, CodeItemMetadata } from './i-plugin.js';
 
 /**
  * Plugin manager interface.
@@ -18,13 +18,13 @@ export interface IPluginManager {
    *
    * @param pluginPaths - Array of paths to plugin files
    * @param projectRoot - Project root directory (for relative path resolution)
-   * @param additionalAllowedDirs - Additional directories to allow plugin loading from (for testing only)
+   * @param additionalAllowedDirectories - Additional directories to allow plugin loading from (for testing only)
    * @throws Error if plugin loading fails
    */
   loadPlugins(
     pluginPaths: string[],
     projectRoot?: string,
-    additionalAllowedDirs?: string[]
+    additionalAllowedDirectories?: string[]
   ): Promise<void>;
 
   /**

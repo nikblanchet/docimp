@@ -5,9 +5,9 @@
  * This file is invoked as a Node.js subprocess by the Python analyzer.
  */
 
+import * as fs from 'node:fs';
+import path from 'node:path';
 import * as ts from 'typescript';
-import * as fs from 'fs';
-import * as path from 'path';
 
 /**
  * Represents a parsed code item extracted from TypeScript/JavaScript source
@@ -48,9 +48,10 @@ function calculateComplexity(node: ts.Node): number {
       case ts.SyntaxKind.ForOfStatement:
       case ts.SyntaxKind.CaseClause:
       case ts.SyntaxKind.CatchClause:
-      case ts.SyntaxKind.ConditionalExpression:
+      case ts.SyntaxKind.ConditionalExpression: {
         complexity++;
         break;
+      }
       case ts.SyntaxKind.BinaryExpression: {
         const binExpr = node as ts.BinaryExpression;
         if (
@@ -77,11 +78,11 @@ function calculateComplexity(node: ts.Node): number {
  */
 function getDocstring(node: ts.Node, sourceFile: ts.SourceFile): string | null {
   const fullText = sourceFile.getFullText();
-  const jsDocComments = ts.getJSDocCommentsAndTags(node);
+  const jsDocumentComments = ts.getJSDocCommentsAndTags(node);
 
-  if (jsDocComments.length > 0) {
-    const firstComment = jsDocComments[0];
-    return fullText.substring(firstComment.pos, firstComment.end).trim();
+  if (jsDocumentComments.length > 0) {
+    const firstComment = jsDocumentComments[0];
+    return fullText.slice(firstComment.pos, firstComment.end).trim();
   }
 
   return null;
@@ -100,12 +101,12 @@ function hasDocumentation(node: ts.Node): boolean {
  * @returns Array of parameter names.
  */
 function extractParameters(node: ts.FunctionLikeDeclaration): string[] {
-  return node.parameters.map((param) => {
-    if (ts.isIdentifier(param.name)) {
-      return param.name.text;
+  return node.parameters.map((parameter) => {
+    if (ts.isIdentifier(parameter.name)) {
+      return parameter.name.text;
     } else if (
-      ts.isObjectBindingPattern(param.name) ||
-      ts.isArrayBindingPattern(param.name)
+      ts.isObjectBindingPattern(parameter.name) ||
+      ts.isArrayBindingPattern(parameter.name)
     ) {
       return `{destructured}`;
     }
@@ -201,13 +202,12 @@ function detectModuleSystem(
     }
 
     // Check for require() calls
-    if (ts.isCallExpression(node)) {
-      if (
-        ts.isIdentifier(node.expression) &&
-        node.expression.text === 'require'
-      ) {
-        hasCommonJs = true;
-      }
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === 'require'
+    ) {
+      hasCommonJs = true;
     }
 
     ts.forEachChild(node, visit);
@@ -216,9 +216,9 @@ function detectModuleSystem(
   visit(sourceFile);
 
   // File extension hints
-  const ext = path.extname(sourceFile.fileName);
-  if (ext === '.mjs') return 'esm';
-  if (ext === '.cjs') return 'commonjs';
+  const extension = path.extname(sourceFile.fileName);
+  if (extension === '.mjs') return 'esm';
+  if (extension === '.cjs') return 'commonjs';
 
   // Detect based on content
   if (hasEsmExport || hasEsmImport) return 'esm';
@@ -235,16 +235,18 @@ function parseFile(filepath: string): CodeItem[] {
   const items: CodeItem[] = [];
 
   // Read source file
-  const sourceCode = fs.readFileSync(filepath, 'utf-8');
+  const sourceCode = fs.readFileSync(filepath, 'utf8');
 
   // Determine language from extension
-  const ext = path.extname(filepath);
+  const extension = path.extname(filepath);
   const language: 'typescript' | 'javascript' =
-    ext === '.ts' || ext === '.tsx' ? 'typescript' : 'javascript';
+    extension === '.ts' || extension === '.tsx' ? 'typescript' : 'javascript';
 
   // Create source file with proper script kind
   const scriptKind =
-    ext === '.ts' || ext === '.tsx' ? ts.ScriptKind.TS : ts.ScriptKind.JS;
+    extension === '.ts' || extension === '.tsx'
+      ? ts.ScriptKind.TS
+      : ts.ScriptKind.JS;
 
   const sourceFile = ts.createSourceFile(
     filepath,
@@ -271,42 +273,45 @@ function parseFile(filepath: string): CodeItem[] {
         ts.isObjectLiteralExpression(node.right)
       ) {
         // Extract each method/property
-        for (const prop of node.right.properties) {
-          if (ts.isMethodDeclaration(prop) || ts.isPropertyAssignment(prop)) {
+        for (const property of node.right.properties) {
+          if (
+            ts.isMethodDeclaration(property) ||
+            ts.isPropertyAssignment(property)
+          ) {
             const name =
-              prop.name && ts.isIdentifier(prop.name)
-                ? prop.name.text
+              property.name && ts.isIdentifier(property.name)
+                ? property.name.text
                 : 'anonymous';
 
-            let funcNode: ts.FunctionLikeDeclaration | null = null;
-            if (ts.isMethodDeclaration(prop)) {
-              funcNode = prop;
+            let functionNode: ts.FunctionLikeDeclaration | null = null;
+            if (ts.isMethodDeclaration(property)) {
+              functionNode = property;
             } else if (
-              ts.isPropertyAssignment(prop) &&
-              (ts.isFunctionExpression(prop.initializer) ||
-                ts.isArrowFunction(prop.initializer))
+              ts.isPropertyAssignment(property) &&
+              (ts.isFunctionExpression(property.initializer) ||
+                ts.isArrowFunction(property.initializer))
             ) {
-              funcNode = prop.initializer;
+              functionNode = property.initializer;
             }
 
-            if (funcNode) {
+            if (functionNode) {
               items.push({
                 name,
                 type: 'function',
                 filepath,
                 line_number:
-                  sourceFile.getLineAndCharacterOfPosition(prop.getStart())
+                  sourceFile.getLineAndCharacterOfPosition(property.getStart())
                     .line + 1,
                 end_line:
-                  sourceFile.getLineAndCharacterOfPosition(prop.getEnd()).line +
-                  1,
+                  sourceFile.getLineAndCharacterOfPosition(property.getEnd())
+                    .line + 1,
                 language,
-                complexity: calculateComplexity(funcNode),
+                complexity: calculateComplexity(functionNode),
                 impact_score: 0,
-                has_docs: hasDocumentation(prop),
-                parameters: extractParameters(funcNode),
-                return_type: extractReturnType(funcNode),
-                docstring: getDocstring(prop, sourceFile),
+                has_docs: hasDocumentation(property),
+                parameters: extractParameters(functionNode),
+                return_type: extractReturnType(functionNode),
+                docstring: getDocstring(property, sourceFile),
                 export_type: 'commonjs',
                 module_system: 'commonjs',
               });
@@ -329,7 +334,7 @@ function parseFile(filepath: string): CodeItem[] {
         (ts.isFunctionExpression(node.right) || ts.isArrowFunction(node.right))
       ) {
         const nameParts = leftText.split('.');
-        const name = nameParts[nameParts.length - 1];
+        const name = nameParts.at(-1) || 'unknown';
 
         items.push({
           name,

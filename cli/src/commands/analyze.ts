@@ -5,13 +5,13 @@
  * the Python analyzer via subprocess.
  */
 
-import { writeFileSync } from 'fs';
-import { StateManager } from '../utils/StateManager.js';
-import { PathValidator } from '../utils/PathValidator.js';
-import { EXIT_CODE, type ExitCode } from '../constants/exitCodes.js';
-import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
-import type { IDisplay } from '../display/IDisplay.js';
-import type { IConfigLoader } from '../config/IConfigLoader.js';
+import { writeFileSync } from 'node:fs';
+import type { IConfigLoader } from '../config/i-config-loader.js';
+import { EXIT_CODE, type ExitCode } from '../constants/exit-codes.js';
+import type { IDisplay } from '../display/i-display.js';
+import type { IPythonBridge } from '../python-bridge/i-python-bridge.js';
+import { PathValidator } from '../utils/path-validator.js';
+import { StateManager } from '../utils/state-manager.js';
 
 /**
  * Core analyze logic (extracted for testability).
@@ -92,7 +92,7 @@ export async function analyzeCore(
 
     // Save analysis result to state directory
     const analyzeFile = StateManager.getAnalyzeFile();
-    writeFileSync(analyzeFile, JSON.stringify(result, null, 2), 'utf-8');
+    writeFileSync(analyzeFile, JSON.stringify(result, null, 2), 'utf8');
 
     if (options.verbose) {
       display.showMessage(`Analysis saved to: ${analyzeFile}`);

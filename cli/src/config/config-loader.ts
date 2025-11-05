@@ -5,15 +5,15 @@
  * Supports both CommonJS (module.exports) and ESM (export default) formats.
  */
 
-import { pathToFileURL } from 'node:url';
 import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { PathValidator } from '../utils/PathValidator.js';
-import type { IConfig } from './IConfig.js';
-import { defaultConfig } from './IConfig.js';
-import { validateAndMerge } from './ConfigValidator.js';
-import type { IConfigLoader } from './IConfigLoader.js';
-import { ConfigErrorClassifier } from './ConfigErrorClassifier.js';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { PathValidator } from '../utils/path-validator.js';
+import { ConfigErrorClassifier } from './config-error-classifier.js';
+import { validateAndMerge } from './config-validator.js';
+import type { IConfigLoader } from './i-config-loader.js';
+import type { IConfig } from './i-config.js';
+import { defaultConfig } from './i-config.js';
 
 /**
  * Configuration loader class.
@@ -38,7 +38,13 @@ export class ConfigLoader implements IConfigLoader {
     let resolvedPath: string | null = null;
 
     // If explicit path provided, validate it
-    if (configPath !== undefined) {
+    if (configPath === undefined) {
+      // Try to find config in current directory (auto-discovery - no validation needed)
+      const defaultPath = path.resolve(process.cwd(), 'docimp.config.js');
+      if (existsSync(defaultPath)) {
+        resolvedPath = defaultPath;
+      }
+    } else {
       // Reject empty strings at the API boundary
       if (configPath === '') {
         throw new Error(
@@ -48,12 +54,6 @@ export class ConfigLoader implements IConfigLoader {
       }
       // Use PathValidator for file existence and type validation
       resolvedPath = PathValidator.validateConfigPath(configPath);
-    } else {
-      // Try to find config in current directory (auto-discovery - no validation needed)
-      const defaultPath = resolve(process.cwd(), 'docimp.config.js');
-      if (existsSync(defaultPath)) {
-        resolvedPath = defaultPath;
-      }
     }
 
     // If no config file found, use defaults
@@ -85,11 +85,10 @@ export class ConfigLoader implements IConfigLoader {
       ];
 
       if (errorDetails.suggestions.length > 0) {
-        errorMessage.push('');
-        errorMessage.push('Suggestions:');
-        errorDetails.suggestions.forEach((suggestion) => {
+        errorMessage.push('', 'Suggestions:');
+        for (const suggestion of errorDetails.suggestions) {
           errorMessage.push(`  - ${suggestion}`);
-        });
+        }
       }
 
       throw new Error(errorMessage.join('\n'));

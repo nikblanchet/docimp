@@ -6,18 +6,18 @@
  */
 
 import { improveCommand, improveCore } from '../../commands/improve.js';
-import type { IConfigLoader } from '../../config/IConfigLoader.js';
-import type { IPluginManager } from '../../plugins/IPluginManager.js';
-import type { IEditorLauncher } from '../../editor/IEditorLauncher.js';
-import type { IPythonBridge } from '../../python-bridge/IPythonBridge.js';
-import type { IDisplay } from '../../display/IDisplay.js';
-import { defaultConfig } from '../../config/IConfig.js';
-import { InteractiveSession } from '../../session/InteractiveSession.js';
+import type { IConfigLoader } from '../../config/i-config-loader.js';
+import type { IPluginManager } from '../../plugins/i-plugin-manager.js';
+import type { IEditorLauncher } from '../../editor/i-editor-launcher.js';
+import type { IPythonBridge } from '../../python-bridge/i-python-bridge.js';
+import type { IDisplay } from '../../display/i-display.js';
+import { defaultConfig } from '../../config/i-config.js';
+import { InteractiveSession } from '../../session/interactive-session.js';
 import { readFileSync } from 'fs';
 import prompts from 'prompts';
 
 // Mock dependencies
-jest.mock('../../session/InteractiveSession.js');
+jest.mock('../../session/interactive-session.js');
 jest.mock('fs', () => {
   const actual = jest.requireActual('fs');
   return {
@@ -61,7 +61,7 @@ jest.mock('cli-table3', () => {
     }
   };
 });
-jest.mock('../../display/TerminalDisplay.js');
+jest.mock('../../display/terminal-display.js');
 
 const mockReadFileSync = readFileSync as jest.MockedFunction<
   typeof readFileSync
@@ -297,7 +297,7 @@ describe('improve command', () => {
 
       expect(mockReadFileSync).toHaveBeenCalledWith(
         expect.stringMatching(/\.docimp\/session-reports\/plan\.json$/),
-        'utf-8'
+        'utf8'
       );
     });
 
@@ -314,7 +314,7 @@ describe('improve command', () => {
 
       expect(mockReadFileSync).toHaveBeenCalledWith(
         expect.stringMatching(/custom-plan\.json$/),
-        'utf-8'
+        'utf8'
       );
     });
 

@@ -5,8 +5,14 @@
  * where all working files (audit results, plans, session reports) are stored.
  */
 
-import { existsSync, mkdirSync, readdirSync, unlinkSync, statSync } from 'fs';
-import { resolve, join } from 'path';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  unlinkSync,
+  statSync,
+} from 'node:fs';
+import path from 'node:path';
 
 /**
  * Manages the .docimp/ state directory for working files.
@@ -38,7 +44,7 @@ export class StateManager {
    */
   static getStateDir(basePath?: string): string {
     const base = basePath || process.cwd();
-    return resolve(base, this.STATE_DIR_NAME);
+    return path.resolve(base, this.STATE_DIR_NAME);
   }
 
   /**
@@ -48,7 +54,7 @@ export class StateManager {
    * @returns Absolute path to .docimp/session-reports/ directory.
    */
   static getSessionReportsDir(basePath?: string): string {
-    return join(this.getStateDir(basePath), this.SESSION_REPORTS_DIR);
+    return path.join(this.getStateDir(basePath), this.SESSION_REPORTS_DIR);
   }
 
   /**
@@ -58,7 +64,7 @@ export class StateManager {
    * @returns Absolute path to .docimp/history/ directory.
    */
   static getHistoryDir(basePath?: string): string {
-    return join(this.getStateDir(basePath), this.HISTORY_DIR);
+    return path.join(this.getStateDir(basePath), this.HISTORY_DIR);
   }
 
   /**
@@ -68,7 +74,7 @@ export class StateManager {
    * @returns Absolute path to .docimp/session-reports/audit.json.
    */
   static getAuditFile(basePath?: string): string {
-    return join(this.getSessionReportsDir(basePath), this.AUDIT_FILE);
+    return path.join(this.getSessionReportsDir(basePath), this.AUDIT_FILE);
   }
 
   /**
@@ -78,7 +84,7 @@ export class StateManager {
    * @returns Absolute path to .docimp/session-reports/plan.json.
    */
   static getPlanFile(basePath?: string): string {
-    return join(this.getSessionReportsDir(basePath), this.PLAN_FILE);
+    return path.join(this.getSessionReportsDir(basePath), this.PLAN_FILE);
   }
 
   /**
@@ -88,7 +94,7 @@ export class StateManager {
    * @returns Absolute path to .docimp/session-reports/analyze-latest.json.
    */
   static getAnalyzeFile(basePath?: string): string {
-    return join(this.getSessionReportsDir(basePath), this.ANALYZE_FILE);
+    return path.join(this.getSessionReportsDir(basePath), this.ANALYZE_FILE);
   }
 
   /**
@@ -102,19 +108,19 @@ export class StateManager {
    * @param basePath - Base directory to resolve from. If not provided, uses current working directory.
    */
   static ensureStateDir(basePath?: string): void {
-    const stateDir = this.getStateDir(basePath);
-    const sessionReportsDir = this.getSessionReportsDir(basePath);
-    const historyDir = this.getHistoryDir(basePath);
+    const stateDirectory = this.getStateDir(basePath);
+    const sessionReportsDirectory = this.getSessionReportsDir(basePath);
+    const historyDirectory = this.getHistoryDir(basePath);
 
     // Create directories with recursive option (idempotent)
-    if (!existsSync(stateDir)) {
-      mkdirSync(stateDir, { recursive: true });
+    if (!existsSync(stateDirectory)) {
+      mkdirSync(stateDirectory, { recursive: true });
     }
-    if (!existsSync(sessionReportsDir)) {
-      mkdirSync(sessionReportsDir, { recursive: true });
+    if (!existsSync(sessionReportsDirectory)) {
+      mkdirSync(sessionReportsDirectory, { recursive: true });
     }
-    if (!existsSync(historyDir)) {
-      mkdirSync(historyDir, { recursive: true });
+    if (!existsSync(historyDirectory)) {
+      mkdirSync(historyDirectory, { recursive: true });
     }
   }
 
@@ -129,20 +135,20 @@ export class StateManager {
    * @returns Number of files removed.
    */
   static clearSessionReports(basePath?: string): number {
-    const sessionReportsDir = this.getSessionReportsDir(basePath);
+    const sessionReportsDirectory = this.getSessionReportsDir(basePath);
 
     // Ensure directory exists first
-    if (!existsSync(sessionReportsDir)) {
+    if (!existsSync(sessionReportsDirectory)) {
       this.ensureStateDir(basePath);
       return 0;
     }
 
     // Remove all files in session-reports/
     let filesRemoved = 0;
-    const items = readdirSync(sessionReportsDir);
+    const items = readdirSync(sessionReportsDirectory);
 
     for (const item of items) {
-      const itemPath = join(sessionReportsDir, item);
+      const itemPath = path.join(sessionReportsDirectory, item);
       const stats = statSync(itemPath);
 
       if (stats.isFile()) {

@@ -1,5 +1,5 @@
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 
 /**
  * Validates filesystem paths for CLI commands.
@@ -8,7 +8,7 @@ import path from 'path';
  * Checks for path existence, read permissions, and optionally warns about
  * empty directories.
  */
-export class PathValidator {
+export const PathValidator = {
   /**
    * Validates that a path exists and returns its absolute form.
    *
@@ -33,7 +33,7 @@ export class PathValidator {
    * //         Please check that the path exists and try again.
    * ```
    */
-  static validatePathExists(inputPath: string): string {
+  validatePathExists(inputPath: string): string {
     if (!inputPath || inputPath.trim() === '') {
       throw new Error(
         'Path cannot be empty.\nPlease provide a valid path to analyze.'
@@ -50,7 +50,7 @@ export class PathValidator {
     }
 
     return absolutePath;
-  }
+  },
 
   /**
    * Validates that a path is readable.
@@ -68,7 +68,7 @@ export class PathValidator {
    * // Proceeds if readable, throws if permission denied
    * ```
    */
-  static validatePathReadable(absolutePath: string): void {
+  validatePathReadable(absolutePath: string): void {
     try {
       fs.accessSync(absolutePath, fs.constants.R_OK);
     } catch (error) {
@@ -82,7 +82,7 @@ export class PathValidator {
       // Re-throw unexpected errors
       throw error;
     }
-  }
+  },
 
   /**
    * Warns if a directory is empty.
@@ -103,7 +103,7 @@ export class PathValidator {
    * //                   There are no files to analyze.
    * ```
    */
-  static warnIfEmpty(absolutePath: string): void {
+  warnIfEmpty(absolutePath: string): void {
     const stats = fs.statSync(absolutePath);
 
     if (!stats.isDirectory()) {
@@ -119,7 +119,7 @@ export class PathValidator {
           'There are no files to analyze.'
       );
     }
-  }
+  },
 
   /**
    * Validates a config file path.
@@ -138,7 +138,7 @@ export class PathValidator {
    * // Returns: /Users/user/project/my-config.js
    * ```
    */
-  static validateConfigPath(configPath: string): string {
+  validateConfigPath(configPath: string): string {
     if (!configPath || configPath.trim() === '') {
       throw new Error(
         'Config file path cannot be empty.\n' +
@@ -164,5 +164,5 @@ export class PathValidator {
     }
 
     return absolutePath;
-  }
-}
+  },
+};

@@ -2,7 +2,7 @@
  * Tests for TerminalDisplay showAuditSummary method.
  */
 
-import { TerminalDisplay } from '../display/TerminalDisplay';
+import { TerminalDisplay } from '../display/terminal-display';
 import type { AuditSummary } from '../types/analysis';
 
 // Mock ESM modules

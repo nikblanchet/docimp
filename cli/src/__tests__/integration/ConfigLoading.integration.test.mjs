@@ -12,7 +12,7 @@ import { describe, test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ConfigLoader } from '../../../dist/config/ConfigLoader.js';
+import { ConfigLoader } from '../../../dist/config/config-loader.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

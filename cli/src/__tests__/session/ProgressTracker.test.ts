@@ -4,7 +4,7 @@
  * Tests progress tracking functionality for interactive improvement sessions.
  */
 
-import { ProgressTracker } from '../../session/ProgressTracker.js';
+import { ProgressTracker } from '../../session/progress-tracker.js';
 
 describe('ProgressTracker', () => {
   describe('initialization', () => {

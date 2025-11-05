@@ -5,29 +5,29 @@
  * with Claude AI assistance and plugin validation.
  */
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import prompts from 'prompts';
+import { readFileSync } from 'node:fs';
+import nodePath from 'node:path';
 import chalk from 'chalk';
-import { StateManager } from '../utils/StateManager.js';
-import { PathValidator } from '../utils/PathValidator.js';
-import { InteractiveSession } from '../session/InteractiveSession.js';
-import { EXIT_CODE, type ExitCode } from '../constants/exitCodes.js';
+import prompts from 'prompts';
+import type { IConfigLoader } from '../config/i-config-loader.js';
+import type { IConfig } from '../config/i-config.js';
+import { isPluginConfig } from '../config/i-config.js';
+import { EXIT_CODE, type ExitCode } from '../constants/exit-codes.js';
 import {
   STYLE_GUIDE_CHOICES,
   VALID_STYLE_GUIDES,
   VALID_TONES,
   TONE_CHOICES,
-} from '../constants/styleGuides.js';
+} from '../constants/style-guides.js';
+import type { IDisplay } from '../display/i-display.js';
+import type { IEditorLauncher } from '../editor/i-editor-launcher.js';
+import type { IPluginManager } from '../plugins/i-plugin-manager.js';
+import type { IPythonBridge } from '../python-bridge/i-python-bridge.js';
+import type { IInteractiveSession } from '../session/i-interactive-session.js';
+import { InteractiveSession } from '../session/interactive-session.js';
 import type { PlanResult, SupportedLanguage } from '../types/analysis.js';
-import type { IConfig } from '../config/IConfig.js';
-import { isPluginConfig } from '../config/IConfig.js';
-import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
-import type { IConfigLoader } from '../config/IConfigLoader.js';
-import type { IPluginManager } from '../plugins/IPluginManager.js';
-import type { IDisplay } from '../display/IDisplay.js';
-import type { IEditorLauncher } from '../editor/IEditorLauncher.js';
-import type { IInteractiveSession } from '../session/IInteractiveSession.js';
+import { PathValidator } from '../utils/path-validator.js';
+import { StateManager } from '../utils/state-manager.js';
 
 /**
  * User cancelled the operation.
@@ -84,24 +84,24 @@ export async function improveCore(
     display.showMessage(chalk.bold('\nAvailable style guides:\n'));
 
     display.showMessage(chalk.cyan('Python:'));
-    VALID_STYLE_GUIDES.python.forEach((style) => {
+    for (const style of VALID_STYLE_GUIDES.python) {
       display.showMessage(`  - ${style}`);
-    });
+    }
 
     display.showMessage(chalk.cyan('\nJavaScript:'));
-    VALID_STYLE_GUIDES.javascript.forEach((style) => {
+    for (const style of VALID_STYLE_GUIDES.javascript) {
       display.showMessage(`  - ${style}`);
-    });
+    }
 
     display.showMessage(chalk.cyan('\nTypeScript:'));
-    VALID_STYLE_GUIDES.typescript.forEach((style) => {
+    for (const style of VALID_STYLE_GUIDES.typescript) {
       display.showMessage(`  - ${style}`);
-    });
+    }
 
     display.showMessage(chalk.cyan('\nTones:'));
-    VALID_TONES.forEach((tone) => {
+    for (const tone of VALID_TONES) {
       display.showMessage(`  - ${tone}`);
-    });
+    }
 
     display.showMessage('');
     return;
@@ -128,7 +128,7 @@ export async function improveCore(
   let planResult: PlanResult;
 
   try {
-    const planContent = readFileSync(resolve(planFilePath), 'utf-8');
+    const planContent = readFileSync(nodePath.resolve(planFilePath), 'utf8');
     planResult = JSON.parse(planContent);
   } catch {
     throw new Error(
@@ -286,7 +286,7 @@ export async function improveCore(
         name: 'styleGuide',
         message: `Select documentation style guide for ${chalk.cyan(lang)}:`,
         choices,
-        initial: initialIndex >= 0 ? initialIndex : 0,
+        initial: Math.max(initialIndex, 0),
       });
 
       if (response.styleGuide) {
@@ -339,7 +339,7 @@ export async function improveCore(
       name: 'tone',
       message: 'Select documentation tone (applies to all languages):',
       choices: TONE_CHOICES,
-      initial: toneInitialIndex >= 0 ? toneInitialIndex : 0,
+      initial: Math.max(toneInitialIndex, 0),
     });
 
     tone = toneResponse.tone || 'concise';
@@ -382,7 +382,7 @@ export async function improveCore(
     editorLauncher,
     styleGuides,
     tone,
-    basePath: resolve(process.cwd(), path),
+    basePath: nodePath.resolve(process.cwd(), path),
   });
 
   // Run the session

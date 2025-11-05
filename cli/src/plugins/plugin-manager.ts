@@ -8,22 +8,22 @@
  * - Security validation (path restrictions)
  */
 
-import { pathToFileURL } from 'node:url';
-import { resolve, sep, extname } from 'node:path';
 import { existsSync, realpathSync } from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { parse as commentParserParse } from 'comment-parser';
+import * as typescript from 'typescript';
+import type { IConfig } from '../config/i-config.js';
+import { isPluginConfig } from '../config/i-config.js';
+import type { IPluginManager } from './i-plugin-manager.js';
 import type {
   IPlugin,
   PluginResult,
   CodeItemMetadata,
   PluginDependencies,
-} from './IPlugin.js';
-import type { IConfig } from '../config/IConfig.js';
-import { isPluginConfig } from '../config/IConfig.js';
-import type { IPluginManager } from './IPluginManager.js';
+} from './i-plugin.js';
 
 // Import dependencies to inject into plugins
-import * as typescript from 'typescript';
-import { parse as commentParserParse } from 'comment-parser';
 
 /**
  * Manages plugin loading and execution.
@@ -47,19 +47,19 @@ export class PluginManager implements IPluginManager {
    *
    * @param pluginPaths - Array of paths to plugin files
    * @param projectRoot - Project root directory (for relative path resolution)
-   * @param additionalAllowedDirs - Additional directories to allow plugin loading from (for testing only)
+   * @param additionalAllowedDirectories - Additional directories to allow plugin loading from (for testing only)
    * @throws Error if plugin loading fails
    */
   async loadPlugins(
     pluginPaths: string[],
     projectRoot?: string,
-    additionalAllowedDirs?: string[]
+    additionalAllowedDirectories?: string[]
   ): Promise<void> {
     const root = projectRoot || process.cwd();
 
     for (const pluginPath of pluginPaths) {
       try {
-        await this.loadPlugin(pluginPath, root, additionalAllowedDirs);
+        await this.loadPlugin(pluginPath, root, additionalAllowedDirectories);
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
@@ -75,22 +75,22 @@ export class PluginManager implements IPluginManager {
    *
    * @param pluginPath - Path to plugin file (relative or absolute)
    * @param projectRoot - Project root directory
-   * @param additionalAllowedDirs - Additional directories to allow plugin loading from (for testing only)
+   * @param additionalAllowedDirectories - Additional directories to allow plugin loading from (for testing only)
    */
   private async loadPlugin(
     pluginPath: string,
     projectRoot: string,
-    additionalAllowedDirs?: string[]
+    additionalAllowedDirectories?: string[]
   ): Promise<void> {
     // Resolve relative paths from project root
-    const absolutePath = resolve(projectRoot, pluginPath);
+    const absolutePath = path.resolve(projectRoot, pluginPath);
 
     // Validate path is safe before loading
     this.validatePluginPath(
       absolutePath,
       projectRoot,
       pluginPath,
-      additionalAllowedDirs
+      additionalAllowedDirectories
     );
 
     // Prevent duplicate loading
@@ -133,14 +133,14 @@ export class PluginManager implements IPluginManager {
    * @param absolutePath - Absolute path to plugin file
    * @param projectRoot - Project root directory
    * @param originalPath - Original path from config (for error messages)
-   * @param additionalAllowedDirs - Additional directories to allow (for testing only)
+   * @param additionalAllowedDirectories - Additional directories to allow (for testing only)
    * @throws Error if plugin path is unsafe or invalid
    */
   private validatePluginPath(
     absolutePath: string,
     projectRoot: string,
     originalPath: string,
-    additionalAllowedDirs?: string[]
+    additionalAllowedDirectories?: string[]
   ): void {
     // Check if file exists
     if (!existsSync(absolutePath)) {
@@ -158,24 +158,24 @@ export class PluginManager implements IPluginManager {
     }
 
     // Validate file extension
-    const ext = extname(canonicalPath);
+    const extension = path.extname(canonicalPath);
     const validExtensions = ['.js', '.mjs', '.cjs'];
-    if (!validExtensions.includes(ext)) {
+    if (!validExtensions.includes(extension)) {
       throw new Error(
-        `Plugin file must have .js, .mjs, or .cjs extension. Got: ${ext} (${originalPath})`
+        `Plugin file must have .js, .mjs, or .cjs extension. Got: ${extension} (${originalPath})`
       );
     }
 
     // Define allowed directories (whitelist)
-    const allowedDirs = [
-      resolve(projectRoot, 'plugins'),
-      resolve(projectRoot, 'node_modules'),
-      ...(additionalAllowedDirs || []),
+    const allowedDirectories = [
+      path.resolve(projectRoot, 'plugins'),
+      path.resolve(projectRoot, 'node_modules'),
+      ...(additionalAllowedDirectories || []),
     ];
 
     // Check if canonical path is within allowed directories
-    const isAllowed = allowedDirs.some((dir) =>
-      canonicalPath.startsWith(dir + sep)
+    const isAllowed = allowedDirectories.some((directory) =>
+      canonicalPath.startsWith(directory + path.sep)
     );
 
     if (!isAllowed) {
@@ -202,13 +202,13 @@ export class PluginManager implements IPluginManager {
     const p = plugin as Record<string, unknown>;
 
     if (typeof p.name !== 'string') {
-      throw new Error(
+      throw new TypeError(
         `Plugin at ${pluginPath} must have a 'name' property (string)`
       );
     }
 
     if (typeof p.version !== 'string') {
-      throw new Error(
+      throw new TypeError(
         `Plugin at ${pluginPath} must have a 'version' property (string)`
       );
     }
@@ -258,9 +258,9 @@ export class PluginManager implements IPluginManager {
    */
   private getDefaultTimeout(): number {
     if (isPluginConfig(this.config?.plugins)) {
-      return this.config.plugins.timeout ?? 10000;
+      return this.config.plugins.timeout ?? 10_000;
     }
-    return 10000;
+    return 10_000;
   }
 
   /**
@@ -281,7 +281,7 @@ export class PluginManager implements IPluginManager {
   ): Promise<T> {
     let timerId: NodeJS.Timeout;
 
-    const timeoutPromise = new Promise<never>((_, reject) => {
+    const timeoutPromise = new Promise<never>((_resolve, reject) => {
       timerId = setTimeout(
         () =>
           reject(

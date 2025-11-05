@@ -14,18 +14,18 @@
  */
 
 import { describe, it, expect, beforeAll } from '@jest/globals';
-import { PythonBridge } from '../../python-bridge/PythonBridge.js';
+import { PythonBridge } from '../../python-bridge/python-bridge.js';
 import type {
   AnalysisResult,
   AuditListResult,
   PlanResult,
 } from '../../types/analysis.js';
 import { existsSync } from 'fs';
-import { resolve } from 'path';
+import { join, resolve } from 'path';
 
 describe('PythonBridge Integration (Real Python Subprocess)', () => {
   let bridge: PythonBridge;
-  const examplesPath = resolve(__dirname, '../../../../examples');
+  const examplesPath = join(__dirname, '..', '..', '..', '..', 'examples');
 
   beforeAll(() => {
     // Verify examples directory exists

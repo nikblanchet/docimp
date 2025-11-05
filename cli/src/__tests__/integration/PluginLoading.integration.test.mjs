@@ -11,7 +11,7 @@ import { describe, test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PluginManager } from '../../../dist/plugins/PluginManager.js';
+import { PluginManager } from '../../../dist/plugins/plugin-manager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
