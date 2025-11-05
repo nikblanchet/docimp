@@ -65,7 +65,6 @@ jobs:
   typescript-tests:
     name: TypeScript Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     strategy:
       matrix:
         node-version: ['24']
