@@ -81,7 +81,8 @@ class TestPermissionErrors:
 
                 # Attempting operations should either fail gracefully or skip
                 # The important thing is no crash
-                with contextlib.suppress(PermissionError, OSError):
+                # Note: OSError is parent of PermissionError, so only OSError needed
+                with contextlib.suppress(OSError):
                     _manifest = manager.begin_transaction("test-session")
             finally:
                 # Restore permissions for cleanup
