@@ -4,11 +4,11 @@ This module handles writing documentation to Python, TypeScript, and JavaScript
 files while preserving formatting and ensuring idempotent operations.
 """
 
-import datetime
 import os
 import re
 import shutil
 import tempfile
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Optional
 
@@ -43,7 +43,9 @@ class DocstringWriter:
             Base directory path for validation. Files must be within this directory.
             Defaults to current working directory if not specified.
         """
-        self.base_path = Path(base_path).resolve() if base_path else Path.cwd().resolve()
+        self.base_path = (
+            Path(base_path).resolve() if base_path else Path.cwd().resolve()
+        )
 
     def _validate_path(self, filepath: str) -> Path:
         """Validate that a file path is within the allowed base directory.
@@ -129,7 +131,7 @@ class DocstringWriter:
             If the file content doesn't match expected content
         """
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 actual_content = f.read()
         except Exception as e:
             raise IOError(f"Failed to read back written file '{file_path}': {e}")
@@ -163,8 +165,10 @@ class DocstringWriter:
         except Exception as e:
             # This is a critical failure - we failed to restore the original file
             raise IOError(
-                f"CRITICAL: Failed to restore '{target_path}' from backup '{backup_path}'. "
-                f"Original error: {e}. Both backup and target may be in inconsistent state."
+                f"CRITICAL: Failed to restore '{target_path}' from backup "
+                f"'{backup_path}'. "
+                f"Original error: {e}. Both backup and target may be in "
+                f"inconsistent state."
             ) from e
 
     def write_docstring(
@@ -175,7 +179,7 @@ class DocstringWriter:
         docstring: str,
         language: str,
         line_number: Optional[int] = None,
-        explicit_backup_path: Optional[str] = None
+        explicit_backup_path: Optional[str] = None,
     ) -> bool:
         """Write documentation to a source file.
 
@@ -238,15 +242,15 @@ class DocstringWriter:
         file_path = self._validate_path(filepath)
 
         # Read file content
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         # Apply docstring based on language
-        if language == 'python':
+        if language == "python":
             new_content = self._insert_python_docstring(
                 content, item_name, item_type, docstring, line_number
             )
-        elif language in ['javascript', 'typescript']:
+        elif language in ["javascript", "typescript"]:
             new_content = self._insert_jsdoc(
                 content, item_name, item_type, docstring, line_number
             )
@@ -259,21 +263,23 @@ class DocstringWriter:
             return True
 
         # Calculate required disk space
-        required_bytes = len(new_content.encode('utf-8'))
+        required_bytes = len(new_content.encode("utf-8"))
 
         # Check disk space before proceeding
         self._check_disk_space(file_path, required_bytes)
 
         # Create backup and temp file paths
-        # Use explicit_backup_path if provided (for transaction tracking), otherwise generate timestamp-based path
+        # Use explicit_backup_path if provided (for transaction tracking),
+        # otherwise generate timestamp-based path
         if explicit_backup_path:
             backup_path = Path(explicit_backup_path)
         else:
             # Use timestamp to avoid collisions with existing .bak files
-            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-            backup_path = file_path.with_suffix(f'{file_path.suffix}.{timestamp}.bak')
+            timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S_%f")
+            backup_path = file_path.with_suffix(f"{file_path.suffix}.{timestamp}.bak")
 
-        # Safety check: verify backup path is unique (should always be true with microseconds)
+        # Safety check: verify backup path is unique (should always be true
+        # with microseconds)
         if backup_path.exists():
             raise IOError(
                 f"Backup path collision: '{backup_path}' already exists. "
@@ -285,14 +291,12 @@ class DocstringWriter:
         try:
             # Temp file must be in same directory for atomic rename to work
             temp_fd, temp_path_str = tempfile.mkstemp(
-                dir=file_path.parent,
-                prefix=f'.{file_path.name}.',
-                suffix='.tmp'
+                dir=file_path.parent, prefix=f".{file_path.name}.", suffix=".tmp"
             )
             temp_path = Path(temp_path_str)
 
             # Write to temp file
-            with os.fdopen(temp_fd, 'w', encoding='utf-8') as f:
+            with os.fdopen(temp_fd, "w", encoding="utf-8") as f:
                 f.write(new_content)
 
             # Validate the write
@@ -327,7 +331,7 @@ class DocstringWriter:
         item_name: str,
         item_type: str,
         docstring: str,
-        line_number: Optional[int] = None
+        line_number: Optional[int] = None,
     ) -> str:
         """Insert Python docstring into content.
 
@@ -349,7 +353,7 @@ class DocstringWriter:
         str
             Modified content with docstring inserted
         """
-        lines = content.split('\n')
+        lines = content.split("\n")
 
         # Find the function/class definition
         pattern = self._get_python_pattern(item_name, item_type)
@@ -366,22 +370,22 @@ class DocstringWriter:
                 # Get indentation from the definition line
                 indent = self._get_indentation(lines[i])
                 # Docstring should be indented one level more
-                doc_indent = indent + '    '
+                doc_indent = indent + "    "
 
                 # Format docstring with proper indentation
-                doc_lines = docstring.split('\n')
+                doc_lines = docstring.split("\n")
                 formatted_doc = []
                 formatted_doc.append(doc_indent + '"""')
                 for doc_line in doc_lines:
                     if doc_line.strip():
                         formatted_doc.append(doc_indent + doc_line)
                     else:
-                        formatted_doc.append('')
+                        formatted_doc.append("")
                 formatted_doc.append(doc_indent + '"""')
 
                 # Insert docstring after the definition line
-                lines.insert(i + 1, '\n'.join(formatted_doc))
-                return '\n'.join(lines)
+                lines.insert(i + 1, "\n".join(formatted_doc))
+                return "\n".join(lines)
 
         # If we couldn't find the item, return original content
         return content
@@ -392,7 +396,7 @@ class DocstringWriter:
         item_name: str,
         item_type: str,
         docstring: str,
-        line_number: Optional[int] = None
+        line_number: Optional[int] = None,
     ) -> str:
         """Insert JSDoc comment into JavaScript/TypeScript content.
 
@@ -414,7 +418,7 @@ class DocstringWriter:
         str
             Modified content with JSDoc inserted
         """
-        lines = content.split('\n')
+        lines = content.split("\n")
 
         # Try multiple patterns for JavaScript
         patterns = self._get_javascript_patterns(item_name, item_type)
@@ -431,7 +435,7 @@ class DocstringWriter:
 
                         if prev_idx >= 0:
                             prev_line = lines[prev_idx].strip()
-                            if prev_line.endswith('*/'):
+                            if prev_line.endswith("*/"):
                                 # JSDoc already exists, skip
                                 return content
 
@@ -440,22 +444,22 @@ class DocstringWriter:
 
                     # Format JSDoc with proper indentation
                     # If docstring is already in JSDoc format (starts with /**), use it
-                    if docstring.strip().startswith('/**'):
-                        doc_lines = docstring.strip().split('\n')
+                    if docstring.strip().startswith("/**"):
+                        doc_lines = docstring.strip().split("\n")
                     else:
                         # Wrap in JSDoc format
-                        doc_lines = ['/**']
-                        for doc_line in docstring.split('\n'):
+                        doc_lines = ["/**"]
+                        for doc_line in docstring.split("\n"):
                             if doc_line.strip():
-                                doc_lines.append(' * ' + doc_line.strip())
-                        doc_lines.append(' */')
+                                doc_lines.append(" * " + doc_line.strip())
+                        doc_lines.append(" */")
 
                     # Apply indentation
                     formatted_doc = [indent + line for line in doc_lines]
 
                     # Insert JSDoc before the function/class
-                    lines.insert(i, '\n'.join(formatted_doc))
-                    return '\n'.join(lines)
+                    lines.insert(i, "\n".join(formatted_doc))
+                    return "\n".join(lines)
 
         # If we couldn't find the item, return original content
         return content
@@ -477,10 +481,10 @@ class DocstringWriter:
         """
         escaped_name = re.escape(item_name)
 
-        if item_type == 'class':
-            return re.compile(rf'^class\s+{escaped_name}\s*[\(:]')
+        if item_type == "class":
+            return re.compile(rf"^class\s+{escaped_name}\s*[\(:]")
         else:  # function or method
-            return re.compile(rf'^(async\s+)?def\s+{escaped_name}\s*\(')
+            return re.compile(rf"^(async\s+)?def\s+{escaped_name}\s*\(")
 
     def _get_javascript_patterns(self, item_name: str, item_type: str) -> list:
         """Get regex patterns for finding JavaScript/TypeScript definitions.
@@ -500,45 +504,78 @@ class DocstringWriter:
         escaped_name = re.escape(item_name)
         patterns = []
 
-        if item_type == 'class':
+        if item_type == "class":
             # Class declaration
-            patterns.append(re.compile(rf'\b(export\s+)?(default\s+)?class\s+{escaped_name}\b'))
+            patterns.append(
+                re.compile(rf"\b(export\s+)?(default\s+)?class\s+{escaped_name}\b")
+            )
         else:  # function or method
             # Regular function declaration
-            patterns.append(re.compile(rf'\b(async\s+)?function\s+{escaped_name}\s*\('))
+            patterns.append(re.compile(rf"\b(async\s+)?function\s+{escaped_name}\s*\("))
 
             # Export function
-            patterns.append(re.compile(rf'\bexport\s+(async\s+)?function\s+{escaped_name}\s*\('))
+            patterns.append(
+                re.compile(rf"\bexport\s+(async\s+)?function\s+{escaped_name}\s*\(")
+            )
 
             # Export default function
-            patterns.append(re.compile(rf'\bexport\s+default\s+(async\s+)?function\s+{escaped_name}\s*\('))
+            patterns.append(
+                re.compile(
+                    rf"\bexport\s+default\s+(async\s+)?function\s+{escaped_name}\s*\("
+                )
+            )
 
             # Arrow function (const/let/var)
-            patterns.append(re.compile(rf'\b(const|let|var)\s+{escaped_name}\s*=\s*(async\s*)?\('))
+            patterns.append(
+                re.compile(rf"\b(const|let|var)\s+{escaped_name}\s*=\s*(async\s*)?\(")
+            )
 
             # Arrow function without parentheses (single parameter)
-            # Matches simple identifiers: letter/underscore/$ followed by word chars or $
-            patterns.append(re.compile(rf'\b(const|let|var)\s+{escaped_name}\s*=\s*(async\s+)?[a-zA-Z_$][\w$]*\s*=>'))
+            # Matches simple identifiers: letter/underscore/$ followed by word
+            # chars or $
+            patterns.append(
+                re.compile(
+                    rf"\b(const|let|var)\s+{escaped_name}\s*=\s*(async\s+)?[a-zA-Z_$][\w$]*\s*=>"
+                )
+            )
 
             # Export arrow function
-            patterns.append(re.compile(rf'\bexport\s+(const|let|var)\s+{escaped_name}\s*=\s*(async\s*)?\('))
+            patterns.append(
+                re.compile(
+                    rf"\bexport\s+(const|let|var)\s+{escaped_name}\s*=\s*(async\s*)?\("
+                )
+            )
 
             # Export arrow function without parentheses (single parameter)
-            # Matches simple identifiers: letter/underscore/$ followed by word chars or $
-            patterns.append(re.compile(rf'\bexport\s+(const|let|var)\s+{escaped_name}\s*=\s*(async\s+)?[a-zA-Z_$][\w$]*\s*=>'))
+            # Matches simple identifiers: letter/underscore/$ followed by word
+            # chars or $
+            patterns.append(
+                re.compile(
+                    rf"\bexport\s+(const|let|var)\s+{escaped_name}\s*=\s*(async\s+)?[a-zA-Z_$][\w$]*\s*=>"
+                )
+            )
 
             # Check if this is a private method (name starts with #)
-            if item_name.startswith('#'):
+            if item_name.startswith("#"):
                 # Private method: escaped_name already includes the #
-                # No leading \b because # itself is distinctive and \b doesn't work before #
-                patterns.append(re.compile(rf'(static\s+)?(async\s+)?(get\s+|set\s+)?{escaped_name}\s*\('))
+                # No leading \b because # itself is distinctive and \b doesn't
+                # work before #
+                patterns.append(
+                    re.compile(
+                        rf"(static\s+)?(async\s+)?(get\s+|set\s+)?{escaped_name}\s*\("
+                    )
+                )
             else:
                 # Regular method in object literal or class
                 # Supports TypeScript visibility modifiers (public, private, protected)
-                patterns.append(re.compile(rf'\b((public|private|protected)\s+)?(static\s+)?(async\s+)?(get\s+|set\s+)?{escaped_name}\s*\('))
+                patterns.append(
+                    re.compile(
+                        rf"\b((public|private|protected)\s+)?(static\s+)?(async\s+)?(get\s+|set\s+)?{escaped_name}\s*\("
+                    )
+                )
 
             # CommonJS exports
-            patterns.append(re.compile(rf'\b(module\.)?exports\.{escaped_name}\s*='))
+            patterns.append(re.compile(rf"\b(module\.)?exports\.{escaped_name}\s*="))
 
         return patterns
 
@@ -555,5 +592,5 @@ class DocstringWriter:
         str
             Indentation string (spaces or tabs)
         """
-        match = re.match(r'^(\s*)', line)
-        return match.group(1) if match else ''
+        match = re.match(r"^(\s*)", line)
+        return match.group(1) if match else ""

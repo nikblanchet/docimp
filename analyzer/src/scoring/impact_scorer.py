@@ -26,17 +26,15 @@ class ImpactScorer:
     # Rating to penalty mapping for audit scores
     QUALITY_PENALTIES = {
         None: 100,  # No docs
-        0: 100,     # No docs (explicit)
-        1: 80,      # Terrible
-        2: 40,      # OK
-        3: 20,      # Good
-        4: 0,       # Excellent
+        0: 100,  # No docs (explicit)
+        1: 80,  # Terrible
+        2: 40,  # OK
+        3: 20,  # Good
+        4: 0,  # Excellent
     }
 
     def __init__(
-        self,
-        complexity_weight: float = 0.6,
-        quality_weight: float = 0.4
+        self, complexity_weight: float = 0.6, quality_weight: float = 0.4
     ) -> None:
         """Initialize the impact scorer with configurable weights.
 
@@ -49,9 +47,7 @@ class ImpactScorer:
         """
         weight_sum = complexity_weight + quality_weight
         if not math.isclose(weight_sum, 1.0, abs_tol=0.01):
-            raise ValueError(
-                f"Weights must sum to 1.0 (±0.01), got {weight_sum}"
-            )
+            raise ValueError(f"Weights must sum to 1.0 (±0.01), got {weight_sum}")
 
         self.complexity_weight = complexity_weight
         self.quality_weight = quality_weight
@@ -84,8 +80,8 @@ class ImpactScorer:
         # With audit rating, blend complexity and quality
         quality_penalty = self._get_quality_penalty(item.audit_rating)
         score = (
-            self.complexity_weight * complexity_score +
-            self.quality_weight * quality_penalty
+            self.complexity_weight * complexity_score
+            + self.quality_weight * quality_penalty
         )
 
         return min(100.0, score)

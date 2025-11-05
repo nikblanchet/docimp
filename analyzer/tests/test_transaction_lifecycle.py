@@ -27,24 +27,19 @@ class TestFullLifecycle:
             manager = TransactionManager(base_path=base_path, use_git=False)
 
             # Begin transaction
-            manifest = manager.begin_transaction('lifecycle-test')
-            assert manifest.session_id == 'lifecycle-test'
-            assert manifest.status == 'in_progress'
+            manifest = manager.begin_transaction("lifecycle-test")
+            assert manifest.session_id == "lifecycle-test"
+            assert manifest.status == "in_progress"
 
             # Record 3 writes
             for i in range(3):
-                filepath = base_path / f'file{i}.py'
-                filepath.write_text(f'def func{i}(): pass')
-                backup = str(filepath) + '.bak'
-                Path(backup).write_text('')  # Create backup
+                filepath = base_path / f"file{i}.py"
+                filepath.write_text(f"def func{i}(): pass")
+                backup = str(filepath) + ".bak"
+                Path(backup).write_text("")  # Create backup
 
                 manager.record_write(
-                    manifest,
-                    str(filepath),
-                    backup,
-                    f'func{i}',
-                    'function',
-                    'python'
+                    manifest, str(filepath), backup, f"func{i}", "function", "python"
                 )
 
             # Verify entries recorded
@@ -52,12 +47,12 @@ class TestFullLifecycle:
 
             # Commit transaction
             manager.commit_transaction(manifest)
-            assert manifest.status == 'committed'
+            assert manifest.status == "committed"
             assert manifest.completed_at is not None
 
             # Verify backups deleted
             for i in range(3):
-                backup = base_path / f'file{i}.py.bak'
+                backup = base_path / f"file{i}.py.bak"
                 assert not backup.exists()
 
     def test_full_lifecycle_begin_record_rollback(self):
@@ -69,32 +64,32 @@ class TestFullLifecycle:
             # Create original files
             originals = {}
             for i in range(3):
-                filepath = base_path / f'file{i}.py'
-                original_content = f'# Original content {i}\n'
+                filepath = base_path / f"file{i}.py"
+                original_content = f"# Original content {i}\n"
                 filepath.write_text(original_content)
                 originals[str(filepath)] = original_content
 
             # Begin transaction
-            manifest = manager.begin_transaction('rollback-test')
+            manifest = manager.begin_transaction("rollback-test")
 
             # Record changes (create backups and modify files)
             for i in range(3):
-                filepath = base_path / f'file{i}.py'
-                backup = str(filepath) + '.bak'
+                filepath = base_path / f"file{i}.py"
+                backup = str(filepath) + ".bak"
 
                 # Create backup
                 Path(backup).write_text(originals[str(filepath)])
 
                 # Modify file
-                filepath.write_text(f'def new_func{i}(): pass')
+                filepath.write_text(f"def new_func{i}(): pass")
 
                 manager.record_write(
                     manifest,
                     str(filepath),
                     backup,
-                    f'new_func{i}',
-                    'function',
-                    'python'
+                    f"new_func{i}",
+                    "function",
+                    "python",
                 )
 
             # Rollback transaction
@@ -104,7 +99,7 @@ class TestFullLifecycle:
 
             # Verify files restored
             for i in range(3):
-                filepath = base_path / f'file{i}.py'
+                filepath = base_path / f"file{i}.py"
                 assert filepath.read_text() == originals[str(filepath)]
 
     def test_session_with_no_changes(self):
@@ -114,14 +109,14 @@ class TestFullLifecycle:
             manager = TransactionManager(base_path=base_path, use_git=False)
 
             # Begin transaction
-            manifest = manager.begin_transaction('empty-session')
+            manifest = manager.begin_transaction("empty-session")
             assert len(manifest.entries) == 0
 
             # Commit immediately (no writes)
             manager.commit_transaction(manifest)
 
             # Should complete successfully
-            assert manifest.status == 'committed'
+            assert manifest.status == "committed"
 
 
 class TestMultipleSequentialSessions:
@@ -136,40 +131,46 @@ class TestMultipleSequentialSessions:
             sessions = []
 
             # Session 1: 2 changes
-            manifest1 = manager.begin_transaction('session-1')
+            manifest1 = manager.begin_transaction("session-1")
             for i in range(2):
-                filepath = base_path / f'session1_file{i}.py'
-                filepath.write_text('content')
-                backup = str(filepath) + '.bak'
-                Path(backup).write_text('')
-                manager.record_write(manifest1, str(filepath), backup, 'func', 'function', 'python')
+                filepath = base_path / f"session1_file{i}.py"
+                filepath.write_text("content")
+                backup = str(filepath) + ".bak"
+                Path(backup).write_text("")
+                manager.record_write(
+                    manifest1, str(filepath), backup, "func", "function", "python"
+                )
             manager.commit_transaction(manifest1)
             sessions.append(manifest1)
 
             # Session 2: 3 changes
-            manifest2 = manager.begin_transaction('session-2')
+            manifest2 = manager.begin_transaction("session-2")
             for i in range(3):
-                filepath = base_path / f'session2_file{i}.py'
-                filepath.write_text('content')
-                backup = str(filepath) + '.bak'
-                Path(backup).write_text('')
-                manager.record_write(manifest2, str(filepath), backup, 'func', 'function', 'python')
+                filepath = base_path / f"session2_file{i}.py"
+                filepath.write_text("content")
+                backup = str(filepath) + ".bak"
+                Path(backup).write_text("")
+                manager.record_write(
+                    manifest2, str(filepath), backup, "func", "function", "python"
+                )
             manager.commit_transaction(manifest2)
             sessions.append(manifest2)
 
             # Session 3: 1 change
-            manifest3 = manager.begin_transaction('session-3')
-            filepath = base_path / 'session3_file0.py'
-            filepath.write_text('content')
-            backup = str(filepath) + '.bak'
-            Path(backup).write_text('')
-            manager.record_write(manifest3, str(filepath), backup, 'func', 'function', 'python')
+            manifest3 = manager.begin_transaction("session-3")
+            filepath = base_path / "session3_file0.py"
+            filepath.write_text("content")
+            backup = str(filepath) + ".bak"
+            Path(backup).write_text("")
+            manager.record_write(
+                manifest3, str(filepath), backup, "func", "function", "python"
+            )
             manager.commit_transaction(manifest3)
             sessions.append(manifest3)
 
             # Verify all sessions completed
             for session in sessions:
-                assert session.status == 'committed'
+                assert session.status == "committed"
                 assert session.completed_at is not None
 
     def test_rollback_then_new_session(self):
@@ -179,29 +180,33 @@ class TestMultipleSequentialSessions:
             manager = TransactionManager(base_path=base_path, use_git=False)
 
             # Session 1: Create and rollback
-            file1 = base_path / 'file1.py'
-            file1.write_text('original')
+            file1 = base_path / "file1.py"
+            file1.write_text("original")
 
-            manifest1 = manager.begin_transaction('session-1')
-            backup1 = str(file1) + '.bak'
-            Path(backup1).write_text('original')
-            file1.write_text('modified')
-            manager.record_write(manifest1, str(file1), backup1, 'func1', 'function', 'python')
+            manifest1 = manager.begin_transaction("session-1")
+            backup1 = str(file1) + ".bak"
+            Path(backup1).write_text("original")
+            file1.write_text("modified")
+            manager.record_write(
+                manifest1, str(file1), backup1, "func1", "function", "python"
+            )
 
             # Rollback session 1
             manager.rollback_transaction(manifest1)
 
             # Session 2: New session should work fine
-            file2 = base_path / 'file2.py'
-            file2.write_text('new content')
-            manifest2 = manager.begin_transaction('session-2')
-            backup2 = str(file2) + '.bak'
-            Path(backup2).write_text('')
-            manager.record_write(manifest2, str(file2), backup2, 'func2', 'function', 'python')
+            file2 = base_path / "file2.py"
+            file2.write_text("new content")
+            manifest2 = manager.begin_transaction("session-2")
+            backup2 = str(file2) + ".bak"
+            Path(backup2).write_text("")
+            manager.record_write(
+                manifest2, str(file2), backup2, "func2", "function", "python"
+            )
             manager.commit_transaction(manifest2)
 
             # Verify session 2 committed successfully
-            assert manifest2.status == 'committed'
+            assert manifest2.status == "committed"
             assert len(manifest2.entries) == 1
 
 
@@ -214,21 +219,16 @@ class TestLargeSessions:
             base_path = Path(tmpdir)
             manager = TransactionManager(base_path=base_path, use_git=False)
 
-            manifest = manager.begin_transaction('large-session')
+            manifest = manager.begin_transaction("large-session")
 
             # Record 50 writes
             for i in range(50):
-                filepath = base_path / f'file{i}.py'
-                filepath.write_text(f'def func{i}(): pass')
-                backup = str(filepath) + '.bak'
-                Path(backup).write_text('')
+                filepath = base_path / f"file{i}.py"
+                filepath.write_text(f"def func{i}(): pass")
+                backup = str(filepath) + ".bak"
+                Path(backup).write_text("")
                 manager.record_write(
-                    manifest,
-                    str(filepath),
-                    backup,
-                    f'func{i}',
-                    'function',
-                    'python'
+                    manifest, str(filepath), backup, f"func{i}", "function", "python"
                 )
 
             # Verify all tracked
@@ -236,7 +236,7 @@ class TestLargeSessions:
 
             # Commit should handle large session
             manager.commit_transaction(manifest)
-            assert manifest.status == 'committed'
+            assert manifest.status == "committed"
 
 
 class TestNestedDirectories:
@@ -248,39 +248,43 @@ class TestNestedDirectories:
             base_path = Path(tmpdir)
             manager = TransactionManager(base_path=base_path, use_git=False)
 
-            manifest = manager.begin_transaction('nested-test')
+            manifest = manager.begin_transaction("nested-test")
 
             # Create dir structure a/b/c/d/e/f/
             nested_paths = [
-                base_path / 'file.py',
-                base_path / 'a' / 'file.py',
-                base_path / 'a' / 'b' / 'file.py',
-                base_path / 'a' / 'b' / 'c' / 'file.py',
-                base_path / 'a' / 'b' / 'c' / 'd' / 'file.py',
-                base_path / 'a' / 'b' / 'c' / 'd' / 'e' / 'file.py',
-                base_path / 'a' / 'b' / 'c' / 'd' / 'e' / 'f' / 'file.py',
+                base_path / "file.py",
+                base_path / "a" / "file.py",
+                base_path / "a" / "b" / "file.py",
+                base_path / "a" / "b" / "c" / "file.py",
+                base_path / "a" / "b" / "c" / "d" / "file.py",
+                base_path / "a" / "b" / "c" / "d" / "e" / "file.py",
+                base_path / "a" / "b" / "c" / "d" / "e" / "f" / "file.py",
             ]
 
             for filepath in nested_paths:
                 filepath.parent.mkdir(parents=True, exist_ok=True)
-                filepath.write_text('content')
-                backup = str(filepath) + '.bak'
-                Path(backup).write_text('')
-                manager.record_write(manifest, str(filepath), backup, 'func', 'function', 'python')
+                filepath.write_text("content")
+                backup = str(filepath) + ".bak"
+                Path(backup).write_text("")
+                manager.record_write(
+                    manifest, str(filepath), backup, "func", "function", "python"
+                )
 
             # Verify all paths handled
             assert len(manifest.entries) == len(nested_paths)
 
             # Commit (test that nested paths work with commit)
             manager.commit_transaction(manifest)
-            assert manifest.status == 'committed'
+            assert manifest.status == "committed"
 
             # Create another session to test rollback at nested levels
-            manifest2 = manager.begin_transaction('nested-rollback-test')
+            manifest2 = manager.begin_transaction("nested-rollback-test")
             for filepath in nested_paths:
-                backup = str(filepath) + '.bak'
-                Path(backup).write_text('rollback')
-                manager.record_write(manifest2, str(filepath), backup, 'func', 'function', 'python')
+                backup = str(filepath) + ".bak"
+                Path(backup).write_text("rollback")
+                manager.record_write(
+                    manifest2, str(filepath), backup, "func", "function", "python"
+                )
 
             # Test rollback at all nesting levels
             restored = manager.rollback_transaction(manifest2)
@@ -297,35 +301,37 @@ class TestSessionState:
             manager = TransactionManager(base_path=base_path, use_git=False)
 
             # Begin
-            manifest = manager.begin_transaction('state-test')
+            manifest = manager.begin_transaction("state-test")
 
-            assert manifest.session_id == 'state-test'
-            assert manifest.status == 'in_progress'
+            assert manifest.session_id == "state-test"
+            assert manifest.status == "in_progress"
             assert manifest.started_at is not None
             assert manifest.completed_at is None
             assert manifest.entries == []
             assert manifest.git_commit_sha is None
 
             # Record change
-            filepath = base_path / 'file.py'
-            filepath.write_text('content')
-            backup = str(filepath) + '.bak'
-            Path(backup).write_text('')
-            manager.record_write(manifest, str(filepath), backup, 'func', 'function', 'python')
+            filepath = base_path / "file.py"
+            filepath.write_text("content")
+            backup = str(filepath) + ".bak"
+            Path(backup).write_text("")
+            manager.record_write(
+                manifest, str(filepath), backup, "func", "function", "python"
+            )
 
             assert len(manifest.entries) == 1
             entry = manifest.entries[0]
             assert entry.filepath == str(filepath)
             assert entry.backup_path == backup
-            assert entry.item_name == 'func'
-            assert entry.item_type == 'function'
-            assert entry.language == 'python'
+            assert entry.item_name == "func"
+            assert entry.item_type == "function"
+            assert entry.language == "python"
             assert entry.success is True
 
             # Commit
             manager.commit_transaction(manifest)
 
-            assert manifest.status == 'committed'
+            assert manifest.status == "committed"
             assert manifest.completed_at is not None
 
     def test_entry_timestamps_consistent(self):
@@ -334,21 +340,23 @@ class TestSessionState:
             base_path = Path(tmpdir)
             manager = TransactionManager(base_path=base_path, use_git=False)
 
-            manifest = manager.begin_transaction('timestamp-test')
+            manifest = manager.begin_transaction("timestamp-test")
 
             # Record 3 changes
             for i in range(3):
-                filepath = base_path / f'file{i}.py'
-                filepath.write_text('content')
-                backup = str(filepath) + '.bak'
-                Path(backup).write_text('')
-                manager.record_write(manifest, str(filepath), backup, f'func{i}', 'function', 'python')
+                filepath = base_path / f"file{i}.py"
+                filepath.write_text("content")
+                backup = str(filepath) + ".bak"
+                Path(backup).write_text("")
+                manager.record_write(
+                    manifest, str(filepath), backup, f"func{i}", "function", "python"
+                )
 
             # All entries should have timestamps
             for entry in manifest.entries:
                 assert entry.timestamp is not None
                 # Timestamp should be ISO format
-                assert 'T' in entry.timestamp
+                assert "T" in entry.timestamp
 
 
 class TestErrorRecovery:
@@ -360,19 +368,21 @@ class TestErrorRecovery:
             base_path = Path(tmpdir)
             manager = TransactionManager(base_path=base_path, use_git=False)
 
-            manifest = manager.begin_transaction('partial-test')
+            manifest = manager.begin_transaction("partial-test")
 
             # Successful writes
             for i in range(3):
-                filepath = base_path / f'file{i}.py'
-                filepath.write_text('content')
-                backup = str(filepath) + '.bak'
-                Path(backup).write_text('')
-                manager.record_write(manifest, str(filepath), backup, f'func{i}', 'function', 'python')
+                filepath = base_path / f"file{i}.py"
+                filepath.write_text("content")
+                backup = str(filepath) + ".bak"
+                Path(backup).write_text("")
+                manager.record_write(
+                    manifest, str(filepath), backup, f"func{i}", "function", "python"
+                )
 
             # Should be able to commit partial session
             manager.commit_transaction(manifest)
-            assert manifest.status == 'committed'
+            assert manifest.status == "committed"
             assert len(manifest.entries) == 3
 
 
@@ -387,10 +397,10 @@ class TestBranchNaming:
 
             # Various session ID formats
             test_ids = [
-                'simple-id',
-                'session-123',
-                'feature-branch-20240101',
-                'user_session_abc',
+                "simple-id",
+                "session-123",
+                "feature-branch-20240101",
+                "user_session_abc",
             ]
 
             for session_id in test_ids:
@@ -399,7 +409,7 @@ class TestBranchNaming:
 
                 # Commit without errors
                 manager.commit_transaction(manifest)
-                assert manifest.status == 'committed'
+                assert manifest.status == "committed"
 
 
 class TestGitBasedLifecycle:
@@ -418,24 +428,19 @@ class TestGitBasedLifecycle:
             manager = TransactionManager(base_path=base_path, use_git=True)
 
             # Begin transaction
-            manifest = manager.begin_transaction('git-lifecycle-test')
-            assert manifest.session_id == 'git-lifecycle-test'
-            assert manifest.status == 'in_progress'
+            manifest = manager.begin_transaction("git-lifecycle-test")
+            assert manifest.session_id == "git-lifecycle-test"
+            assert manifest.status == "in_progress"
 
             # Record 3 writes
             for i in range(3):
-                filepath = base_path / f'file{i}.py'
-                filepath.write_text(f'def func{i}(): pass')
-                backup = str(filepath) + '.bak'
-                Path(backup).write_text('')
+                filepath = base_path / f"file{i}.py"
+                filepath.write_text(f"def func{i}(): pass")
+                backup = str(filepath) + ".bak"
+                Path(backup).write_text("")
 
                 manager.record_write(
-                    manifest,
-                    str(filepath),
-                    backup,
-                    f'func{i}',
-                    'function',
-                    'python'
+                    manifest, str(filepath), backup, f"func{i}", "function", "python"
                 )
 
             # Verify entries recorded
@@ -443,13 +448,13 @@ class TestGitBasedLifecycle:
 
             # Commit transaction
             manager.commit_transaction(manifest)
-            assert manifest.status == 'committed'
+            assert manifest.status == "committed"
             assert manifest.completed_at is not None
             assert manifest.git_commit_sha is not None  # Git-specific
 
             # Verify backups deleted
             for i in range(3):
-                backup = base_path / f'file{i}.py.bak'
+                backup = base_path / f"file{i}.py.bak"
                 assert not backup.exists()
 
     def test_git_full_lifecycle_rollback(self):
@@ -464,28 +469,28 @@ class TestGitBasedLifecycle:
             # Create original files
             originals = {}
             for i in range(3):
-                filepath = base_path / f'file{i}.py'
-                original_content = f'# Original content {i}\n'
+                filepath = base_path / f"file{i}.py"
+                original_content = f"# Original content {i}\n"
                 filepath.write_text(original_content)
                 originals[str(filepath)] = original_content
 
             # Begin transaction
-            manifest = manager.begin_transaction('git-rollback-test')
+            manifest = manager.begin_transaction("git-rollback-test")
 
             # Record changes
             for i in range(3):
-                filepath = base_path / f'file{i}.py'
-                backup = str(filepath) + '.bak'
+                filepath = base_path / f"file{i}.py"
+                backup = str(filepath) + ".bak"
                 Path(backup).write_text(originals[str(filepath)])
-                filepath.write_text(f'def new_func{i}(): pass')
+                filepath.write_text(f"def new_func{i}(): pass")
 
                 manager.record_write(
                     manifest,
                     str(filepath),
                     backup,
-                    f'new_func{i}',
-                    'function',
-                    'python'
+                    f"new_func{i}",
+                    "function",
+                    "python",
                 )
 
             # Rollback transaction (git-based)
@@ -494,7 +499,7 @@ class TestGitBasedLifecycle:
 
             # Verify files restored
             for i in range(3):
-                filepath = base_path / f'file{i}.py'
+                filepath = base_path / f"file{i}.py"
                 assert filepath.read_text() == originals[str(filepath)]
 
     def test_git_multiple_sequential_sessions(self):
@@ -507,25 +512,29 @@ class TestGitBasedLifecycle:
             manager = TransactionManager(base_path=base_path, use_git=True)
 
             # Session 1
-            manifest1 = manager.begin_transaction('git-session-1')
-            filepath1 = base_path / 'file1.py'
-            filepath1.write_text('content1')
-            backup1 = str(filepath1) + '.bak'
-            Path(backup1).write_text('')
-            manager.record_write(manifest1, str(filepath1), backup1, 'func1', 'function', 'python')
+            manifest1 = manager.begin_transaction("git-session-1")
+            filepath1 = base_path / "file1.py"
+            filepath1.write_text("content1")
+            backup1 = str(filepath1) + ".bak"
+            Path(backup1).write_text("")
+            manager.record_write(
+                manifest1, str(filepath1), backup1, "func1", "function", "python"
+            )
             manager.commit_transaction(manifest1)
-            assert manifest1.status == 'committed'
+            assert manifest1.status == "committed"
             assert manifest1.git_commit_sha is not None
 
             # Session 2
-            manifest2 = manager.begin_transaction('git-session-2')
-            filepath2 = base_path / 'file2.py'
-            filepath2.write_text('content2')
-            backup2 = str(filepath2) + '.bak'
-            Path(backup2).write_text('')
-            manager.record_write(manifest2, str(filepath2), backup2, 'func2', 'function', 'python')
+            manifest2 = manager.begin_transaction("git-session-2")
+            filepath2 = base_path / "file2.py"
+            filepath2.write_text("content2")
+            backup2 = str(filepath2) + ".bak"
+            Path(backup2).write_text("")
+            manager.record_write(
+                manifest2, str(filepath2), backup2, "func2", "function", "python"
+            )
             manager.commit_transaction(manifest2)
-            assert manifest2.status == 'committed'
+            assert manifest2.status == "committed"
             assert manifest2.git_commit_sha is not None
 
             # Both should have different commit SHAs
@@ -540,21 +549,16 @@ class TestGitBasedLifecycle:
             GitHelper.init_sidecar_repo(base_path)
             manager = TransactionManager(base_path=base_path, use_git=True)
 
-            manifest = manager.begin_transaction('git-large-session')
+            manifest = manager.begin_transaction("git-large-session")
 
             # Record 30 writes
             for i in range(30):
-                filepath = base_path / f'file{i}.py'
-                filepath.write_text(f'def func{i}(): pass')
-                backup = str(filepath) + '.bak'
-                Path(backup).write_text('')
+                filepath = base_path / f"file{i}.py"
+                filepath.write_text(f"def func{i}(): pass")
+                backup = str(filepath) + ".bak"
+                Path(backup).write_text("")
                 manager.record_write(
-                    manifest,
-                    str(filepath),
-                    backup,
-                    f'func{i}',
-                    'function',
-                    'python'
+                    manifest, str(filepath), backup, f"func{i}", "function", "python"
                 )
 
             # Verify all tracked
@@ -562,5 +566,5 @@ class TestGitBasedLifecycle:
 
             # Commit should handle large session
             manager.commit_transaction(manifest)
-            assert manifest.status == 'committed'
+            assert manifest.status == "committed"
             assert manifest.git_commit_sha is not None

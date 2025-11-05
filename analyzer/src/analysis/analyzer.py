@@ -27,32 +27,32 @@ class DocumentationAnalyzer:
 
     # Default file patterns to exclude during discovery
     DEFAULT_EXCLUDES = {
-        'node_modules',
-        'venv',
-        '__pycache__',
-        'dist',
-        'build',
-        '.git',
-        '.pytest_cache',
-        '.mypy_cache',
-        'coverage',
-        '.tox',
-        'eggs',
-        '.eggs',
-        'tests',  # Exclude test directories
-        'test',   # Common test directory name
-        '__tests__',  # Jest convention
+        "node_modules",
+        "venv",
+        "__pycache__",
+        "dist",
+        "build",
+        ".git",
+        ".pytest_cache",
+        ".mypy_cache",
+        "coverage",
+        ".tox",
+        "eggs",
+        ".eggs",
+        "tests",  # Exclude test directories
+        "test",  # Common test directory name
+        "__tests__",  # Jest convention
     }
 
     # File extension to language mapping
     EXTENSION_MAP = {
-        '.py': 'python',
-        '.ts': 'typescript',
-        '.tsx': 'typescript',
-        '.js': 'javascript',
-        '.jsx': 'javascript',
-        '.cjs': 'javascript',
-        '.mjs': 'javascript',
+        ".py": "python",
+        ".ts": "typescript",
+        ".tsx": "typescript",
+        ".js": "javascript",
+        ".jsx": "javascript",
+        ".cjs": "javascript",
+        ".mjs": "javascript",
     }
 
     def __init__(
@@ -60,7 +60,7 @@ class DocumentationAnalyzer:
         parsers: Dict[str, BaseParser],
         scorer: ImpactScorer,
         calculator: Optional[CoverageCalculator] = None,
-        exclude_patterns: Optional[Set[str]] = None
+        exclude_patterns: Optional[Set[str]] = None,
     ) -> None:
         """Initialize the analyzer with injected dependencies.
 
@@ -81,7 +81,9 @@ class DocumentationAnalyzer:
         if exclude_patterns:
             self.exclude_patterns.update(exclude_patterns)
 
-    def analyze(self, path: str, verbose: bool = False, strict: bool = False) -> AnalysisResult:
+    def analyze(
+        self, path: str, verbose: bool = False, strict: bool = False
+    ) -> AnalysisResult:
         """Analyze documentation coverage for a codebase.
 
         Args:
@@ -130,7 +132,8 @@ class DocumentationAnalyzer:
         if len(all_items) == 0 and len(parse_failures) > 0:
             raise ValueError(
                 f"Failed to parse all {len(parse_failures)} files. "
-                f"No code items could be analyzed. Check file syntax and parser compatibility."
+                f"No code items could be analyzed. Check file syntax and "
+                f"parser compatibility."
             )
 
         # Calculate impact scores for all items
@@ -148,7 +151,7 @@ class DocumentationAnalyzer:
             total_items=len(all_items),
             documented_items=documented_count,
             by_language=by_language,
-            parse_failures=parse_failures
+            parse_failures=parse_failures,
         )
 
     def _discover_files(self, path: Path) -> List[Path]:
@@ -191,7 +194,9 @@ class DocumentationAnalyzer:
         """
         return filepath.suffix in self.EXTENSION_MAP
 
-    def _parse_file(self, filepath: Path, strict: bool = False) -> tuple[List[CodeItem], Optional[ParseFailure]]:
+    def _parse_file(
+        self, filepath: Path, strict: bool = False
+    ) -> tuple[List[CodeItem], Optional[ParseFailure]]:
         """Parse a single file using the appropriate language parser.
 
         Args:
@@ -229,11 +234,14 @@ class DocumentationAnalyzer:
             if strict:
                 raise
             # Handle expected parsing errors gracefully - capture first line of error
-            error_msg = str(e).split('\n')[0] or "Unknown parse error"
+            error_msg = str(e).split("\n")[0] or "Unknown parse error"
             print(f"Warning: Failed to parse {filepath}: {error_msg}", file=sys.stderr)
             return [], ParseFailure(filepath=str(filepath), error=error_msg)
         except Exception as e:
             # Unexpected errors indicate programming errors - log and re-raise
-            error_msg = str(e).split('\n')[0] or "Unknown error"
-            print(f"Error: Unexpected exception parsing {filepath}: {error_msg}", file=sys.stderr)
+            error_msg = str(e).split("\n")[0] or "Unknown error"
+            print(
+                f"Error: Unexpected exception parsing {filepath}: {error_msg}",
+                file=sys.stderr,
+            )
             raise

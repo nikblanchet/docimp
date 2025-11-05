@@ -3,4 +3,4 @@
 from .analyzer import DocumentationAnalyzer
 from .coverage_calculator import CoverageCalculator
 
-__all__ = ['DocumentationAnalyzer', 'CoverageCalculator']
+__all__ = ["DocumentationAnalyzer", "CoverageCalculator"]

@@ -1,8 +1,8 @@
 """Quality rating system for existing documentation.
 
 This module handles persistence and management of documentation quality ratings
-collected during interactive audits. Ratings are stored in .docimp/session-reports/audit.json
-for use in impact scoring calculations.
+collected during interactive audits. Ratings are stored in
+.docimp/session-reports/audit.json for use in impact scoring calculations.
 """
 
 import json
@@ -64,7 +64,8 @@ def load_audit_results(audit_file: Optional[Path] = None) -> AuditResult:
     """Load audit results from JSON file.
 
     Args:
-        audit_file: Path to the audit results file. If None, uses StateManager.get_audit_file().
+        audit_file: Path to the audit results file. If None, uses
+            StateManager.get_audit_file().
 
     Returns:
         AuditResult with loaded ratings, or empty if file doesn't exist.
@@ -75,28 +76,28 @@ def load_audit_results(audit_file: Optional[Path] = None) -> AuditResult:
         return AuditResult(ratings={})
 
     try:
-        with open(audit_file, 'r') as f:
+        with open(audit_file, "r") as f:
             data = json.load(f)
-        return AuditResult(ratings=data.get('ratings', {}))
+        return AuditResult(ratings=data.get("ratings", {}))
     except (json.JSONDecodeError, IOError):
         # If file is corrupted, start fresh
         return AuditResult(ratings={})
 
 
 def save_audit_results(
-    audit_result: AuditResult,
-    audit_file: Optional[Path] = None
+    audit_result: AuditResult, audit_file: Optional[Path] = None
 ) -> None:
     """Save audit results to JSON file.
 
     Args:
         audit_result: AuditResult to save.
-        audit_file: Path to the audit results file. If None, uses StateManager.get_audit_file().
+        audit_file: Path to the audit results file. If None, uses
+            StateManager.get_audit_file().
     """
     if audit_file is None:
         audit_file = StateManager.get_audit_file()
 
     # Ensure state directory exists before writing
     StateManager.ensure_state_dir()
-    with open(audit_file, 'w') as f:
+    with open(audit_file, "w") as f:
         json.dump(audit_result.to_dict(), f, indent=2)

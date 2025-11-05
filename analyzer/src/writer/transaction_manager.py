@@ -36,6 +36,7 @@ class TransactionEntry:
         language: Programming language ('python', 'javascript', 'typescript')
         success: Whether the write operation succeeded
     """
+
     entry_id: str
     filepath: str
     backup_path: str
@@ -62,14 +63,16 @@ class TransactionManifest:
         started_at: ISO timestamp when the session began
         completed_at: ISO timestamp when session ended, None if in progress
         entries: List of file modifications (parsed from git commits)
-        status: Current state ('in_progress', 'committed', 'rolled_back', 'partial_rollback')
+        status: Current state
+            ('in_progress', 'committed', 'rolled_back', 'partial_rollback')
         git_commit_sha: Git commit SHA of the squash commit (None if in_progress)
     """
+
     session_id: str
     started_at: str
     completed_at: Optional[str] = None
     entries: List[TransactionEntry] = field(default_factory=list)
-    status: str = 'in_progress'
+    status: str = "in_progress"
     git_commit_sha: Optional[str] = None
 
 
@@ -83,15 +86,18 @@ class RollbackResult:
         failed_count: Number of changes that failed to revert
         conflicts: List of file paths that have merge conflicts
         status: Overall status ('completed', 'partial_rollback', 'failed')
-        item_name: Name of the function/class/method that was rolled back (None for multiple changes)
-        item_type: Type of code item ('function', 'class', 'method', None for multiple changes)
+        item_name: Name of the function/class/method that was rolled back
+            (None for multiple changes)
+        item_type: Type of code item
+            ('function', 'class', 'method', None for multiple changes)
         filepath: Path to the file that was modified (None for multiple changes)
     """
+
     success: bool
     restored_count: int
     failed_count: int
     conflicts: List[str] = field(default_factory=list)
-    status: str = 'completed'
+    status: str = "completed"
     item_name: Optional[str] = None
     item_type: Optional[str] = None
     filepath: Optional[str] = None
@@ -129,12 +135,13 @@ class TransactionManager:
         self,
         base_path: Optional[Path] = None,
         use_git: bool = True,
-        timeout_config: Optional['GitTimeoutConfig'] = None
+        timeout_config: Optional["GitTimeoutConfig"] = None,
     ):
         """Initialize TransactionManager with optional git support and timeout config.
 
         Args:
-            base_path: Project root directory. If None, disables git (for backward compat).
+            base_path: Project root directory. If None, disables git
+                (for backward compat).
             use_git: Whether to use git backend. Defaults to True.
             timeout_config: Git operation timeout configuration. If None, uses defaults
                           (base=30s, fast_scale=0.167, slow_scale=4.0, max=300s).
@@ -145,13 +152,13 @@ class TransactionManager:
         self.base_path = base_path if base_path else Path.cwd()
 
         # Store timeout config (use defaults if not provided)
-        self.timeout_config = timeout_config if timeout_config is not None else GitTimeoutConfig()
+        self.timeout_config = (
+            timeout_config if timeout_config is not None else GitTimeoutConfig()
+        )
 
         # Only use git if explicitly requested AND base_path is set AND git is available
         self.git_available = (
-            use_git and
-            base_path is not None and
-            GitHelper.check_git_available()
+            use_git and base_path is not None and GitHelper.check_git_available()
         )
 
         # Initialize git state if available
@@ -174,16 +181,15 @@ class TransactionManager:
             from src.utils.git_helper import GitHelper
 
             # Create git branch for this session
-            branch_name = f'docimp/session-{session_id}'
+            branch_name = f"docimp/session-{session_id}"
             GitHelper.run_git_command(
-                ['checkout', '-b', branch_name],
+                ["checkout", "-b", branch_name],
                 self.base_path,
-                timeout_config=self.timeout_config
+                timeout_config=self.timeout_config,
             )
 
         return TransactionManifest(
-            session_id=session_id,
-            started_at=datetime.now(UTC).isoformat()
+            session_id=session_id, started_at=datetime.now(UTC).isoformat()
         )
 
     def record_write(
@@ -193,7 +199,7 @@ class TransactionManager:
         backup_path: str,
         item_name: str,
         item_type: str,
-        language: str
+        language: str,
     ) -> None:
         """Add a file modification entry to the transaction manifest.
 
@@ -223,13 +229,13 @@ class TransactionManager:
                     rel_filepath = Path(filepath)
             except ValueError:
                 # File is outside work-tree, can't use git for this file
-                entry_id = f'entry-{len(manifest.entries)}'
+                entry_id = f"entry-{len(manifest.entries)}"
             else:
                 # Git add the modified file (using relative path)
                 GitHelper.run_git_command(
-                    ['add', str(rel_filepath)],
+                    ["add", str(rel_filepath)],
                     self.base_path,
-                    timeout_config=self.timeout_config
+                    timeout_config=self.timeout_config,
                 )
 
                 # Create commit with metadata in message (version 1 schema)
@@ -245,21 +251,21 @@ Metadata:
   timestamp: {timestamp}"""
 
                 GitHelper.run_git_command(
-                    ['commit', '-m', commit_msg],
+                    ["commit", "-m", commit_msg],
                     self.base_path,
-                    timeout_config=self.timeout_config
+                    timeout_config=self.timeout_config,
                 )
 
                 # Get the commit SHA (short hash)
                 result = GitHelper.run_git_command(
-                    ['rev-parse', '--short', 'HEAD'],
+                    ["rev-parse", "--short", "HEAD"],
                     self.base_path,
-                    timeout_config=self.timeout_config
+                    timeout_config=self.timeout_config,
                 )
                 entry_id = result.stdout.strip()
         else:
             # Fallback: generate simple ID
-            entry_id = f'entry-{len(manifest.entries)}'
+            entry_id = f"entry-{len(manifest.entries)}"
 
         entry = TransactionEntry(
             entry_id=entry_id,
@@ -269,7 +275,7 @@ Metadata:
             item_name=item_name,
             item_type=item_type,
             language=language,
-            success=True
+            success=True,
         )
         manifest.entries.append(entry)
 
@@ -282,44 +288,42 @@ Metadata:
         Parameters:
             manifest: Transaction manifest to commit
         """
-        manifest.status = 'committed'
+        manifest.status = "committed"
         manifest.completed_at = datetime.now(UTC).isoformat()
 
         if self.git_available:
             from src.utils.git_helper import GitHelper
 
-            branch_name = f'docimp/session-{manifest.session_id}'
+            branch_name = f"docimp/session-{manifest.session_id}"
 
             # Checkout main branch
             GitHelper.run_git_command(
-                ['checkout', 'main'],
-                self.base_path,
-                timeout_config=self.timeout_config
+                ["checkout", "main"], self.base_path, timeout_config=self.timeout_config
             )
 
             # Merge session branch with squash
             GitHelper.run_git_command(
-                ['merge', '--squash', branch_name],
+                ["merge", "--squash", branch_name],
                 self.base_path,
                 check=False,  # May fail if no changes
-                timeout_config=self.timeout_config
+                timeout_config=self.timeout_config,
             )
 
             # Create squash commit
-            squash_msg = f'docimp session {manifest.session_id} (squash)'
+            squash_msg = f"docimp session {manifest.session_id} (squash)"
             result = GitHelper.run_git_command(
-                ['commit', '-m', squash_msg],
+                ["commit", "-m", squash_msg],
                 self.base_path,
                 check=False,  # May fail if nothing to commit
-                timeout_config=self.timeout_config
+                timeout_config=self.timeout_config,
             )
 
             # Get squash commit SHA if successful
             if result.returncode == 0:
                 sha_result = GitHelper.run_git_command(
-                    ['rev-parse', '--short', 'HEAD'],
+                    ["rev-parse", "--short", "HEAD"],
                     self.base_path,
-                    timeout_config=self.timeout_config
+                    timeout_config=self.timeout_config,
                 )
                 manifest.git_commit_sha = sha_result.stdout.strip()
 
@@ -345,14 +349,12 @@ Metadata:
         Raises:
             ValueError: If transaction is already committed or rolled back
         """
-        if manifest.status == 'committed':
+        if manifest.status == "committed":
             raise ValueError(
                 f"Cannot rollback committed transaction {manifest.session_id}"
             )
-        if manifest.status == 'rolled_back':
-            raise ValueError(
-                f"Transaction {manifest.session_id} already rolled back"
-            )
+        if manifest.status == "rolled_back":
+            raise ValueError(f"Transaction {manifest.session_id} already rolled back")
 
         restored_count = 0
         for entry in manifest.entries:
@@ -364,7 +366,7 @@ Metadata:
                 backup.unlink()
                 restored_count += 1
 
-        manifest.status = 'rolled_back'
+        manifest.status = "rolled_back"
         manifest.completed_at = datetime.now(UTC).isoformat()
         return restored_count
 
@@ -383,7 +385,7 @@ Metadata:
         # Convert manifest to dict, handling TransactionEntry objects
         manifest_dict = asdict(manifest)
 
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             json.dump(manifest_dict, f, indent=2)
 
     def load_manifest(self, path: Path) -> TransactionManifest:
@@ -399,18 +401,17 @@ Metadata:
             FileNotFoundError: If manifest file doesn't exist
             json.JSONDecodeError: If manifest file is invalid JSON
         """
-        with open(path, 'r') as f:
+        with open(path, "r") as f:
             data = json.load(f)
 
         # Reconstruct TransactionEntry objects from dicts
-        if 'entries' in data and data['entries']:
-            data['entries'] = [TransactionEntry(**e) for e in data['entries']]
+        if "entries" in data and data["entries"]:
+            data["entries"] = [TransactionEntry(**e) for e in data["entries"]]
 
         return TransactionManifest(**data)
 
     def list_uncommitted_transactions(
-        self,
-        transactions_dir: Path
+        self, transactions_dir: Path
     ) -> List[TransactionManifest]:
         """List all uncommitted transaction manifests.
 
@@ -429,21 +430,17 @@ Metadata:
 
         uncommitted = []
         for manifest_file in sorted(
-            transactions_dir.glob('transaction-*.json'),
+            transactions_dir.glob("transaction-*.json"),
             key=lambda p: p.stat().st_mtime,
-            reverse=True
+            reverse=True,
         ):
             manifest = self.load_manifest(manifest_file)
-            if manifest.status == 'in_progress':
+            if manifest.status == "in_progress":
                 uncommitted.append(manifest)
 
         return uncommitted
 
-    def cleanup_old_transactions(
-        self,
-        transactions_dir: Path,
-        keep_count: int
-    ) -> int:
+    def cleanup_old_transactions(self, transactions_dir: Path, keep_count: int) -> int:
         """Delete old committed/rolled_back manifests beyond retention limit.
 
         This maintains a clean transactions directory by deleting old manifest files
@@ -463,9 +460,9 @@ Metadata:
 
         # Get all manifests sorted by modification time (newest first)
         all_manifests = sorted(
-            transactions_dir.glob('transaction-*.json'),
+            transactions_dir.glob("transaction-*.json"),
             key=lambda p: p.stat().st_mtime,
-            reverse=True
+            reverse=True,
         )
 
         # Separate uncommitted (always keep) from committed/rolled_back
@@ -474,7 +471,7 @@ Metadata:
 
         for manifest_file in all_manifests:
             manifest = self.load_manifest(manifest_file)
-            if manifest.status == 'in_progress':
+            if manifest.status == "in_progress":
                 uncommitted_files.append(manifest_file)
             else:
                 completed_files.append(manifest_file)
@@ -509,34 +506,34 @@ Metadata:
 
         from src.utils.git_helper import GitHelper
 
-        branch_name = f'docimp/session-{session_id}'
+        branch_name = f"docimp/session-{session_id}"
 
         # Check if branch exists
         result = GitHelper.run_git_command(
-            ['rev-parse', '--verify', branch_name],
+            ["rev-parse", "--verify", branch_name],
             self.base_path,
             check=False,
-            timeout_config=self.timeout_config
+            timeout_config=self.timeout_config,
         )
         if result.returncode != 0:
             raise ValueError(f"Session branch {branch_name} does not exist")
 
         # Get commit SHAs in the session branch
         result = GitHelper.run_git_command(
-            ['log', branch_name, '--format=%H', '--reverse'],
+            ["log", branch_name, "--format=%H", "--reverse"],
             self.base_path,
-            timeout_config=self.timeout_config
+            timeout_config=self.timeout_config,
         )
 
-        commit_shas = result.stdout.strip().split('\n') if result.stdout.strip() else []
+        commit_shas = result.stdout.strip().split("\n") if result.stdout.strip() else []
         entries = []
 
         for commit_sha in commit_shas:
             # Get commit message with metadata
             msg_result = GitHelper.run_git_command(
-                ['log', '-1', '--format=%B', commit_sha],
+                ["log", "-1", "--format=%B", commit_sha],
                 self.base_path,
-                timeout_config=self.timeout_config
+                timeout_config=self.timeout_config,
             )
 
             # Parse metadata from commit message
@@ -546,7 +543,9 @@ Metadata:
 
         return entries
 
-    def _parse_commit_to_entry(self, commit_sha: str, commit_message: str) -> Optional[TransactionEntry]:
+    def _parse_commit_to_entry(
+        self, commit_sha: str, commit_message: str
+    ) -> Optional[TransactionEntry]:
         """Parse a git commit message to extract TransactionEntry.
 
         Supports schema versioning with backward compatibility:
@@ -561,34 +560,38 @@ Metadata:
             TransactionEntry object or None if not a docimp commit or malformed metadata
         """
         import logging
+
         logger = logging.getLogger(__name__)
 
-        lines = commit_message.strip().split('\n')
+        lines = commit_message.strip().split("\n")
 
         # Skip non-docimp commits (like initial commit)
-        if not lines or not lines[0].startswith('docimp:'):
+        if not lines or not lines[0].startswith("docimp:"):
             return None
 
         # Parse metadata version (default to 0 for backward compatibility)
         metadata_version = 0
         for line in lines:
-            if line.startswith('Metadata-Version:'):
+            if line.startswith("Metadata-Version:"):
                 try:
-                    metadata_version = int(line.split(':', 1)[1].strip())
+                    metadata_version = int(line.split(":", 1)[1].strip())
                 except (ValueError, IndexError):
-                    logger.warning(f"Malformed Metadata-Version in commit {commit_sha[:7]}, defaulting to 0")
+                    logger.warning(
+                        f"Malformed Metadata-Version in commit "
+                        f"{commit_sha[:7]}, defaulting to 0"
+                    )
 
         # Extract metadata section
         metadata = {}
         in_metadata = False
 
         for line in lines:
-            if line.strip() == 'Metadata:':
+            if line.strip() == "Metadata:":
                 in_metadata = True
                 continue
 
-            if in_metadata and ':' in line:
-                key, value = line.split(':', 1)
+            if in_metadata and ":" in line:
+                key, value = line.split(":", 1)
                 metadata[key.strip()] = value.strip()
 
         # Build TransactionEntry from metadata
@@ -597,7 +600,7 @@ Metadata:
             return None
 
         # Validate required fields (for version 1+)
-        required_fields = ['item_name', 'item_type', 'language', 'filepath']
+        required_fields = ["item_name", "item_type", "language", "filepath"]
         missing_fields = [field for field in required_fields if field not in metadata]
 
         if metadata_version >= 1 and missing_fields:
@@ -609,25 +612,28 @@ Metadata:
 
         # Get short hash
         from src.utils.git_helper import GitHelper
+
         short_result = GitHelper.run_git_command(
-            ['rev-parse', '--short', commit_sha],
+            ["rev-parse", "--short", commit_sha],
             self.base_path,
-            timeout_config=self.timeout_config
+            timeout_config=self.timeout_config,
         )
         entry_id = short_result.stdout.strip()
 
         return TransactionEntry(
             entry_id=entry_id,
-            filepath=metadata.get('filepath', ''),
-            backup_path=metadata.get('backup_path', ''),
-            timestamp=metadata.get('timestamp', ''),
-            item_name=metadata.get('item_name', ''),
-            item_type=metadata.get('item_type', ''),
-            language=metadata.get('language', ''),
-            success=True
+            filepath=metadata.get("filepath", ""),
+            backup_path=metadata.get("backup_path", ""),
+            timestamp=metadata.get("timestamp", ""),
+            item_name=metadata.get("item_name", ""),
+            item_type=metadata.get("item_type", ""),
+            language=metadata.get("language", ""),
+            success=True,
         )
 
-    def _find_entry_by_id(self, entry_id: str, transactions_dir: Path) -> tuple[TransactionManifest, TransactionEntry]:
+    def _find_entry_by_id(
+        self, entry_id: str, transactions_dir: Path
+    ) -> tuple[TransactionManifest, TransactionEntry]:
         """Find a transaction entry across all sessions by its entry ID.
 
         Searches through all transaction manifests (committed and in-progress)
@@ -650,36 +656,38 @@ Metadata:
 
         # First try: Search manifest JSON files (production path)
         if transactions_dir.exists():
-            for manifest_file in transactions_dir.glob('transaction-*.json'):
+            for manifest_file in transactions_dir.glob("transaction-*.json"):
                 manifest = self.load_manifest(manifest_file)
 
                 # Check entries in this manifest
                 for entry in manifest.entries:
                     # Match on full or partial entry_id (git allows short SHAs)
-                    if entry.entry_id == entry_id or entry.entry_id.startswith(entry_id):
+                    if entry.entry_id == entry_id or entry.entry_id.startswith(
+                        entry_id
+                    ):
                         return manifest, entry
 
         # Second try: Search git branches directly (test/fallback path)
         if self.git_available:
             # Get all session branches
             branches_result = GitHelper.run_git_command(
-                ['branch', '--list', 'docimp/session-*'],
+                ["branch", "--list", "docimp/session-*"],
                 self.base_path,
                 check=False,
-                timeout_config=self.timeout_config
+                timeout_config=self.timeout_config,
             )
 
             if branches_result.returncode == 0:
-                branch_lines = branches_result.stdout.strip().split('\n')
+                branch_lines = branches_result.stdout.strip().split("\n")
                 for branch_line in branch_lines:
                     # Remove leading * and whitespace
-                    branch_name = branch_line.strip().lstrip('* ')
+                    branch_name = branch_line.strip().lstrip("* ")
                     if not branch_name:
                         continue
 
                     # Extract session_id from branch name
-                    if branch_name.startswith('docimp/session-'):
-                        session_id = branch_name.replace('docimp/session-', '')
+                    if branch_name.startswith("docimp/session-"):
+                        session_id = branch_name.replace("docimp/session-", "")
 
                         try:
                             # Get all entries from this session
@@ -687,24 +695,40 @@ Metadata:
 
                             # Search for matching entry
                             for entry in entries:
-                                if entry.entry_id == entry_id or entry.entry_id.startswith(entry_id):
-                                    # Determine status: check if there's a squash commit on main
-                                    # A committed session has a squash commit on main
+                                if (
+                                    entry.entry_id == entry_id
+                                    or entry.entry_id.startswith(entry_id)
+                                ):
+                                    # Determine status: check if there's a
+                                    # squash commit on main
+                                    # A committed session has a squash commit
+                                    # on main
                                     check_main = GitHelper.run_git_command(
-                                        ['log', '--oneline', '--grep', f'docimp session {session_id} (squash)', 'main'],
+                                        [
+                                            "log",
+                                            "--oneline",
+                                            "--grep",
+                                            f"docimp session {session_id} (squash)",
+                                            "main",
+                                        ],
                                         self.base_path,
                                         check=False,
-                                        timeout_config=self.timeout_config
+                                        timeout_config=self.timeout_config,
                                     )
 
-                                    status = 'committed' if check_main.returncode == 0 and check_main.stdout.strip() else 'in_progress'
+                                    status = (
+                                        "committed"
+                                        if check_main.returncode == 0
+                                        and check_main.stdout.strip()
+                                        else "in_progress"
+                                    )
 
                                     # Build a minimal manifest
                                     manifest = TransactionManifest(
                                         session_id=session_id,
                                         started_at=datetime.now(UTC).isoformat(),
                                         entries=entries,
-                                        status=status
+                                        status=status,
                                     )
                                     return manifest, entry
                         except ValueError:
@@ -734,23 +758,20 @@ Metadata:
         from src.utils.state_manager import StateManager
 
         # Find which session this entry belongs to
-        transactions_dir = StateManager.get_state_dir() / 'transactions'
+        transactions_dir = StateManager.get_state_dir() / "transactions"
         try:
             manifest, entry = self._find_entry_by_id(entry_id, transactions_dir)
         except ValueError as e:
             raise ValueError(f"Cannot rollback: {str(e)}")
 
         # Route to appropriate rollback strategy
-        if manifest.status == 'committed':
+        if manifest.status == "committed":
             return self._rollback_from_committed_session(manifest, entry, entry_id)
         else:
             return self._rollback_from_in_progress_session(manifest, entry, entry_id)
 
     def _rollback_from_committed_session(
-        self,
-        manifest: 'TransactionManifest',
-        entry: 'TransactionEntry',
-        entry_id: str
+        self, manifest: "TransactionManifest", entry: "TransactionEntry", entry_id: str
     ) -> RollbackResult:
         """Handle re-squash strategy for committed sessions.
 
@@ -774,14 +795,14 @@ Metadata:
         """
         from src.utils.git_helper import GitHelper
 
-        session_branch = f'docimp/session-{manifest.session_id}'
+        session_branch = f"docimp/session-{manifest.session_id}"
 
         # Verify session branch exists
         branch_check = GitHelper.run_git_command(
-            ['rev-parse', '--verify', session_branch],
+            ["rev-parse", "--verify", session_branch],
             self.base_path,
             check=False,
-            timeout_config=self.timeout_config
+            timeout_config=self.timeout_config,
         )
 
         if branch_check.returncode != 0:
@@ -792,35 +813,35 @@ Metadata:
 
         # Save current branch to restore later
         current_branch_result = GitHelper.run_git_command(
-            ['rev-parse', '--abbrev-ref', 'HEAD'],
+            ["rev-parse", "--abbrev-ref", "HEAD"],
             self.base_path,
-            timeout_config=self.timeout_config
+            timeout_config=self.timeout_config,
         )
         original_branch = current_branch_result.stdout.strip()
 
         try:
             # Checkout session branch
             GitHelper.run_git_command(
-                ['checkout', session_branch],
+                ["checkout", session_branch],
                 self.base_path,
-                timeout_config=self.timeout_config
+                timeout_config=self.timeout_config,
             )
 
             # Verify we're on the session branch
             current_check = GitHelper.run_git_command(
-                ['rev-parse', '--abbrev-ref', 'HEAD'],
+                ["rev-parse", "--abbrev-ref", "HEAD"],
                 self.base_path,
-                timeout_config=self.timeout_config
+                timeout_config=self.timeout_config,
             )
             if session_branch not in current_check.stdout:
                 raise ValueError(f"Failed to checkout session branch {session_branch}")
 
             # Revert the specific commit
             revert_result = GitHelper.run_git_command(
-                ['revert', '--no-commit', entry_id],
+                ["revert", "--no-commit", entry_id],
                 self.base_path,
                 check=False,
-                timeout_config=self.timeout_config
+                timeout_config=self.timeout_config,
             )
 
             # Check for conflicts
@@ -829,35 +850,35 @@ Metadata:
                 if conflicts:
                     # Abort the revert
                     GitHelper.run_git_command(
-                        ['revert', '--abort'],
+                        ["revert", "--abort"],
                         self.base_path,
                         check=False,
-                        timeout_config=self.timeout_config
+                        timeout_config=self.timeout_config,
                     )
                     # Restore original branch
                     GitHelper.run_git_command(
-                        ['checkout', original_branch],
+                        ["checkout", original_branch],
                         self.base_path,
                         check=False,
-                        timeout_config=self.timeout_config
+                        timeout_config=self.timeout_config,
                     )
                     return RollbackResult(
                         success=False,
                         restored_count=0,
                         failed_count=1,
                         conflicts=conflicts,
-                        status='failed',
+                        status="failed",
                         item_name=entry.item_name,
                         item_type=entry.item_type,
-                        filepath=entry.filepath
+                        filepath=entry.filepath,
                     )
 
             # Commit the revert on session branch
             commit_revert_result = GitHelper.run_git_command(
-                ['commit', '-m', f'Revert change {entry_id}'],
+                ["commit", "-m", f"Revert change {entry_id}"],
                 self.base_path,
                 check=False,
-                timeout_config=self.timeout_config
+                timeout_config=self.timeout_config,
             )
 
             # If commit failed, check why
@@ -868,77 +889,83 @@ Metadata:
                 if conflicts:
                     # Conflicts detected - abort the revert and restore branch
                     GitHelper.run_git_command(
-                        ['revert', '--abort'],
+                        ["revert", "--abort"],
                         self.base_path,
                         check=False,
-                        timeout_config=self.timeout_config
+                        timeout_config=self.timeout_config,
                     )
                     # Restore original branch
                     GitHelper.run_git_command(
-                        ['checkout', original_branch],
+                        ["checkout", original_branch],
                         self.base_path,
                         check=False,
-                        timeout_config=self.timeout_config
+                        timeout_config=self.timeout_config,
                     )
                     return RollbackResult(
                         success=False,
                         restored_count=0,
                         failed_count=1,
                         conflicts=conflicts,
-                        status='failed',
+                        status="failed",
                         item_name=entry.item_name,
                         item_type=entry.item_type,
-                        filepath=entry.filepath
+                        filepath=entry.filepath,
                     )
 
                 # Check if there are no changes to commit
                 status_check = GitHelper.run_git_command(
-                    ['status', '--short'],
+                    ["status", "--short"],
                     self.base_path,
-                    timeout_config=self.timeout_config
+                    timeout_config=self.timeout_config,
                 )
                 if not status_check.stdout.strip():
                     # No changes - revert was a no-op, which is okay
                     pass
                 else:
                     # Some other error - raise it
-                    raise ValueError(f"Failed to commit revert on session branch: {commit_revert_result.stderr}")
+                    raise ValueError(
+                        f"Failed to commit revert on session branch: "
+                        f"{commit_revert_result.stderr}"
+                    )
 
             # Checkout main
-            GitHelper.run_git_command(['checkout', 'main'], self.base_path,
-                timeout_config=self.timeout_config
+            GitHelper.run_git_command(
+                ["checkout", "main"], self.base_path, timeout_config=self.timeout_config
             )
 
             # Find the previous squash commit (parent of current HEAD)
             parent_result = GitHelper.run_git_command(
-                ['rev-parse', 'HEAD^'],
+                ["rev-parse", "HEAD^"],
                 self.base_path,
-                timeout_config=self.timeout_config
+                timeout_config=self.timeout_config,
             )
             parent_sha = parent_result.stdout.strip()
 
             # Reset main to before previous squash
             GitHelper.run_git_command(
-                ['reset', '--hard', parent_sha],
+                ["reset", "--hard", parent_sha],
                 self.base_path,
-                timeout_config=self.timeout_config
+                timeout_config=self.timeout_config,
             )
 
             # Re-squash merge session branch (now with reverted commit)
             GitHelper.run_git_command(
-                ['merge', '--squash', session_branch],
+                ["merge", "--squash", session_branch],
                 self.base_path,
                 check=False,
-                timeout_config=self.timeout_config
+                timeout_config=self.timeout_config,
             )
 
             # Create new squash commit (only if there are changes to commit)
-            squash_msg = f'docimp session {manifest.session_id} (squash, change {entry_id} reverted)'
+            squash_msg = (
+                f"docimp session {manifest.session_id} "
+                f"(squash, change {entry_id} reverted)"
+            )
             commit_result = GitHelper.run_git_command(
-                ['commit', '-m', squash_msg],
+                ["commit", "-m", squash_msg],
                 self.base_path,
                 check=False,
-                timeout_config=self.timeout_config
+                timeout_config=self.timeout_config,
             )
 
             # If commit failed, it might be because there were no changes
@@ -946,10 +973,10 @@ Metadata:
             if commit_result.returncode != 0:
                 # Restore to the previous state
                 GitHelper.run_git_command(
-                    ['reset', '--hard', 'HEAD'],
+                    ["reset", "--hard", "HEAD"],
                     self.base_path,
                     check=False,
-                    timeout_config=self.timeout_config
+                    timeout_config=self.timeout_config,
                 )
 
             # Update manifest to track reverted change
@@ -961,27 +988,24 @@ Metadata:
                 restored_count=1,
                 failed_count=0,
                 conflicts=[],
-                status='completed',
+                status="completed",
                 item_name=entry.item_name,
                 item_type=entry.item_type,
-                filepath=entry.filepath
+                filepath=entry.filepath,
             )
 
         except Exception as e:
             # Restore original branch on any error
             GitHelper.run_git_command(
-                ['checkout', original_branch],
+                ["checkout", original_branch],
                 self.base_path,
                 check=False,
-                timeout_config=self.timeout_config
+                timeout_config=self.timeout_config,
             )
             raise ValueError(f"Failed to rollback change: {str(e)}")
 
     def _rollback_from_in_progress_session(
-        self,
-        manifest: 'TransactionManifest',
-        entry: 'TransactionEntry',
-        entry_id: str
+        self, manifest: "TransactionManifest", entry: "TransactionEntry", entry_id: str
     ) -> RollbackResult:
         """Handle simple revert for in-progress sessions.
 
@@ -999,10 +1023,10 @@ Metadata:
 
         # Attempt git revert
         result = GitHelper.run_git_command(
-            ['revert', '--no-commit', entry_id],
+            ["revert", "--no-commit", entry_id],
             self.base_path,
             check=False,
-            timeout_config=self.timeout_config
+            timeout_config=self.timeout_config,
         )
 
         # Check for conflicts
@@ -1012,10 +1036,10 @@ Metadata:
             if conflicts:
                 # Abort the revert to leave working tree clean
                 GitHelper.run_git_command(
-                    ['revert', '--abort'],
+                    ["revert", "--abort"],
                     self.base_path,
                     check=False,
-                    timeout_config=self.timeout_config
+                    timeout_config=self.timeout_config,
                 )
 
                 return RollbackResult(
@@ -1023,10 +1047,10 @@ Metadata:
                     restored_count=0,
                     failed_count=1,
                     conflicts=conflicts,
-                    status='failed',
+                    status="failed",
                     item_name=entry.item_name,
                     item_type=entry.item_type,
-                    filepath=entry.filepath
+                    filepath=entry.filepath,
                 )
             else:
                 # Non-conflict error
@@ -1035,17 +1059,17 @@ Metadata:
                     restored_count=0,
                     failed_count=1,
                     conflicts=[],
-                    status='failed',
+                    status="failed",
                     item_name=entry.item_name,
                     item_type=entry.item_type,
-                    filepath=entry.filepath
+                    filepath=entry.filepath,
                 )
 
         # Commit the revert
         GitHelper.run_git_command(
-            ['commit', '-m', f'Revert change {entry_id}'],
+            ["commit", "-m", f"Revert change {entry_id}"],
             self.base_path,
-            timeout_config=self.timeout_config
+            timeout_config=self.timeout_config,
         )
 
         return RollbackResult(
@@ -1053,10 +1077,10 @@ Metadata:
             restored_count=1,
             failed_count=0,
             conflicts=[],
-            status='completed',
+            status="completed",
             item_name=entry.item_name,
             item_type=entry.item_type,
-            filepath=entry.filepath
+            filepath=entry.filepath,
         )
 
     def _detect_conflicts(self) -> List[str]:
@@ -1077,16 +1101,14 @@ Metadata:
         from src.utils.git_helper import GitHelper
 
         status_result = GitHelper.run_git_command(
-            ['status', '--short'],
-            self.base_path,
-            timeout_config=self.timeout_config
+            ["status", "--short"], self.base_path, timeout_config=self.timeout_config
         )
 
         # All conflict markers in git status --short
-        conflict_markers = ['UU ', 'AA ', 'DD ', 'AU ', 'UA ', 'DU ', 'UD ']
+        conflict_markers = ["UU ", "AA ", "DD ", "AU ", "UA ", "DU ", "UD "]
 
         conflicts = []
-        for line in status_result.stdout.split('\n'):
+        for line in status_result.stdout.split("\n"):
             for marker in conflict_markers:
                 if line.startswith(marker):
                     # Conflict detected
@@ -1123,13 +1145,13 @@ Metadata:
 
         # Determine overall status
         if total_failed == 0:
-            status = 'completed'
+            status = "completed"
             success = True
         elif total_restored > 0:
-            status = 'partial_rollback'
+            status = "partial_rollback"
             success = False
         else:
-            status = 'failed'
+            status = "failed"
             success = False
 
         return RollbackResult(
@@ -1137,7 +1159,7 @@ Metadata:
             restored_count=total_restored,
             failed_count=total_failed,
             conflicts=all_conflicts,
-            status=status
+            status=status,
         )
 
     def get_change_diff(self, entry_id: str) -> str:
@@ -1160,38 +1182,38 @@ Metadata:
         from src.utils.git_helper import GitHelper
 
         result = GitHelper.run_git_command(
-            ['show', entry_id],
-            self.base_path,
-            timeout_config=self.timeout_config
+            ["show", entry_id], self.base_path, timeout_config=self.timeout_config
         )
 
         return result.stdout
 
     def find_orphaned_backups(self, max_age_days: Optional[int] = None) -> List[Path]:
-        """Find backup files (.bak) that don't have corresponding transaction entries.
+        """Find backup files (.bak) without corresponding transaction entries.
 
-        Scans the project for .bak files and checks if they're tracked in any transaction.
+        Scans the project for .bak files and checks if they're tracked in any
+        transaction.
         Optionally filters by file age.
 
         Parameters:
-            max_age_days: Only return backups older than this many days. None = all ages.
+            max_age_days: Only return backups older than this many days.
+                None = all ages.
 
         Returns:
             List of Path objects for orphaned backup files
         """
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, UTC
 
         orphaned = []
         cutoff_time = None
 
         if max_age_days is not None:
-            cutoff = datetime.now() - timedelta(days=max_age_days)
+            cutoff = datetime.now(UTC) - timedelta(days=max_age_days)
             cutoff_time = cutoff.timestamp()
 
         # Find all .bak files in the project
-        for bak_file in self.base_path.rglob('*.bak'):
+        for bak_file in self.base_path.rglob("*.bak"):
             # Skip if in .docimp directory
-            if '.docimp' in bak_file.parts:
+            if ".docimp" in bak_file.parts:
                 continue
 
             # Check age if filtering
@@ -1204,10 +1226,15 @@ Metadata:
             is_tracked = False
 
             from src.utils.state_manager import StateManager
-            transactions_dir = StateManager.get_state_dir(self.base_path) / 'session-reports' / 'transactions'
+
+            transactions_dir = (
+                StateManager.get_state_dir(self.base_path)
+                / "session-reports"
+                / "transactions"
+            )
 
             if transactions_dir.exists():
-                for manifest_file in transactions_dir.glob('transaction-*.json'):
+                for manifest_file in transactions_dir.glob("transaction-*.json"):
                     try:
                         manifest = self.load_manifest(manifest_file)
                         for entry in manifest.entries:
@@ -1224,7 +1251,9 @@ Metadata:
 
         return orphaned
 
-    def cleanup_orphaned_backups(self, max_age_days: int = 7, dry_run: bool = False) -> int:
+    def cleanup_orphaned_backups(
+        self, max_age_days: int = 7, dry_run: bool = False
+    ) -> int:
         """Delete orphaned backup files older than specified age.
 
         Parameters:

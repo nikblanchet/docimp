@@ -7,4 +7,4 @@ ensuring idempotency.
 
 from .docstring_writer import DocstringWriter
 
-__all__ = ['DocstringWriter']
+__all__ = ["DocstringWriter"]

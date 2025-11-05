@@ -28,40 +28,40 @@ def format_analysis_result_as_json(result: AnalysisResult) -> str:
         JSON string representation.
     """
     data = {
-        'coverage_percent': result.coverage_percent,
-        'total_items': result.total_items,
-        'documented_items': result.documented_items,
-        'by_language': {
+        "coverage_percent": result.coverage_percent,
+        "total_items": result.total_items,
+        "documented_items": result.documented_items,
+        "by_language": {
             lang: {
-                'language': metrics.language,
-                'total_items': metrics.total_items,
-                'documented_items': metrics.documented_items,
-                'coverage_percent': metrics.coverage_percent,
-                'avg_complexity': metrics.avg_complexity,
-                'avg_impact_score': metrics.avg_impact_score
+                "language": metrics.language,
+                "total_items": metrics.total_items,
+                "documented_items": metrics.documented_items,
+                "coverage_percent": metrics.coverage_percent,
+                "avg_complexity": metrics.avg_complexity,
+                "avg_impact_score": metrics.avg_impact_score,
             }
             for lang, metrics in result.by_language.items()
         },
-        'items': [
+        "items": [
             {
-                'name': item.name,
-                'type': item.type,
-                'filepath': item.filepath,
-                'line_number': item.line_number,
-                'end_line': item.end_line,
-                'language': item.language,
-                'complexity': item.complexity,
-                'impact_score': item.impact_score,
-                'has_docs': item.has_docs,
-                'export_type': item.export_type,
-                'module_system': item.module_system,
-                'parameters': item.parameters,
-                'return_type': item.return_type,
-                'docstring': item.docstring,
-                'audit_rating': item.audit_rating
+                "name": item.name,
+                "type": item.type,
+                "filepath": item.filepath,
+                "line_number": item.line_number,
+                "end_line": item.end_line,
+                "language": item.language,
+                "complexity": item.complexity,
+                "impact_score": item.impact_score,
+                "has_docs": item.has_docs,
+                "export_type": item.export_type,
+                "module_system": item.module_system,
+                "parameters": item.parameters,
+                "return_type": item.return_type,
+                "docstring": item.docstring,
+                "audit_rating": item.audit_rating,
             }
             for item in result.items
-        ]
+        ],
     }
     return json.dumps(data, indent=2)
 
@@ -73,19 +73,19 @@ def test_unicode_in_item_names():
     are properly serialized to JSON without encoding errors.
     """
     item = CodeItem(
-        name='函数',  # Chinese characters
-        type='function',
-        filepath='/test/测试.py',  # Chinese characters in path
+        name="函数",  # Chinese characters
+        type="function",
+        filepath="/test/测试.py",  # Chinese characters in path
         line_number=10,
         end_line=15,
-        language='python',
+        language="python",
         complexity=3,
         has_docs=True,
-        export_type='named',
-        module_system='esm',
-        docstring='Documentation with 日本語 and emoji: ✓',  # Japanese + emoji
-        parameters=['param1', 'パラメータ2'],  # Mixed ASCII and Japanese
-        return_type='str'
+        export_type="named",
+        module_system="esm",
+        docstring="Documentation with 日本語 and emoji: ✓",  # Japanese + emoji
+        parameters=["param1", "パラメータ2"],  # Mixed ASCII and Japanese
+        return_type="str",
     )
 
     result = AnalysisResult(
@@ -93,7 +93,7 @@ def test_unicode_in_item_names():
         coverage_percent=100.0,
         total_items=1,
         documented_items=1,
-        by_language={}
+        by_language={},
     )
 
     # Should not raise UnicodeEncodeError
@@ -101,10 +101,10 @@ def test_unicode_in_item_names():
     parsed = json.loads(json_output)
 
     # Verify Unicode characters are preserved
-    assert parsed['items'][0]['name'] == '函数'
-    assert parsed['items'][0]['filepath'] == '/test/测试.py'
-    assert '日本語' in parsed['items'][0]['docstring']
-    assert parsed['items'][0]['parameters'][1] == 'パラメータ2'
+    assert parsed["items"][0]["name"] == "函数"
+    assert parsed["items"][0]["filepath"] == "/test/测试.py"
+    assert "日本語" in parsed["items"][0]["docstring"]
+    assert parsed["items"][0]["parameters"][1] == "パラメータ2"
 
 
 def test_very_high_complexity_values():
@@ -118,17 +118,17 @@ def test_very_high_complexity_values():
     """
     # Test 1: Very high complexity (larger than JS safe integer)
     high_complexity_item = CodeItem(
-        name='very_complex_function',
-        type='function',
-        filepath='/test/complex.py',
+        name="very_complex_function",
+        type="function",
+        filepath="/test/complex.py",
         line_number=1,
         end_line=100,
-        language='python',
+        language="python",
         complexity=999999999999,  # Larger than JavaScript Number.MAX_SAFE_INTEGER
         has_docs=False,
-        export_type='named',
-        module_system='esm',
-        impact_score=100.0  # Normal score
+        export_type="named",
+        module_system="esm",
+        impact_score=100.0,  # Normal score
     )
 
     result = AnalysisResult(
@@ -136,7 +136,7 @@ def test_very_high_complexity_values():
         coverage_percent=0.0,
         total_items=1,
         documented_items=0,
-        by_language={}
+        by_language={},
     )
 
     # Should serialize without error
@@ -144,8 +144,8 @@ def test_very_high_complexity_values():
     parsed = json.loads(json_output)
 
     # Complexity should be serialized as integer (may lose precision in JS)
-    assert isinstance(parsed['items'][0]['complexity'], int)
-    assert parsed['items'][0]['complexity'] > 0
+    assert isinstance(parsed["items"][0]["complexity"], int)
+    assert parsed["items"][0]["complexity"] > 0
 
     # Test 2: Special float values
     # Note: Python's json.dumps() will convert Infinity/NaN to null by default
@@ -155,17 +155,17 @@ def test_very_high_complexity_values():
     # In practice, impact_score should never be Infinity due to min(100, ...)
     # capping, but we test defensive behavior
     normal_item = CodeItem(
-        name='normal_function',
-        type='function',
-        filepath='/test/normal.py',
+        name="normal_function",
+        type="function",
+        filepath="/test/normal.py",
         line_number=1,
         end_line=10,
-        language='python',
+        language="python",
         complexity=10,
         has_docs=False,
-        export_type='named',
-        module_system='esm',
-        impact_score=50.0  # Normal finite value
+        export_type="named",
+        module_system="esm",
+        impact_score=50.0,  # Normal finite value
     )
 
     result2 = AnalysisResult(
@@ -173,15 +173,15 @@ def test_very_high_complexity_values():
         coverage_percent=0.0,
         total_items=1,
         documented_items=0,
-        by_language={}
+        by_language={},
     )
 
     json_output2 = format_analysis_result_as_json(result2)
     parsed2 = json.loads(json_output2)
 
     # impact_score should be a normal float
-    assert isinstance(parsed2['items'][0]['impact_score'], (int, float))
-    assert parsed2['items'][0]['impact_score'] == 50.0
+    assert isinstance(parsed2["items"][0]["impact_score"], (int, float))
+    assert parsed2["items"][0]["impact_score"] == 50.0
 
 
 def test_null_vs_none_fields():
@@ -192,19 +192,19 @@ def test_null_vs_none_fields():
     between missing (.optional()) and null (.nullable()) fields.
     """
     item = CodeItem(
-        name='undocumented_function',
-        type='function',
-        filepath='/test/file.py',
+        name="undocumented_function",
+        type="function",
+        filepath="/test/file.py",
         line_number=10,
         end_line=15,
-        language='python',
+        language="python",
         complexity=5,
         has_docs=False,
-        export_type='named',
-        module_system='esm',
+        export_type="named",
+        module_system="esm",
         docstring=None,  # Should become JSON null
         return_type=None,  # Should become JSON null
-        audit_rating=None  # Should become JSON null
+        audit_rating=None,  # Should become JSON null
     )
 
     result = AnalysisResult(
@@ -212,21 +212,21 @@ def test_null_vs_none_fields():
         coverage_percent=0.0,
         total_items=1,
         documented_items=0,
-        by_language={}
+        by_language={},
     )
 
     json_output = format_analysis_result_as_json(result)
     parsed = json.loads(json_output)
 
     # All None fields should be present as null (not missing)
-    assert 'docstring' in parsed['items'][0]
-    assert parsed['items'][0]['docstring'] is None
+    assert "docstring" in parsed["items"][0]
+    assert parsed["items"][0]["docstring"] is None
 
-    assert 'return_type' in parsed['items'][0]
-    assert parsed['items'][0]['return_type'] is None
+    assert "return_type" in parsed["items"][0]
+    assert parsed["items"][0]["return_type"] is None
 
-    assert 'audit_rating' in parsed['items'][0]
-    assert parsed['items'][0]['audit_rating'] is None
+    assert "audit_rating" in parsed["items"][0]
+    assert parsed["items"][0]["audit_rating"] is None
 
 
 def test_empty_by_language_dict():
@@ -240,19 +240,19 @@ def test_empty_by_language_dict():
         coverage_percent=0.0,
         total_items=0,
         documented_items=0,
-        by_language={}  # Empty dict
+        by_language={},  # Empty dict
     )
 
     json_output = format_analysis_result_as_json(result)
     parsed = json.loads(json_output)
 
     # by_language should be present as an empty object
-    assert 'by_language' in parsed
-    assert isinstance(parsed['by_language'], dict)
-    assert len(parsed['by_language']) == 0
+    assert "by_language" in parsed
+    assert isinstance(parsed["by_language"], dict)
+    assert len(parsed["by_language"]) == 0
 
     # Should be {} in JSON, not null
-    assert parsed['by_language'] == {}
+    assert parsed["by_language"] == {}
 
 
 def test_complete_json_roundtrip():
@@ -263,75 +263,75 @@ def test_complete_json_roundtrip():
     serialization and deserialization preserve all data correctly.
     """
     python_metrics = LanguageMetrics(
-        language='python',
+        language="python",
         total_items=2,
         documented_items=1,
         coverage_percent=50.0,
         avg_complexity=7.5,
-        avg_impact_score=37.5
+        avg_impact_score=37.5,
     )
 
     typescript_metrics = LanguageMetrics(
-        language='typescript',
+        language="typescript",
         total_items=1,
         documented_items=0,
         coverage_percent=0.0,
         avg_complexity=15.0,
-        avg_impact_score=75.0
+        avg_impact_score=75.0,
     )
 
     items = [
         CodeItem(
-            name='documented_function',
-            type='function',
-            filepath='/src/utils.py',
+            name="documented_function",
+            type="function",
+            filepath="/src/utils.py",
             line_number=10,
             end_line=20,
-            language='python',
+            language="python",
             complexity=5,
             has_docs=True,
-            export_type='named',
-            module_system='esm',
+            export_type="named",
+            module_system="esm",
             impact_score=25.0,
-            docstring='This function does something useful.',
-            parameters=['x', 'y'],
-            return_type='int',
-            audit_rating=3  # Good rating
+            docstring="This function does something useful.",
+            parameters=["x", "y"],
+            return_type="int",
+            audit_rating=3,  # Good rating
         ),
         CodeItem(
-            name='undocumented_class',
-            type='class',
-            filepath='/src/models.py',
+            name="undocumented_class",
+            type="class",
+            filepath="/src/models.py",
             line_number=50,
             end_line=100,
-            language='python',
+            language="python",
             complexity=10,
             has_docs=False,
-            export_type='named',
-            module_system='esm',
+            export_type="named",
+            module_system="esm",
             impact_score=50.0,
             docstring=None,
             parameters=[],
             return_type=None,
-            audit_rating=None  # Not audited
+            audit_rating=None,  # Not audited
         ),
         CodeItem(
-            name='ComplexService',
-            type='class',
-            filepath='/src/service.ts',
+            name="ComplexService",
+            type="class",
+            filepath="/src/service.ts",
             line_number=1,
             end_line=200,
-            language='typescript',
+            language="typescript",
             complexity=15,
             has_docs=False,
-            export_type='default',
-            module_system='esm',
+            export_type="default",
+            module_system="esm",
             impact_score=75.0,
             docstring=None,
             parameters=[],
             return_type=None,
-            audit_rating=None
-        )
+            audit_rating=None,
+        ),
     ]
 
     result = AnalysisResult(
@@ -339,10 +339,7 @@ def test_complete_json_roundtrip():
         coverage_percent=33.33,
         total_items=3,
         documented_items=1,
-        by_language={
-            'python': python_metrics,
-            'typescript': typescript_metrics
-        }
+        by_language={"python": python_metrics, "typescript": typescript_metrics},
     )
 
     # Serialize to JSON
@@ -352,41 +349,41 @@ def test_complete_json_roundtrip():
     parsed = json.loads(json_output)
 
     # Validate top-level fields
-    assert parsed['coverage_percent'] == 33.33
-    assert parsed['total_items'] == 3
-    assert parsed['documented_items'] == 1
+    assert parsed["coverage_percent"] == 33.33
+    assert parsed["total_items"] == 3
+    assert parsed["documented_items"] == 1
 
     # Validate by_language metrics
-    assert 'python' in parsed['by_language']
-    assert parsed['by_language']['python']['total_items'] == 2
-    assert parsed['by_language']['python']['documented_items'] == 1
-    assert parsed['by_language']['python']['avg_complexity'] == 7.5
+    assert "python" in parsed["by_language"]
+    assert parsed["by_language"]["python"]["total_items"] == 2
+    assert parsed["by_language"]["python"]["documented_items"] == 1
+    assert parsed["by_language"]["python"]["avg_complexity"] == 7.5
 
-    assert 'typescript' in parsed['by_language']
-    assert parsed['by_language']['typescript']['total_items'] == 1
-    assert parsed['by_language']['typescript']['coverage_percent'] == 0.0
+    assert "typescript" in parsed["by_language"]
+    assert parsed["by_language"]["typescript"]["total_items"] == 1
+    assert parsed["by_language"]["typescript"]["coverage_percent"] == 0.0
 
     # Validate items
-    assert len(parsed['items']) == 3
+    assert len(parsed["items"]) == 3
 
     # First item (documented Python function)
-    item1 = parsed['items'][0]
-    assert item1['name'] == 'documented_function'
-    assert item1['has_docs'] is True
-    assert item1['docstring'] == 'This function does something useful.'
-    assert item1['parameters'] == ['x', 'y']
-    assert item1['return_type'] == 'int'
-    assert item1['audit_rating'] == 3
+    item1 = parsed["items"][0]
+    assert item1["name"] == "documented_function"
+    assert item1["has_docs"] is True
+    assert item1["docstring"] == "This function does something useful."
+    assert item1["parameters"] == ["x", "y"]
+    assert item1["return_type"] == "int"
+    assert item1["audit_rating"] == 3
 
     # Second item (undocumented Python class)
-    item2 = parsed['items'][1]
-    assert item2['name'] == 'undocumented_class'
-    assert item2['has_docs'] is False
-    assert item2['docstring'] is None
-    assert item2['audit_rating'] is None
+    item2 = parsed["items"][1]
+    assert item2["name"] == "undocumented_class"
+    assert item2["has_docs"] is False
+    assert item2["docstring"] is None
+    assert item2["audit_rating"] is None
 
     # Third item (undocumented TypeScript class)
-    item3 = parsed['items'][2]
-    assert item3['name'] == 'ComplexService'
-    assert item3['language'] == 'typescript'
-    assert item3['export_type'] == 'default'
+    item3 = parsed["items"][2]
+    assert item3["name"] == "ComplexService"
+    assert item3["language"] == "typescript"
+    assert item3["export_type"] == "default"

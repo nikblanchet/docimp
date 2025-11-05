@@ -23,78 +23,78 @@ class TestPlanGenerator:
         """Return a list of sample CodeItems for testing."""
         return [
             CodeItem(
-                name='undocumented_func',
-                type='function',
-                filepath='test.py',
+                name="undocumented_func",
+                type="function",
+                filepath="test.py",
                 line_number=1,
                 end_line=10,
-                language='python',
+                language="python",
                 complexity=10,
                 has_docs=False,
-                export_type='internal',
-                module_system='unknown',
+                export_type="internal",
+                module_system="unknown",
                 impact_score=50.0,
-                audit_rating=None
+                audit_rating=None,
             ),
             CodeItem(
-                name='documented_terrible',
-                type='function',
-                filepath='test.py',
+                name="documented_terrible",
+                type="function",
+                filepath="test.py",
                 line_number=10,
                 end_line=18,
-                language='python',
+                language="python",
                 complexity=8,
                 has_docs=True,
-                export_type='internal',
-                module_system='unknown',
+                export_type="internal",
+                module_system="unknown",
                 impact_score=40.0,
                 audit_rating=None,
-                docstring='Terrible docs'
+                docstring="Terrible docs",
             ),
             CodeItem(
-                name='documented_ok',
-                type='function',
-                filepath='test.py',
+                name="documented_ok",
+                type="function",
+                filepath="test.py",
                 line_number=20,
                 end_line=26,
-                language='python',
+                language="python",
                 complexity=6,
                 has_docs=True,
-                export_type='internal',
-                module_system='unknown',
+                export_type="internal",
+                module_system="unknown",
                 impact_score=30.0,
                 audit_rating=None,
-                docstring='OK docs'
+                docstring="OK docs",
             ),
             CodeItem(
-                name='documented_good',
-                type='function',
-                filepath='test.py',
+                name="documented_good",
+                type="function",
+                filepath="test.py",
                 line_number=30,
                 end_line=35,
-                language='python',
+                language="python",
                 complexity=5,
                 has_docs=True,
-                export_type='internal',
-                module_system='unknown',
+                export_type="internal",
+                module_system="unknown",
                 impact_score=25.0,
                 audit_rating=None,
-                docstring='Good docs'
+                docstring="Good docs",
             ),
             CodeItem(
-                name='documented_excellent',
-                type='function',
-                filepath='test.py',
+                name="documented_excellent",
+                type="function",
+                filepath="test.py",
                 line_number=40,
                 end_line=44,
-                language='python',
+                language="python",
                 complexity=4,
                 has_docs=True,
-                export_type='internal',
-                module_system='unknown',
+                export_type="internal",
+                module_system="unknown",
                 impact_score=20.0,
                 audit_rating=None,
-                docstring='Excellent docs'
+                docstring="Excellent docs",
             ),
         ]
 
@@ -107,25 +107,25 @@ class TestPlanGenerator:
             total_items=5,
             documented_items=4,
             by_language={
-                'python': LanguageMetrics(
-                    language='python',
+                "python": LanguageMetrics(
+                    language="python",
                     total_items=5,
                     documented_items=4,
                     coverage_percent=80.0,
                     avg_complexity=6.6,
-                    avg_impact_score=33.0
+                    avg_impact_score=33.0,
                 )
-            }
+            },
         )
 
     @pytest.fixture
     def sample_audit(self):
         """Return a sample AuditResult for testing."""
         audit = AuditResult(ratings={})
-        audit.set_rating('test.py', 'documented_terrible', 1)  # Terrible
-        audit.set_rating('test.py', 'documented_ok', 2)  # OK
-        audit.set_rating('test.py', 'documented_good', 3)  # Good
-        audit.set_rating('test.py', 'documented_excellent', 4)  # Excellent
+        audit.set_rating("test.py", "documented_terrible", 1)  # Terrible
+        audit.set_rating("test.py", "documented_ok", 2)  # OK
+        audit.set_rating("test.py", "documented_good", 3)  # Good
+        audit.set_rating("test.py", "documented_excellent", 4)  # Excellent
         return audit
 
     def test_generate_plan_with_audit_file_none(self, sample_result):
@@ -133,16 +133,17 @@ class TestPlanGenerator:
         # Call with audit_file=None to test StateManager fallback
         plan = generate_plan(sample_result, audit_file=None)
 
-        # Should include only undocumented items (StateManager default likely doesn't exist)
+        # Should include only undocumented items (StateManager default likely
+        # doesn't exist)
         assert plan.total_items == 1
         assert plan.missing_docs_count == 1
         assert plan.poor_quality_count == 0
-        assert plan.items[0].name == 'undocumented_func'
+        assert plan.items[0].name == "undocumented_func"
 
     def test_generate_plan_with_nonexistent_audit_file(self, sample_result):
         """Test graceful degradation when explicit audit file path doesn't exist."""
         # Use explicit non-existent path (different from None/StateManager fallback)
-        audit_file = Path('/tmp/nonexistent_audit_file_12345.json')
+        audit_file = Path("/tmp/nonexistent_audit_file_12345.json")
         assert not audit_file.exists()
 
         # Should not crash
@@ -152,12 +153,12 @@ class TestPlanGenerator:
         assert plan.total_items == 1
         assert plan.missing_docs_count == 1
         assert plan.poor_quality_count == 0
-        assert plan.items[0].name == 'undocumented_func'
+        assert plan.items[0].name == "undocumented_func"
 
     def test_generate_plan_applies_audit_ratings(self, sample_result, sample_audit):
         """Test that audit ratings are applied to items."""
         # Save audit to temp file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
             audit_file = Path(tmp.name)
             save_audit_results(sample_audit, audit_file)
 
@@ -166,10 +167,16 @@ class TestPlanGenerator:
             _ = generate_plan(sample_result, audit_file=audit_file)
 
             # Find the items in the original result to verify ratings were applied
-            terrible_item = next(i for i in sample_result.items if i.name == 'documented_terrible')
-            ok_item = next(i for i in sample_result.items if i.name == 'documented_ok')
-            good_item = next(i for i in sample_result.items if i.name == 'documented_good')
-            excellent_item = next(i for i in sample_result.items if i.name == 'documented_excellent')
+            terrible_item = next(
+                i for i in sample_result.items if i.name == "documented_terrible"
+            )
+            ok_item = next(i for i in sample_result.items if i.name == "documented_ok")
+            good_item = next(
+                i for i in sample_result.items if i.name == "documented_good"
+            )
+            excellent_item = next(
+                i for i in sample_result.items if i.name == "documented_excellent"
+            )
 
             # Verify ratings were applied
             assert terrible_item.audit_rating == 1
@@ -179,13 +186,15 @@ class TestPlanGenerator:
         finally:
             audit_file.unlink()
 
-    def test_generate_plan_recalculates_impact_scores(self, sample_result, sample_audit):
+    def test_generate_plan_recalculates_impact_scores(
+        self, sample_result, sample_audit
+    ):
         """Test that impact scores are recalculated with audit ratings."""
         # Save initial scores
         initial_scores = {item.name: item.impact_score for item in sample_result.items}
 
         # Save audit to temp file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
             audit_file = Path(tmp.name)
             save_audit_results(sample_audit, audit_file)
 
@@ -194,12 +203,15 @@ class TestPlanGenerator:
             _ = generate_plan(sample_result, audit_file=audit_file)
 
             # Verify impact scores changed for items with audit ratings
-            terrible_item = next(i for i in sample_result.items if i.name == 'documented_terrible')
-            ok_item = next(i for i in sample_result.items if i.name == 'documented_ok')
+            terrible_item = next(
+                i for i in sample_result.items if i.name == "documented_terrible"
+            )
+            ok_item = next(i for i in sample_result.items if i.name == "documented_ok")
 
-            # Impact scores should be different from initial (because audit ratings were applied)
-            assert terrible_item.impact_score != initial_scores['documented_terrible']
-            assert ok_item.impact_score != initial_scores['documented_ok']
+            # Impact scores should be different from initial (because audit
+            # ratings were applied)
+            assert terrible_item.impact_score != initial_scores["documented_terrible"]
+            assert ok_item.impact_score != initial_scores["documented_ok"]
 
             # Impact score for terrible docs should be higher than for OK docs
             # (both have audit ratings applied, but terrible gets higher penalty)
@@ -207,16 +219,20 @@ class TestPlanGenerator:
         finally:
             audit_file.unlink()
 
-    def test_generate_plan_filters_by_quality_threshold(self, sample_result, sample_audit):
+    def test_generate_plan_filters_by_quality_threshold(
+        self, sample_result, sample_audit
+    ):
         """Test that only poor quality items are included based on threshold."""
         # Save audit to temp file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
             audit_file = Path(tmp.name)
             save_audit_results(sample_audit, audit_file)
 
         try:
             # Generate plan with threshold=2 (include Terrible=1 and OK=2)
-            plan = generate_plan(sample_result, audit_file=audit_file, quality_threshold=2)
+            plan = generate_plan(
+                sample_result, audit_file=audit_file, quality_threshold=2
+            )
 
             # Should include: undocumented + terrible + ok
             assert plan.total_items == 3
@@ -225,11 +241,11 @@ class TestPlanGenerator:
 
             # Verify the items
             item_names = {item.name for item in plan.items}
-            assert 'undocumented_func' in item_names
-            assert 'documented_terrible' in item_names
-            assert 'documented_ok' in item_names
-            assert 'documented_good' not in item_names
-            assert 'documented_excellent' not in item_names
+            assert "undocumented_func" in item_names
+            assert "documented_terrible" in item_names
+            assert "documented_ok" in item_names
+            assert "documented_good" not in item_names
+            assert "documented_excellent" not in item_names
         finally:
             audit_file.unlink()
 
@@ -237,12 +253,12 @@ class TestPlanGenerator:
         """Test that ratings are matched correctly by filepath and name."""
         # Create audit with rating for different file
         audit = AuditResult(ratings={})
-        audit.set_rating('other.py', 'documented_terrible', 1)  # Different file
-        audit.set_rating('test.py', 'wrong_name', 1)  # Different name
-        audit.set_rating('test.py', 'documented_terrible', 1)  # Correct match
+        audit.set_rating("other.py", "documented_terrible", 1)  # Different file
+        audit.set_rating("test.py", "wrong_name", 1)  # Different name
+        audit.set_rating("test.py", "documented_terrible", 1)  # Correct match
 
         # Save audit to temp file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
             audit_file = Path(tmp.name)
             save_audit_results(audit, audit_file)
 
@@ -251,8 +267,10 @@ class TestPlanGenerator:
             _ = generate_plan(sample_result, audit_file=audit_file)
 
             # Only the correct match should have audit rating applied
-            terrible_item = next(i for i in sample_result.items if i.name == 'documented_terrible')
-            ok_item = next(i for i in sample_result.items if i.name == 'documented_ok')
+            terrible_item = next(
+                i for i in sample_result.items if i.name == "documented_terrible"
+            )
+            ok_item = next(i for i in sample_result.items if i.name == "documented_ok")
 
             assert terrible_item.audit_rating == 1
             assert ok_item.audit_rating is None  # No rating in audit
@@ -263,11 +281,11 @@ class TestPlanGenerator:
         """Test that items without audit ratings are handled correctly."""
         # Create audit with only some items rated
         audit = AuditResult(ratings={})
-        audit.set_rating('test.py', 'documented_terrible', 1)
+        audit.set_rating("test.py", "documented_terrible", 1)
         # Don't rate the other items
 
         # Save audit to temp file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
             audit_file = Path(tmp.name)
             save_audit_results(audit, audit_file)
 
@@ -282,8 +300,8 @@ class TestPlanGenerator:
             assert plan.poor_quality_count == 1
 
             item_names = {item.name for item in plan.items}
-            assert 'undocumented_func' in item_names
-            assert 'documented_terrible' in item_names
+            assert "undocumented_func" in item_names
+            assert "documented_terrible" in item_names
         finally:
             audit_file.unlink()
 
@@ -291,12 +309,12 @@ class TestPlanGenerator:
         """Test that invalid ratings are skipped and valid ratings are applied."""
         # Create audit with mix of valid and invalid ratings
         audit = AuditResult(ratings={})
-        audit.set_rating('test.py', 'documented_terrible', 999)  # Invalid!
-        audit.set_rating('test.py', 'documented_ok', 2)  # Valid
-        audit.set_rating('test.py', 'documented_good', 0)  # Invalid!
+        audit.set_rating("test.py", "documented_terrible", 999)  # Invalid!
+        audit.set_rating("test.py", "documented_ok", 2)  # Valid
+        audit.set_rating("test.py", "documented_good", 0)  # Invalid!
 
         # Save audit to temp file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
             audit_file = Path(tmp.name)
             save_audit_results(audit, audit_file)
 
@@ -305,9 +323,13 @@ class TestPlanGenerator:
             _ = generate_plan(sample_result, audit_file=audit_file)
 
             # Verify invalid ratings were skipped
-            terrible_item = next(i for i in sample_result.items if i.name == 'documented_terrible')
-            ok_item = next(i for i in sample_result.items if i.name == 'documented_ok')
-            good_item = next(i for i in sample_result.items if i.name == 'documented_good')
+            terrible_item = next(
+                i for i in sample_result.items if i.name == "documented_terrible"
+            )
+            ok_item = next(i for i in sample_result.items if i.name == "documented_ok")
+            good_item = next(
+                i for i in sample_result.items if i.name == "documented_good"
+            )
 
             # Only valid rating should be applied
             assert terrible_item.audit_rating is None  # Invalid rating skipped
@@ -320,12 +342,12 @@ class TestPlanGenerator:
         """Test that invalid_ratings_count is accurate."""
         # Create audit with invalid ratings
         audit = AuditResult(ratings={})
-        audit.set_rating('test.py', 'documented_terrible', 999)  # Invalid
-        audit.set_rating('test.py', 'documented_ok', 0)  # Invalid
-        audit.set_rating('test.py', 'documented_good', -1)  # Invalid
+        audit.set_rating("test.py", "documented_terrible", 999)  # Invalid
+        audit.set_rating("test.py", "documented_ok", 0)  # Invalid
+        audit.set_rating("test.py", "documented_good", -1)  # Invalid
 
         # Save audit to temp file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
             audit_file = Path(tmp.name)
             save_audit_results(audit, audit_file)
 
@@ -342,12 +364,12 @@ class TestPlanGenerator:
         """Test that invalid_ratings list contains correct details."""
         # Create audit with invalid ratings
         audit = AuditResult(ratings={})
-        audit.set_rating('test.py', 'documented_terrible', 999)
-        audit.set_rating('test.py', 'documented_ok', 2)  # Valid
-        audit.set_rating('test.py', 'documented_good', 5)
+        audit.set_rating("test.py", "documented_terrible", 999)
+        audit.set_rating("test.py", "documented_ok", 2)  # Valid
+        audit.set_rating("test.py", "documented_good", 5)
 
         # Save audit to temp file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
             audit_file = Path(tmp.name)
             save_audit_results(audit, audit_file)
 
@@ -357,8 +379,16 @@ class TestPlanGenerator:
 
             # Verify details are correct
             assert len(plan.invalid_ratings) == 2
-            assert {'filepath': 'test.py', 'name': 'documented_terrible', 'rating': 999} in plan.invalid_ratings
-            assert {'filepath': 'test.py', 'name': 'documented_good', 'rating': 5} in plan.invalid_ratings
+            assert {
+                "filepath": "test.py",
+                "name": "documented_terrible",
+                "rating": 999,
+            } in plan.invalid_ratings
+            assert {
+                "filepath": "test.py",
+                "name": "documented_good",
+                "rating": 5,
+            } in plan.invalid_ratings
         finally:
             audit_file.unlink()
 
@@ -366,13 +396,13 @@ class TestPlanGenerator:
         """Test edge cases for invalid ratings."""
         # Create audit with boundary invalid ratings
         audit = AuditResult(ratings={})
-        audit.set_rating('test.py', 'documented_terrible', 0)  # Just below valid range
-        audit.set_rating('test.py', 'documented_ok', 5)  # Just above valid range
-        audit.set_rating('test.py', 'documented_good', -1)  # Negative
-        audit.set_rating('test.py', 'documented_excellent', 1)  # Valid
+        audit.set_rating("test.py", "documented_terrible", 0)  # Just below valid range
+        audit.set_rating("test.py", "documented_ok", 5)  # Just above valid range
+        audit.set_rating("test.py", "documented_good", -1)  # Negative
+        audit.set_rating("test.py", "documented_excellent", 1)  # Valid
 
         # Save audit to temp file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
             audit_file = Path(tmp.name)
             save_audit_results(audit, audit_file)
 
@@ -384,7 +414,9 @@ class TestPlanGenerator:
             assert plan.invalid_ratings_count == 3
 
             # Verify only valid rating was applied
-            excellent_item = next(i for i in sample_result.items if i.name == 'documented_excellent')
+            excellent_item = next(
+                i for i in sample_result.items if i.name == "documented_excellent"
+            )
             assert excellent_item.audit_rating == 1
         finally:
             audit_file.unlink()
@@ -392,12 +424,12 @@ class TestPlanGenerator:
     def test_generate_plan_matches_relative_to_absolute_paths(self, sample_result):
         """Test that relative paths in analysis match absolute paths in audit."""
         # Create audit with absolute path
-        absolute_path = str(Path('test.py').resolve())
+        absolute_path = str(Path("test.py").resolve())
         audit = AuditResult(ratings={})
-        audit.set_rating(absolute_path, 'documented_terrible', 1)
+        audit.set_rating(absolute_path, "documented_terrible", 1)
 
         # Save audit to temp file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
             audit_file = Path(tmp.name)
             save_audit_results(audit, audit_file)
 
@@ -407,7 +439,9 @@ class TestPlanGenerator:
             _ = generate_plan(sample_result, audit_file=audit_file)
 
             # Verify rating was matched and applied
-            terrible_item = next(i for i in sample_result.items if i.name == 'documented_terrible')
+            terrible_item = next(
+                i for i in sample_result.items if i.name == "documented_terrible"
+            )
             assert terrible_item.audit_rating == 1
         finally:
             audit_file.unlink()
@@ -415,36 +449,36 @@ class TestPlanGenerator:
     def test_generate_plan_matches_absolute_to_relative_paths(self):
         """Test that absolute paths in analysis match relative paths in audit."""
         # Create item with absolute path
-        absolute_path = str(Path('test.py').resolve())
+        absolute_path = str(Path("test.py").resolve())
         item = CodeItem(
-            name='documented_terrible',
-            type='function',
+            name="documented_terrible",
+            type="function",
             filepath=absolute_path,
             line_number=1,
             end_line=10,
-            language='python',
+            language="python",
             complexity=10,
             has_docs=True,
-            export_type='internal',
-            module_system='unknown',
+            export_type="internal",
+            module_system="unknown",
             impact_score=50.0,
             audit_rating=None,
-            docstring='Terrible docs'
+            docstring="Terrible docs",
         )
         result = AnalysisResult(
             items=[item],
             coverage_percent=100.0,
             total_items=1,
             documented_items=1,
-            by_language={}
+            by_language={},
         )
 
         # Create audit with relative path
         audit = AuditResult(ratings={})
-        audit.set_rating('test.py', 'documented_terrible', 1)
+        audit.set_rating("test.py", "documented_terrible", 1)
 
         # Save audit to temp file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
             audit_file = Path(tmp.name)
             save_audit_results(audit, audit_file)
 
@@ -461,34 +495,34 @@ class TestPlanGenerator:
         """Test that paths with ./ prefix are normalized correctly."""
         # Create item with ./ prefix
         item = CodeItem(
-            name='documented_terrible',
-            type='function',
-            filepath='./test.py',
+            name="documented_terrible",
+            type="function",
+            filepath="./test.py",
             line_number=1,
             end_line=10,
-            language='python',
+            language="python",
             complexity=10,
             has_docs=True,
-            export_type='internal',
-            module_system='unknown',
+            export_type="internal",
+            module_system="unknown",
             impact_score=50.0,
             audit_rating=None,
-            docstring='Terrible docs'
+            docstring="Terrible docs",
         )
         result = AnalysisResult(
             items=[item],
             coverage_percent=100.0,
             total_items=1,
             documented_items=1,
-            by_language={}
+            by_language={},
         )
 
         # Create audit with simple relative path
         audit = AuditResult(ratings={})
-        audit.set_rating('test.py', 'documented_terrible', 1)
+        audit.set_rating("test.py", "documented_terrible", 1)
 
         # Save audit to temp file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
             audit_file = Path(tmp.name)
             save_audit_results(audit, audit_file)
 
@@ -505,34 +539,34 @@ class TestPlanGenerator:
         """Test that paths with .. components are normalized correctly."""
         # Create item with .. component (e.g., foo/../test.py -> test.py)
         item = CodeItem(
-            name='documented_terrible',
-            type='function',
-            filepath='foo/../test.py',
+            name="documented_terrible",
+            type="function",
+            filepath="foo/../test.py",
             line_number=1,
             end_line=10,
-            language='python',
+            language="python",
             complexity=10,
             has_docs=True,
-            export_type='internal',
-            module_system='unknown',
+            export_type="internal",
+            module_system="unknown",
             impact_score=50.0,
             audit_rating=None,
-            docstring='Terrible docs'
+            docstring="Terrible docs",
         )
         result = AnalysisResult(
             items=[item],
             coverage_percent=100.0,
             total_items=1,
             documented_items=1,
-            by_language={}
+            by_language={},
         )
 
         # Create audit with simple relative path
         audit = AuditResult(ratings={})
-        audit.set_rating('test.py', 'documented_terrible', 1)
+        audit.set_rating("test.py", "documented_terrible", 1)
 
         # Save audit to temp file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
             audit_file = Path(tmp.name)
             save_audit_results(audit, audit_file)
 
@@ -540,14 +574,15 @@ class TestPlanGenerator:
             # Generate plan (side effect: applies ratings to matching items)
             _ = generate_plan(result, audit_file=audit_file)
 
-            # Verify rating was matched and applied (foo/../test.py should match test.py)
+            # Verify rating was matched and applied (foo/../test.py should
+            # match test.py)
             assert item.audit_rating == 1
         finally:
             audit_file.unlink()
 
     def test_generate_plan_handles_corrupted_audit_json(self, sample_result):
         """Test graceful handling of corrupted audit JSON."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
             audit_file = Path(tmp.name)
             tmp.write("{invalid json content")
 
@@ -563,7 +598,7 @@ class TestPlanGenerator:
     def test_generate_plan_handles_empty_audit(self, sample_result):
         """Test handling of audit file with no ratings."""
         audit = AuditResult(ratings={})
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
             audit_file = Path(tmp.name)
             save_audit_results(audit, audit_file)
 
@@ -576,7 +611,7 @@ class TestPlanGenerator:
 
     def test_generate_plan_idempotency(self, sample_result, sample_audit):
         """Test calling generate_plan twice with same result."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
             audit_file = Path(tmp.name)
             save_audit_results(sample_audit, audit_file)
 
@@ -590,16 +625,20 @@ class TestPlanGenerator:
         finally:
             audit_file.unlink()
 
-    def test_generate_plan_handles_scorer_exception(self, sample_result, sample_audit, monkeypatch):
+    def test_generate_plan_handles_scorer_exception(
+        self, sample_result, sample_audit, monkeypatch
+    ):
         """Test handling of ImpactScorer exceptions."""
+
         def mock_calculate_score(self, item):
             raise ValueError("Scoring error")
 
         # Mock ImpactScorer.calculate_score to raise exception
         from src.scoring.impact_scorer import ImpactScorer
-        monkeypatch.setattr(ImpactScorer, 'calculate_score', mock_calculate_score)
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+        monkeypatch.setattr(ImpactScorer, "calculate_score", mock_calculate_score)
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
             audit_file = Path(tmp.name)
             save_audit_results(sample_audit, audit_file)
 
@@ -624,7 +663,7 @@ class TestPlanGenerator:
 
         # Check that all plan items have end_line field
         for plan_item in plan.items:
-            assert hasattr(plan_item, 'end_line')
+            assert hasattr(plan_item, "end_line")
             assert isinstance(plan_item.end_line, int)
             assert plan_item.end_line > 0
             # end_line should be >= line_number (inclusive range)
@@ -633,15 +672,13 @@ class TestPlanGenerator:
         # Verify end_line matches the source CodeItem
         # Find the undocumented item in plan
         undoc_plan_item = next(
-            (item for item in plan.items if item.name == 'undocumented_func'),
-            None
+            (item for item in plan.items if item.name == "undocumented_func"), None
         )
         assert undoc_plan_item is not None
 
         # Find the corresponding CodeItem
         undoc_code_item = next(
-            (item for item in sample_items if item.name == 'undocumented_func'),
-            None
+            (item for item in sample_items if item.name == "undocumented_func"), None
         )
         assert undoc_code_item is not None
 

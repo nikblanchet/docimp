@@ -24,43 +24,43 @@ class TestCoverageCalculator:
         """Return a list of CodeItems with mixed documentation status."""
         return [
             CodeItem(
-                name='documented_func',
-                type='function',
-                filepath='test.py',
+                name="documented_func",
+                type="function",
+                filepath="test.py",
                 line_number=1,
                 end_line=5,
-                language='python',
+                language="python",
                 complexity=5,
                 has_docs=True,
-                export_type='internal',
-                module_system='unknown',
-                impact_score=25.0
+                export_type="internal",
+                module_system="unknown",
+                impact_score=25.0,
             ),
             CodeItem(
-                name='undocumented_func',
-                type='function',
-                filepath='test.py',
+                name="undocumented_func",
+                type="function",
+                filepath="test.py",
                 line_number=10,
                 end_line=15,
-                language='python',
+                language="python",
                 complexity=3,
                 has_docs=False,
-                export_type='internal',
-                module_system='unknown',
-                impact_score=15.0
+                export_type="internal",
+                module_system="unknown",
+                impact_score=15.0,
             ),
             CodeItem(
-                name='another_documented',
-                type='class',
-                filepath='test.py',
+                name="another_documented",
+                type="class",
+                filepath="test.py",
                 line_number=20,
                 end_line=30,
-                language='python',
+                language="python",
                 complexity=10,
                 has_docs=True,
-                export_type='internal',
-                module_system='unknown',
-                impact_score=50.0
+                export_type="internal",
+                module_system="unknown",
+                impact_score=50.0,
             ),
         ]
 
@@ -70,83 +70,83 @@ class TestCoverageCalculator:
         return [
             # Python items (2 documented, 1 undocumented)
             CodeItem(
-                name='py_func1',
-                type='function',
-                filepath='test.py',
+                name="py_func1",
+                type="function",
+                filepath="test.py",
                 line_number=1,
                 end_line=5,
-                language='python',
+                language="python",
                 complexity=5,
                 has_docs=True,
-                export_type='internal',
-                module_system='unknown',
-                impact_score=25.0
+                export_type="internal",
+                module_system="unknown",
+                impact_score=25.0,
             ),
             CodeItem(
-                name='py_func2',
-                type='function',
-                filepath='test.py',
+                name="py_func2",
+                type="function",
+                filepath="test.py",
                 line_number=10,
                 end_line=15,
-                language='python',
+                language="python",
                 complexity=3,
                 has_docs=True,
-                export_type='internal',
-                module_system='unknown',
-                impact_score=15.0
+                export_type="internal",
+                module_system="unknown",
+                impact_score=15.0,
             ),
             CodeItem(
-                name='py_func3',
-                type='function',
-                filepath='test.py',
+                name="py_func3",
+                type="function",
+                filepath="test.py",
                 line_number=20,
                 end_line=25,
-                language='python',
+                language="python",
                 complexity=2,
                 has_docs=False,
-                export_type='internal',
-                module_system='unknown',
-                impact_score=10.0
+                export_type="internal",
+                module_system="unknown",
+                impact_score=10.0,
             ),
             # JavaScript items (1 documented, 2 undocumented)
             CodeItem(
-                name='js_func1',
-                type='function',
-                filepath='test.js',
+                name="js_func1",
+                type="function",
+                filepath="test.js",
                 line_number=1,
                 end_line=5,
-                language='javascript',
+                language="javascript",
                 complexity=4,
                 has_docs=True,
-                export_type='named',
-                module_system='esm',
-                impact_score=20.0
+                export_type="named",
+                module_system="esm",
+                impact_score=20.0,
             ),
             CodeItem(
-                name='js_func2',
-                type='function',
-                filepath='test.js',
+                name="js_func2",
+                type="function",
+                filepath="test.js",
                 line_number=10,
                 end_line=15,
-                language='javascript',
+                language="javascript",
                 complexity=6,
                 has_docs=False,
-                export_type='named',
-                module_system='esm',
-                impact_score=30.0
+                export_type="named",
+                module_system="esm",
+                impact_score=30.0,
             ),
             CodeItem(
-                name='js_func3',
-                type='function',
-                filepath='test.js',
+                name="js_func3",
+                type="function",
+                filepath="test.js",
                 line_number=20,
                 end_line=25,
-                language='javascript',
+                language="javascript",
                 complexity=8,
                 has_docs=False,
-                export_type='named',
-                module_system='esm',
-                impact_score=40.0
+                export_type="named",
+                module_system="esm",
+                impact_score=40.0,
             ),
         ]
 
@@ -159,30 +159,30 @@ class TestCoverageCalculator:
         """Test that all documented items returns 100% coverage."""
         items = [
             CodeItem(
-                name='func1',
-                type='function',
-                filepath='test.py',
+                name="func1",
+                type="function",
+                filepath="test.py",
                 line_number=1,
                 end_line=3,
-                language='python',
+                language="python",
                 complexity=1,
                 has_docs=True,
-                export_type='internal',
-                module_system='unknown',
-                impact_score=5.0
+                export_type="internal",
+                module_system="unknown",
+                impact_score=5.0,
             ),
             CodeItem(
-                name='func2',
-                type='function',
-                filepath='test.py',
+                name="func2",
+                type="function",
+                filepath="test.py",
                 line_number=5,
                 end_line=7,
-                language='python',
+                language="python",
                 complexity=1,
                 has_docs=True,
-                export_type='internal',
-                module_system='unknown',
-                impact_score=5.0
+                export_type="internal",
+                module_system="unknown",
+                impact_score=5.0,
             ),
         ]
 
@@ -193,30 +193,30 @@ class TestCoverageCalculator:
         """Test that no documented items returns 0% coverage."""
         items = [
             CodeItem(
-                name='func1',
-                type='function',
-                filepath='test.py',
+                name="func1",
+                type="function",
+                filepath="test.py",
                 line_number=1,
                 end_line=3,
-                language='python',
+                language="python",
                 complexity=1,
                 has_docs=False,
-                export_type='internal',
-                module_system='unknown',
-                impact_score=5.0
+                export_type="internal",
+                module_system="unknown",
+                impact_score=5.0,
             ),
             CodeItem(
-                name='func2',
-                type='function',
-                filepath='test.py',
+                name="func2",
+                type="function",
+                filepath="test.py",
                 line_number=5,
                 end_line=7,
-                language='python',
+                language="python",
                 complexity=1,
                 has_docs=False,
-                export_type='internal',
-                module_system='unknown',
-                impact_score=5.0
+                export_type="internal",
+                module_system="unknown",
+                impact_score=5.0,
             ),
         ]
 
@@ -248,11 +248,11 @@ class TestCoverageCalculator:
         """Test by-language metrics with single language."""
         metrics = calculator.calculate_by_language(mixed_items)
 
-        assert 'python' in metrics
+        assert "python" in metrics
         assert len(metrics) == 1
 
-        py_metrics = metrics['python']
-        assert py_metrics.language == 'python'
+        py_metrics = metrics["python"]
+        assert py_metrics.language == "python"
         assert py_metrics.total_items == 3
         assert py_metrics.documented_items == 2
         assert abs(py_metrics.coverage_percent - 66.67) < 0.1
@@ -262,18 +262,18 @@ class TestCoverageCalculator:
         metrics = calculator.calculate_by_language(multi_language_items)
 
         # Should have both Python and JavaScript
-        assert 'python' in metrics
-        assert 'javascript' in metrics
+        assert "python" in metrics
+        assert "javascript" in metrics
         assert len(metrics) == 2
 
         # Python: 2/3 documented = 66.67%
-        py_metrics = metrics['python']
+        py_metrics = metrics["python"]
         assert py_metrics.total_items == 3
         assert py_metrics.documented_items == 2
         assert abs(py_metrics.coverage_percent - 66.67) < 0.1
 
         # JavaScript: 1/3 documented = 33.33%
-        js_metrics = metrics['javascript']
+        js_metrics = metrics["javascript"]
         assert js_metrics.total_items == 3
         assert js_metrics.documented_items == 1
         assert abs(js_metrics.coverage_percent - 33.33) < 0.1
@@ -283,11 +283,11 @@ class TestCoverageCalculator:
         metrics = calculator.calculate_by_language(multi_language_items)
 
         # Python avg complexity: (5 + 3 + 2) / 3 = 3.33
-        py_metrics = metrics['python']
+        py_metrics = metrics["python"]
         assert abs(py_metrics.avg_complexity - 3.33) < 0.1
 
         # JavaScript avg complexity: (4 + 6 + 8) / 3 = 6.0
-        js_metrics = metrics['javascript']
+        js_metrics = metrics["javascript"]
         assert abs(js_metrics.avg_complexity - 6.0) < 0.1
 
     def test_by_language_averages_impact_score(self, calculator, multi_language_items):
@@ -295,52 +295,52 @@ class TestCoverageCalculator:
         metrics = calculator.calculate_by_language(multi_language_items)
 
         # Python avg impact: (25 + 15 + 10) / 3 = 16.67
-        py_metrics = metrics['python']
+        py_metrics = metrics["python"]
         assert abs(py_metrics.avg_impact_score - 16.67) < 0.1
 
         # JavaScript avg impact: (20 + 30 + 40) / 3 = 30.0
-        js_metrics = metrics['javascript']
+        js_metrics = metrics["javascript"]
         assert abs(js_metrics.avg_impact_score - 30.0) < 0.1
 
     def test_by_language_handles_skipped_items(self, calculator):
         """Test that skipped items are tracked correctly."""
         items = [
             CodeItem(
-                name='py_func',
-                type='function',
-                filepath='test.py',
+                name="py_func",
+                type="function",
+                filepath="test.py",
                 line_number=1,
                 end_line=5,
-                language='python',
+                language="python",
                 complexity=5,
                 has_docs=True,
-                export_type='internal',
-                module_system='unknown',
-                impact_score=25.0
+                export_type="internal",
+                module_system="unknown",
+                impact_score=25.0,
             ),
             CodeItem(
-                name='skipped_file',
-                type='function',
-                filepath='node_modules/test.js',
+                name="skipped_file",
+                type="function",
+                filepath="node_modules/test.js",
                 line_number=1,
                 end_line=5,
-                language='skipped',
+                language="skipped",
                 complexity=0,
                 has_docs=False,
-                export_type='internal',
-                module_system='unknown',
-                impact_score=0.0
+                export_type="internal",
+                module_system="unknown",
+                impact_score=0.0,
             ),
         ]
 
         metrics = calculator.calculate_by_language(items)
 
         # Should track both Python and skipped
-        assert 'python' in metrics
-        assert 'skipped' in metrics
+        assert "python" in metrics
+        assert "skipped" in metrics
 
         # Skipped should have 1 item, 0 documented
-        skipped_metrics = metrics['skipped']
+        skipped_metrics = metrics["skipped"]
         assert skipped_metrics.total_items == 1
         assert skipped_metrics.documented_items == 0
         assert skipped_metrics.coverage_percent == 0.0

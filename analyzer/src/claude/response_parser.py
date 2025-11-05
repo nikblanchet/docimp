@@ -22,11 +22,7 @@ class ClaudeResponseParser:
     """
 
     # Supported language specifiers for markdown fences
-    LANGUAGE_SPECIFIERS = [
-        'python',
-        'javascript', 'js',
-        'typescript', 'ts'
-    ]
+    LANGUAGE_SPECIFIERS = ["python", "javascript", "js", "typescript", "ts"]
 
     @staticmethod
     def strip_markdown_fences(response: str, language: str) -> str:
@@ -77,7 +73,7 @@ class ClaudeResponseParser:
         #
         # re.DOTALL: . matches newlines
         # Non-greedy (.*?): stop at first closing fence
-        pattern = rf'^\s*```(?:{language_pattern})?\s*\n(.*?)\n```\s*$'
+        pattern = rf"^\s*```(?:{language_pattern})?\s*\n(.*?)\n```\s*$"
 
         match = re.match(pattern, response.strip(), re.DOTALL)
         if match:
@@ -103,10 +99,10 @@ class ClaudeResponseParser:
         """
         # Map language to all possible specifiers
         language_map = {
-            'python': ['python'],
-            'javascript': ['javascript', 'js'],
-            'typescript': ['typescript', 'ts']
+            "python": ["python"],
+            "javascript": ["javascript", "js"],
+            "typescript": ["typescript", "ts"],
         }
 
         specifiers = language_map.get(language.lower(), [language.lower()])
-        return '|'.join(specifiers)
+        return "|".join(specifiers)

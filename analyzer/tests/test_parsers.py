@@ -12,8 +12,8 @@ from src.models.code_item import CodeItem
 
 # Test fixture paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
-MALFORMED_SAMPLES = PROJECT_ROOT / 'test-samples' / 'malformed'
-EXAMPLES_DIR = PROJECT_ROOT / 'examples'
+MALFORMED_SAMPLES = PROJECT_ROOT / "test-samples" / "malformed"
+EXAMPLES_DIR = PROJECT_ROOT / "examples"
 
 
 class TestPythonParser:
@@ -27,7 +27,7 @@ class TestPythonParser:
     @pytest.fixture
     def test_file(self):
         """Return path to test Python file."""
-        return str(EXAMPLES_DIR / 'test_simple.py')
+        return str(EXAMPLES_DIR / "test_simple.py")
 
     def test_parse_file_returns_code_items(self, parser, test_file):
         """Test that parse_file returns a list of CodeItem objects."""
@@ -41,7 +41,7 @@ class TestPythonParser:
         """Test that all parsed items have language='python'."""
         items = parser.parse_file(test_file)
 
-        assert all(item.language == 'python' for item in items)
+        assert all(item.language == "python" for item in items)
 
     def test_complexity_is_positive(self, parser, test_file):
         """Test that all items have positive complexity."""
@@ -57,7 +57,9 @@ class TestPythonParser:
         assert any(item.has_docs for item in items)
 
         # Check specific items
-        async_func = next((item for item in items if item.name == 'async_function'), None)
+        async_func = next(
+            (item for item in items if item.name == "async_function"), None
+        )
         assert async_func is not None
         assert async_func.has_docs is True
         assert async_func.docstring is not None
@@ -66,39 +68,47 @@ class TestPythonParser:
         """Test that function metadata is extracted correctly."""
         items = parser.parse_file(test_file)
 
-        async_func = next((item for item in items if item.name == 'async_function'), None)
+        async_func = next(
+            (item for item in items if item.name == "async_function"), None
+        )
         assert async_func is not None
-        assert async_func.type == 'function'
-        assert 'param1' in async_func.parameters
-        assert 'param2' in async_func.parameters
-        assert async_func.return_type == 'bool'
+        assert async_func.type == "function"
+        assert "param1" in async_func.parameters
+        assert "param2" in async_func.parameters
+        assert async_func.return_type == "bool"
 
     def test_extracts_class_metadata(self, parser, test_file):
         """Test that class metadata is extracted correctly."""
         items = parser.parse_file(test_file)
 
-        example_class = next((item for item in items if item.name == 'ExampleClass'), None)
+        example_class = next(
+            (item for item in items if item.name == "ExampleClass"), None
+        )
         assert example_class is not None
-        assert example_class.type == 'class'
+        assert example_class.type == "class"
 
     def test_extracts_methods(self, parser, test_file):
         """Test that class methods are extracted."""
         items = parser.parse_file(test_file)
 
         # Should have __init__ and value property
-        init_method = next((item for item in items if item.name == 'ExampleClass.__init__'), None)
+        init_method = next(
+            (item for item in items if item.name == "ExampleClass.__init__"), None
+        )
         assert init_method is not None
-        assert init_method.type == 'method'
+        assert init_method.type == "method"
         assert init_method.has_docs is True
 
-        value_property = next((item for item in items if item.name == 'ExampleClass.value'), None)
+        value_property = next(
+            (item for item in items if item.name == "ExampleClass.value"), None
+        )
         assert value_property is not None
-        assert value_property.type == 'method'
+        assert value_property.type == "method"
 
     def test_file_not_found_raises_error(self, parser):
         """Test that parsing non-existent file raises FileNotFoundError."""
         with pytest.raises(FileNotFoundError):
-            parser.parse_file('nonexistent_file.py')
+            parser.parse_file("nonexistent_file.py")
 
     def test_syntax_error_raises_error(self, parser, tmp_path):
         """Test that parsing invalid Python raises SyntaxError."""
@@ -112,23 +122,23 @@ class TestPythonParser:
         """Test that parser raises SyntaxError for different types of syntax errors."""
         # Test missing colon
         with pytest.raises(SyntaxError):
-            parser.parse_file(str(MALFORMED_SAMPLES / 'python_missing_colon.py'))
+            parser.parse_file(str(MALFORMED_SAMPLES / "python_missing_colon.py"))
 
         # Test unclosed parenthesis
         with pytest.raises(SyntaxError):
-            parser.parse_file(str(MALFORMED_SAMPLES / 'python_unclosed_paren.py'))
+            parser.parse_file(str(MALFORMED_SAMPLES / "python_unclosed_paren.py"))
 
         # Test invalid indentation
         with pytest.raises(SyntaxError):
-            parser.parse_file(str(MALFORMED_SAMPLES / 'python_invalid_indentation.py'))
+            parser.parse_file(str(MALFORMED_SAMPLES / "python_invalid_indentation.py"))
 
         # Test incomplete statement
         with pytest.raises(SyntaxError):
-            parser.parse_file(str(MALFORMED_SAMPLES / 'python_incomplete_statement.py'))
+            parser.parse_file(str(MALFORMED_SAMPLES / "python_incomplete_statement.py"))
 
     def test_syntax_error_message_clarity(self, parser):
         """Test that syntax error messages include file path and are informative."""
-        malformed_file = MALFORMED_SAMPLES / 'python_missing_colon.py'
+        malformed_file = MALFORMED_SAMPLES / "python_missing_colon.py"
 
         try:
             parser.parse_file(str(malformed_file))
@@ -136,8 +146,9 @@ class TestPythonParser:
         except SyntaxError as e:
             error_msg = str(e)
             # Error message should mention the file
-            assert 'python_missing_colon.py' in error_msg, \
-                f"Error message should include filename, got: {error_msg}"
+            assert (
+                "python_missing_colon.py" in error_msg
+            ), f"Error message should include filename, got: {error_msg}"
 
     def test_complexity_calculation(self, parser, tmp_path):
         """Test that cyclomatic complexity is calculated correctly."""
@@ -150,7 +161,8 @@ class TestPythonParser:
 
         # Function with conditionals should have higher complexity
         complex_file = tmp_path / "complex.py"
-        complex_file.write_text("""
+        complex_file.write_text(
+            """
 def complex_func(x):
     if x > 0:
         if x < 10:
@@ -159,7 +171,8 @@ def complex_func(x):
             return 'big'
     else:
         return 'negative'
-""")
+"""
+        )
 
         complex_items = parser.parse_file(str(complex_file))
         assert complex_items[0].complexity > 1
@@ -179,26 +192,31 @@ def complex_func(x):
         item_names = [item.name for item in items]
 
         # Check that we have exactly the expected items
-        assert 'async_function' in item_names
-        assert 'ExampleClass' in item_names
-        assert 'ExampleClass.__init__' in item_names
-        assert 'ExampleClass.value' in item_names
+        assert "async_function" in item_names
+        assert "ExampleClass" in item_names
+        assert "ExampleClass.__init__" in item_names
+        assert "ExampleClass.value" in item_names
 
         # Ensure methods are NOT extracted as plain functions
-        assert '__init__' not in item_names, "Method __init__ should not appear as plain function"
-        assert 'value' not in item_names, "Method value should not appear as plain function"
+        assert (
+            "__init__" not in item_names
+        ), "Method __init__ should not appear as plain function"
+        assert (
+            "value" not in item_names
+        ), "Method value should not appear as plain function"
 
         # Verify item types
         types_by_name = {item.name: item.type for item in items}
-        assert types_by_name['async_function'] == 'function'
-        assert types_by_name['ExampleClass'] == 'class'
-        assert types_by_name['ExampleClass.__init__'] == 'method'
-        assert types_by_name['ExampleClass.value'] == 'method'
+        assert types_by_name["async_function"] == "function"
+        assert types_by_name["ExampleClass"] == "class"
+        assert types_by_name["ExampleClass.__init__"] == "method"
+        assert types_by_name["ExampleClass.value"] == "method"
 
     def test_extracts_nested_functions(self, parser, tmp_path):
         """Test that nested functions are extracted (validates parent-tracking fix)."""
         nested_file = tmp_path / "nested.py"
-        nested_file.write_text("""
+        nested_file.write_text(
+            """
 def outer_function(items):
     '''Process items with validation.'''
     def validate_item(item):
@@ -220,7 +238,8 @@ class DataProcessor:
             '''Internal helper function.'''
             return x * 2
         return _helper(data)
-""")
+"""
+        )
 
         items = parser.parse_file(str(nested_file))
         item_names = [item.name for item in items]
@@ -236,36 +255,39 @@ class DataProcessor:
         assert len(items) == 6, f"Expected 6 items, got {len(items)}: {item_names}"
 
         # Verify nested functions are extracted
-        assert 'outer_function' in item_names, "Top-level function should be extracted"
-        assert 'validate_item' in item_names, "Nested function should be extracted"
-        assert 'transform_item' in item_names, "Nested function should be extracted"
+        assert "outer_function" in item_names, "Top-level function should be extracted"
+        assert "validate_item" in item_names, "Nested function should be extracted"
+        assert "transform_item" in item_names, "Nested function should be extracted"
 
         # Verify class and method are extracted
-        assert 'DataProcessor' in item_names, "Class should be extracted"
-        assert 'DataProcessor.process' in item_names, "Method should be extracted"
+        assert "DataProcessor" in item_names, "Class should be extracted"
+        assert "DataProcessor.process" in item_names, "Method should be extracted"
 
         # Verify nested function in method is extracted
-        assert '_helper' in item_names, "Nested function in method should be extracted"
+        assert "_helper" in item_names, "Nested function in method should be extracted"
 
         # Verify all are marked as functions (except class and method)
         types_by_name = {item.name: item.type for item in items}
-        assert types_by_name['outer_function'] == 'function'
-        assert types_by_name['validate_item'] == 'function'
-        assert types_by_name['transform_item'] == 'function'
-        assert types_by_name['DataProcessor'] == 'class'
-        assert types_by_name['DataProcessor.process'] == 'method'
-        assert types_by_name['_helper'] == 'function'
+        assert types_by_name["outer_function"] == "function"
+        assert types_by_name["validate_item"] == "function"
+        assert types_by_name["transform_item"] == "function"
+        assert types_by_name["DataProcessor"] == "class"
+        assert types_by_name["DataProcessor.process"] == "method"
+        assert types_by_name["_helper"] == "function"
 
         # Verify nested functions have metadata
-        validate = next(item for item in items if item.name == 'validate_item')
+        validate = next(item for item in items if item.name == "validate_item")
         assert validate.has_docs is True
         assert validate.docstring is not None
-        assert 'item' in validate.parameters
+        assert "item" in validate.parameters
 
     def test_complex_nesting_edge_cases(self, parser, tmp_path):
-        """Test edge cases with nested classes, conditionals, and multiple nesting levels."""
+        """Test edge cases with nested classes, conditionals, and multiple
+
+        nesting levels."""
         edge_case_file = tmp_path / "edge_cases.py"
-        edge_case_file.write_text("""
+        edge_case_file.write_text(
+            """
 class Outer:
     '''Outer class with nested structures.'''
     def method(self):
@@ -286,7 +308,8 @@ def function():
         def nested_in_conditional():
             '''Function defined inside conditional.'''
             pass
-""")
+"""
+        )
 
         items = parser.parse_file(str(edge_case_file))
         item_names = [item.name for item in items]
@@ -303,37 +326,41 @@ def function():
         assert len(items) == 7, f"Expected 7 items, got {len(items)}: {item_names}"
 
         # Verify outer class and its method
-        assert 'Outer' in item_names
-        assert 'Outer.method' in item_names
+        assert "Outer" in item_names
+        assert "Outer.method" in item_names
 
         # Verify nested function in method is extracted as function, not method
-        assert 'nested_in_method' in item_names
-        nested_func = next(item for item in items if item.name == 'nested_in_method')
-        assert nested_func.type == 'function', "Function nested in method should be type 'function'"
+        assert "nested_in_method" in item_names
+        nested_func = next(item for item in items if item.name == "nested_in_method")
+        assert (
+            nested_func.type == "function"
+        ), "Function nested in method should be type 'function'"
 
         # Verify nested class
-        assert 'Inner' in item_names
-        inner_class = next(item for item in items if item.name == 'Inner')
-        assert inner_class.type == 'class'
+        assert "Inner" in item_names
+        inner_class = next(item for item in items if item.name == "Inner")
+        assert inner_class.type == "class"
 
         # Verify method in nested class
-        assert 'Inner.inner_method' in item_names
-        inner_method = next(item for item in items if item.name == 'Inner.inner_method')
-        assert inner_method.type == 'method'
+        assert "Inner.inner_method" in item_names
+        inner_method = next(item for item in items if item.name == "Inner.inner_method")
+        assert inner_method.type == "method"
 
         # Verify function with conditional nesting
-        assert 'function' in item_names
-        assert 'nested_in_conditional' in item_names
-        cond_func = next(item for item in items if item.name == 'nested_in_conditional')
-        assert cond_func.type == 'function'
+        assert "function" in item_names
+        assert "nested_in_conditional" in item_names
+        cond_func = next(item for item in items if item.name == "nested_in_conditional")
+        assert cond_func.type == "function"
 
         # Verify all items have documentation
         assert all(item.has_docs for item in items), "All items should have docstrings"
 
     def test_nested_function_complexity_isolation(self, parser, tmp_path):
-        """Test that nested function complexity does not contribute to parent (issue #66)."""
+        """Test that nested function complexity does not contribute to parent
+        (issue #66)."""
         test_file = tmp_path / "nested_complexity.py"
-        test_file.write_text("""
+        test_file.write_text(
+            """
 def parent_function(x):
     '''Parent function with simple logic.'''
     if x > 0:  # Parent complexity: base 1 + this if = 2
@@ -348,30 +375,35 @@ def parent_function(x):
         return True
 
     return False
-""")
+"""
+        )
 
         items = parser.parse_file(str(test_file))
 
         # Should extract both parent and nested function
         assert len(items) == 2, f"Expected 2 items (parent + nested), got {len(items)}"
 
-        parent = next(item for item in items if item.name == 'parent_function')
-        nested = next(item for item in items if item.name == 'nested_helper')
+        parent = next(item for item in items if item.name == "parent_function")
+        nested = next(item for item in items if item.name == "nested_helper")
 
         # Parent should have complexity 2 (base 1 + one if statement)
         # NOT 4 (which would include nested function's two if statements)
-        assert parent.complexity == 2, \
-            f"Parent complexity should be 2, got {parent.complexity}. " \
+        assert parent.complexity == 2, (
+            f"Parent complexity should be 2, got {parent.complexity}. "
             "Nested function complexity should not contribute to parent."
+        )
 
         # Nested function should have complexity 3 (base 1 + two if statements)
-        assert nested.complexity == 3, \
-            f"Nested complexity should be 3, got {nested.complexity}"
+        assert (
+            nested.complexity == 3
+        ), f"Nested complexity should be 3, got {nested.complexity}"
 
     def test_complexity_with_lambdas(self, parser, tmp_path):
-        """Test that lambda functions are correctly traversed in complexity calculation."""
+        """Test that lambda functions are correctly traversed in complexity
+        calculation."""
         test_file = tmp_path / "lambda_complexity.py"
-        test_file.write_text("""
+        test_file.write_text(
+            """
 def parent_with_lambda(x):
     '''Parent with lambda and regular conditional.'''
     # Lambda itself is not a decision point, but it's traversed
@@ -382,7 +414,8 @@ def parent_with_lambda(x):
         return True
 
     return False
-""")
+"""
+        )
 
         items = parser.parse_file(str(test_file))
         assert len(items) == 1
@@ -390,13 +423,15 @@ def parent_with_lambda(x):
         parent = items[0]
         # Expected: base(1) + if(1) = 2
         # Lambda is traversed but doesn't add complexity
-        assert parent.complexity == 2, \
-            f"Expected complexity 2 (base + if), got {parent.complexity}"
+        assert (
+            parent.complexity == 2
+        ), f"Expected complexity 2 (base + if), got {parent.complexity}"
 
     def test_complexity_with_comprehensions(self, parser, tmp_path):
         """Test that comprehensions with conditionals are counted correctly."""
         test_file = tmp_path / "comprehension_complexity.py"
-        test_file.write_text("""
+        test_file.write_text(
+            """
 def parent_with_comprehension(x):
     '''Parent with comprehension.'''
     # List comprehension with conditional - comprehension itself is +1
@@ -407,20 +442,23 @@ def parent_with_comprehension(x):
         return filtered
 
     return []
-""")
+"""
+        )
 
         items = parser.parse_file(str(test_file))
         assert len(items) == 1
 
         parent = items[0]
         # Expected: base(1) + comprehension(1) + if(1) = 3
-        assert parent.complexity == 3, \
-            f"Expected complexity 3 (base + comprehension + if), got {parent.complexity}"
+        assert (
+            parent.complexity == 3
+        ), f"Expected complexity 3 (base + comprehension + if), got {parent.complexity}"
 
     def test_complexity_async_nested_functions(self, parser, tmp_path):
         """Test that async nested functions are isolated from async parent."""
         test_file = tmp_path / "async_nested.py"
-        test_file.write_text("""
+        test_file.write_text(
+            """
 async def parent_async(x):
     '''Async parent function.'''
     if x > 0:
@@ -434,26 +472,30 @@ async def parent_async(x):
             y += 1
 
     return True
-""")
+"""
+        )
 
         items = parser.parse_file(str(test_file))
         assert len(items) == 2
 
-        parent = next(item for item in items if item.name == 'parent_async')
-        nested = next(item for item in items if item.name == 'nested_async')
+        parent = next(item for item in items if item.name == "parent_async")
+        nested = next(item for item in items if item.name == "nested_async")
 
         # Parent: base(1) + if(1) = 2
-        assert parent.complexity == 2, \
-            f"Async parent should have complexity 2, got {parent.complexity}"
+        assert (
+            parent.complexity == 2
+        ), f"Async parent should have complexity 2, got {parent.complexity}"
 
         # Nested: base(1) + if(1) + while(1) = 3
-        assert nested.complexity == 3, \
-            f"Async nested should have complexity 3, got {nested.complexity}"
+        assert (
+            nested.complexity == 3
+        ), f"Async nested should have complexity 3, got {nested.complexity}"
 
     def test_complexity_parent_with_many_branches(self, parser, tmp_path):
         """Test complex parent with multiple decision points and nested function."""
         test_file = tmp_path / "complex_parent.py"
-        test_file.write_text("""
+        test_file.write_text(
+            """
 def complex_parent(x):
     '''Parent with multiple decision points.'''
     if x > 0:
@@ -476,28 +518,32 @@ def complex_parent(x):
                 pass
 
     return True
-""")
+"""
+        )
 
         items = parser.parse_file(str(test_file))
         assert len(items) == 2
 
-        parent = next(item for item in items if item.name == 'complex_parent')
-        nested = next(item for item in items if item.name == 'nested_complex')
+        parent = next(item for item in items if item.name == "complex_parent")
+        nested = next(item for item in items if item.name == "nested_complex")
 
         # Parent: base(1) + if(1) + elif(1) + for(1) + if(1) = 5
         # Should NOT include nested's: if(1) + while(1) + for(1) + if(1) = 4
-        assert parent.complexity == 5, \
-            f"Complex parent should have complexity 5, got {parent.complexity}. " \
+        assert parent.complexity == 5, (
+            f"Complex parent should have complexity 5, got {parent.complexity}. "
             "Nested function complexity should not contribute to parent."
+        )
 
         # Nested: base(1) + if(1) + while(1) + for(1) + if(1) = 5
-        assert nested.complexity == 5, \
-            f"Nested should have complexity 5, got {nested.complexity}"
+        assert (
+            nested.complexity == 5
+        ), f"Nested should have complexity 5, got {nested.complexity}"
 
     def test_complexity_method_with_nested_function(self, parser, tmp_path):
         """Test that nested function in class method has isolated complexity."""
         test_file = tmp_path / "method_nested.py"
-        test_file.write_text("""
+        test_file.write_text(
+            """
 class MyClass:
     def method_with_nested(self, x):
         '''Method with nested function.'''
@@ -512,26 +558,32 @@ class MyClass:
                 y += 1
 
         return True
-""")
+"""
+        )
 
         items = parser.parse_file(str(test_file))
         assert len(items) == 3  # class + method + nested function
 
-        method = next(item for item in items if item.name == 'MyClass.method_with_nested')
-        helper = next(item for item in items if item.name == 'helper')
+        method = next(
+            item for item in items if item.name == "MyClass.method_with_nested"
+        )
+        helper = next(item for item in items if item.name == "helper")
 
         # Method: base(1) + if(1) = 2
-        assert method.complexity == 2, \
-            f"Method should have complexity 2, got {method.complexity}"
+        assert (
+            method.complexity == 2
+        ), f"Method should have complexity 2, got {method.complexity}"
 
         # Helper: base(1) + if(1) + while(1) = 3
-        assert helper.complexity == 3, \
-            f"Helper should have complexity 3, got {helper.complexity}"
+        assert (
+            helper.complexity == 3
+        ), f"Helper should have complexity 3, got {helper.complexity}"
 
     def test_extracts_end_line_for_functions(self, parser, tmp_path):
         """Test that end_line is extracted correctly for functions."""
         test_file = tmp_path / "end_line_func.py"
-        test_file.write_text("""def simple_function():
+        test_file.write_text(
+            """def simple_function():
     '''Simple one-line function.'''
     return 42
 
@@ -541,13 +593,14 @@ def multi_line_function(x, y):
     if result > 10:
         return result * 2
     return result
-""")
+"""
+        )
 
         items = parser.parse_file(str(test_file))
         assert len(items) == 2
 
-        simple = next(item for item in items if item.name == 'simple_function')
-        multi = next(item for item in items if item.name == 'multi_line_function')
+        simple = next(item for item in items if item.name == "simple_function")
+        multi = next(item for item in items if item.name == "multi_line_function")
 
         # simple_function: lines 1-3
         assert simple.line_number == 1
@@ -560,7 +613,8 @@ def multi_line_function(x, y):
     def test_extracts_end_line_for_classes(self, parser, tmp_path):
         """Test that end_line is extracted correctly for classes."""
         test_file = tmp_path / "end_line_class.py"
-        test_file.write_text("""class SimpleClass:
+        test_file.write_text(
+            """class SimpleClass:
     '''Simple class.'''
     pass
 
@@ -574,12 +628,13 @@ class LargerClass:
     def method(self):
         '''A method.'''
         return self.value
-""")
+"""
+        )
 
         items = parser.parse_file(str(test_file))
 
-        simple_class = next(item for item in items if item.name == 'SimpleClass')
-        larger_class = next(item for item in items if item.name == 'LargerClass')
+        simple_class = next(item for item in items if item.name == "SimpleClass")
+        larger_class = next(item for item in items if item.name == "LargerClass")
 
         # SimpleClass: lines 1-3
         assert simple_class.line_number == 1
@@ -592,7 +647,8 @@ class LargerClass:
     def test_extracts_end_line_for_methods(self, parser, tmp_path):
         """Test that end_line is extracted correctly for methods."""
         test_file = tmp_path / "end_line_method.py"
-        test_file.write_text("""class MyClass:
+        test_file.write_text(
+            """class MyClass:
     def method_one(self):
         '''First method.'''
         return 1
@@ -602,12 +658,13 @@ class LargerClass:
         x = 10
         y = 20
         return x + y
-""")
+"""
+        )
 
         items = parser.parse_file(str(test_file))
 
-        method_one = next(item for item in items if item.name == 'MyClass.method_one')
-        method_two = next(item for item in items if item.name == 'MyClass.method_two')
+        method_one = next(item for item in items if item.name == "MyClass.method_one")
+        method_two = next(item for item in items if item.name == "MyClass.method_two")
 
         # method_one: lines 2-4
         assert method_one.line_number == 2
@@ -620,7 +677,8 @@ class LargerClass:
     def test_end_line_with_nested_functions(self, parser, tmp_path):
         """Test that end_line is correct for nested functions."""
         test_file = tmp_path / "end_line_nested.py"
-        test_file.write_text("""def outer():
+        test_file.write_text(
+            """def outer():
     '''Outer function.'''
     x = 1
 
@@ -629,13 +687,14 @@ class LargerClass:
         return x * 2
 
     return inner()
-""")
+"""
+        )
 
         items = parser.parse_file(str(test_file))
         assert len(items) == 2
 
-        outer = next(item for item in items if item.name == 'outer')
-        inner = next(item for item in items if item.name == 'inner')
+        outer = next(item for item in items if item.name == "outer")
+        inner = next(item for item in items if item.name == "inner")
 
         # outer: lines 1-9
         assert outer.line_number == 1
@@ -653,6 +712,7 @@ class TestTypeScriptParserErrorHandling:
     def parser(self):
         """Create a TypeScriptParser instance."""
         from src.parsers.typescript_parser import TypeScriptParser
+
         return TypeScriptParser()
 
     def test_malformed_json_with_nonzero_returncode_raises_runtimeerror(self, parser):
@@ -661,60 +721,62 @@ class TestTypeScriptParserErrorHandling:
         from unittest.mock import patch
         import subprocess
 
-        with tempfile.NamedTemporaryFile(suffix='.ts', delete=False) as tmp:
-            tmp.write(b'function test() {}')
+        with tempfile.NamedTemporaryFile(suffix=".ts", delete=False) as tmp:
+            tmp.write(b"function test() {}")
             tmp_path = tmp.name
 
         try:
             # Mock subprocess.run to return malformed JSON with nonzero returncode
             mock_result = subprocess.CompletedProcess(
-                args=['node', 'parser.js'],
+                args=["node", "parser.js"],
                 returncode=1,
-                stdout='not valid json',
-                stderr='some error'
+                stdout="not valid json",
+                stderr="some error",
             )
 
-            with patch('subprocess.run', return_value=mock_result):
+            with patch("subprocess.run", return_value=mock_result):
                 with pytest.raises(RuntimeError) as exc_info:
                     parser.parse_file(tmp_path)
 
                 # Check error message includes returncode and subprocess output
-                assert 'returncode=1' in str(exc_info.value)
-                assert 'some error' in str(exc_info.value)
-                assert 'not valid json' in str(exc_info.value)
+                assert "returncode=1" in str(exc_info.value)
+                assert "some error" in str(exc_info.value)
+                assert "not valid json" in str(exc_info.value)
         finally:
             Path(tmp_path).unlink()
 
     def test_malformed_json_with_zero_returncode_raises_runtimeerror(self, parser):
-        """Test that malformed JSON with returncode=0 raises RuntimeError (not SyntaxError)."""
+        """Test that malformed JSON with returncode=0 raises RuntimeError (not
+        SyntaxError)."""
         import tempfile
         from unittest.mock import patch
         import subprocess
 
-        with tempfile.NamedTemporaryFile(suffix='.ts', delete=False) as tmp:
-            tmp.write(b'function test() {}')
+        with tempfile.NamedTemporaryFile(suffix=".ts", delete=False) as tmp:
+            tmp.write(b"function test() {}")
             tmp_path = tmp.name
 
         try:
             # Mock subprocess.run to return malformed JSON with returncode=0
             # This simulates a crash or bug in the parser helper
             mock_result = subprocess.CompletedProcess(
-                args=['node', 'parser.js'],
+                args=["node", "parser.js"],
                 returncode=0,
-                stdout='not valid json',
-                stderr=''
+                stdout="not valid json",
+                stderr="",
             )
 
-            with patch('subprocess.run', return_value=mock_result):
-                # Should raise RuntimeError (infrastructure issue), not SyntaxError (user code issue)
+            with patch("subprocess.run", return_value=mock_result):
+                # Should raise RuntimeError (infrastructure issue), not
+                # SyntaxError (user code issue)
                 with pytest.raises(RuntimeError) as exc_info:
                     parser.parse_file(tmp_path)
 
                 # Check error message clearly indicates this is a parser helper issue
-                assert 'returncode=0' in str(exc_info.value)
-                assert 'invalid JSON' in str(exc_info.value)
-                assert 'parser helper' in str(exc_info.value).lower()
-                assert 'not valid json' in str(exc_info.value)
+                assert "returncode=0" in str(exc_info.value)
+                assert "invalid JSON" in str(exc_info.value)
+                assert "parser helper" in str(exc_info.value).lower()
+                assert "not valid json" in str(exc_info.value)
         finally:
             Path(tmp_path).unlink()
 
@@ -724,26 +786,26 @@ class TestTypeScriptParserErrorHandling:
         from unittest.mock import patch
         import subprocess
 
-        with tempfile.NamedTemporaryFile(suffix='.ts', delete=False) as tmp:
-            tmp.write(b'function test() {}')
+        with tempfile.NamedTemporaryFile(suffix=".ts", delete=False) as tmp:
+            tmp.write(b"function test() {}")
             tmp_path = tmp.name
 
         try:
             # Mock subprocess.run to return malformed JSON
             mock_result = subprocess.CompletedProcess(
-                args=['node', 'parser.js'],
+                args=["node", "parser.js"],
                 returncode=1,
-                stdout='stdout content',
-                stderr='stderr content'
+                stdout="stdout content",
+                stderr="stderr content",
             )
 
-            with patch('subprocess.run', return_value=mock_result):
+            with patch("subprocess.run", return_value=mock_result):
                 with pytest.raises(RuntimeError) as exc_info:
                     parser.parse_file(tmp_path)
 
                 # Error message should include both stdout and stderr
                 error_msg = str(exc_info.value)
-                assert 'stdout content' in error_msg
-                assert 'stderr content' in error_msg
+                assert "stdout content" in error_msg
+                assert "stderr content" in error_msg
         finally:
             Path(tmp_path).unlink()
