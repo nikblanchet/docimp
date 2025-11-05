@@ -5,14 +5,22 @@
  * documented items to the user for interactive rating.
  */
 
+import { randomUUID } from 'node:crypto';
 import prompts from 'prompts';
 import type { IConfigLoader } from '../config/i-config-loader.js';
 import { EXIT_CODE, type ExitCode } from '../constants/exit-codes.js';
 import type { IDisplay } from '../display/i-display.js';
 import type { IPythonBridge } from '../python-bridge/i-python-bridge.js';
-import type { AuditRatings, AuditSummary } from '../types/analysis.js';
+import type {
+  AuditItem,
+  AuditRatings,
+  AuditSummary,
+} from '../types/analysis.js';
+import type { AuditSessionState } from '../types/audit-session-state.js';
 import { CodeExtractor } from '../utils/code-extractor.js';
+import { FileTracker } from '../utils/file-tracker.js';
 import { PathValidator } from '../utils/path-validator.js';
+import { SessionStateManager } from '../utils/session-state-manager.js';
 import { StateManager } from '../utils/state-manager.js';
 
 /**
@@ -86,6 +94,84 @@ export function calculateAuditSummary(
 }
 
 /**
+ * Initialize audit session state at the start of an audit.
+ *
+ * Creates initial session state with UUID, timestamp, and file snapshots for
+ * modification detection. All ratings start as null (not yet rated).
+ *
+ * @param items - AuditItems to audit
+ * @param config - Audit configuration
+ * @param config.showCodeMode - Display mode for code (complete, truncated, signature, on-demand)
+ * @param config.maxLines - Maximum lines to show in truncated mode
+ * @returns Initial AuditSessionState
+ */
+async function initializeAuditSession(
+  items: AuditItem[],
+  config: {
+    showCodeMode: 'complete' | 'truncated' | 'signature' | 'on-demand';
+    maxLines: number;
+  }
+): Promise<AuditSessionState> {
+  const sessionId = randomUUID();
+
+  // Extract unique filepaths from items
+  const filepaths = [...new Set(items.map((item) => item.filepath))];
+
+  // Create file snapshots for modification detection
+  const fileSnapshot = await FileTracker.createSnapshot(filepaths);
+
+  // Initialize empty ratings: filepath -> item_name -> null
+  const partialRatings: Record<string, Record<string, number | null>> = {};
+  for (const item of items) {
+    if (!partialRatings[item.filepath]) {
+      partialRatings[item.filepath] = {};
+    }
+    partialRatings[item.filepath][item.name] = null;
+  }
+
+  return {
+    session_id: sessionId,
+    started_at: new Date().toISOString(),
+    current_index: 0,
+    total_items: items.length,
+    partial_ratings: partialRatings,
+    file_snapshot: fileSnapshot,
+    config: {
+      showCodeMode: config.showCodeMode,
+      maxLines: config.maxLines,
+    },
+    completed_at: null,
+  } as AuditSessionState;
+}
+
+/**
+ * Save audit session progress to disk.
+ *
+ * Uses atomic write pattern (temp file + rename) to prevent corruption.
+ *
+ * @param state - Current audit session state
+ */
+async function saveAuditProgress(state: AuditSessionState): Promise<void> {
+  await SessionStateManager.saveSessionState(state, 'audit');
+}
+
+/**
+ * Finalize audit session by marking completion timestamp.
+ *
+ * @param sessionId - UUID of the session to finalize
+ */
+async function finalizeAuditSession(sessionId: string): Promise<void> {
+  // Load current session state
+  const state = await SessionStateManager.loadSessionState(sessionId, 'audit');
+
+  // Mark as completed
+  state.completed_at = new Date().toISOString();
+
+  // Save final state
+  await SessionStateManager.saveSessionState(state, 'audit');
+}
+
+/**
  * Core audit logic (extracted for testability).
  *
  * @param path - Path to file or directory to audit
@@ -149,6 +235,16 @@ export async function auditCore(
     display.showMessage(`\nFound ${items.length} documented items to audit.`);
     display.showMessage("Rate the quality of each item's documentation.\n");
 
+    // Initialize session state for incremental save/resume
+    const sessionState = await initializeAuditSession(items, {
+      showCodeMode: showCodeMode as
+        | 'complete'
+        | 'truncated'
+        | 'signature'
+        | 'on-demand',
+      maxLines,
+    });
+
     // Initialize ratings structure
     const ratings: AuditRatings = { ratings: {} };
 
@@ -156,6 +252,9 @@ export async function auditCore(
     let audited = 0;
     for (const item of items) {
       audited++;
+
+      // Update current index in session state
+      sessionState.current_index = audited - 1;
 
       // Show progress
       display.showMessage(`\nAuditing: ${audited}/${items.length}`);
@@ -330,6 +429,11 @@ export async function auditCore(
           ratings.ratings[item.filepath] = {};
         }
         ratings.ratings[item.filepath][item.name] = null;
+
+        // Update session state and save incrementally
+        sessionState.partial_ratings[item.filepath][item.name] = null;
+        await saveAuditProgress(sessionState);
+
         display.showMessage('Skipped.\n');
         continue;
       }
@@ -340,6 +444,10 @@ export async function auditCore(
         ratings.ratings[item.filepath] = {};
       }
       ratings.ratings[item.filepath][item.name] = numericRating;
+
+      // Update session state and save incrementally
+      sessionState.partial_ratings[item.filepath][item.name] = numericRating;
+      await saveAuditProgress(sessionState);
 
       const ratingLabels: Record<number, string> = {
         1: 'Terrible',
@@ -362,6 +470,10 @@ export async function auditCore(
 
       try {
         await bridge.applyAudit(ratings, auditFile);
+
+        // Finalize session (mark completed_at timestamp)
+        await finalizeAuditSession(sessionState.session_id);
+
         savingSpinner();
 
         // Calculate and display audit summary
@@ -372,6 +484,8 @@ export async function auditCore(
         throw error;
       }
     } else {
+      // No ratings saved (user quit immediately or all skipped)
+      // Session remains with completed_at=null (can be resumed later)
       display.showMessage('\n\nNo ratings saved.');
     }
   } catch (error) {
