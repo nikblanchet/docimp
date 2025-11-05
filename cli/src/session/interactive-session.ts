@@ -19,6 +19,9 @@ import type { IPluginManager } from '../plugins/i-plugin-manager.js';
 import type { PluginResult, CodeItemMetadata } from '../plugins/i-plugin.js';
 import type { IPythonBridge } from '../python-bridge/i-python-bridge.js';
 import type { PlanItem, SupportedLanguage } from '../types/analysis.js';
+import type { ImproveSessionState } from '../types/improve-session-state.js';
+import { FileTracker } from '../utils/file-tracker.js';
+import { SessionStateManager } from '../utils/session-state-manager.js';
 import type { IInteractiveSession } from './i-interactive-session.js';
 import { ProgressTracker } from './progress-tracker.js';
 
@@ -67,6 +70,8 @@ export class InteractiveSession implements IInteractiveSession {
   private sessionId?: string;
   private transactionActive: boolean = false;
   private changeCount: number = 0;
+  private sessionState: ImproveSessionState | null = null;
+  private currentIndex: number = 0;
 
   /**
    * Create a new interactive session.
@@ -124,11 +129,25 @@ export class InteractiveSession implements IInteractiveSession {
       console.log(chalk.dim(`Transaction tracking: disabled\n`));
     }
 
+    // Initialize session state for save/resume capability
+    try {
+      await this.initializeSessionState(items);
+    } catch (error) {
+      console.warn(
+        chalk.yellow('Warning: Failed to initialize session state:'),
+        chalk.dim(error instanceof Error ? error.message : String(error))
+      );
+      console.warn(
+        chalk.yellow('Session will continue without save capability.\n')
+      );
+    }
+
     const tracker = new ProgressTracker(items.length);
 
     try {
       for (let index = 0; index < items.length; index++) {
         const item = items[index];
+        this.currentIndex = index;
 
         // Show progress
         console.log(
@@ -148,6 +167,9 @@ export class InteractiveSession implements IInteractiveSession {
 
       // Show final summary
       this.showSummary(tracker);
+
+      // Mark session as complete
+      await this.finalizeSessionState();
 
       // SUCCESS: Finalize transaction
       if (this.transactionActive && this.sessionId) {
@@ -218,6 +240,8 @@ export class InteractiveSession implements IInteractiveSession {
     if (!docstring) {
       console.log(chalk.red('Failed to generate suggestion.'));
       tracker.recordError();
+      // Save session checkpoint with error status
+      await this.saveCheckpoint(item, 'error');
       return true; // Continue to next item
     }
 
@@ -247,9 +271,13 @@ export class InteractiveSession implements IInteractiveSession {
             console.log(
               chalk.green(`✓ Documentation written to ${item.filepath}`)
             );
+            // Save session checkpoint with accepted status
+            await this.saveCheckpoint(item, 'accepted', currentDocstring);
           } else {
             console.log(chalk.red('Failed to write documentation'));
             tracker.recordError();
+            // Save session checkpoint with error status
+            await this.saveCheckpoint(item, 'error');
           }
           return true; // Continue to next item
         }
@@ -289,6 +317,8 @@ export class InteractiveSession implements IInteractiveSession {
         case 'skip': {
           tracker.recordSkipped();
           console.log(chalk.yellow('Skipping item'));
+          // Save session checkpoint with skipped status
+          await this.saveCheckpoint(item, 'skipped');
           return true; // Continue to next item
         }
         case 'undo': {
@@ -653,5 +683,107 @@ export class InteractiveSession implements IInteractiveSession {
     if (progress.quitAt !== null) {
       console.log(chalk.dim(`  (Quit at item ${progress.quitAt + 1})`));
     }
+  }
+
+  /**
+   * Initialize session state for save/resume capability.
+   *
+   * @param items - Plan items to process
+   */
+  private async initializeSessionState(items: PlanItem[]): Promise<void> {
+    if (!this.sessionId) {
+      return; // No session ID, skip initialization
+    }
+
+    // Create file snapshot for modification detection
+    const filepaths = [...new Set(items.map((item) => item.filepath))];
+    const fileSnapshot = await FileTracker.createSnapshot(filepaths);
+
+    // Initialize empty partial_improvements structure
+    const partialImprovements: Record<
+      string,
+      Record<string, Record<string, unknown>>
+    > = {};
+    for (const item of items) {
+      if (!partialImprovements[item.filepath]) {
+        partialImprovements[item.filepath] = {};
+      }
+      partialImprovements[item.filepath][item.name] = {}; // Empty dict for unprocessed
+    }
+
+    // Create initial session state
+    this.sessionState = {
+      session_id: this.sessionId,
+      transaction_id: this.sessionId, // Use same ID for transaction link
+      started_at: new Date().toISOString(),
+      current_index: 0,
+      total_items: items.length,
+      partial_improvements:
+        partialImprovements as ImproveSessionState['partial_improvements'],
+      file_snapshot: fileSnapshot as ImproveSessionState['file_snapshot'],
+      config: {
+        styleGuides: Object.fromEntries(
+          Object.entries(this.styleGuides).map(([lang, guide]) => [lang, guide])
+        ) as Record<string, string>,
+        tone: this.tone,
+      },
+      completed_at: null,
+    };
+
+    // Save initial state
+    await SessionStateManager.saveSessionState(this.sessionState, 'improve');
+  }
+
+  /**
+   * Save session checkpoint after each user action.
+   *
+   * @param item - Current plan item
+   * @param status - Action status (accepted/skipped/error)
+   * @param suggestion - Optional suggestion text for accepted items
+   */
+  private async saveCheckpoint(
+    item: PlanItem,
+    status: 'accepted' | 'skipped' | 'error',
+    suggestion?: string
+  ): Promise<void> {
+    if (!this.sessionState) {
+      return; // No session state, skip checkpoint
+    }
+
+    // Update partial_improvements with status record
+    const statusRecord: {
+      status: 'accepted' | 'skipped' | 'error';
+      timestamp: string;
+      suggestion?: string;
+    } = {
+      status,
+      timestamp: new Date().toISOString(),
+    };
+
+    if (suggestion && status === 'accepted') {
+      statusRecord.suggestion = suggestion;
+    }
+
+    this.sessionState.partial_improvements[item.filepath][item.name] =
+      statusRecord as ImproveSessionState['partial_improvements'][string][string];
+    this.sessionState.current_index = this.currentIndex;
+
+    // Save checkpoint
+    await SessionStateManager.saveSessionState(this.sessionState, 'improve');
+  }
+
+  /**
+   * Finalize session state when session completes.
+   */
+  private async finalizeSessionState(): Promise<void> {
+    if (!this.sessionState) {
+      return; // No session state, skip finalization
+    }
+
+    // Mark session as complete
+    this.sessionState.completed_at = new Date().toISOString();
+
+    // Save final state
+    await SessionStateManager.saveSessionState(this.sessionState, 'improve');
   }
 }
