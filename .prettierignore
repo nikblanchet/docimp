@@ -1,0 +1,74 @@
+# Dependencies
+node_modules/
+package-lock.json
+npm-debug.log*
+yarn.lock
+
+# Build outputs
+cli/dist/
+cli/build/
+*.tsbuildinfo
+
+# Coverage
+cli/coverage/
+.nyc_output/
+
+# Cache directories
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.docimp/
+__pycache__/
+
+# Python artifacts
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Backup files
+*.bak
+
+# Generated files
+cli/src/types/generated/
+
+# Documentation build artifacts
+docs/_build/
+docs/.doctrees/
+
+# Test fixtures with intentional formatting issues
+test-samples/malformed/
+test-samples/mixed-valid-invalid/
+**/src/__tests__/fixtures/
+
+# Git
+.git/
+.gitignore
+
+# GitHub
+.github/
+
+# Config files that should maintain specific formatting
+docimp.config.js
+.eslintrc*
+tsconfig*.json

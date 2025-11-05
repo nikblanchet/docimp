@@ -4,11 +4,14 @@ This directory contains plugin fixture files for testing the PluginManager.
 
 ## Why These Files Exist But Aren't Used in Jest Tests
 
-These fixture files were created to test plugin loading, but **Jest cannot handle dynamic `import()` statements** for runtime-created or fixture files. This is a known Jest limitation with ESM dynamic imports.
+These fixture files were created to test plugin loading, but **Jest cannot handle
+dynamic `import()` statements** for runtime-created or fixture files. This is a known
+Jest limitation with ESM dynamic imports.
 
 ## Current Testing Approach
 
-Instead of loading fixture files, the PluginManager tests use **direct plugin registration** to test the core business logic:
+Instead of loading fixture files, the PluginManager tests use **direct plugin
+registration** to test the core business logic:
 
 - Hook execution (`beforeAccept`, `afterWrite`)
 - Error isolation (plugin exceptions are caught and returned as rejections)
@@ -19,11 +22,13 @@ See `PluginManager.test.ts` for details.
 
 ## Actual Plugin Loading Testing
 
-**Plugin file loading is tested via Python integration tests**, which can successfully load and execute real plugin files in production mode.
+**Plugin file loading is tested via Python integration tests**, which can successfully
+load and execute real plugin files in production mode.
 
 ## Fixture Files
 
 ### Valid Plugins (ESM)
+
 - `valid-before-accept.mjs` - Plugin with only beforeAccept hook
 - `valid-after-write.mjs` - Plugin with only afterWrite hook
 - `valid-both-hooks.mjs` - Plugin with both hooks
@@ -33,9 +38,11 @@ See `PluginManager.test.ts` for details.
 - `plugin-after-write-error.mjs` - Plugin that throws in afterWrite hook
 
 ### Valid Plugins (CommonJS)
+
 - `valid-before-accept.cjs` - CommonJS version for future use
 
 ### Invalid Plugins (for validation testing)
+
 - `invalid-not-object.mjs` - Exports a string instead of an object
 - `invalid-no-name.mjs` - Missing name property
 - `invalid-no-version.mjs` - Missing version property
@@ -47,6 +54,7 @@ See `PluginManager.test.ts` for details.
 ## Future Use
 
 These fixtures may be useful for:
+
 - Manual testing of the plugin system
 - Integration testing with alternative test runners (e.g., Vitest)
 - Documentation examples

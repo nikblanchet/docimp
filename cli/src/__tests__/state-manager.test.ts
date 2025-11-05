@@ -70,7 +70,12 @@ describe('StateManager', () => {
   describe('getAuditFile', () => {
     it('returns correct path', () => {
       const auditFile = StateManager.getAuditFile(tempDir);
-      const expected = resolve(tempDir, '.docimp', 'session-reports', 'audit.json');
+      const expected = resolve(
+        tempDir,
+        '.docimp',
+        'session-reports',
+        'audit.json'
+      );
       expect(auditFile).toBe(expected);
     });
 
@@ -83,7 +88,12 @@ describe('StateManager', () => {
   describe('getPlanFile', () => {
     it('returns correct path', () => {
       const planFile = StateManager.getPlanFile(tempDir);
-      const expected = resolve(tempDir, '.docimp', 'session-reports', 'plan.json');
+      const expected = resolve(
+        tempDir,
+        '.docimp',
+        'session-reports',
+        'plan.json'
+      );
       expect(planFile).toBe(expected);
     });
 
@@ -96,7 +106,12 @@ describe('StateManager', () => {
   describe('getAnalyzeFile', () => {
     it('returns correct path', () => {
       const analyzeFile = StateManager.getAnalyzeFile(tempDir);
-      const expected = resolve(tempDir, '.docimp', 'session-reports', 'analyze-latest.json');
+      const expected = resolve(
+        tempDir,
+        '.docimp',
+        'session-reports',
+        'analyze-latest.json'
+      );
       expect(analyzeFile).toBe(expected);
     });
 
@@ -140,7 +155,10 @@ describe('StateManager', () => {
       // Create test files
       writeFileSync(join(sessionDir, 'audit.json'), '{"test": "data"}');
       writeFileSync(join(sessionDir, 'plan.json'), '{"test": "data"}');
-      writeFileSync(join(sessionDir, 'analyze-latest.json'), '{"test": "data"}');
+      writeFileSync(
+        join(sessionDir, 'analyze-latest.json'),
+        '{"test": "data"}'
+      );
 
       // Verify files exist
       expect(existsSync(join(sessionDir, 'audit.json'))).toBe(true);
@@ -214,7 +232,7 @@ describe('StateManager', () => {
         StateManager.getAnalyzeFile(tempDir),
       ];
 
-      paths.forEach(path => {
+      paths.forEach((path) => {
         expect(isAbsolute(path)).toBe(true);
       });
     });

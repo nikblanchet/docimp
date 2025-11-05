@@ -106,14 +106,20 @@ export class InteractiveSession implements IInteractiveSession {
         chalk.yellow('Warning: Failed to initialize transaction tracking:'),
         chalk.dim(error instanceof Error ? error.message : String(error))
       );
-      console.warn(chalk.yellow('Session will continue without rollback capability.\n'));
+      console.warn(
+        chalk.yellow('Session will continue without rollback capability.\n')
+      );
       this.transactionActive = false;
     }
 
     console.log(chalk.bold(`\n Starting interactive improvement session`));
     console.log(chalk.dim(`Found ${items.length} items to improve`));
     if (this.transactionActive) {
-      console.log(chalk.dim(`Transaction tracking: enabled (session ${this.sessionId?.substring(0, 8)}...)\n`));
+      console.log(
+        chalk.dim(
+          `Transaction tracking: enabled (session ${this.sessionId?.substring(0, 8)}...)\n`
+        )
+      );
     } else {
       console.log(chalk.dim(`Transaction tracking: disabled\n`));
     }
@@ -125,7 +131,11 @@ export class InteractiveSession implements IInteractiveSession {
         const item = items[i];
 
         // Show progress
-        console.log(chalk.dim(`\n[${i + 1}/${items.length}] ${tracker.getProgressString()}`));
+        console.log(
+          chalk.dim(
+            `\n[${i + 1}/${items.length}] ${tracker.getProgressString()}`
+          )
+        );
 
         // Process this item
         const shouldContinue = await this.processItem(item, i, tracker);
@@ -145,8 +155,14 @@ export class InteractiveSession implements IInteractiveSession {
           await this.pythonBridge.commitTransaction(this.sessionId);
           console.log(chalk.green('\nSession finalized. Changes committed.'));
           const shortId = this.sessionId.substring(0, 8);
-          console.log(chalk.dim(`Session ID: ${shortId}... (full: ${this.sessionId})`));
-          console.log(chalk.dim(`Use 'docimp list-changes ${this.sessionId}' to review changes.`));
+          console.log(
+            chalk.dim(`Session ID: ${shortId}... (full: ${this.sessionId})`)
+          );
+          console.log(
+            chalk.dim(
+              `Use 'docimp list-changes ${this.sessionId}' to review changes.`
+            )
+          );
         } catch (error) {
           console.warn(
             chalk.yellow('Warning: Failed to finalize transaction:'),
@@ -159,12 +175,22 @@ export class InteractiveSession implements IInteractiveSession {
       if (this.sessionId && this.transactionActive) {
         if (error instanceof UserCancellationError) {
           // Expected: User quit mid-session
-          console.log(chalk.yellow('\nSession cancelled. Changes left uncommitted.'));
+          console.log(
+            chalk.yellow('\nSession cancelled. Changes left uncommitted.')
+          );
         } else {
           // Unexpected error (network failure, disk full, etc.)
-          console.error(chalk.red('\nSession failed due to error. Changes left uncommitted.'));
+          console.error(
+            chalk.red(
+              '\nSession failed due to error. Changes left uncommitted.'
+            )
+          );
         }
-        console.log(chalk.dim(`Use 'docimp rollback-session ${this.sessionId}' to undo changes.`));
+        console.log(
+          chalk.dim(
+            `Use 'docimp rollback-session ${this.sessionId}' to undo changes.`
+          )
+        );
       }
       throw error;
     }
@@ -178,7 +204,11 @@ export class InteractiveSession implements IInteractiveSession {
    * @param tracker - Progress tracker
    * @returns Promise resolving to true if should continue, false if user quit
    */
-  private async processItem(item: PlanItem, _index: number, tracker: ProgressTracker): Promise<boolean> {
+  private async processItem(
+    item: PlanItem,
+    _index: number,
+    tracker: ProgressTracker
+  ): Promise<boolean> {
     // Show item details
     this.showItemDetails(item);
 
@@ -197,7 +227,10 @@ export class InteractiveSession implements IInteractiveSession {
 
     while (true) {
       // Run plugin validation
-      const validationResults = await this.runPluginValidation(currentDocstring, item);
+      const validationResults = await this.runPluginValidation(
+        currentDocstring,
+        item
+      );
 
       // Show suggestion and validation results
       this.showSuggestion(currentDocstring, validationResults);
@@ -210,16 +243,20 @@ export class InteractiveSession implements IInteractiveSession {
         const success = await this.writeDocstring(item, currentDocstring);
         if (success) {
           tracker.recordAccepted();
-          console.log(chalk.green(`✓ Documentation written to ${item.filepath}`));
+          console.log(
+            chalk.green(`✓ Documentation written to ${item.filepath}`)
+          );
         } else {
           console.log(chalk.red('Failed to write documentation'));
           tracker.recordError();
         }
         return true; // Continue to next item
-
       } else if (action === 'edit') {
         // Launch editor
-        const edited = await this.editDocstring(currentDocstring, item.language);
+        const edited = await this.editDocstring(
+          currentDocstring,
+          item.language
+        );
         if (edited) {
           currentDocstring = edited;
           // Loop back to validate edited version
@@ -228,7 +265,6 @@ export class InteractiveSession implements IInteractiveSession {
           console.log(chalk.yellow('No changes made in editor'));
           continue;
         }
-
       } else if (action === 'regenerate') {
         // Prompt for feedback
         feedback = await this.promptFeedback();
@@ -246,17 +282,14 @@ export class InteractiveSession implements IInteractiveSession {
         } else {
           continue;
         }
-
       } else if (action === 'skip') {
         tracker.recordSkipped();
         console.log(chalk.yellow('Skipping item'));
         return true; // Continue to next item
-
       } else if (action === 'undo') {
         await this.handleUndo();
         // Stay on current item - continue loop to re-present
         continue;
-
       } else if (action === 'quit') {
         return false; // Stop processing
       }
@@ -301,7 +334,9 @@ export class InteractiveSession implements IInteractiveSession {
       // Lookup style guide for this item's language
       const styleGuide = this.styleGuides[item.language];
       if (!styleGuide) {
-        console.error(chalk.red(`No style guide configured for language: ${item.language}`));
+        console.error(
+          chalk.red(`No style guide configured for language: ${item.language}`)
+        );
         return null;
       }
 
@@ -316,7 +351,6 @@ export class InteractiveSession implements IInteractiveSession {
       });
 
       return result.trim();
-
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(chalk.red(`Error requesting suggestion: ${message}`));
@@ -338,7 +372,9 @@ export class InteractiveSession implements IInteractiveSession {
     // Convert PlanItem to CodeItemMetadata
     // Note: Treat 'interface' as 'class' for plugin validation
     const itemType: 'function' | 'class' | 'method' =
-      item.type === 'interface' ? 'class' : item.type as 'function' | 'class' | 'method';
+      item.type === 'interface'
+        ? 'class'
+        : (item.type as 'function' | 'class' | 'method');
 
     const metadata: CodeItemMetadata = {
       name: item.name,
@@ -354,7 +390,11 @@ export class InteractiveSession implements IInteractiveSession {
     };
 
     // Run beforeAccept hooks via plugin manager
-    return await this.pluginManager.runBeforeAccept(docstring, metadata, this.config);
+    return await this.pluginManager.runBeforeAccept(
+      docstring,
+      metadata,
+      this.config
+    );
   }
 
   /**
@@ -363,14 +403,17 @@ export class InteractiveSession implements IInteractiveSession {
    * @param docstring - Documentation suggestion
    * @param validationResults - Results from plugin validation
    */
-  private showSuggestion(docstring: string, validationResults: PluginResult[]): void {
+  private showSuggestion(
+    docstring: string,
+    validationResults: PluginResult[]
+  ): void {
     console.log(chalk.bold('\nSuggested documentation:'));
     console.log(chalk.dim('---'));
     console.log(docstring);
     console.log(chalk.dim('---'));
 
     // Show validation results
-    const failures = validationResults.filter(r => !r.accept);
+    const failures = validationResults.filter((r) => !r.accept);
     if (failures.length > 0) {
       console.log(chalk.yellow('\nValidation warnings:'));
       for (const result of failures) {
@@ -390,8 +433,10 @@ export class InteractiveSession implements IInteractiveSession {
    * @param validationResults - Validation results
    * @returns Promise resolving to user's chosen action
    */
-  private async promptUserAction(validationResults: PluginResult[]): Promise<UserAction> {
-    const hasFailures = validationResults.some(r => !r.accept);
+  private async promptUserAction(
+    validationResults: PluginResult[]
+  ): Promise<UserAction> {
+    const hasFailures = validationResults.some((r) => !r.accept);
 
     // Build choices array - conditionally include undo
     const choices = [
@@ -440,7 +485,10 @@ export class InteractiveSession implements IInteractiveSession {
    * @param language - Source language for syntax highlighting
    * @returns Promise resolving to edited documentation, or null if cancelled
    */
-  private async editDocstring(docstring: string, language: string): Promise<string | null> {
+  private async editDocstring(
+    docstring: string,
+    language: string
+  ): Promise<string | null> {
     console.log(chalk.dim('\nLaunching editor...'));
 
     try {
@@ -461,9 +509,15 @@ export class InteractiveSession implements IInteractiveSession {
    * @param docstring - Documentation to write
    * @returns Promise resolving to true if successful
    */
-  private async writeDocstring(item: PlanItem, docstring: string): Promise<boolean> {
+  private async writeDocstring(
+    item: PlanItem,
+    docstring: string
+  ): Promise<boolean> {
     // Generate timestamp-based backup path for transaction tracking
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('Z', '');
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, '-')
+      .replace('Z', '');
     const backupPath = `${item.filepath}.${timestamp}.bak`;
 
     try {
@@ -494,17 +548,21 @@ export class InteractiveSession implements IInteractiveSession {
           this.changeCount++;
         } catch (error) {
           // Log warning but don't fail the write operation
-          const message = error instanceof Error ? error.message : String(error);
+          const message =
+            error instanceof Error ? error.message : String(error);
           console.warn(
             chalk.yellow('Warning: Failed to record change in transaction:'),
             chalk.dim(message)
           );
-          console.warn(chalk.yellow('Documentation was written but rollback may not work for this change.\n'));
+          console.warn(
+            chalk.yellow(
+              'Documentation was written but rollback may not work for this change.\n'
+            )
+          );
         }
       }
 
       return true;
-
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(chalk.red(`Error writing documentation: ${message}`));
@@ -527,7 +585,9 @@ export class InteractiveSession implements IInteractiveSession {
     }
 
     if (!this.transactionActive || !this.sessionId) {
-      console.log(chalk.yellow('\nUndo unavailable: transaction tracking not active'));
+      console.log(
+        chalk.yellow('\nUndo unavailable: transaction tracking not active')
+      );
       return;
     }
 
@@ -552,7 +612,7 @@ export class InteractiveSession implements IInteractiveSession {
         console.log(chalk.red('Undo failed'));
         if (result.conflicts.length > 0) {
           console.log(chalk.yellow('Conflicts detected:'));
-          result.conflicts.forEach(file => {
+          result.conflicts.forEach((file) => {
             console.log(chalk.yellow(`  - ${file}`));
           });
         }

@@ -1,12 +1,12 @@
 """Tests for individual change rollback functionality."""
 
 import sys
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.writer.transaction_manager import TransactionManager, RollbackResult
+from src.writer.transaction_manager import RollbackResult, TransactionManager
 
 
 class TestListSessionChanges:

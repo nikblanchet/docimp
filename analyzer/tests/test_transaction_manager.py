@@ -1,15 +1,17 @@
 """Tests for TransactionManager."""
 
+import contextlib
 import sys
-from pathlib import Path
 import tempfile
 import time
+from pathlib import Path
+
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.writer.transaction_manager import TransactionManager
 from src.utils.git_helper import GitHelper
+from src.writer.transaction_manager import TransactionManager
 
 
 def test_begin_transaction_creates_manifest():
@@ -509,8 +511,9 @@ def test_transaction_manager_passes_timeout_to_git():
     if not GitHelper.check_git_available():
         pytest.skip("Git not available")
 
+    from unittest.mock import MagicMock, patch
+
     from src.utils.git_helper import GitTimeoutConfig
-    from unittest.mock import patch, MagicMock
 
     with tempfile.TemporaryDirectory() as tmpdir:
         base_path = Path(tmpdir)
@@ -523,11 +526,12 @@ def test_transaction_manager_passes_timeout_to_git():
             mock_run.return_value = MagicMock(returncode=0, stdout="")
 
             # Begin transaction (should call git checkout)
-            try:
+            # Note: Suppressing all exceptions is acceptable here because this test
+            # only verifies argument passing, not behavior. The transaction may fail
+            # for various reasons (git not available, permissions, etc.) but we only
+            # care that timeout_config was passed to run_git_command correctly.
+            with contextlib.suppress(Exception):
                 manager.begin_transaction("test-session")
-            except Exception:
-                pass  # We don't care about other errors, just checking timeout is
-                # passed
 
             # Verify git command was called with timeout_config
             if mock_run.called:

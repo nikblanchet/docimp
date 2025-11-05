@@ -6,9 +6,8 @@ collected during interactive audits. Ratings are stored in
 """
 
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Dict, Optional
 
 from ..utils.state_manager import StateManager
 
@@ -25,9 +24,9 @@ class AuditResult:
                  Rating scale: 1=Terrible, 2=OK, 3=Good, 4=Excellent, None=Skipped.
     """
 
-    ratings: Dict[str, Dict[str, Optional[int]]]
+    ratings: dict[str, dict[str, int | None]]
 
-    def get_rating(self, filepath: str, item_name: str) -> Optional[int]:
+    def get_rating(self, filepath: str, item_name: str) -> int | None:
         """Get audit rating for a specific item.
 
         Args:
@@ -39,7 +38,7 @@ class AuditResult:
         """
         return self.ratings.get(filepath, {}).get(item_name)
 
-    def set_rating(self, filepath: str, item_name: str, rating: Optional[int]) -> None:
+    def set_rating(self, filepath: str, item_name: str, rating: int | None) -> None:
         """Set audit rating for a specific item.
 
         Args:
@@ -60,7 +59,7 @@ class AuditResult:
         return asdict(self)
 
 
-def load_audit_results(audit_file: Optional[Path] = None) -> AuditResult:
+def load_audit_results(audit_file: Path | None = None) -> AuditResult:
     """Load audit results from JSON file.
 
     Args:
@@ -76,16 +75,16 @@ def load_audit_results(audit_file: Optional[Path] = None) -> AuditResult:
         return AuditResult(ratings={})
 
     try:
-        with open(audit_file, "r") as f:
+        with audit_file.open() as f:
             data = json.load(f)
         return AuditResult(ratings=data.get("ratings", {}))
-    except (json.JSONDecodeError, IOError):
+    except (OSError, json.JSONDecodeError):
         # If file is corrupted, start fresh
         return AuditResult(ratings={})
 
 
 def save_audit_results(
-    audit_result: AuditResult, audit_file: Optional[Path] = None
+    audit_result: AuditResult, audit_file: Path | None = None
 ) -> None:
     """Save audit results to JSON file.
 
@@ -99,5 +98,5 @@ def save_audit_results(
 
     # Ensure state directory exists before writing
     StateManager.ensure_state_dir()
-    with open(audit_file, "w") as f:
+    with audit_file.open("w") as f:
         json.dump(audit_result.to_dict(), f, indent=2)

@@ -93,7 +93,9 @@ export class ConfigErrorClassifier {
       errorMessage.includes('Cannot find module') ||
       errorMessage.includes('does not provide an export') ||
       errorMessage.includes('MODULE_NOT_FOUND') ||
-      (error instanceof Error && 'code' in error && errorWithCode.code === 'MODULE_NOT_FOUND');
+      (error instanceof Error &&
+        'code' in error &&
+        errorWithCode.code === 'MODULE_NOT_FOUND');
 
     if (isModuleError) {
       return 'runtime';
@@ -113,7 +115,9 @@ export class ConfigErrorClassifier {
    *
    * @returns User-facing error message
    */
-  private static createUserMessage(type: 'syntax' | 'runtime' | 'unknown'): string {
+  private static createUserMessage(
+    type: 'syntax' | 'runtime' | 'unknown'
+  ): string {
     switch (type) {
       case 'syntax':
         return 'Configuration file has invalid JavaScript syntax';
@@ -129,7 +133,10 @@ export class ConfigErrorClassifier {
    *
    * @returns Technical error details with location information
    */
-  private static createTechnicalDetails(error: unknown, errorMessage: string): string {
+  private static createTechnicalDetails(
+    error: unknown,
+    errorMessage: string
+  ): string {
     let details = errorMessage;
 
     // Try to extract line and column numbers if available
@@ -138,7 +145,11 @@ export class ConfigErrorClassifier {
       columnNumber?: number;
     }
     const errorWithLocation = error as ErrorWithLocation;
-    if (error instanceof Error && 'lineNumber' in error && 'columnNumber' in error) {
+    if (
+      error instanceof Error &&
+      'lineNumber' in error &&
+      'columnNumber' in error
+    ) {
       const lineNum = errorWithLocation.lineNumber;
       const colNum = errorWithLocation.columnNumber;
       details += `\nLocation: line ${lineNum}, column ${colNum}`;
@@ -148,7 +159,10 @@ export class ConfigErrorClassifier {
     if (error instanceof Error && error.stack) {
       const stackLines = error.stack.split('\n');
       // Look for the first line with a file location
-      const locationLine = stackLines.find((line) => line.includes('.js') || line.includes('.cjs') || line.includes('.mjs'));
+      const locationLine = stackLines.find(
+        (line) =>
+          line.includes('.js') || line.includes('.cjs') || line.includes('.mjs')
+      );
       if (locationLine) {
         const match = locationLine.match(/at (.+):(\d+):(\d+)/);
         if (match) {
@@ -194,12 +208,18 @@ export class ConfigErrorClassifier {
     // Check for common syntax error patterns
     if (errorMessage.includes('Unexpected end of input')) {
       suggestions.push('Check for unclosed brackets, braces, or parentheses');
-      suggestions.push('Ensure all opening brackets have matching closing brackets');
+      suggestions.push(
+        'Ensure all opening brackets have matching closing brackets'
+      );
     } else if (
       errorMessage.includes('Unexpected token') &&
-      (errorMessage.includes('}') || errorMessage.includes(']') || errorMessage.includes(')'))
+      (errorMessage.includes('}') ||
+        errorMessage.includes(']') ||
+        errorMessage.includes(')'))
     ) {
-      suggestions.push('Check for missing commas between object properties or array elements');
+      suggestions.push(
+        'Check for missing commas between object properties or array elements'
+      );
       suggestions.push('Verify proper nesting of brackets and braces');
     } else {
       suggestions.push('Check for missing commas between object properties');
@@ -226,8 +246,12 @@ export class ConfigErrorClassifier {
       suggestions.push('Check that imported modules exist');
       suggestions.push('Ensure relative paths start with ./ or ../');
     } else if (errorMessage.includes('does not provide an export')) {
-      suggestions.push('Check that the imported module exports the expected value');
-      suggestions.push('Verify you are using the correct export name (default vs named)');
+      suggestions.push(
+        'Check that the imported module exports the expected value'
+      );
+      suggestions.push(
+        'Verify you are using the correct export name (default vs named)'
+      );
     } else if (errorMessage.includes('Circular dependency')) {
       suggestions.push('Check for circular dependencies in your imports');
       suggestions.push('Restructure imports to break the circular dependency');

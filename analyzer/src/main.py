@@ -8,10 +8,9 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Optional
 
 from .analysis.analyzer import DocumentationAnalyzer
-from .audit.quality_rater import save_audit_results, AuditResult
+from .audit.quality_rater import AuditResult, save_audit_results
 from .claude.claude_client import ClaudeClient
 from .claude.prompt_builder import PromptBuilder
 from .parsers.python_parser import PythonParser
@@ -129,11 +128,11 @@ def format_summary(result) -> str:
         lines.append("Top Undocumented Items (by impact):")
         lines.append("-" * 60)
         sorted_items = sorted(undocumented, key=lambda x: x.impact_score, reverse=True)
-        for item in sorted_items[:10]:  # Show top 10
-            lines.append(
-                f"  [{item.impact_score:5.1f}] {item.type:8s} "
-                f"{item.name:30s} ({item.filepath}:{item.line_number})"
-            )
+        lines.extend(
+            f"  [{item.impact_score:5.1f}] {item.type:8s} "
+            f"{item.name:30s} ({item.filepath}:{item.line_number})"
+            for item in sorted_items[:10]  # Show top 10
+        )
 
         if len(undocumented) > 10:
             lines.append(f"  ... and {len(undocumented) - 10} more")
@@ -185,7 +184,7 @@ def cmd_analyze(args: argparse.Namespace, parsers: dict, scorer: ImpactScorer) -
         result = analyzer.analyze(args.path, verbose=args.verbose, strict=args.strict)
 
         # Save analysis result to state directory
-        with open(analyze_file, "w") as f:
+        with analyze_file.open("w") as f:
             f.write(format_json(result))
 
         if args.verbose:
@@ -428,7 +427,7 @@ def cmd_suggest(
             return 1
 
         # Read the file
-        with open(filepath, "r") as f:
+        with filepath.open() as f:
             code_content = f.read()
 
         # Determine language from file extension
@@ -818,8 +817,9 @@ def cmd_record_write(args: argparse.Namespace, manager: TransactionManager) -> i
 
         # Create a minimal manifest for this session
         # The manifest is built from git commits, so we just need the session_id
+        from datetime import UTC, datetime
+
         from .writer.transaction_manager import TransactionManifest
-        from datetime import datetime, UTC
 
         manifest = TransactionManifest(
             session_id=session_id, started_at=datetime.now(UTC).isoformat()
@@ -887,8 +887,9 @@ def cmd_commit_transaction(
 
         # Create a minimal manifest for this session
         # The manifest will be populated from git commits
+        from datetime import UTC, datetime
+
         from .writer.transaction_manager import TransactionManifest
-        from datetime import datetime, UTC
 
         manifest = TransactionManifest(
             session_id=session_id, started_at=datetime.now(UTC).isoformat()
@@ -1299,7 +1300,7 @@ def cmd_interactive_rollback(
         return 1
 
 
-def main(argv: Optional[list] = None) -> int:
+def main(argv: list | None = None) -> int:
     """Main entry point for the CLI.
 
     Args:
@@ -1537,8 +1538,7 @@ def main(argv: Optional[list] = None) -> int:
         type=int,
         default=300000,
         help=(
-            "Maximum timeout cap for any git operation "
-            "(milliseconds, default: 300000)"
+            "Maximum timeout cap for any git operation (milliseconds, default: 300000)"
         ),
     )
 
@@ -1592,8 +1592,7 @@ def main(argv: Optional[list] = None) -> int:
         type=int,
         default=300000,
         help=(
-            "Maximum timeout cap for any git operation "
-            "(milliseconds, default: 300000)"
+            "Maximum timeout cap for any git operation (milliseconds, default: 300000)"
         ),
     )
 
@@ -1635,8 +1634,7 @@ def main(argv: Optional[list] = None) -> int:
         type=int,
         default=300000,
         help=(
-            "Maximum timeout cap for any git operation "
-            "(milliseconds, default: 300000)"
+            "Maximum timeout cap for any git operation (milliseconds, default: 300000)"
         ),
     )
 

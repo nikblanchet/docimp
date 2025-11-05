@@ -1,0 +1,61 @@
+# EditorConfig helps maintain consistent coding styles across different editors and IDEs
+# See https://editorconfig.org
+
+root = true
+
+# Default settings for all files
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Python files
+[*.py]
+indent_style = space
+indent_size = 4
+max_line_length = 88
+
+# TypeScript and JavaScript files
+[*.{ts,js,mjs,cjs}]
+indent_style = space
+indent_size = 2
+max_line_length = 80
+
+# JSON files
+[*.json]
+indent_style = space
+indent_size = 2
+
+# YAML files (GitHub Actions, etc.)
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# Markdown files
+[*.md]
+trim_trailing_whitespace = false  # Preserve trailing spaces for line breaks
+max_line_length = 88
+
+# Configuration files
+[{package.json,tsconfig.json,*.config.js}]
+indent_style = space
+indent_size = 2
+
+# Shell scripts
+[*.sh]
+indent_style = space
+indent_size = 2
+
+# Makefile (must use tabs)
+[Makefile]
+indent_style = tab
+
+# Don't enforce rules on generated/vendor files
+[{dist/**,node_modules/**,coverage/**,.pytest_cache/**,.mypy_cache/**,.ruff_cache/**}]
+charset = unset
+end_of_line = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset
+indent_style = unset
+indent_size = unset

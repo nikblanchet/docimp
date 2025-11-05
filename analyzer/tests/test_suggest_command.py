@@ -5,17 +5,17 @@ This module tests that the suggest command properly passes feedback
 to PromptBuilder when the --feedback flag is provided.
 """
 
+import argparse
 import sys
 from pathlib import Path
-from unittest.mock import Mock, patch, mock_open
-import argparse
+from unittest.mock import Mock, mock_open, patch
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.main import cmd_suggest
 from src.claude.claude_client import ClaudeClient
 from src.claude.prompt_builder import PromptBuilder
+from src.main import cmd_suggest
 
 
 class TestSuggestCommandFeedbackIntegration:
@@ -39,10 +39,12 @@ class TestSuggestCommandFeedbackIntegration:
 
         # Mock file reading
         test_code = "def test_function():\n    pass"
-        with patch("builtins.open", mock_open(read_data=test_code)):
-            with patch("pathlib.Path.exists", return_value=True):
-                # Execute
-                exit_code = cmd_suggest(args, mock_client, mock_builder)
+        with (
+            patch("pathlib.Path.open", mock_open(read_data=test_code)),
+            patch("pathlib.Path.exists", return_value=True),
+        ):
+            # Execute
+            exit_code = cmd_suggest(args, mock_client, mock_builder)
 
         # Verify
         assert exit_code == 0
@@ -70,10 +72,12 @@ class TestSuggestCommandFeedbackIntegration:
 
         # Mock file reading
         test_code = "def test_function():\n    pass"
-        with patch("builtins.open", mock_open(read_data=test_code)):
-            with patch("pathlib.Path.exists", return_value=True):
-                # Execute
-                exit_code = cmd_suggest(args, mock_client, mock_builder)
+        with (
+            patch("pathlib.Path.open", mock_open(read_data=test_code)),
+            patch("pathlib.Path.exists", return_value=True),
+        ):
+            # Execute
+            exit_code = cmd_suggest(args, mock_client, mock_builder)
 
         # Verify
         assert exit_code == 0
@@ -107,10 +111,12 @@ class TestSuggestCommandFeedbackIntegration:
 
         # Mock file reading
         test_code = "def test_function(a, b):\n    return a + b"
-        with patch("builtins.open", mock_open(read_data=test_code)):
-            with patch("pathlib.Path.exists", return_value=True):
-                # Execute
-                exit_code = cmd_suggest(args, mock_client, mock_builder)
+        with (
+            patch("pathlib.Path.open", mock_open(read_data=test_code)),
+            patch("pathlib.Path.exists", return_value=True),
+        ):
+            # Execute
+            exit_code = cmd_suggest(args, mock_client, mock_builder)
 
         # Verify
         assert exit_code == 0
@@ -140,10 +146,12 @@ class TestSuggestCommandFeedbackIntegration:
 
         # Mock file reading
         test_code = "def test_function():\n    pass"
-        with patch("builtins.open", mock_open(read_data=test_code)):
-            with patch("pathlib.Path.exists", return_value=True):
-                # Execute
-                exit_code = cmd_suggest(args, mock_client, mock_builder)
+        with (
+            patch("pathlib.Path.open", mock_open(read_data=test_code)),
+            patch("pathlib.Path.exists", return_value=True),
+        ):
+            # Execute
+            exit_code = cmd_suggest(args, mock_client, mock_builder)
 
         # Verify
         assert exit_code == 0
@@ -171,10 +179,12 @@ class TestSuggestCommandFeedbackIntegration:
 
         # Mock file reading
         test_code = "def my_function(x):\n    return x * 2"
-        with patch("builtins.open", mock_open(read_data=test_code)):
-            with patch("pathlib.Path.exists", return_value=True):
-                # Execute
-                exit_code = cmd_suggest(args, mock_client, mock_builder)
+        with (
+            patch("pathlib.Path.open", mock_open(read_data=test_code)),
+            patch("pathlib.Path.exists", return_value=True),
+        ):
+            # Execute
+            exit_code = cmd_suggest(args, mock_client, mock_builder)
 
         # Verify
         assert exit_code == 0
@@ -200,10 +210,12 @@ class TestSuggestCommandFeedbackIntegration:
 
         # Mock file reading
         test_code = "function myFunction(x: number): number { return x * 2; }"
-        with patch("builtins.open", mock_open(read_data=test_code)):
-            with patch("pathlib.Path.exists", return_value=True):
-                # Execute
-                exit_code = cmd_suggest(args, mock_client, mock_builder)
+        with (
+            patch("pathlib.Path.open", mock_open(read_data=test_code)),
+            patch("pathlib.Path.exists", return_value=True),
+        ):
+            # Execute
+            exit_code = cmd_suggest(args, mock_client, mock_builder)
 
         # Verify
         assert exit_code == 0
@@ -229,10 +241,12 @@ class TestSuggestCommandFeedbackIntegration:
 
         # Mock file reading
         test_code = "function myFunction(x) { return x * 2; }"
-        with patch("builtins.open", mock_open(read_data=test_code)):
-            with patch("pathlib.Path.exists", return_value=True):
-                # Execute
-                exit_code = cmd_suggest(args, mock_client, mock_builder)
+        with (
+            patch("pathlib.Path.open", mock_open(read_data=test_code)),
+            patch("pathlib.Path.exists", return_value=True),
+        ):
+            # Execute
+            exit_code = cmd_suggest(args, mock_client, mock_builder)
 
         # Verify
         assert exit_code == 0
@@ -258,11 +272,13 @@ class TestSuggestCommandFeedbackIntegration:
 
         # Mock file reading and stderr
         test_code = "def test_function():\n    pass"
-        with patch("builtins.open", mock_open(read_data=test_code)):
-            with patch("pathlib.Path.exists", return_value=True):
-                with patch("sys.stderr"):  # Suppress stderr output in tests
-                    # Execute
-                    exit_code = cmd_suggest(args, mock_client, mock_builder)
+        with (
+            patch("pathlib.Path.open", mock_open(read_data=test_code)),
+            patch("pathlib.Path.exists", return_value=True),
+            patch("sys.stderr"),  # Suppress stderr output in tests
+        ):
+            # Execute
+            exit_code = cmd_suggest(args, mock_client, mock_builder)
 
         # Verify
         assert exit_code == 0
@@ -290,10 +306,12 @@ class TestSuggestCommandFeedbackIntegration:
 
         # Mock file reading
         test_code = "def test_function():\n    pass"
-        with patch("builtins.open", mock_open(read_data=test_code)):
-            with patch("pathlib.Path.exists", return_value=True):
-                # Execute
-                exit_code = cmd_suggest(args, mock_client, mock_builder)
+        with (
+            patch("pathlib.Path.open", mock_open(read_data=test_code)),
+            patch("pathlib.Path.exists", return_value=True),
+        ):
+            # Execute
+            exit_code = cmd_suggest(args, mock_client, mock_builder)
 
         # Verify
         assert exit_code == 0

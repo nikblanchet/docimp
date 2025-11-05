@@ -4,16 +4,16 @@ This test suite verifies rollback behavior with various file states,
 multiple changes, and edge cases that could cause issues.
 """
 
-import sys
-from pathlib import Path
-import tempfile
 import subprocess
+import sys
+import tempfile
+from pathlib import Path
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.writer.transaction_manager import TransactionManager
 from src.utils.git_helper import GitHelper
+from src.writer.transaction_manager import TransactionManager
 
 
 class TestMultiFileRollback:

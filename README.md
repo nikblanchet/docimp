@@ -2,7 +2,9 @@
 
 **Impact-Driven Documentation Coverage Tool**
 
-DocImp analyzes your Python, TypeScript, and JavaScript codebases to identify undocumented code, prioritizes it by impact score, and uses Claude AI to generate high-quality documentation with validation gates.
+DocImp analyzes your Python, TypeScript, and JavaScript codebases to identify
+undocumented code, prioritizes it by impact score, and uses Claude AI to generate
+high-quality documentation with validation gates.
 
 [![CI Status](https://github.com/nikblanchet/docimp/workflows/CI/badge.svg)](https://github.com/nikblanchet/docimp/actions)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
@@ -35,19 +37,25 @@ DocImp analyzes your Python, TypeScript, and JavaScript codebases to identify un
 
 ## Why DocImp?
 
-Documentation is critical but often neglected. The challenge isn't just writing docs—it's **knowing what to document first**.
+Documentation is critical but often neglected. The challenge isn't just writing
+docs—it's **knowing what to document first**.
 
 DocImp solves this by:
 
-1. **Prioritizing by Impact**: Complex, public APIs get documented before simple private helpers
-2. **Supporting Multiple Languages**: Python, TypeScript, and JavaScript as first-class citizens
-3. **Validating AI Output**: Plugins catch errors before accepting generated documentation
+1. **Prioritizing by Impact**: Complex, public APIs get documented before simple private
+   helpers
+2. **Supporting Multiple Languages**: Python, TypeScript, and JavaScript as first-class
+   citizens
+3. **Validating AI Output**: Plugins catch errors before accepting generated
+   documentation
 4. **Making it Interactive**: Iterative workflow with context management
-5. **Local Analysis**: Analyze and audit locally to save time and API costs—only send selected items to Claude
+5. **Local Analysis**: Analyze and audit locally to save time and API costs—only send
+   selected items to Claude
 
 **Problem**: Your codebase has 500 undocumented functions. Where do you start?
 
-**Solution**: DocImp analyzes cyclomatic complexity and calculates impact scores (0-100). Focus on what matters.
+**Solution**: DocImp analyzes cyclomatic complexity and calculates impact scores
+(0-100). Focus on what matters.
 
 ---
 
@@ -55,32 +63,39 @@ DocImp solves this by:
 
 ### Core Capabilities
 
-- **Polyglot Analysis**: Parse Python (AST), TypeScript, JavaScript (with JSDoc validation)
+- **Polyglot Analysis**: Parse Python (AST), TypeScript, JavaScript (with JSDoc
+  validation)
 - **Smart Prioritization**: Impact scoring based on cyclomatic complexity
 - **AI-Powered Suggestions**: Claude generates context-aware documentation
 - **Validation Gates**: JavaScript plugins validate JSDoc types, style, and correctness
 - **Interactive Workflow**: Step-by-step improvement with progress tracking
 - **Multiple Module Systems**: ESM, CommonJS, mixed codebases supported
-- **Real JSDoc Type-Checking**: Uses TypeScript compiler for validation, not just parsing
-- **Graceful Error Handling**: Continues analyzing valid files when encountering syntax errors
+- **Real JSDoc Type-Checking**: Uses TypeScript compiler for validation, not just
+  parsing
+- **Graceful Error Handling**: Continues analyzing valid files when encountering syntax
+  errors
 
 ### Language Support
 
-| Language | Parser | Documentation Style | Validation |
-|----------|--------|---------------------|------------|
-| Python | AST (built-in) | NumPy, Google, Sphinx | Ruff integration |
-| TypeScript | TS Compiler | JSDoc | Full type-checking |
-| JavaScript | TS Compiler (checkJs) | JSDoc | Parameter/type validation |
-| Other files | Skipped | N/A | N/A |
+| Language    | Parser                | Documentation Style   | Validation                |
+| ----------- | --------------------- | --------------------- | ------------------------- |
+| Python      | AST (built-in)        | NumPy, Google, Sphinx | Ruff integration          |
+| TypeScript  | TS Compiler           | JSDoc                 | Full type-checking        |
+| JavaScript  | TS Compiler (checkJs) | JSDoc                 | Parameter/type validation |
+| Other files | Skipped               | N/A                   | N/A                       |
 
 ### JavaScript Excellence
 
-DocImp treats JavaScript as a **first-class language**, not just "TypeScript that parses .js files":
+DocImp treats JavaScript as a **first-class language**, not just "TypeScript that parses
+.js files":
 
-- **Real JSDoc Validation**: Uses TypeScript compiler with `checkJs: true` to validate JSDoc against actual function signatures
-- **Module System Detection**: Automatically detects ESM (`export`/`import`) vs CommonJS (`module.exports`)
+- **Real JSDoc Validation**: Uses TypeScript compiler with `checkJs: true` to validate
+  JSDoc against actual function signatures
+- **Module System Detection**: Automatically detects ESM (`export`/`import`) vs CommonJS
+  (`module.exports`)
 - **Export Pattern Recognition**: Tracks named exports, default exports, re-exports
-- **Smart Writing**: Correctly inserts JSDoc above functions, arrow functions, classes, and object methods
+- **Smart Writing**: Correctly inserts JSDoc above functions, arrow functions, classes,
+  and object methods
 
 ---
 
@@ -151,7 +166,13 @@ docimp improve ./src
 - **Git**: 2.28 or later (Git CLI is required for rollback/undo functionality)
 - **Claude API Key**: From [console.anthropic.com](https://console.anthropic.com)
 
-**Note on Git**: DocImp uses the Git CLI to track documentation changes for rollback capability. The transaction system requires Git 2.28+ (released July 2020) for improved working tree handling with `--git-dir` and `--work-tree` flags. Check your version with `git --version`. If Git is not installed or is older than 2.28, DocImp will run without rollback features (graceful degradation). See the [Git installation guide](https://git-scm.com/downloads) for installation instructions. Future versions will include Dulwich (Apache 2.0 license) as a pure-Python fallback.
+**Note on Git**: DocImp uses the Git CLI to track documentation changes for rollback
+capability. The transaction system requires Git 2.28+ (released July 2020) for improved
+working tree handling with `--git-dir` and `--work-tree` flags. Check your version with
+`git --version`. If Git is not installed or is older than 2.28, DocImp will run without
+rollback features (graceful degradation). See the
+[Git installation guide](https://git-scm.com/downloads) for installation instructions.
+Future versions will include Dulwich (Apache 2.0 license) as a pure-Python fallback.
 
 ### Install from Source
 
@@ -193,6 +214,7 @@ docimp analyze ./src
 ```
 
 **Output includes**:
+
 - Overall coverage percentage
 - Coverage by language (Python/TypeScript/JavaScript/Skipped)
 - List of undocumented items sorted by impact
@@ -207,6 +229,7 @@ docimp audit ./src
 ```
 
 Interactive workflow:
+
 - Reviews items that HAVE documentation
 - **Displays code alongside documentation** in configurable modes:
   - **Complete**: Show full code with line numbers
@@ -214,7 +237,8 @@ Interactive workflow:
   - **Signature**: Show function/class signature only, [C] to view full code
   - **On-demand**: Hide code, [C] to view when needed
 - Shows boxed "CURRENT DOCSTRING" to clearly identify what's being rated
-- Prompts: [1-4] for quality rating, [C] for full code (if applicable), [S] to skip, [Q] to quit
+- Prompts: [1-4] for quality rating, [C] for full code (if applicable), [S] to skip, [Q]
+  to quit
   - 1 = Terrible, 2 = OK, 3 = Good, 4 = Excellent
   - C = Show full code (only in truncated/signature/on-demand modes)
   - S = Skip (saves null for later review)
@@ -257,6 +281,7 @@ docimp plan ./src
 ```
 
 **Plan includes**:
+
 - Items sorted by impact score
 - Categorized by priority (High/Medium/Low)
 - Coverage improvement projection
@@ -282,16 +307,13 @@ docimp improve ./src
    - Request Claude suggestion
    - Run plugin validation
    - Show suggestion with any validation errors
-   - **User decides**: 
-     [A] Accept (accepts as-is)
-     [E] Edit (opens suggestion in editor)
-     [R] Regenerate (prompts user for feedback then regenerates)
-     [S] Skip
-     [Q] Quit
+   - **User decides**: [A] Accept (accepts as-is) [E] Edit (opens suggestion in editor)
+     [R] Regenerate (prompts user for feedback then regenerates) [S] Skip [Q] Quit
 4. **Write**: Insert accepted documentation into source file
 5. **Continue**: Move to next item until done or user quits
 
 **Plugin validation catches**:
+
 - JSDoc parameter names don't match function signature
 - JSDoc types are incorrect or missing
 - Style guide violations (preferred tags, punctuation)
@@ -299,7 +321,9 @@ docimp improve ./src
 
 ### Rollback & Undo
 
-DocImp uses the Git CLI to track all documentation changes with full rollback capability. Each improve session creates a Git branch in a side-car repository (`.docimp/state/.git`) that never interferes with your project's Git repository.
+DocImp uses the Git CLI to track all documentation changes with full rollback
+capability. Each improve session creates a Git branch in a side-car repository
+(`.docimp/state/.git`) that never interferes with your project's Git repository.
 
 **During an improve session**, press `[U]` to undo the last accepted change.
 
@@ -323,21 +347,26 @@ docimp rollback-change last   # Rollback most recent change
 ```
 
 **Using "last" keyword**:
+
 - `last` as session ID: Finds the most recent session (sorted by start time)
-- `last` as entry ID: Finds the most recent change across all sessions (sorted by timestamp)
+- `last` as entry ID: Finds the most recent change across all sessions (sorted by
+  timestamp)
 - Useful for quick undo without needing to look up IDs
 - Works with `--no-confirm` for scripting: `docimp rollback-session last --no-confirm`
 
 **How it works**:
+
 - Each improve session = Git branch (`docimp/session-<uuid>`)
 - Each accepted change = Git commit with metadata
 - Rollback = Git revert with conflict detection
 - Side-car repo in `.docimp/state/.git` (never touches your repo)
 
-**Conflict handling**:
-If files have been modified since the change was made, DocImp uses Git's 3-way merge to attempt resolution. If conflicts occur, you'll see detailed guidance with resolution options:
+**Conflict handling**: If files have been modified since the change was made, DocImp
+uses Git's 3-way merge to attempt resolution. If conflicts occur, you'll see detailed
+guidance with resolution options:
 
 Common conflict scenarios:
+
 - **Modified file**: You edited the file after DocImp added documentation
   - Resolution: Review changes, decide which version to keep, retry rollback
 - **Deleted file**: The file was deleted after documentation was added
@@ -346,12 +375,14 @@ Common conflict scenarios:
   - Resolution: Rollback changes in reverse order, or use git directly
 
 When conflicts occur, DocImp displays:
+
 - Which files have conflicts
 - Why conflicts happened (file modified since change)
-- Three resolution options: manual resolution, accept partial rollback, or use git directly
+- Three resolution options: manual resolution, accept partial rollback, or use git
+  directly
 
-**No Git installed?**
-DocImp gracefully degrades - improve workflow runs normally, but rollback commands are unavailable.
+**No Git installed?** DocImp gracefully degrades - improve workflow runs normally, but
+rollback commands are unavailable.
 
 ---
 
@@ -360,6 +391,7 @@ DocImp gracefully degrades - improve workflow runs normally, but rollback comman
 DocImp supports two monodirectional workflows in MVP:
 
 ### Workflow A: analyze → plan → improve
+
 **Complexity-only** impact scoring (no audit)
 
 ```bash
@@ -371,6 +403,7 @@ docimp improve ./src
 Best for: Quick start, small codebases, first-time users
 
 ### Workflow B: analyze → audit → plan → improve
+
 **Quality-weighted** impact scoring (with audit)
 
 ```bash
@@ -384,7 +417,8 @@ Best for: Large codebases, teams prioritizing documentation quality
 
 ### Rollback
 
-DocImp tracks all documentation changes in a git-based transaction system, enabling you to rollback changes if needed.
+DocImp tracks all documentation changes in a git-based transaction system, enabling you
+to rollback changes if needed.
 
 #### List Sessions
 
@@ -396,6 +430,7 @@ docimp list-sessions
 ```
 
 **Output includes**:
+
 - Session ID (UUID)
 - Start time
 - Number of changes
@@ -414,6 +449,7 @@ docimp list-changes last
 ```
 
 **Output includes**:
+
 - Entry ID (git commit SHA)
 - File path
 - Item name (function/class/method)
@@ -431,7 +467,8 @@ docimp rollback-session <session-id>
 docimp rollback-session last
 ```
 
-This reverts all documentation changes made during that session using git's 3-way merge for conflict detection.
+This reverts all documentation changes made during that session using git's 3-way merge
+for conflict detection.
 
 #### Rollback Change
 
@@ -446,6 +483,7 @@ docimp rollback-change last
 ```
 
 **Conflict Handling**:
+
 - If files have been modified since the change, git's merge algorithm detects conflicts
 - Conflicts are reported with file paths
 - Partial rollback status is tracked
@@ -466,18 +504,23 @@ DocImp stores session data in `.docimp/` (similar to `.git/`):
 ```
 
 **Auto-clean behavior**: `docimp analyze` clears old session reports by default
+
 - Prevents stale audit/plan data
 - Use `--keep-old-reports` flag to preserve existing reports
 
-**Transaction tracking**: The `.docimp/state/` directory contains a side-car Git repository used for rollback functionality. This repository operates independently from your project's Git repository and tracks all documentation changes made by DocImp.
+**Transaction tracking**: The `.docimp/state/` directory contains a side-car Git
+repository used for rollback functionality. This repository operates independently from
+your project's Git repository and tracks all documentation changes made by DocImp.
 
-**Note**: `.docimp/` is gitignored automatically. Restore clean state with `rm -rf .docimp/`
+**Note**: `.docimp/` is gitignored automatically. Restore clean state with
+`rm -rf .docimp/`
 
 ---
 
 ## Architecture
 
-DocImp uses a **three-layer polyglot architecture** with clean dependency injection patterns.
+DocImp uses a **three-layer polyglot architecture** with clean dependency injection
+patterns.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -516,7 +559,8 @@ DocImp uses a **three-layer polyglot architecture** with clean dependency inject
 4. **Python Analyzer** discovers files and selects parser:
    - `.py` → `PythonParser` (AST)
    - `.ts/.js/.cjs/.mjs` → `TypeScriptParser` (TS Compiler with `checkJs: true`)
-5. **Parser extracts** `CodeItem` objects (name, type, complexity, docs, exports, module system)
+5. **Parser extracts** `CodeItem` objects (name, type, complexity, docs, exports, module
+   system)
 6. **Impact Scorer** calculates priority (0-100) based on cyclomatic complexity
 7. **Python returns** `AnalysisResult` as JSON to stdout
 8. **TypeScript CLI** parses JSON and displays formatted results
@@ -536,6 +580,7 @@ DocImp uses a **three-layer polyglot architecture** with clean dependency inject
 All major components use constructor injection for testability:
 
 **Python**:
+
 ```python
 # DocumentationAnalyzer accepts injected parsers and scorer
 analyzer = DocumentationAnalyzer(
@@ -545,6 +590,7 @@ analyzer = DocumentationAnalyzer(
 ```
 
 **TypeScript**:
+
 ```typescript
 // Commands accept injected bridge and display
 const analyzeCommand = new AnalyzeCommand(
@@ -562,11 +608,13 @@ DocImp calculates a **0-100 impact score** to prioritize documentation needs.
 ### Formula
 
 **Without Audit:**
+
 ```
 impact_score = min(100, cyclomatic_complexity * 5)
 ```
 
 **With Audit (after running `docimp audit`):**
+
 ```
 impact_score = (complexity_weight × complexity_score) +
                (quality_weight × quality_penalty)
@@ -578,13 +626,13 @@ where:
 
 ### Audit Rating to Penalty
 
-| User Rating | Penalty | Priority |
-|-------------|---------|----------|
-| No docs | 100 | Highest |
-| Terrible (1) | 80 | Very High |
-| OK (2) | 40 | Medium |
-| Good (3) | 20 | Low |
-| Excellent (4) | 0 | Lowest |
+| User Rating   | Penalty | Priority  |
+| ------------- | ------- | --------- |
+| No docs       | 100     | Highest   |
+| Terrible (1)  | 80      | Very High |
+| OK (2)        | 40      | Medium    |
+| Good (3)      | 20      | Low       |
+| Excellent (4) | 0       | Lowest    |
 
 ### Default Weights
 
@@ -593,9 +641,9 @@ Configurable in `docimp.config.js`:
 ```javascript
 module.exports = {
   impactWeights: {
-    complexity: 0.6,  // 60% from code complexity
-    quality: 0.4      // 40% from audit rating
-  }
+    complexity: 0.6, // 60% from code complexity
+    quality: 0.4, // 40% from audit rating
+  },
 };
 ```
 
@@ -604,13 +652,16 @@ module.exports = {
 **Without Audit:**
 
 Simple function (complexity 1):
+
 ```python
 def add(x, y):
     return x + y
 ```
+
 **Impact Score: 5**
 
 Complex function (complexity 15):
+
 ```python
 def process_payment(user_id, amount, options):
     # 15 lines with multiple branches
@@ -622,16 +673,19 @@ def process_payment(user_id, amount, options):
     else:
         # queue for later
 ```
+
 **Impact Score: 75**
 
 **With Audit:**
 
 Complex function (complexity 15) with terrible docs (rating 1):
+
 - Complexity score: 75
 - Quality penalty: 80
 - **Impact Score: 75×0.6 + 80×0.4 = 77**
 
 Simple function (complexity 3) with no docs:
+
 - Complexity score: 15
 - Quality penalty: 100
 - **Impact Score: 15×0.6 + 100×0.4 = 49**
@@ -640,9 +694,11 @@ Simple function (complexity 3) with no docs:
 
 Planned improvements for more sophisticated scoring:
 
-- **Public/Private API Detection**: Boost score for exported functions, lower for internal helpers
+- **Public/Private API Detection**: Boost score for exported functions, lower for
+  internal helpers
 - **Pattern Detection**: Identify dependency injection, async patterns, decorators
-- **Custom Pattern Matchers**: User-defined heuristics (e.g., functions ending in `Repository`)
+- **Custom Pattern Matchers**: User-defined heuristics (e.g., functions ending in
+  `Repository`)
 - **Test File Penalty**: Lower priority for test files
 
 ---
@@ -664,7 +720,7 @@ module.exports = {
     javascript: 'jsdoc-vanilla',
 
     // TypeScript: 'tsdoc-typedoc', 'tsdoc-aedoc', 'jsdoc-ts'
-    typescript: 'tsdoc-typedoc'
+    typescript: 'tsdoc-typedoc',
   },
 
   // Tone: 'concise', 'detailed', 'friendly'
@@ -674,8 +730,8 @@ module.exports = {
   jsdocStyle: {
     preferredTags: { return: 'returns', arg: 'param' },
     requireDescriptions: true,
-    requireExamples: 'public',  // 'all', 'public', 'none'
-    enforceTypes: true
+    requireExamples: 'public', // 'all', 'public', 'none'
+    enforceTypes: true,
   },
 
   // Audit code display configuration
@@ -690,21 +746,18 @@ module.exports = {
 
       // Maximum lines to show in 'truncated' and 'signature' modes
       // (not counting the docstring itself)
-      maxLines: 20
-    }
+      maxLines: 20,
+    },
   },
 
   // Impact scoring weights (used when audit data available)
   impactWeights: {
-    complexity: 0.6,  // 60% from cyclomatic complexity
-    quality: 0.4      // 40% from audit quality rating
+    complexity: 0.6, // 60% from cyclomatic complexity
+    quality: 0.4, // 40% from audit quality rating
   },
 
   // Validation plugins (JavaScript files)
-  plugins: [
-    './plugins/validate-types.js',
-    './plugins/jsdoc-style.js'
-  ],
+  plugins: ['./plugins/validate-types.js', './plugins/jsdoc-style.js'],
 
   // File exclusions (glob patterns)
   exclude: [
@@ -712,41 +765,49 @@ module.exports = {
     '**/*.test.ts',
     '**/node_modules/**',
     '**/venv/**',
-    '**/__pycache__/**'
-  ]
+    '**/__pycache__/**',
+  ],
 };
 ```
 
 ### Config supports both CommonJS and ESM
 
 **CommonJS**:
+
 ```javascript
-module.exports = { /* config */ };
+module.exports = {
+  /* config */
+};
 ```
 
 **ESM**:
+
 ```javascript
-export default { /* config */ };
+export default {
+  /* config */
+};
 ```
 
 ### Environment Variables
 
 DocImp supports several environment variables for configuration and customization:
 
-| Variable | Purpose | Required | Example |
-|----------|---------|----------|---------|
-| `ANTHROPIC_API_KEY` | Claude AI API key for `improve` command | Yes (for `improve`) | `sk-ant-...` |
-| `DOCIMP_ANALYZER_PATH` | Override analyzer directory location | No | `/custom/path/to/analyzer` |
-| `DOCIMP_PYTHON_PATH` | Override Python executable detection | No | `/usr/local/bin/python3.13` |
+| Variable               | Purpose                                 | Required            | Example                     |
+| ---------------------- | --------------------------------------- | ------------------- | --------------------------- |
+| `ANTHROPIC_API_KEY`    | Claude AI API key for `improve` command | Yes (for `improve`) | `sk-ant-...`                |
+| `DOCIMP_ANALYZER_PATH` | Override analyzer directory location    | No                  | `/custom/path/to/analyzer`  |
+| `DOCIMP_PYTHON_PATH`   | Override Python executable detection    | No                  | `/usr/local/bin/python3.13` |
 
 **DOCIMP_ANALYZER_PATH** is useful for:
+
 - Custom installations where the analyzer is in a non-standard location
 - Development setups with modified project structure
 - Troubleshooting path resolution issues
 
 **Path Resolution Order**:
 
-When `DOCIMP_ANALYZER_PATH` is NOT set, DocImp uses fallback strategies based on `process.cwd()`:
+When `DOCIMP_ANALYZER_PATH` is NOT set, DocImp uses fallback strategies based on
+`process.cwd()`:
 
 1. `<cwd>/../analyzer` - Running from `cli/` directory (development, tests)
 2. `<cwd>/analyzer` - Running from repository root
@@ -755,6 +816,7 @@ When `DOCIMP_ANALYZER_PATH` is NOT set, DocImp uses fallback strategies based on
 If all strategies fail, set `DOCIMP_ANALYZER_PATH` explicitly.
 
 **Example**:
+
 ```bash
 # Set analyzer path for custom installation
 export DOCIMP_ANALYZER_PATH=/opt/docimp/analyzer
@@ -765,7 +827,8 @@ docimp analyze ./src
 
 ## Plugin System
 
-DocImp's plugin system provides **extensible validation hooks** to catch errors before accepting AI-generated documentation.
+DocImp's plugin system provides **extensible validation hooks** to catch errors before
+accepting AI-generated documentation.
 
 ### Plugin Interface
 
@@ -774,15 +837,19 @@ interface IPlugin {
   name: string;
   version: string;
   hooks: {
-    beforeAccept?: (docstring: string, item: CodeItem, config: IConfig) => Promise<PluginResult>;
+    beforeAccept?: (
+      docstring: string,
+      item: CodeItem,
+      config: IConfig
+    ) => Promise<PluginResult>;
     afterWrite?: (filepath: string, item: CodeItem) => Promise<PluginResult>;
   };
 }
 
 interface PluginResult {
-  accept: boolean;      // true = allow, false = block
-  reason?: string;      // Error message if blocked
-  autoFix?: string;     // Suggested correction
+  accept: boolean; // true = allow, false = block
+  reason?: string; // Error message if blocked
+  autoFix?: string; // Suggested correction
 }
 ```
 
@@ -805,6 +872,7 @@ function add(correctName) {
 ```
 
 **How it works**:
+
 - Creates in-memory TypeScript program with `checkJs: true`
 - Validates parameter names match
 - Validates types are correct
@@ -829,9 +897,12 @@ Enforces JSDoc style rules from config:
 
 #### 3. Linter Integration (Future Enhancement)
 
-The plugin system supports integration with external linters like `ruff` or `eslint`. This demonstrates the extensibility of the framework - you can add custom validation by implementing the plugin interface.
+The plugin system supports integration with external linters like `ruff` or `eslint`.
+This demonstrates the extensibility of the framework - you can add custom validation by
+implementing the plugin interface.
 
 Example future plugin:
+
 ```javascript
 // plugins/lint-docstrings.js (not included in MVP)
 module.exports = {
@@ -840,8 +911,8 @@ module.exports = {
   hooks: {
     async afterWrite(filepath, item) {
       // Run ruff on Python files, eslint on JS files, etc.
-    }
-  }
+    },
+  },
 };
 ```
 
@@ -850,12 +921,14 @@ module.exports = {
 Plugins are **user-controlled JavaScript code with NO sandboxing**.
 
 **Trade-offs**:
+
 - ✅ Full access to Node.js APIs and TypeScript compiler
 - ✅ Real validation (not just pattern matching)
 - ❌ No security boundary - plugins run with full file system access
 - ❌ User must trust plugin source code
 
 **Default behavior**: Only load plugins from:
+
 - `./plugins/` directory
 - Paths specified in `docimp.config.js`
 
@@ -875,20 +948,21 @@ module.exports = {
         return {
           accept: false,
           reason: 'Public APIs must include @example',
-          autoFix: docstring + '\n * @example\n * // TODO: Add example'
+          autoFix: docstring + '\n * @example\n * // TODO: Add example',
         };
       }
 
       return { accept: true };
-    }
-  }
+    },
+  },
 };
 ```
 
 Add to `docimp.config.js`:
+
 ```javascript
 module.exports = {
-  plugins: ['./my-plugin.js']
+  plugins: ['./my-plugin.js'],
 };
 ```
 
@@ -905,9 +979,9 @@ Critical settings in `cli/tsconfig.json`:
 ```json
 {
   "compilerOptions": {
-    "allowJs": true,           // Parse JavaScript files
-    "checkJs": true,           // Type-check JSDoc in .js files
-    "module": "NodeNext",      // Deterministic ESM/CJS interop
+    "allowJs": true, // Parse JavaScript files
+    "checkJs": true, // Type-check JSDoc in .js files
+    "module": "NodeNext", // Deterministic ESM/CJS interop
     "moduleResolution": "NodeNext"
   }
 }
@@ -920,18 +994,23 @@ Critical settings in `cli/tsconfig.json`:
 DocImp detects and handles:
 
 **ESM (ES Modules)**:
+
 ```javascript
-export function add(a, b) { return a + b; }
+export function add(a, b) {
+  return a + b;
+}
 export default class Calculator {}
 ```
 
 **CommonJS**:
+
 ```javascript
 module.exports = { add };
 exports.subtract = (a, b) => a - b;
 ```
 
 **Mixed** (detected per-file):
+
 ```javascript
 // File: utils.mjs (ESM)
 export const helper = () => {};
@@ -945,6 +1024,7 @@ module.exports.helper = () => {};
 The `validate-types.js` plugin uses TypeScript compiler to validate:
 
 **Parameter names**:
+
 ```javascript
 /**
  * @param {number} wrongName   // ERROR: doesn't match
@@ -953,16 +1033,18 @@ function add(correctName) {}
 ```
 
 **Parameter types**:
+
 ```javascript
 /**
  * @param {string} value   // ERROR: passing number
  */
 function double(value) {
-  return value * 2;  // TS compiler detects type mismatch
+  return value * 2; // TS compiler detects type mismatch
 }
 ```
 
 **Return types**:
+
 ```javascript
 /**
  * @returns {string}   // ERROR: actually returns number
@@ -1002,12 +1084,12 @@ class Service {
 // Object literal method
 module.exports = {
   foo() {},
-  bar: function() {}
+  bar: function () {},
 };
 
 // CommonJS patterns
 module.exports.baz = () => {};
-exports.qux = function() {};
+exports.qux = function () {};
 ```
 
 All patterns preserve indentation and avoid duplicate comments.
@@ -1016,7 +1098,8 @@ All patterns preserve indentation and avoid duplicate comments.
 
 ## Built with Claude Code
 
-DocImp was built entirely using **[Claude Code](https://claude.com/code)**, demonstrating production-grade development with AI assistance.
+DocImp was built entirely using **[Claude Code](https://claude.com/code)**,
+demonstrating production-grade development with AI assistance.
 
 ### Development Process
 
@@ -1026,7 +1109,8 @@ DocImp was built entirely using **[Claude Code](https://claude.com/code)**, demo
 - **Progressive context**: Built complexity incrementally
 - **Test-first**: Validation at each step
 
-Development artifacts including methodology playbook, instance-by-instance development logs, case studies, and terminal recordings are planned for future releases.
+Development artifacts including methodology playbook, instance-by-instance development
+logs, case studies, and terminal recordings are planned for future releases.
 
 ---
 
@@ -1098,7 +1182,35 @@ npm run build
 # Run linters
 ruff check .  # Python
 npm run lint  # TypeScript/JavaScript
+
+# Run formatters
+ruff format .  # Python (auto-fix)
+npm run format  # TypeScript/JavaScript (auto-fix)
+
+# Check formatting without auto-fix
+ruff format --check .  # Python
+npm run format:check  # TypeScript/JavaScript
 ```
+
+### Pre-commit Hooks
+
+This project uses husky and lint-staged to automatically format and lint code before
+commits:
+
+```bash
+# Hooks are automatically installed when you run npm install in cli/
+# They run on staged files only
+
+# To bypass hooks (use sparingly):
+git commit --no-verify
+```
+
+The pre-commit hook will:
+
+- Format Python files with `ruff format`
+- Lint Python files with `ruff check --fix`
+- Format TypeScript/JavaScript files with Prettier
+- Lint TypeScript/JavaScript files with ESLint
 
 ### Running Tests
 
@@ -1117,23 +1229,29 @@ npm run test:integration
 
 ### Known Test Coverage Limitations
 
-The following testing gaps represent conscious trade-off decisions made during development to prioritize shipping a functional MVP:
+The following testing gaps represent conscious trade-off decisions made during
+development to prioritize shipping a functional MVP:
 
 #### Improve Command - Manual Testing Only
 
-**Status**: No automated tests. Manual testing procedure documented in `test-samples/test-workflows-improve.sh`.
+**Status**: No automated tests. Manual testing procedure documented in
+`test-samples/test-workflows-improve.sh`.
 
-**Why**: Requires `ANTHROPIC_API_KEY`, interactive user input (A/E/R/S/Q choices), and incurs API costs. Mocking the Claude client is significant engineering effort.
+**Why**: Requires `ANTHROPIC_API_KEY`, interactive user input (A/E/R/S/Q choices), and
+incurs API costs. Mocking the Claude client is significant engineering effort.
 
-**Risk**: Medium - Primary feature lacks regression testing, but functionality is straightforward.
+**Risk**: Medium - Primary feature lacks regression testing, but functionality is
+straightforward.
 
 **Mitigation**: Manual testing runbook available for pre-release validation.
 
 #### Error Condition Testing - Limited Coverage
 
-**Status**: Minimal testing of error conditions (corrupted state files, malformed JSON, filesystem errors).
+**Status**: Minimal testing of error conditions (corrupted state files, malformed JSON,
+filesystem errors).
 
-**Why**: Users can recover by deleting `.docimp/` directory. Corrupted state files are rare. Focus prioritized on happy path functionality.
+**Why**: Users can recover by deleting `.docimp/` directory. Corrupted state files are
+rare. Focus prioritized on happy path functionality.
 
 **Risk**: Low - Edge case failures don't impact primary workflows.
 
@@ -1141,9 +1259,12 @@ The following testing gaps represent conscious trade-off decisions made during d
 
 #### Scaling and Performance - Small Test Samples
 
-**Status**: Test samples intentionally kept small (~62 items). Large codebase performance not formally validated.
+**Status**: Test samples intentionally kept small (~62 items). Large codebase
+performance not formally validated.
 
-**Why**: Small samples enable complete manual audits. Cyclomatic complexity algorithms scale linearly. No algorithmic bottlenecks. Real-world validation occurs when running DocImp on itself during development.
+**Why**: Small samples enable complete manual audits. Cyclomatic complexity algorithms
+scale linearly. No algorithmic bottlenecks. Real-world validation occurs when running
+DocImp on itself during development.
 
 **Risk**: Very low - Architecture has no scaling concerns.
 
@@ -1151,7 +1272,8 @@ The following testing gaps represent conscious trade-off decisions made during d
 
 **Status**: CI runs on `ubuntu-latest` only. Windows and macOS not tested in CI.
 
-**Why**: Project targets Unix-like environments primarily. Multi-platform CI adds cost/complexity. Core Python/TypeScript/Node stack is inherently cross-platform.
+**Why**: Project targets Unix-like environments primarily. Multi-platform CI adds
+cost/complexity. Core Python/TypeScript/Node stack is inherently cross-platform.
 
 **Risk**: Low - Standard tooling is well-tested across platforms.
 
@@ -1159,13 +1281,17 @@ The following testing gaps represent conscious trade-off decisions made during d
 
 ---
 
-**Note**: These limitations are tracked in GitHub issues and will be addressed in future releases. See Issues #174 (improve testing) and #175 (error conditions) for planned enhancements.
+**Note**: These limitations are tracked in GitHub issues and will be addressed in future
+releases. See Issues #174 (improve testing) and #175 (error conditions) for planned
+enhancements.
 
 ---
 
 ## License
 
-DocImp is dual-licensed under **AGPL-3.0** (for open-source use) or a **Commercial License** (for proprietary use without source code disclosure). See [LICENSE](./LICENSE) for full details.
+DocImp is dual-licensed under **AGPL-3.0** (for open-source use) or a **Commercial
+License** (for proprietary use without source code disclosure). See [LICENSE](./LICENSE)
+for full details.
 
 ---
 
@@ -1173,15 +1299,21 @@ DocImp is dual-licensed under **AGPL-3.0** (for open-source use) or a **Commerci
 
 ### AI Assistance
 
-- Program design assisted by [Claude](https://claude.ai) (macOS app) and [ChatGPT](https://openai.com/chatgpt) (macOS app)
-- All coding done exclusively with [Claude Code](https://claude.com/code), running in a terminal within [VS Code](https://code.visualstudio.com/) on macOS
+- Program design assisted by [Claude](https://claude.ai) (macOS app) and
+  [ChatGPT](https://openai.com/chatgpt) (macOS app)
+- All coding done exclusively with [Claude Code](https://claude.com/code), running in a
+  terminal within [VS Code](https://code.visualstudio.com/) on macOS
 
 ### Development Tools
 
-- **Editor**: [VS Code](https://code.visualstudio.com/) with [Sublime Text](https://www.sublimetext.com/) for regex work
-- **Font**: [Fira Code Nerd Font](https://github.com/Trzcin/Fira-Code-Nerd) with ligatures enabled
-- **Environment Management**: [Conda](https://docs.conda.io/) (primary) with [pip](https://pip.pypa.io/) for package installation
-- **Git Workflow**: [GitHub CLI](https://cli.github.com/) (installed via [Homebrew](https://brew.sh/)) for pull requests and merges
+- **Editor**: [VS Code](https://code.visualstudio.com/) with
+  [Sublime Text](https://www.sublimetext.com/) for regex work
+- **Font**: [Fira Code Nerd Font](https://github.com/Trzcin/Fira-Code-Nerd) with
+  ligatures enabled
+- **Environment Management**: [Conda](https://docs.conda.io/) (primary) with
+  [pip](https://pip.pypa.io/) for package installation
+- **Git Workflow**: [GitHub CLI](https://cli.github.com/) (installed via
+  [Homebrew](https://brew.sh/)) for pull requests and merges
 - **Version Control**: [Git](https://git-scm.com/)
 
 ### Core Technologies
@@ -1192,8 +1324,14 @@ DocImp is dual-licensed under **AGPL-3.0** (for open-source use) or a **Commerci
 
 ### Open-Source Libraries
 
-- **TypeScript/JavaScript**: [Commander.js](https://github.com/tj/commander.js), [chalk](https://github.com/chalk/chalk), [cli-table3](https://github.com/cli-table/cli-table3)
+- **TypeScript/JavaScript**: [Commander.js](https://github.com/tj/commander.js),
+  [chalk](https://github.com/chalk/chalk),
+  [cli-table3](https://github.com/cli-table/cli-table3),
+  [Prettier](https://prettier.io/), [ESLint](https://eslint.org/),
+  [husky](https://typicode.github.io/husky/),
+  [lint-staged](https://github.com/lint-staged/lint-staged)
 - **Python**: [pytest](https://pytest.org/), [ruff](https://github.com/astral-sh/ruff)
+  (linting & formatting), [mypy](https://mypy-lang.org/)
 
 ---
 
@@ -1202,6 +1340,7 @@ DocImp is dual-licensed under **AGPL-3.0** (for open-source use) or a **Commerci
 **Current Version**: 1.0.0-alpha
 
 **MVP Scope**:
+
 - Complexity-based impact scoring
 - Python/TypeScript/JavaScript support
 - 2 validation plugins (type-checking, style)
@@ -1211,40 +1350,50 @@ DocImp is dual-licensed under **AGPL-3.0** (for open-source use) or a **Commerci
 **Future Enhancements**:
 
 ### Commands & Workflow
+
 - **Save/Resume Sessions**: Pause and continue improve sessions later
 - **Progress Tracking**: Show session progress and estimated time remaining
 - **Manual Item Selection**: Let users pick specific items to document
-- **Plan Filtering**: Human-readable plan output with `--priority`, `--language`, `--limit` flags
+- **Plan Filtering**: Human-readable plan output with `--priority`, `--language`,
+  `--limit` flags
 - **Batch Mode**: Non-interactive improve for CI/CD pipelines
-- **Show Existing Docs First**: Display current docstring before calling Claude (enables quick skipping)
+- **Show Existing Docs First**: Display current docstring before calling Claude (enables
+  quick skipping)
 - **Usage Context**: Include call-site examples when regenerating suggestions
 - **Team Mode**: Divide plan among multiple users, prevent conflicts
 
 ### Impact Scoring
+
 - **Pattern Detection**: Identify dependency injection, async patterns, decorators
-- **Public/Private API Detection**: Boost score for exported functions, lower for internal helpers
-- **Custom Pattern Matchers**: User-defined heuristics (e.g., functions ending in `Repository`)
+- **Public/Private API Detection**: Boost score for exported functions, lower for
+  internal helpers
+- **Custom Pattern Matchers**: User-defined heuristics (e.g., functions ending in
+  `Repository`)
 - **Test File Penalty**: Lower priority for test files
 - **Configuration Weights**: Fine-tune complexity vs visibility vs patterns
 
 ### Language Support
+
 - **Additional Style Guides**: Sphinx, Google (Python), more JSDoc variants
 - **More Languages**: Go, Rust, Ruby, etc.
 - **Cross-language Context**: Better handling of polyglot projects
 
 ### Plugins & Validation
+
 - **Linter Integration**: Run ruff/eslint after writing docs
 - **Auto-fix Capabilities**: Automatically apply simple corrections
 - **Plugin Marketplace**: Share community plugins
 - **Custom Validation Rules**: User-defined quality checks
 
 ### Developer Experience
+
 - **IDE Integrations**: VS Code extension, JetBrains plugin
 - **Git Integration**: Commit docs automatically, create PRs
 - **CI/CD Pipelines**: GitHub Actions, GitLab CI integration
 - **Multi-file Context**: Include related files in Claude prompts
 
 **Planned Releases**:
+
 - **v1.0.0**: Core functionality (current MVP scope)
 - **v1.1.0**: Save/resume sessions, progress tracking
 - **v1.2.0**: Pattern detection, advanced scoring algorithms
@@ -1259,12 +1408,14 @@ DocImp is dual-licensed under **AGPL-3.0** (for open-source use) or a **Commerci
 If DocImp encounters syntax errors in your codebase:
 
 **Default behavior (non-strict mode)**:
+
 - DocImp logs warnings for files with syntax errors
 - Analysis continues with remaining valid files
 - Parse failures are tracked and displayed in the analysis summary
 - You can fix the syntax errors and re-run the analysis
 
 **Example output**:
+
 ```
 ⚠ Parse Failures: 2 files could not be parsed
 
@@ -1273,18 +1424,23 @@ src/incomplete.ts: Unexpected token '}'
 ```
 
 **Strict mode (fail-fast)**:
+
 ```bash
 docimp analyze ./src --strict
 ```
-In strict mode, DocImp fails immediately on the first syntax error. Useful for CI/CD pipelines where you want to enforce clean syntax before analyzing documentation.
+
+In strict mode, DocImp fails immediately on the first syntax error. Useful for CI/CD
+pipelines where you want to enforce clean syntax before analyzing documentation.
 
 **Common causes**:
+
 - Work-in-progress files with incomplete code
 - Broken commits pushed during development
 - Copy-paste errors or merge conflicts
 - Experimental code that doesn't compile
 
 **Resolution**:
+
 1. Review the error message for file path and line number
 2. Fix the syntax error in the source file
 3. Re-run `docimp analyze`

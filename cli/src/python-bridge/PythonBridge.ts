@@ -9,9 +9,33 @@ import { spawn, spawnSync, ChildProcess } from 'child_process';
 import { resolve } from 'path';
 import { existsSync } from 'fs';
 import { z } from 'zod';
-import type { IPythonBridge, AnalyzeOptions, AuditOptions, PlanOptions, SuggestOptions, ApplyData } from './IPythonBridge.js';
-import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult, SessionSummary, TransactionEntry, RollbackResult } from '../types/analysis.js';
-import { AnalysisResultSchema, AuditListResultSchema, PlanResultSchema, SessionSummarySchema, TransactionEntrySchema, RollbackResultSchema, GenericSuccessSchema, formatValidationError } from './schemas.js';
+import type {
+  IPythonBridge,
+  AnalyzeOptions,
+  AuditOptions,
+  PlanOptions,
+  SuggestOptions,
+  ApplyData,
+} from './IPythonBridge.js';
+import type {
+  AnalysisResult,
+  AuditListResult,
+  AuditRatings,
+  PlanResult,
+  SessionSummary,
+  TransactionEntry,
+  RollbackResult,
+} from '../types/analysis.js';
+import {
+  AnalysisResultSchema,
+  AuditListResultSchema,
+  PlanResultSchema,
+  SessionSummarySchema,
+  TransactionEntrySchema,
+  RollbackResultSchema,
+  GenericSuccessSchema,
+  formatValidationError,
+} from './schemas.js';
 import type { IConfig } from '../config/IConfig.js';
 import { defaultConfig } from '../config/IConfig.js';
 
@@ -42,16 +66,22 @@ function findAnalyzerDir(): string {
     }
     throw new Error(
       `DOCIMP_ANALYZER_PATH is set to "${envPath}" but directory does not exist.\n` +
-      `Please check the path or unset the environment variable.`
+        `Please check the path or unset the environment variable.`
     );
   }
 
   // Fallback path resolution when DOCIMP_ANALYZER_PATH is not set
   // Try multiple strategies based on common deployment scenarios
   const strategies = [
-    { path: resolve(process.cwd(), '..', 'analyzer'), context: 'cli/ directory (development/tests)' },
+    {
+      path: resolve(process.cwd(), '..', 'analyzer'),
+      context: 'cli/ directory (development/tests)',
+    },
     { path: resolve(process.cwd(), 'analyzer'), context: 'repo root' },
-    { path: resolve(process.cwd(), '..', '..', 'analyzer'), context: 'global npm install' },
+    {
+      path: resolve(process.cwd(), '..', '..', 'analyzer'),
+      context: 'global npm install',
+    },
   ];
 
   for (const strategy of strategies) {
@@ -61,12 +91,14 @@ function findAnalyzerDir(): string {
   }
 
   // If all strategies fail, provide helpful error with attempted paths
-  const attemptedPaths = strategies.map((s) => `  - ${s.path} (${s.context})`).join('\n');
+  const attemptedPaths = strategies
+    .map((s) => `  - ${s.path} (${s.context})`)
+    .join('\n');
   throw new Error(
     `Could not find analyzer directory.\n` +
-    `Attempted paths:\n${attemptedPaths}\n` +
-    `Current working directory: ${process.cwd()}\n\n` +
-    `If you have a custom installation, set DOCIMP_ANALYZER_PATH environment variable.`
+      `Attempted paths:\n${attemptedPaths}\n` +
+      `Current working directory: ${process.cwd()}\n\n` +
+      `If you have a custom installation, set DOCIMP_ANALYZER_PATH environment variable.`
   );
 }
 
@@ -84,7 +116,7 @@ function detectPythonExecutable(): string {
     // Try both python3 and python in the bin directory
     const candidates = [
       `${pythonLocation}/bin/python3`,
-      `${pythonLocation}/bin/python`
+      `${pythonLocation}/bin/python`,
     ];
     for (const candidate of candidates) {
       try {
@@ -142,11 +174,7 @@ export class PythonBridge implements IPythonBridge {
    * @param analyzerPath - Path to analyzer module (default: auto-detected)
    * @param config - Configuration with timeout settings (optional)
    */
-  constructor(
-    pythonPath?: string,
-    analyzerPath?: string,
-    config?: IConfig
-  ) {
+  constructor(pythonPath?: string, analyzerPath?: string, config?: IConfig) {
     this.pythonPath = pythonPath || detectPythonExecutable();
 
     // Auto-detect analyzer path relative to module location
@@ -158,77 +186,97 @@ export class PythonBridge implements IPythonBridge {
     }
 
     // Load timeout settings from config or use defaults
-    this.defaultTimeout = config?.pythonBridge?.defaultTimeout ?? defaultConfig.pythonBridge!.defaultTimeout!;
-    this.suggestTimeout = config?.pythonBridge?.suggestTimeout ?? defaultConfig.pythonBridge!.suggestTimeout!;
-    this.killEscalationDelay = config?.pythonBridge?.killEscalationDelay ?? defaultConfig.pythonBridge!.killEscalationDelay!;
+    this.defaultTimeout =
+      config?.pythonBridge?.defaultTimeout ??
+      defaultConfig.pythonBridge!.defaultTimeout!;
+    this.suggestTimeout =
+      config?.pythonBridge?.suggestTimeout ??
+      defaultConfig.pythonBridge!.suggestTimeout!;
+    this.killEscalationDelay =
+      config?.pythonBridge?.killEscalationDelay ??
+      defaultConfig.pythonBridge!.killEscalationDelay!;
 
     // Validate timeout values
     if (this.defaultTimeout <= 0) {
       throw new Error(
         `Invalid pythonBridge.defaultTimeout: ${this.defaultTimeout}. ` +
-        `Timeout must be a positive number (milliseconds).`
+          `Timeout must be a positive number (milliseconds).`
       );
     }
     if (this.suggestTimeout <= 0) {
       throw new Error(
         `Invalid pythonBridge.suggestTimeout: ${this.suggestTimeout}. ` +
-        `Timeout must be a positive number (milliseconds).`
+          `Timeout must be a positive number (milliseconds).`
       );
     }
     if (!Number.isFinite(this.defaultTimeout)) {
       throw new Error(
         `Invalid pythonBridge.defaultTimeout: ${this.defaultTimeout}. ` +
-        `Timeout must be a finite number (not Infinity or NaN).`
+          `Timeout must be a finite number (not Infinity or NaN).`
       );
     }
     if (!Number.isFinite(this.suggestTimeout)) {
       throw new Error(
         `Invalid pythonBridge.suggestTimeout: ${this.suggestTimeout}. ` +
-        `Timeout must be a finite number (not Infinity or NaN).`
+          `Timeout must be a finite number (not Infinity or NaN).`
       );
     }
     if (this.killEscalationDelay <= 0) {
       throw new Error(
         `Invalid pythonBridge.killEscalationDelay: ${this.killEscalationDelay}. ` +
-        `Delay must be a positive number (milliseconds).`
+          `Delay must be a positive number (milliseconds).`
       );
     }
     if (!Number.isFinite(this.killEscalationDelay)) {
       throw new Error(
         `Invalid pythonBridge.killEscalationDelay: ${this.killEscalationDelay}. ` +
-        `Delay must be a finite number (not Infinity or NaN).`
+          `Delay must be a finite number (not Infinity or NaN).`
       );
     }
 
     // Load git timeout settings from config or use defaults
-    this.gitTimeoutBase = config?.transaction?.git?.baseTimeout ?? defaultConfig.transaction!.git!.baseTimeout!;
-    this.gitTimeoutFastScale = config?.transaction?.git?.fastScale ?? defaultConfig.transaction!.git!.fastScale!;
-    this.gitTimeoutSlowScale = config?.transaction?.git?.slowScale ?? defaultConfig.transaction!.git!.slowScale!;
-    this.gitTimeoutMax = config?.transaction?.git?.maxTimeout ?? defaultConfig.transaction!.git!.maxTimeout!;
+    this.gitTimeoutBase =
+      config?.transaction?.git?.baseTimeout ??
+      defaultConfig.transaction!.git!.baseTimeout!;
+    this.gitTimeoutFastScale =
+      config?.transaction?.git?.fastScale ??
+      defaultConfig.transaction!.git!.fastScale!;
+    this.gitTimeoutSlowScale =
+      config?.transaction?.git?.slowScale ??
+      defaultConfig.transaction!.git!.slowScale!;
+    this.gitTimeoutMax =
+      config?.transaction?.git?.maxTimeout ??
+      defaultConfig.transaction!.git!.maxTimeout!;
 
     // Validate git timeout values
     if (this.gitTimeoutBase <= 0 || !Number.isFinite(this.gitTimeoutBase)) {
       throw new Error(
         `Invalid transaction.git.baseTimeout: ${this.gitTimeoutBase}. ` +
-        `Must be a positive finite number (milliseconds).`
+          `Must be a positive finite number (milliseconds).`
       );
     }
-    if (this.gitTimeoutFastScale <= 0 || !Number.isFinite(this.gitTimeoutFastScale)) {
+    if (
+      this.gitTimeoutFastScale <= 0 ||
+      !Number.isFinite(this.gitTimeoutFastScale)
+    ) {
       throw new Error(
         `Invalid transaction.git.fastScale: ${this.gitTimeoutFastScale}. ` +
-        `Must be a positive finite number.`
+          `Must be a positive finite number.`
       );
     }
-    if (this.gitTimeoutSlowScale <= 0 || !Number.isFinite(this.gitTimeoutSlowScale)) {
+    if (
+      this.gitTimeoutSlowScale <= 0 ||
+      !Number.isFinite(this.gitTimeoutSlowScale)
+    ) {
       throw new Error(
         `Invalid transaction.git.slowScale: ${this.gitTimeoutSlowScale}. ` +
-        `Must be a positive finite number.`
+          `Must be a positive finite number.`
       );
     }
     if (this.gitTimeoutMax <= 0 || !Number.isFinite(this.gitTimeoutMax)) {
       throw new Error(
         `Invalid transaction.git.maxTimeout: ${this.gitTimeoutMax}. ` +
-        `Must be a positive finite number (milliseconds).`
+          `Must be a positive finite number (milliseconds).`
       );
     }
   }
@@ -251,7 +299,7 @@ export class PythonBridge implements IPythonBridge {
       '--git-timeout-slow-scale',
       this.gitTimeoutSlowScale.toString(),
       '--git-timeout-max',
-      this.gitTimeoutMax.toString()
+      this.gitTimeoutMax.toString(),
     ];
   }
 
@@ -284,7 +332,11 @@ export class PythonBridge implements IPythonBridge {
       args.push('--strict');
     }
 
-    return this.executePython<AnalysisResult>(args, options.verbose, AnalysisResultSchema);
+    return this.executePython<AnalysisResult>(
+      args,
+      options.verbose,
+      AnalysisResultSchema
+    );
   }
 
   /**
@@ -298,12 +350,7 @@ export class PythonBridge implements IPythonBridge {
     // Resolve path to absolute before passing to Python subprocess
     const absolutePath = resolve(process.cwd(), options.path);
 
-    const args = [
-      '-m',
-      'src.main',
-      'audit',
-      absolutePath,
-    ];
+    const args = ['-m', 'src.main', 'audit', absolutePath];
 
     if (options.auditFile) {
       // Resolve audit file to absolute path (Python subprocess runs in analyzer/ dir)
@@ -315,7 +362,11 @@ export class PythonBridge implements IPythonBridge {
       args.push('--verbose');
     }
 
-    return this.executePython<AuditListResult>(args, options.verbose, AuditListResultSchema);
+    return this.executePython<AuditListResult>(
+      args,
+      options.verbose,
+      AuditListResultSchema
+    );
   }
 
   /**
@@ -327,11 +378,7 @@ export class PythonBridge implements IPythonBridge {
    * @throws Error if Python process fails
    */
   async applyAudit(ratings: AuditRatings, auditFile?: string): Promise<void> {
-    const args = [
-      '-m',
-      'src.main',
-      'apply-audit',
-    ];
+    const args = ['-m', 'src.main', 'apply-audit'];
 
     if (auditFile) {
       // Resolve audit file to absolute path (Python subprocess runs in analyzer/ dir)
@@ -367,7 +414,7 @@ export class PythonBridge implements IPythonBridge {
         reject(
           new Error(
             `Failed to spawn Python process: ${error.message}\n` +
-            `Make sure Python is installed and the analyzer module is available.`
+              `Make sure Python is installed and the analyzer module is available.`
           )
         );
       });
@@ -376,8 +423,7 @@ export class PythonBridge implements IPythonBridge {
         if (code !== 0) {
           reject(
             new Error(
-              `Python analyzer exited with code ${code}\n` +
-              `stderr: ${stderr}`
+              `Python analyzer exited with code ${code}\n` + `stderr: ${stderr}`
             )
           );
           return;
@@ -406,12 +452,7 @@ export class PythonBridge implements IPythonBridge {
     // Resolve path to absolute before passing to Python subprocess
     const absolutePath = resolve(process.cwd(), options.path);
 
-    const args = [
-      '-m',
-      'src.main',
-      'plan',
-      absolutePath,
-    ];
+    const args = ['-m', 'src.main', 'plan', absolutePath];
 
     if (options.auditFile) {
       // Resolve audit file to absolute path (Python subprocess runs in analyzer/ dir)
@@ -433,7 +474,11 @@ export class PythonBridge implements IPythonBridge {
       args.push('--verbose');
     }
 
-    return this.executePython<PlanResult>(args, options.verbose, PlanResultSchema);
+    return this.executePython<PlanResult>(
+      args,
+      options.verbose,
+      PlanResultSchema
+    );
   }
 
   /**
@@ -449,8 +494,10 @@ export class PythonBridge implements IPythonBridge {
       'src.main',
       'suggest',
       options.target,
-      '--style-guide', options.styleGuide,
-      '--tone', options.tone,
+      '--style-guide',
+      options.styleGuide,
+      '--tone',
+      options.tone,
     ];
 
     if (options.timeout !== undefined) {
@@ -485,11 +532,7 @@ export class PythonBridge implements IPythonBridge {
    * @throws Error if Python process fails or write fails
    */
   async apply(data: ApplyData): Promise<void> {
-    const args = [
-      '-m',
-      'src.main',
-      'apply',
-    ];
+    const args = ['-m', 'src.main', 'apply'];
 
     const childProcess = spawn(this.pythonPath, args, {
       cwd: this.analyzerModule,
@@ -519,7 +562,7 @@ export class PythonBridge implements IPythonBridge {
         reject(
           new Error(
             `Failed to spawn Python process: ${error.message}\n` +
-            `Make sure Python is installed and the analyzer module is available.`
+              `Make sure Python is installed and the analyzer module is available.`
           )
         );
       });
@@ -528,8 +571,7 @@ export class PythonBridge implements IPythonBridge {
         if (code !== 0) {
           reject(
             new Error(
-              `Python analyzer exited with code ${code}\n` +
-              `stderr: ${stderr}`
+              `Python analyzer exited with code ${code}\n` + `stderr: ${stderr}`
             )
           );
           return;
@@ -591,8 +633,8 @@ export class PythonBridge implements IPythonBridge {
         reject(
           new Error(
             `Python ${commandName} command timed out after ${timeoutMs}ms.\n` +
-            `The Python process may be frozen or the operation is taking too long.\n` +
-            `Consider increasing the timeout in your docimp.config.js file.`
+              `The Python process may be frozen or the operation is taking too long.\n` +
+              `Consider increasing the timeout in your docimp.config.js file.`
           )
         );
       }, timeoutMs);
@@ -623,7 +665,9 @@ export class PythonBridge implements IPythonBridge {
     // Extract command name for timeout error messages
     const commandName = args[2] || 'unknown';
     // Default to suggestTimeout for suggest command, defaultTimeout otherwise
-    const timeout = timeoutMs ?? (commandName === 'suggest' ? this.suggestTimeout : this.defaultTimeout);
+    const timeout =
+      timeoutMs ??
+      (commandName === 'suggest' ? this.suggestTimeout : this.defaultTimeout);
 
     // Setup timeout handling
     const { cleanup, timeoutPromise } = this.setupProcessTimeout(
@@ -655,7 +699,7 @@ export class PythonBridge implements IPythonBridge {
         reject(
           new Error(
             `Failed to spawn Python process: ${error.message}\n` +
-            `Make sure Python is installed and the analyzer module is available.`
+              `Make sure Python is installed and the analyzer module is available.`
           )
         );
       });
@@ -665,8 +709,8 @@ export class PythonBridge implements IPythonBridge {
           reject(
             new Error(
               `Python analyzer exited with code ${code}\n` +
-              `stderr: ${stderr}\n` +
-              `stdout: ${stdout}`
+                `stderr: ${stderr}\n` +
+                `stdout: ${stdout}`
             )
           );
           return;
@@ -739,7 +783,7 @@ export class PythonBridge implements IPythonBridge {
         reject(
           new Error(
             `Failed to spawn Python process: ${error.message}\n` +
-            `Make sure Python is installed and the analyzer module is available.`
+              `Make sure Python is installed and the analyzer module is available.`
           )
         );
       });
@@ -749,8 +793,8 @@ export class PythonBridge implements IPythonBridge {
           reject(
             new Error(
               `Python analyzer exited with code ${code}\n` +
-              `stderr: ${stderr}\n` +
-              `stdout: ${stdout}`
+                `stderr: ${stderr}\n` +
+                `stdout: ${stdout}`
             )
           );
           return;
@@ -767,9 +811,7 @@ export class PythonBridge implements IPythonBridge {
               resolve(validated);
             } catch (validationError) {
               if (validationError instanceof z.ZodError) {
-                reject(
-                  new Error(formatValidationError(validationError))
-                );
+                reject(new Error(formatValidationError(validationError)));
               } else {
                 reject(validationError);
               }
@@ -782,8 +824,8 @@ export class PythonBridge implements IPythonBridge {
           reject(
             new Error(
               `Failed to parse Python output as JSON: ${error instanceof Error ? error.message : String(error)}\n` +
-              `stdout: ${stdout}\n` +
-              `stderr: ${stderr}`
+                `stdout: ${stdout}\n` +
+                `stderr: ${stderr}`
             )
           );
         }
@@ -805,13 +847,7 @@ export class PythonBridge implements IPythonBridge {
    * @throws Error if Python process fails or returns invalid JSON
    */
   async listSessions(): Promise<SessionSummary[]> {
-    const args = [
-      '-m',
-      'analyzer',
-      'list-sessions',
-      '--format',
-      'json'
-    ];
+    const args = ['-m', 'analyzer', 'list-sessions', '--format', 'json'];
 
     // Validate with array schema
     const result = await this.executePython<SessionSummary[]>(
@@ -837,7 +873,7 @@ export class PythonBridge implements IPythonBridge {
       'list-changes',
       sessionId,
       '--format',
-      'json'
+      'json',
     ];
 
     // Validate with array schema
@@ -865,7 +901,7 @@ export class PythonBridge implements IPythonBridge {
       sessionId,
       '--format',
       'json',
-      '--no-confirm'
+      '--no-confirm',
     ];
 
     const result = await this.executePython<RollbackResult>(
@@ -892,7 +928,7 @@ export class PythonBridge implements IPythonBridge {
       entryId,
       '--format',
       'json',
-      '--no-confirm'
+      '--no-confirm',
     ];
 
     const result = await this.executePython<RollbackResult>(
@@ -922,17 +958,17 @@ export class PythonBridge implements IPythonBridge {
       sessionId,
       '--format',
       'json',
-      ...this.buildGitTimeoutArgs()
+      ...this.buildGitTimeoutArgs(),
     ];
 
-    const result = await this.executePython<z.infer<typeof GenericSuccessSchema>>(
-      args,
-      false,
-      GenericSuccessSchema
-    );
+    const result = await this.executePython<
+      z.infer<typeof GenericSuccessSchema>
+    >(args, false, GenericSuccessSchema);
 
     if (!result.success) {
-      throw new Error(`Failed to begin transaction: ${result.error || 'Unknown error'}`);
+      throw new Error(
+        `Failed to begin transaction: ${result.error || 'Unknown error'}`
+      );
     }
   }
 
@@ -971,17 +1007,17 @@ export class PythonBridge implements IPythonBridge {
       language,
       '--format',
       'json',
-      ...this.buildGitTimeoutArgs()
+      ...this.buildGitTimeoutArgs(),
     ];
 
-    const result = await this.executePython<z.infer<typeof GenericSuccessSchema>>(
-      args,
-      false,
-      GenericSuccessSchema
-    );
+    const result = await this.executePython<
+      z.infer<typeof GenericSuccessSchema>
+    >(args, false, GenericSuccessSchema);
 
     if (!result.success) {
-      throw new Error(`Failed to record write: ${result.error || 'Unknown error'}`);
+      throw new Error(
+        `Failed to record write: ${result.error || 'Unknown error'}`
+      );
     }
   }
 
@@ -1003,17 +1039,17 @@ export class PythonBridge implements IPythonBridge {
       sessionId,
       '--format',
       'json',
-      ...this.buildGitTimeoutArgs()
+      ...this.buildGitTimeoutArgs(),
     ];
 
-    const result = await this.executePython<z.infer<typeof GenericSuccessSchema>>(
-      args,
-      false,
-      GenericSuccessSchema
-    );
+    const result = await this.executePython<
+      z.infer<typeof GenericSuccessSchema>
+    >(args, false, GenericSuccessSchema);
 
     if (!result.success) {
-      throw new Error(`Failed to commit transaction: ${result.error || 'Unknown error'}`);
+      throw new Error(
+        `Failed to commit transaction: ${result.error || 'Unknown error'}`
+      );
     }
   }
 }

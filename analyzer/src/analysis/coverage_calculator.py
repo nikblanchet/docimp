@@ -1,8 +1,7 @@
 """Coverage calculator for computing documentation metrics."""
 
-from typing import List, Dict
-from ..models.code_item import CodeItem
 from ..models.analysis_result import LanguageMetrics
+from ..models.code_item import CodeItem
 
 
 class CoverageCalculator:
@@ -12,7 +11,7 @@ class CoverageCalculator:
     breakdowns including complexity and impact score averages.
     """
 
-    def calculate_coverage(self, items: List[CodeItem]) -> float:
+    def calculate_coverage(self, items: list[CodeItem]) -> float:
         """Calculate overall documentation coverage percentage.
 
         Args:
@@ -28,8 +27,8 @@ class CoverageCalculator:
         return (documented / len(items)) * 100.0
 
     def calculate_by_language(
-        self, items: List[CodeItem]
-    ) -> Dict[str, LanguageMetrics]:
+        self, items: list[CodeItem]
+    ) -> dict[str, LanguageMetrics]:
         """Calculate coverage metrics broken down by programming language.
 
         Args:
@@ -39,14 +38,14 @@ class CoverageCalculator:
             Dictionary mapping language names to LanguageMetrics objects.
         """
         # Group items by language
-        by_lang: Dict[str, List[CodeItem]] = {}
+        by_lang: dict[str, list[CodeItem]] = {}
         for item in items:
             if item.language not in by_lang:
                 by_lang[item.language] = []
             by_lang[item.language].append(item)
 
         # Calculate metrics for each language
-        metrics: Dict[str, LanguageMetrics] = {}
+        metrics: dict[str, LanguageMetrics] = {}
         for language, lang_items in by_lang.items():
             total = len(lang_items)
             documented = sum(1 for item in lang_items if item.has_docs)
@@ -75,7 +74,7 @@ class CoverageCalculator:
 
         return metrics
 
-    def count_documented(self, items: List[CodeItem]) -> int:
+    def count_documented(self, items: list[CodeItem]) -> int:
         """Count the number of documented items.
 
         Args:

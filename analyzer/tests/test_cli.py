@@ -3,13 +3,14 @@
 import json
 import sys
 from pathlib import Path
+
 import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.main import main, format_json, format_summary, create_analyzer
 from src.analysis.analyzer import DocumentationAnalyzer
+from src.main import create_analyzer, format_json, format_summary, main
 from src.models.analysis_result import AnalysisResult, LanguageMetrics
 from src.models.code_item import CodeItem
 

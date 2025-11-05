@@ -5,7 +5,7 @@ This module defines the core data structures used throughout DocImp:
 - AnalysisResult: Aggregated analysis results with coverage metrics
 """
 
-from .code_item import CodeItem
 from .analysis_result import AnalysisResult, LanguageMetrics
+from .code_item import CodeItem
 
 __all__ = ["CodeItem", "AnalysisResult", "LanguageMetrics"]

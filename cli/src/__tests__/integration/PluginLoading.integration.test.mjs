@@ -107,11 +107,7 @@ describe('PluginManager - File Loading Integration', () => {
       await manager.loadPlugins([pluginPath], undefined, [FIXTURES_DIR]); // Load again
 
       const loadedPlugins = manager.getLoadedPlugins();
-      assert.equal(
-        loadedPlugins.length,
-        1,
-        'Should only load plugin once'
-      );
+      assert.equal(loadedPlugins.length, 1, 'Should only load plugin once');
     });
 
     test('prevents loading same plugin via relative and absolute paths', async () => {

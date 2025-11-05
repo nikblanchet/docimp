@@ -8,8 +8,8 @@ import pytest
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.scoring.impact_scorer import ImpactScorer
 from src.models.code_item import CodeItem
+from src.scoring.impact_scorer import ImpactScorer
 
 
 class TestImpactScorer:

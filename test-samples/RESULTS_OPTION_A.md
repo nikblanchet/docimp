@@ -1,14 +1,13 @@
 # Results: Option A - Explicit Code Fence Prohibition
 
 **Wording Tested:**
-```python
+
+````python
 "5. IMPORTANT: Return the raw docstring text only. Do NOT wrap your entire response in markdown code fences (```python, ```javascript, etc.)",
 "6. Code examples WITHIN the docstring are fine and encouraged - just don't wrap the whole docstring in backticks",
-```
+````
 
-**Tester:** [Your name]
-**Date:** [YYYY-MM-DD]
-**API Model:** claude-sonnet-4-5-20250929
+**Tester:** [Your name] **Date:** [YYYY-MM-DD] **API Model:** claude-sonnet-4-5-20250929
 **Branch:** issue-234-test-prompt-wordings
 
 ---
@@ -26,21 +25,22 @@
 
 ## Detailed Results
 
-| # | Language | File | Function | Has Markdown Wrapper? | Syntax Valid? | Has Code Example? | Notes |
-|---|----------|------|----------|----------------------|---------------|-------------------|-------|
-| 1 | Python | calculator.py | multiply | | | | |
-| 2 | Python | calculator.py | power | | | | |
-| 3 | Python | validator.py | validate_username | | | | |
-| 4 | Python | validator.py | sanitize_input | | | | |
-| 5 | JavaScript | helpers.cjs | clone | | | | |
-| 6 | JavaScript | helpers.cjs | merge | | | | |
-| 7 | JavaScript | helpers.cjs | generateRandomString | | | | |
-| 8 | JavaScript | api.js | post | | | | |
-| 9 | TypeScript | service.ts | createUser | | | | |
-| 10 | TypeScript | service.ts | deleteUser | | | | |
-| 11 | TypeScript | service.ts | validateUser | | | | |
+| #   | Language   | File          | Function             | Has Markdown Wrapper? | Syntax Valid? | Has Code Example? | Notes |
+| --- | ---------- | ------------- | -------------------- | --------------------- | ------------- | ----------------- | ----- |
+| 1   | Python     | calculator.py | multiply             |                       |               |                   |       |
+| 2   | Python     | calculator.py | power                |                       |               |                   |       |
+| 3   | Python     | validator.py  | validate_username    |                       |               |                   |       |
+| 4   | Python     | validator.py  | sanitize_input       |                       |               |                   |       |
+| 5   | JavaScript | helpers.cjs   | clone                |                       |               |                   |       |
+| 6   | JavaScript | helpers.cjs   | merge                |                       |               |                   |       |
+| 7   | JavaScript | helpers.cjs   | generateRandomString |                       |               |                   |       |
+| 8   | JavaScript | api.js        | post                 |                       |               |                   |       |
+| 9   | TypeScript | service.ts    | createUser           |                       |               |                   |       |
+| 10  | TypeScript | service.ts    | deleteUser           |                       |               |                   |       |
+| 11  | TypeScript | service.ts    | validateUser         |                       |               |                   |       |
 
 **Legend:**
+
 - Has Markdown Wrapper?: `Yes` / `No` / `Partial`
 - Syntax Valid?: `Yes` / `No`
 - Has Code Example?: `Yes` / `No` / `N/A` (not applicable for simple functions)
@@ -68,11 +68,13 @@
 ### Example 1: [Function Name]
 
 **Response from Claude:**
+
 ```
 [Paste the exact response here]
 ```
 
 **After Insertion (first 10 lines):**
+
 ```
 [Show what the file looked like after insertion]
 ```

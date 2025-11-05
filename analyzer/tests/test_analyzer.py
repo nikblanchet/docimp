@@ -2,6 +2,7 @@
 
 import sys
 from pathlib import Path
+
 import pytest
 
 # Add parent directory to path for imports
@@ -61,9 +62,9 @@ class TestDocumentationAnalyzer:
 
         # Verify we have items from multiple languages
         assert len(python_items) > 0, "Should find Python items"
-        assert (
-            len(typescript_items) + len(javascript_items) > 0
-        ), "Should find TS/JS items"
+        assert len(typescript_items) + len(javascript_items) > 0, (
+            "Should find TS/JS items"
+        )
 
         print(f"✓ Python items: {len(python_items)}")
         print(f"✓ TypeScript items: {len(typescript_items)}")
@@ -74,9 +75,9 @@ class TestDocumentationAnalyzer:
         result = analyzer.analyze(examples_dir)
 
         for item in result.items:
-            assert (
-                0 <= item.impact_score <= 100
-            ), f"Impact score for {item.name} should be 0-100, got {item.impact_score}"
+            assert 0 <= item.impact_score <= 100, (
+                f"Impact score for {item.name} should be 0-100, got {item.impact_score}"
+            )
 
     def test_by_language_metrics(self, analyzer, examples_dir):
         """Test that per-language metrics are computed."""
@@ -153,9 +154,9 @@ class TestDocumentationAnalyzer:
             assert len(result.items) > 0, "Should parse file via symlink"
             # The filepath in results should be the resolved real path
             for item in result.items:
-                assert (
-                    str(real_dir) in item.filepath
-                ), "Filepath should be resolved from symlink"
+                assert str(real_dir) in item.filepath, (
+                    "Filepath should be resolved from symlink"
+                )
 
     def test_parse_failure_tracking(self, analyzer):
         """Test that syntax errors are captured in parse_failures."""
@@ -178,9 +179,9 @@ class TestDocumentationAnalyzer:
             # Should have captured the parse failure
             assert len(result.parse_failures) == 1, "Should capture one parse failure"
             assert str(broken_file) in result.parse_failures[0].filepath
-            assert (
-                len(result.parse_failures[0].error) > 0
-            ), "Error message should not be empty"
+            assert len(result.parse_failures[0].error) > 0, (
+                "Error message should not be empty"
+            )
 
     def test_analysis_continues_after_failures(self, analyzer):
         """Test that analysis continues after encountering parse failures."""
@@ -233,12 +234,12 @@ class TestDocumentationAnalyzer:
         result = analyzer.analyze(examples_dir)
 
         # All example files should parse successfully
-        assert isinstance(
-            result.parse_failures, list
-        ), "parse_failures should be a list"
-        assert (
-            len(result.parse_failures) == 0
-        ), "Should have no parse failures for valid files"
+        assert isinstance(result.parse_failures, list), (
+            "parse_failures should be a list"
+        )
+        assert len(result.parse_failures) == 0, (
+            "Should have no parse failures for valid files"
+        )
 
     def test_empty_error_message_fallback(self, analyzer):
         """Test that empty error messages get fallback text."""
@@ -277,15 +278,15 @@ class TestDocumentationAnalyzer:
                 result = analyzer.analyze(str(temp_path))
 
                 # Should have captured the parse failure with fallback message
-                assert (
-                    len(result.parse_failures) == 1
-                ), "Should capture one parse failure"
-                assert (
-                    result.parse_failures[0].error == "Unknown parse error"
-                ), "Should use fallback message for empty error"
-                assert (
-                    "bad.py" in result.parse_failures[0].filepath
-                ), "Should capture the bad.py file"
+                assert len(result.parse_failures) == 1, (
+                    "Should capture one parse failure"
+                )
+                assert result.parse_failures[0].error == "Unknown parse error", (
+                    "Should use fallback message for empty error"
+                )
+                assert "bad.py" in result.parse_failures[0].filepath, (
+                    "Should capture the bad.py file"
+                )
 
     def test_expected_exceptions_are_caught(self, analyzer):
         """Test that expected parsing exceptions are caught and tracked."""
@@ -328,9 +329,9 @@ class TestDocumentationAnalyzer:
                     result = analyzer.analyze(str(temp_path))
 
                     # Should have captured at least one failure
-                    assert (
-                        len(result.parse_failures) >= 1
-                    ), f"Should capture parse failure for {exc.__class__.__name__}"
+                    assert len(result.parse_failures) >= 1, (
+                        f"Should capture parse failure for {exc.__class__.__name__}"
+                    )
 
                 # Clean up test file
                 test_file.unlink()
@@ -352,14 +353,19 @@ class TestDocumentationAnalyzer:
             test_file.write_text("def foo():\n    pass")
 
             # Mock parser to raise unexpected exception
-            with patch.object(
-                analyzer.parsers["python"],
-                "parse_file",
-                side_effect=UnexpectedException("unexpected"),
+            # Note: Combined with statements clean up right-to-left (pytest.raises
+            # exits before patch). This is safe when contexts are independent, as
+            # they are here (all our combined contexts are mocks/test fixtures).
+            with (
+                patch.object(
+                    analyzer.parsers["python"],
+                    "parse_file",
+                    side_effect=UnexpectedException("unexpected"),
+                ),
+                pytest.raises(UnexpectedException),
             ):
                 # Should re-raise the unexpected exception
-                with pytest.raises(UnexpectedException):
-                    analyzer.analyze(str(temp_path))
+                analyzer.analyze(str(temp_path))
 
     def test_strict_mode_fails_on_first_parse_error(self, analyzer):
         """Test that strict=True raises exception on first parse error."""
@@ -438,18 +444,18 @@ class TestDocumentationAnalyzer:
 
         # Check that Python malformed files are tracked as failures
         failed_files = [f.filepath for f in result.parse_failures]
-        assert any(
-            "python_missing_colon.py" in f for f in failed_files
-        ), "Python missing colon file should fail to parse"
-        assert any(
-            "python_unclosed_paren.py" in f for f in failed_files
-        ), "Python unclosed paren file should fail to parse"
-        assert any(
-            "python_invalid_indentation.py" in f for f in failed_files
-        ), "Python invalid indentation file should fail to parse"
-        assert any(
-            "python_incomplete_statement.py" in f for f in failed_files
-        ), "Python incomplete statement file should fail to parse"
+        assert any("python_missing_colon.py" in f for f in failed_files), (
+            "Python missing colon file should fail to parse"
+        )
+        assert any("python_unclosed_paren.py" in f for f in failed_files), (
+            "Python unclosed paren file should fail to parse"
+        )
+        assert any("python_invalid_indentation.py" in f for f in failed_files), (
+            "Python invalid indentation file should fail to parse"
+        )
+        assert any("python_incomplete_statement.py" in f for f in failed_files), (
+            "Python incomplete statement file should fail to parse"
+        )
 
         # Analysis should complete without crashing
         # TypeScript/JavaScript items may be present due to error recovery
@@ -475,9 +481,9 @@ class TestDocumentationAnalyzer:
 
         # Check that Python broken file is tracked as failure
         failed_files = [f.filepath for f in result.parse_failures]
-        assert any(
-            "broken_syntax.py" in f for f in failed_files
-        ), "Python broken file should fail to parse"
+        assert any("broken_syntax.py" in f for f in failed_files), (
+            "Python broken file should fail to parse"
+        )
 
         # Check that valid files were parsed successfully
         item_names = [item.name for item in result.items]
@@ -503,15 +509,15 @@ class TestDocumentationAnalyzer:
         python_failures = [
             f for f in result.parse_failures if f.filepath.endswith(".py")
         ]
-        assert (
-            len(python_failures) == 4
-        ), f"Expected 4 Python failures, got {len(python_failures)}"
+        assert len(python_failures) == 4, (
+            f"Expected 4 Python failures, got {len(python_failures)}"
+        )
 
         # Verify each Python failure has error message
         for failure in python_failures:
-            assert (
-                failure.error
-            ), f"Python failure {failure.filepath} should have error message"
+            assert failure.error, (
+                f"Python failure {failure.filepath} should have error message"
+            )
             assert (
                 "Syntax error" in failure.error or "syntax" in failure.error.lower()
             ), f"Error should mention syntax: {failure.error}"
@@ -526,9 +532,9 @@ class TestDocumentationAnalyzer:
         python_failures = [
             f for f in result.parse_failures if f.filepath.endswith(".py")
         ]
-        assert (
-            len(python_failures) == 4
-        ), f"Expected 4 Python failures, got {len(python_failures)}"
+        assert len(python_failures) == 4, (
+            f"Expected 4 Python failures, got {len(python_failures)}"
+        )
 
         # TypeScript/JavaScript parsers use error recovery, so they may succeed
         # or partially succeed. The key is that analysis completes without crashing.

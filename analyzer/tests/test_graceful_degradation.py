@@ -7,17 +7,18 @@ This test suite verifies that DocImp handles edge cases gracefully:
 - Edge case scenarios
 """
 
-import sys
-from pathlib import Path
-import tempfile
+import contextlib
 import subprocess
+import sys
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.writer.transaction_manager import TransactionManager
 from src.utils.git_helper import GitHelper
+from src.writer.transaction_manager import TransactionManager
 
 
 class TestGitUnavailable:
@@ -80,10 +81,9 @@ class TestPermissionErrors:
 
                 # Attempting operations should either fail gracefully or skip
                 # The important thing is no crash
-                try:
+                # Note: OSError is parent of PermissionError, so only OSError needed
+                with contextlib.suppress(OSError):
                     _manifest = manager.begin_transaction("test-session")
-                except (PermissionError, OSError):
-                    pass  # Acceptable to fail with clear error
             finally:
                 # Restore permissions for cleanup
                 base_path.chmod(0o755)
@@ -218,11 +218,11 @@ class TestGitStateRecovery:
             manager = TransactionManager(base_path=base_path, use_git=True)
 
             # Operations should either work or fail gracefully
-            try:
+            with contextlib.suppress(
+                subprocess.CalledProcessError, RuntimeError, FileNotFoundError
+            ):
                 _manifest = manager.begin_transaction("test-session")
                 # May succeed or fail depending on implementation
-            except (subprocess.CalledProcessError, RuntimeError, FileNotFoundError):
-                pass  # Acceptable to fail with clear error
 
 
 class TestBackupManagement:

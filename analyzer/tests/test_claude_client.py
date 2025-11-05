@@ -4,14 +4,16 @@ Tests for ClaudeClient functionality including API interaction and response hand
 
 import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.claude.claude_client import ClaudeClient
 from anthropic.types import TextBlock
+
+from src.claude.claude_client import ClaudeClient
 
 
 class TestClaudeClientInitialization:
@@ -33,9 +35,11 @@ class TestClaudeClientInitialization:
 
     def test_initialization_without_api_key_raises_error(self):
         """Test that missing API key raises ValueError."""
-        with patch.dict("os.environ", {}, clear=True):
-            with pytest.raises(ValueError, match="API key must be provided"):
-                ClaudeClient()
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            pytest.raises(ValueError, match="API key must be provided"),
+        ):
+            ClaudeClient()
 
     def test_custom_model_configuration(self):
         """Test ClaudeClient with custom model."""
@@ -123,9 +127,9 @@ class TestClaudeClientRetryBackoffHelper:
         for attempt, expected_delay in enumerate(expected_delays):
             should_retry, delay = client._should_retry(attempt)
             assert should_retry is True
-            assert (
-                delay == expected_delay
-            ), f"Attempt {attempt}: expected {expected_delay}, got {delay}"
+            assert delay == expected_delay, (
+                f"Attempt {attempt}: expected {expected_delay}, got {delay}"
+            )
 
         # Last attempt should not retry
         should_retry, delay = client._should_retry(4)
@@ -613,9 +617,9 @@ str
 
         # Verify multiple docstrings detected (this is the problem)
         docstring_count = self._count_python_docstrings(result)
-        assert (
-            docstring_count == 3
-        ), f"Expected 3 docstrings (bug scenario), found {docstring_count}"
+        assert docstring_count == 3, (
+            f"Expected 3 docstrings (bug scenario), found {docstring_count}"
+        )
 
     @patch("anthropic.Anthropic")
     def test_detect_single_python_class_response(self, mock_anthropic_class):
@@ -741,9 +745,9 @@ bool
         result = client.generate_docstring("test prompt")
 
         jsdoc_count = self._count_jsdoc_comments(result)
-        assert (
-            jsdoc_count == 3
-        ), f"Expected 3 JSDoc comments (bug scenario), found {jsdoc_count}"
+        assert jsdoc_count == 3, (
+            f"Expected 3 JSDoc comments (bug scenario), found {jsdoc_count}"
+        )
 
     @patch("anthropic.Anthropic")
     def test_detect_typescript_class_with_methods(self, mock_anthropic_class):

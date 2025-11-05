@@ -1,6 +1,8 @@
 # DocImp Plugin System
 
-DocImp's plugin system enables extensible validation of AI-generated documentation. Plugins run JavaScript code to validate, enforce style rules, and provide auto-fixes before documentation is written to files.
+DocImp's plugin system enables extensible validation of AI-generated documentation.
+Plugins run JavaScript code to validate, enforce style rules, and provide auto-fixes
+before documentation is written to files.
 
 ## Overview
 
@@ -14,19 +16,20 @@ Plugins are JavaScript files that export validation hooks. They can:
 
 ## Plugin Interface
 
-A plugin is a JavaScript module (CommonJS or ESM) that exports an object with this structure:
+A plugin is a JavaScript module (CommonJS or ESM) that exports an object with this
+structure:
 
 ```javascript
 export default {
-  name: 'my-plugin',           // Plugin identifier
-  version: '1.0.0',            // Semantic version
+  name: 'my-plugin', // Plugin identifier
+  version: '1.0.0', // Semantic version
   hooks: {
     beforeAccept: async (docstring, item, config) => {
       // Validate documentation before acceptance
       return {
-        accept: true,          // or false to reject
-        reason: 'Error msg',   // required if accept is false
-        autoFix: 'Fixed doc',  // optional auto-fix suggestion
+        accept: true, // or false to reject
+        reason: 'Error msg', // required if accept is false
+        autoFix: 'Fixed doc', // optional auto-fix suggestion
       };
     },
     afterWrite: async (filepath, item) => {
@@ -47,6 +50,7 @@ export default {
 Runs before generated documentation is accepted in the improve workflow.
 
 **Parameters:**
+
 - `docstring` (string): Generated documentation text
 - `item` (object): Code item metadata
   - `name`: Function/class/method name
@@ -61,11 +65,13 @@ Runs before generated documentation is accepted in the improve workflow.
 - `config` (object): User configuration from docimp.config.js
 
 **Returns:** Promise resolving to:
+
 - `accept` (boolean): Whether to accept the documentation
 - `reason` (string, optional): Error message if rejected
 - `autoFix` (string, optional): Suggested fix
 
 **Use cases:**
+
 - Type validation
 - Style enforcement
 - Completeness checks
@@ -76,14 +82,17 @@ Runs before generated documentation is accepted in the improve workflow.
 Runs after documentation has been written to a file.
 
 **Parameters:**
+
 - `filepath` (string): Path to the modified file
 - `item` (object): Code item metadata (same as beforeAccept)
 
 **Returns:** Promise resolving to:
+
 - `accept` (boolean): Whether the write was successful
 - `reason` (string, optional): Error message if failed
 
 **Use cases:**
+
 - Running formatters (prettier, black)
 - Running linters (eslint, ruff)
 - Updating related documentation
@@ -93,9 +102,11 @@ Runs after documentation has been written to a file.
 
 ### validate-types.js
 
-Performs REAL type-checking of JSDoc comments using the TypeScript compiler with `checkJs: true`.
+Performs REAL type-checking of JSDoc comments using the TypeScript compiler with
+`checkJs: true`.
 
 **Validates:**
+
 - Parameter names match function signatures
 - JSDoc types are syntactically correct
 - Types align with TypeScript inference
@@ -123,7 +134,7 @@ function add(correctName, b) {
 // docimp.config.js
 export default {
   jsdocStyle: {
-    enforceTypes: true,  // Enable type validation
+    enforceTypes: true, // Enable type validation
   },
 };
 ```
@@ -133,6 +144,7 @@ export default {
 Enforces JSDoc style conventions.
 
 **Validates:**
+
 - Preferred tag aliases (@returns instead of @return)
 - Description formatting (must end with punctuation)
 - Required @example tags for complex public APIs
@@ -163,11 +175,11 @@ export function sum(numbers) {
 export default {
   jsdocStyle: {
     preferredTags: {
-      return: 'returns',  // Prefer @returns over @return
-      arg: 'param',       // Prefer @param over @arg
+      return: 'returns', // Prefer @returns over @return
+      arg: 'param', // Prefer @param over @arg
     },
-    requireDescriptions: true,     // Descriptions are required
-    requireExamples: 'public',     // Require @example for public APIs
+    requireDescriptions: true, // Descriptions are required
+    requireExamples: 'public', // Require @example for public APIs
   },
 };
 ```
@@ -190,7 +202,7 @@ async function beforeAccept(docstring, item, config) {
     return {
       accept: false,
       reason: 'Validation failed: ...',
-      autoFix: generateFix(docstring),  // Optional
+      autoFix: generateFix(docstring), // Optional
     };
   }
 
@@ -244,7 +256,8 @@ export default {
 };
 ```
 
-Note: This example is provided for reference. Linter integration is not included in the MVP to keep scope focused, but demonstrates how the plugin system can be extended.
+Note: This example is provided for reference. Linter integration is not included in the
+MVP to keep scope focused, but demonstrates how the plugin system can be extended.
 
 ### Example: Custom Business Rules
 
@@ -309,11 +322,13 @@ Paths are relative to the project root.
 
 ### Execution Order
 
-Plugins run in the order they are listed in the configuration. All plugins execute even if earlier plugins fail, allowing you to see all validation issues at once.
+Plugins run in the order they are listed in the configuration. All plugins execute even
+if earlier plugins fail, allowing you to see all validation issues at once.
 
 ### Error Isolation
 
-If a plugin throws an exception (crashes), the error is caught and reported as a validation failure. Other plugins continue to run.
+If a plugin throws an exception (crashes), the error is caught and reported as a
+validation failure. Other plugins continue to run.
 
 ```javascript
 // This plugin crashes:
@@ -340,7 +355,9 @@ When multiple plugins validate the same documentation:
 
 ### Exception to Pure DI
 
-DocImp generally follows pure dependency injection throughout the codebase (see CLAUDE.md). However, the plugin layer uses **module-level globals** for dependencies like the TypeScript compiler. This is an intentional, documented exception.
+DocImp generally follows pure dependency injection throughout the codebase (see
+CLAUDE.md). However, the plugin layer uses **module-level globals** for dependencies
+like the TypeScript compiler. This is an intentional, documented exception.
 
 ### Pattern Used in Built-in Plugins
 
@@ -369,21 +386,25 @@ async function beforeAccept(docstring, item, config) {
 
 ### Why This Pattern is Acceptable
 
-1. **Performance**: Avoids passing heavy TypeScript compiler objects through every function call
+1. **Performance**: Avoids passing heavy TypeScript compiler objects through every
+   function call
 2. **Single-threaded**: Node.js is single-threaded, no race conditions from shared state
 3. **Encapsulation**: Dependencies are module-scoped, not leaked to global scope
-4. **Initialization guarantees**: Lazy initialization ensures dependencies are ready when needed
+4. **Initialization guarantees**: Lazy initialization ensures dependencies are ready
+   when needed
 5. **Documented trade-off**: This README and code comments explain the design decision
 
 ### When to Use This Pattern
 
 **Use module-global pattern when:**
+
 - Dependencies are expensive to initialize (like TS compiler)
 - Dependencies are never reconfigured after initialization
 - You're in Node.js single-threaded context
 - Performance matters more than pure DI
 
 **Avoid module-global pattern when:**
+
 - You need different instances for testing
 - Dependencies might change during runtime
 - You're writing application-layer code (not infrastructure/plugins)
@@ -391,6 +412,7 @@ async function beforeAccept(docstring, item, config) {
 ### Testing with Module Globals
 
 While module globals make testing slightly harder, plugins can still be tested by:
+
 1. Testing initialization separately
 2. Testing hook logic with pre-initialized state
 3. Using integration tests that exercise the full plugin lifecycle
@@ -404,6 +426,7 @@ See `cli/src/__tests__/plugins/PluginManager.test.ts` for examples.
 **CRITICAL: Plugins run with full Node.js access. There is NO sandboxing.**
 
 Plugins have unrestricted access to:
+
 - File system (read, write, delete)
 - Network (make HTTP requests)
 - Environment variables (including API keys)
@@ -427,14 +450,16 @@ DocImp implements these safety measures:
 
 ### Future: Sandboxing Flag
 
-A future version may add an `--unsafe-plugins` flag to explicitly acknowledge when loading plugins from untrusted sources. For now, all plugins are considered trusted.
+A future version may add an `--unsafe-plugins` flag to explicitly acknowledge when
+loading plugins from untrusted sources. For now, all plugins are considered trusted.
 
 ### Security Best Practices
 
 When writing or using plugins:
 
 1. **Audit plugin code** before adding it to your configuration
-2. **Pin plugin versions** (store plugins in your repo, don't pull from external sources)
+2. **Pin plugin versions** (store plugins in your repo, don't pull from external
+   sources)
 3. **Review changes** when updating plugins
 4. **Limit access** to sensitive files (plugins can read your .env, API keys, etc.)
 5. **Test in isolation** before using in production
@@ -444,16 +469,20 @@ When writing or using plugins:
 The decision to not sandbox plugins was intentional:
 
 **Pros:**
+
 - Full access to Node.js ecosystem (TypeScript compiler, linters, formatters)
 - Real type-checking (not just pattern matching)
 - Can integrate with existing tools in your workflow
 - Simpler implementation, fewer bugs
 
 **Cons:**
+
 - Security risk if loading untrusted plugins
 - No protection from malicious code
 
-**Trade-off:** For DocImp's use case (validating documentation in your own projects), the benefits of full Node.js access outweigh the risks. Sandboxing would prevent the validate-types plugin from using the TypeScript compiler, which is a core feature.
+**Trade-off:** For DocImp's use case (validating documentation in your own projects),
+the benefits of full Node.js access outweigh the risks. Sandboxing would prevent the
+validate-types plugin from using the TypeScript compiler, which is a core feature.
 
 ## Testing Plugins
 
@@ -515,6 +544,7 @@ console.log(results);
 **Error:** "Failed to load plugin from ./plugins/my-plugin.js"
 
 **Solutions:**
+
 - Check the file path is correct (relative to project root)
 - Verify the file exists
 - Check for syntax errors in the plugin code
@@ -528,9 +558,10 @@ console.log(results);
 
 ```javascript
 export default {
-  name: 'my-plugin',        // Required
-  version: '1.0.0',         // Required
-  hooks: {                  // Required
+  name: 'my-plugin', // Required
+  version: '1.0.0', // Required
+  hooks: {
+    // Required
     beforeAccept: async () => ({ accept: true }),
   },
 };
@@ -555,9 +586,9 @@ The plugin uses the TypeScript compiler from the CLI's node_modules.
 
 ```typescript
 interface PluginResult {
-  accept: boolean;      // Whether to accept the documentation
-  reason?: string;      // Error message if rejected
-  autoFix?: string;     // Suggested fix
+  accept: boolean; // Whether to accept the documentation
+  reason?: string; // Error message if rejected
+  autoFix?: string; // Suggested fix
 }
 ```
 
@@ -565,17 +596,17 @@ interface PluginResult {
 
 ```typescript
 interface CodeItemMetadata {
-  name: string;                    // Function/class/method name
+  name: string; // Function/class/method name
   type: 'function' | 'class' | 'method';
-  filepath: string;                // Source file path
-  line_number: number;             // Line number
+  filepath: string; // Source file path
+  line_number: number; // Line number
   language: 'python' | 'typescript' | 'javascript';
-  complexity: number;              // Cyclomatic complexity
+  complexity: number; // Cyclomatic complexity
   export_type?: 'named' | 'default' | 'commonjs' | 'internal';
   module_system?: 'esm' | 'commonjs' | 'unknown';
-  code?: string;                   // Original source code
-  parameters?: string[];           // Parameter names
-  return_type?: string;            // Return type (if available)
+  code?: string; // Original source code
+  parameters?: string[]; // Parameter names
+  return_type?: string; // Return type (if available)
 }
 ```
 
@@ -591,4 +622,5 @@ When contributing new plugins:
 
 ## License
 
-All built-in plugins are licensed under the same license as DocImp (AGPL-3.0 or Commercial).
+All built-in plugins are licensed under the same license as DocImp (AGPL-3.0 or
+Commercial).

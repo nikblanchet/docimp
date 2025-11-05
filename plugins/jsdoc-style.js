@@ -36,7 +36,9 @@
 function parseJSDoc(docstring, commentParser) {
   // Defensive check: return empty result if dependencies missing (should never happen)
   if (!commentParser || !commentParser.parse) {
-    console.warn('[jsdoc-style] comment-parser not available, returning empty parse result');
+    console.warn(
+      '[jsdoc-style] comment-parser not available, returning empty parse result'
+    );
     return { description: '', tags: [] };
   }
 
@@ -44,7 +46,9 @@ function parseJSDoc(docstring, commentParser) {
     const parsed = commentParser.parse(docstring);
 
     if (!parsed || parsed.length === 0) {
-      console.warn('[jsdoc-style] comment-parser returned empty results for docstring');
+      console.warn(
+        '[jsdoc-style] comment-parser returned empty results for docstring'
+      );
       return { description: '', tags: [] };
     }
 
@@ -61,7 +65,10 @@ function parseJSDoc(docstring, commentParser) {
 
     return { description, tags };
   } catch (error) {
-    console.error('[jsdoc-style] comment-parser failed to parse docstring:', error.message);
+    console.error(
+      '[jsdoc-style] comment-parser failed to parse docstring:',
+      error.message
+    );
     return { description: '', tags: [] };
   }
 }
@@ -241,7 +248,8 @@ async function beforeAccept(docstring, item, config, dependencies) {
   if (!dependencies?.commentParser) {
     return {
       accept: false,
-      reason: 'comment-parser dependency not available. This plugin requires comment-parser to be injected by the PluginManager.',
+      reason:
+        'comment-parser dependency not available. This plugin requires comment-parser to be injected by the PluginManager.',
     };
   }
 

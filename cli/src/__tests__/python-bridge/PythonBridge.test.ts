@@ -6,12 +6,23 @@
  * with helpful error messages.
  */
 
-import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import {
+  describe,
+  it,
+  expect,
+  jest,
+  beforeEach,
+  afterEach,
+} from '@jest/globals';
 import { spawn } from 'child_process';
 import { EventEmitter } from 'events';
 import { resolve } from 'path';
 import { PythonBridge } from '../../python-bridge/PythonBridge.js';
-import type { AnalysisResult, AuditListResult, PlanResult } from '../../types/analysis.js';
+import type {
+  AnalysisResult,
+  AuditListResult,
+  PlanResult,
+} from '../../types/analysis.js';
 import type { IConfig } from '../../config/IConfig.js';
 
 // Mock child_process
@@ -137,7 +148,9 @@ describe('PythonBridge JSON Validation', () => {
 
       mockSuccessfulProcess(JSON.stringify(invalidResult));
 
-      await expect(bridge.analyze({ path: '/test', verbose: false })).rejects.toThrow(
+      await expect(
+        bridge.analyze({ path: '/test', verbose: false })
+      ).rejects.toThrow(
         /Invalid response from Python analyzer.*coverage_percent/s
       );
     });
@@ -153,9 +166,9 @@ describe('PythonBridge JSON Validation', () => {
 
       mockSuccessfulProcess(JSON.stringify(invalidResult));
 
-      await expect(bridge.analyze({ path: '/test', verbose: false })).rejects.toThrow(
-        /Invalid response from Python analyzer/
-      );
+      await expect(
+        bridge.analyze({ path: '/test', verbose: false })
+      ).rejects.toThrow(/Invalid response from Python analyzer/);
     });
 
     it('should reject AnalysisResult with invalid nested item', async () => {
@@ -183,9 +196,9 @@ describe('PythonBridge JSON Validation', () => {
 
       mockSuccessfulProcess(JSON.stringify(invalidResult));
 
-      await expect(bridge.analyze({ path: '/test', verbose: false })).rejects.toThrow(
-        /Invalid response from Python analyzer/
-      );
+      await expect(
+        bridge.analyze({ path: '/test', verbose: false })
+      ).rejects.toThrow(/Invalid response from Python analyzer/);
     });
 
     it('should allow extra fields in AnalysisResult (forward compatibility)', async () => {
@@ -222,9 +235,9 @@ describe('PythonBridge JSON Validation', () => {
 
       mockSuccessfulProcess(JSON.stringify(invalidResult));
 
-      await expect(bridge.analyze({ path: '/test', verbose: false })).rejects.toThrow(
-        /Invalid response from Python analyzer/
-      );
+      await expect(
+        bridge.analyze({ path: '/test', verbose: false })
+      ).rejects.toThrow(/Invalid response from Python analyzer/);
     });
   });
 
@@ -260,9 +273,9 @@ describe('PythonBridge JSON Validation', () => {
 
       mockSuccessfulProcess(JSON.stringify(invalidResult));
 
-      await expect(bridge.audit({ path: '/test', verbose: false })).rejects.toThrow(
-        /Invalid response from Python analyzer.*items/s
-      );
+      await expect(
+        bridge.audit({ path: '/test', verbose: false })
+      ).rejects.toThrow(/Invalid response from Python analyzer.*items/s);
     });
 
     it('should accept AuditListResult with null docstring', async () => {
@@ -334,9 +347,9 @@ describe('PythonBridge JSON Validation', () => {
 
       mockSuccessfulProcess(JSON.stringify(invalidResult));
 
-      await expect(bridge.plan({ path: '/test', verbose: false })).rejects.toThrow(
-        /Invalid response from Python analyzer/
-      );
+      await expect(
+        bridge.plan({ path: '/test', verbose: false })
+      ).rejects.toThrow(/Invalid response from Python analyzer/);
     });
 
     it('should accept PlanResult with audit_rating as number', async () => {
@@ -402,9 +415,9 @@ describe('PythonBridge JSON Validation', () => {
 
       mockSuccessfulProcess(JSON.stringify(invalidResult));
 
-      await expect(bridge.plan({ path: '/test', verbose: false })).rejects.toThrow(
-        /Invalid response from Python analyzer/
-      );
+      await expect(
+        bridge.plan({ path: '/test', verbose: false })
+      ).rejects.toThrow(/Invalid response from Python analyzer/);
     });
   });
 
@@ -425,24 +438,26 @@ describe('PythonBridge JSON Validation', () => {
         const errorMessage = (error as Error).message;
         expect(errorMessage).toContain('Invalid response from Python analyzer');
         // Should mention the specific fields that failed
-        expect(errorMessage).toMatch(/coverage_percent|total_items|documented_items/);
+        expect(errorMessage).toMatch(
+          /coverage_percent|total_items|documented_items/
+        );
       }
     });
 
     it('should still handle non-validation errors (malformed JSON)', async () => {
       mockSuccessfulProcess('not valid json');
 
-      await expect(bridge.analyze({ path: '/test', verbose: false })).rejects.toThrow(
-        /Failed to parse Python output as JSON/
-      );
+      await expect(
+        bridge.analyze({ path: '/test', verbose: false })
+      ).rejects.toThrow(/Failed to parse Python output as JSON/);
     });
 
     it('should handle Python process failures', async () => {
       mockFailedProcess(1, 'Python error occurred');
 
-      await expect(bridge.analyze({ path: '/test', verbose: false })).rejects.toThrow(
-        /Python analyzer exited with code 1/
-      );
+      await expect(
+        bridge.analyze({ path: '/test', verbose: false })
+      ).rejects.toThrow(/Python analyzer exited with code 1/);
     });
   });
 });
@@ -479,7 +494,10 @@ describe('PythonBridge Timeout Handling', () => {
   /**
    * Helper to create a mock child process that completes successfully.
    */
-  function mockSuccessfulProcessWithDelay(jsonOutput: string, delayMs: number): any {
+  function mockSuccessfulProcessWithDelay(
+    jsonOutput: string,
+    delayMs: number
+  ): any {
     const mockProcess = new EventEmitter() as any;
     mockProcess.stdout = new EventEmitter();
     mockProcess.stderr = new EventEmitter();
@@ -592,7 +610,10 @@ describe('PythonBridge Timeout Handling', () => {
         parse_failures: [],
       };
 
-      const mockProcess = mockSuccessfulProcessWithDelay(JSON.stringify(validResult), 100);
+      const mockProcess = mockSuccessfulProcessWithDelay(
+        JSON.stringify(validResult),
+        100
+      );
 
       const analyzePromise = bridge.analyze({ path: '/test', verbose: false });
 
@@ -731,7 +752,11 @@ describe('PythonBridge Timeout Handling', () => {
         },
       };
 
-      const customBridge = new PythonBridge('python3', '/mock/analyzer', customConfig);
+      const customBridge = new PythonBridge(
+        'python3',
+        '/mock/analyzer',
+        customConfig
+      );
 
       // Bridge should be created with config
       expect(customBridge).toBeDefined();
@@ -754,7 +779,11 @@ describe('PythonBridge Timeout Handling', () => {
         // pythonBridge section missing
       };
 
-      const bridgeWithPartialConfig = new PythonBridge('python3', '/mock/analyzer', configWithoutBridge);
+      const bridgeWithPartialConfig = new PythonBridge(
+        'python3',
+        '/mock/analyzer',
+        configWithoutBridge
+      );
 
       // Bridge should be created with defaults
       expect(bridgeWithPartialConfig).toBeDefined();
@@ -772,7 +801,9 @@ describe('PythonBridge Timeout Handling', () => {
 
       expect(() => {
         new PythonBridge('python3', '/mock/analyzer', invalidConfig);
-      }).toThrow(/Invalid pythonBridge.defaultTimeout.*must be a positive number/);
+      }).toThrow(
+        /Invalid pythonBridge.defaultTimeout.*must be a positive number/
+      );
     });
 
     it('should throw error for zero defaultTimeout', () => {
@@ -787,7 +818,9 @@ describe('PythonBridge Timeout Handling', () => {
 
       expect(() => {
         new PythonBridge('python3', '/mock/analyzer', invalidConfig);
-      }).toThrow(/Invalid pythonBridge.defaultTimeout.*must be a positive number/);
+      }).toThrow(
+        /Invalid pythonBridge.defaultTimeout.*must be a positive number/
+      );
     });
 
     it('should throw error for Infinity timeout', () => {
@@ -802,7 +835,9 @@ describe('PythonBridge Timeout Handling', () => {
 
       expect(() => {
         new PythonBridge('python3', '/mock/analyzer', invalidConfig);
-      }).toThrow(/Invalid pythonBridge.defaultTimeout.*must be a finite number/);
+      }).toThrow(
+        /Invalid pythonBridge.defaultTimeout.*must be a finite number/
+      );
     });
 
     it('should throw error for NaN timeout', () => {
@@ -832,7 +867,9 @@ describe('PythonBridge Timeout Handling', () => {
 
       expect(() => {
         new PythonBridge('python3', '/mock/analyzer', invalidConfig);
-      }).toThrow(/Invalid pythonBridge.suggestTimeout.*must be a positive number/);
+      }).toThrow(
+        /Invalid pythonBridge.suggestTimeout.*must be a positive number/
+      );
     });
   });
 });
@@ -887,7 +924,9 @@ describe('PythonBridge Analyzer Path Resolution', () => {
 
       expect(() => {
         new PythonBridge('python3');
-      }).toThrow(/DOCIMP_ANALYZER_PATH is set to "\/nonexistent\/path\/to\/analyzer" but directory does not exist/);
+      }).toThrow(
+        /DOCIMP_ANALYZER_PATH is set to "\/nonexistent\/path\/to\/analyzer" but directory does not exist/
+      );
     });
 
     it('should provide helpful error message with path troubleshooting', () => {
@@ -900,7 +939,9 @@ describe('PythonBridge Analyzer Path Resolution', () => {
         const errorMessage = (error as Error).message;
         expect(errorMessage).toContain('DOCIMP_ANALYZER_PATH');
         expect(errorMessage).toContain('/invalid/path');
-        expect(errorMessage).toContain('Please check the path or unset the environment variable');
+        expect(errorMessage).toContain(
+          'Please check the path or unset the environment variable'
+        );
       }
     });
   });
@@ -1068,7 +1109,11 @@ describe('PythonBridge Git Timeout Configuration', () => {
         // No transaction.git section
       };
 
-      const bridge = new PythonBridge('python3', '/mock/analyzer', configWithoutGit);
+      const bridge = new PythonBridge(
+        'python3',
+        '/mock/analyzer',
+        configWithoutGit
+      );
       mockSuccessfulProcess(JSON.stringify({ success: true }));
 
       await bridge.beginTransaction('session-default');
@@ -1090,13 +1135,20 @@ describe('PythonBridge Git Timeout Configuration', () => {
         styleGuides: {},
         tone: 'concise',
         transaction: {
-          git: { baseTimeout: -5000, fastScale: 0.167, slowScale: 4.0, maxTimeout: 300000 },
+          git: {
+            baseTimeout: -5000,
+            fastScale: 0.167,
+            slowScale: 4.0,
+            maxTimeout: 300000,
+          },
         },
       };
 
       expect(() => {
         new PythonBridge('python3', '/mock/analyzer', invalidConfig);
-      }).toThrow(/Invalid transaction\.git\.baseTimeout.*Must be a positive finite number/);
+      }).toThrow(
+        /Invalid transaction\.git\.baseTimeout.*Must be a positive finite number/
+      );
     });
 
     it('should throw error for zero baseTimeout', () => {
@@ -1104,13 +1156,20 @@ describe('PythonBridge Git Timeout Configuration', () => {
         styleGuides: {},
         tone: 'concise',
         transaction: {
-          git: { baseTimeout: 0, fastScale: 0.167, slowScale: 4.0, maxTimeout: 300000 },
+          git: {
+            baseTimeout: 0,
+            fastScale: 0.167,
+            slowScale: 4.0,
+            maxTimeout: 300000,
+          },
         },
       };
 
       expect(() => {
         new PythonBridge('python3', '/mock/analyzer', invalidConfig);
-      }).toThrow(/Invalid transaction\.git\.baseTimeout.*Must be a positive finite number/);
+      }).toThrow(
+        /Invalid transaction\.git\.baseTimeout.*Must be a positive finite number/
+      );
     });
 
     it('should throw error for Infinity baseTimeout', () => {
@@ -1118,13 +1177,20 @@ describe('PythonBridge Git Timeout Configuration', () => {
         styleGuides: {},
         tone: 'concise',
         transaction: {
-          git: { baseTimeout: Infinity, fastScale: 0.167, slowScale: 4.0, maxTimeout: 300000 },
+          git: {
+            baseTimeout: Infinity,
+            fastScale: 0.167,
+            slowScale: 4.0,
+            maxTimeout: 300000,
+          },
         },
       };
 
       expect(() => {
         new PythonBridge('python3', '/mock/analyzer', invalidConfig);
-      }).toThrow(/Invalid transaction\.git\.baseTimeout.*Must be a positive finite number/);
+      }).toThrow(
+        /Invalid transaction\.git\.baseTimeout.*Must be a positive finite number/
+      );
     });
 
     it('should throw error for NaN baseTimeout', () => {
@@ -1132,7 +1198,12 @@ describe('PythonBridge Git Timeout Configuration', () => {
         styleGuides: {},
         tone: 'concise',
         transaction: {
-          git: { baseTimeout: NaN, fastScale: 0.167, slowScale: 4.0, maxTimeout: 300000 },
+          git: {
+            baseTimeout: NaN,
+            fastScale: 0.167,
+            slowScale: 4.0,
+            maxTimeout: 300000,
+          },
         },
       };
 
@@ -1146,13 +1217,20 @@ describe('PythonBridge Git Timeout Configuration', () => {
         styleGuides: {},
         tone: 'concise',
         transaction: {
-          git: { baseTimeout: 30000, fastScale: -0.1, slowScale: 4.0, maxTimeout: 300000 },
+          git: {
+            baseTimeout: 30000,
+            fastScale: -0.1,
+            slowScale: 4.0,
+            maxTimeout: 300000,
+          },
         },
       };
 
       expect(() => {
         new PythonBridge('python3', '/mock/analyzer', invalidConfig);
-      }).toThrow(/Invalid transaction\.git\.fastScale.*Must be a positive finite number/);
+      }).toThrow(
+        /Invalid transaction\.git\.fastScale.*Must be a positive finite number/
+      );
     });
 
     it('should throw error for zero fastScale', () => {
@@ -1160,13 +1238,20 @@ describe('PythonBridge Git Timeout Configuration', () => {
         styleGuides: {},
         tone: 'concise',
         transaction: {
-          git: { baseTimeout: 30000, fastScale: 0, slowScale: 4.0, maxTimeout: 300000 },
+          git: {
+            baseTimeout: 30000,
+            fastScale: 0,
+            slowScale: 4.0,
+            maxTimeout: 300000,
+          },
         },
       };
 
       expect(() => {
         new PythonBridge('python3', '/mock/analyzer', invalidConfig);
-      }).toThrow(/Invalid transaction\.git\.fastScale.*Must be a positive finite number/);
+      }).toThrow(
+        /Invalid transaction\.git\.fastScale.*Must be a positive finite number/
+      );
     });
 
     it('should throw error for negative slowScale', () => {
@@ -1174,13 +1259,20 @@ describe('PythonBridge Git Timeout Configuration', () => {
         styleGuides: {},
         tone: 'concise',
         transaction: {
-          git: { baseTimeout: 30000, fastScale: 0.167, slowScale: -4.0, maxTimeout: 300000 },
+          git: {
+            baseTimeout: 30000,
+            fastScale: 0.167,
+            slowScale: -4.0,
+            maxTimeout: 300000,
+          },
         },
       };
 
       expect(() => {
         new PythonBridge('python3', '/mock/analyzer', invalidConfig);
-      }).toThrow(/Invalid transaction\.git\.slowScale.*Must be a positive finite number/);
+      }).toThrow(
+        /Invalid transaction\.git\.slowScale.*Must be a positive finite number/
+      );
     });
 
     it('should throw error for zero slowScale', () => {
@@ -1188,13 +1280,20 @@ describe('PythonBridge Git Timeout Configuration', () => {
         styleGuides: {},
         tone: 'concise',
         transaction: {
-          git: { baseTimeout: 30000, fastScale: 0.167, slowScale: 0, maxTimeout: 300000 },
+          git: {
+            baseTimeout: 30000,
+            fastScale: 0.167,
+            slowScale: 0,
+            maxTimeout: 300000,
+          },
         },
       };
 
       expect(() => {
         new PythonBridge('python3', '/mock/analyzer', invalidConfig);
-      }).toThrow(/Invalid transaction\.git\.slowScale.*Must be a positive finite number/);
+      }).toThrow(
+        /Invalid transaction\.git\.slowScale.*Must be a positive finite number/
+      );
     });
 
     it('should throw error for negative maxTimeout', () => {
@@ -1202,13 +1301,20 @@ describe('PythonBridge Git Timeout Configuration', () => {
         styleGuides: {},
         tone: 'concise',
         transaction: {
-          git: { baseTimeout: 30000, fastScale: 0.167, slowScale: 4.0, maxTimeout: -10000 },
+          git: {
+            baseTimeout: 30000,
+            fastScale: 0.167,
+            slowScale: 4.0,
+            maxTimeout: -10000,
+          },
         },
       };
 
       expect(() => {
         new PythonBridge('python3', '/mock/analyzer', invalidConfig);
-      }).toThrow(/Invalid transaction\.git\.maxTimeout.*Must be a positive finite number/);
+      }).toThrow(
+        /Invalid transaction\.git\.maxTimeout.*Must be a positive finite number/
+      );
     });
 
     it('should throw error for zero maxTimeout', () => {
@@ -1216,13 +1322,20 @@ describe('PythonBridge Git Timeout Configuration', () => {
         styleGuides: {},
         tone: 'concise',
         transaction: {
-          git: { baseTimeout: 30000, fastScale: 0.167, slowScale: 4.0, maxTimeout: 0 },
+          git: {
+            baseTimeout: 30000,
+            fastScale: 0.167,
+            slowScale: 4.0,
+            maxTimeout: 0,
+          },
         },
       };
 
       expect(() => {
         new PythonBridge('python3', '/mock/analyzer', invalidConfig);
-      }).toThrow(/Invalid transaction\.git\.maxTimeout.*Must be a positive finite number/);
+      }).toThrow(
+        /Invalid transaction\.git\.maxTimeout.*Must be a positive finite number/
+      );
     });
 
     it('should accept valid git timeout config', () => {
@@ -1230,7 +1343,12 @@ describe('PythonBridge Git Timeout Configuration', () => {
         styleGuides: {},
         tone: 'concise',
         transaction: {
-          git: { baseTimeout: 60000, fastScale: 0.5, slowScale: 10.0, maxTimeout: 600000 },
+          git: {
+            baseTimeout: 60000,
+            fastScale: 0.5,
+            slowScale: 10.0,
+            maxTimeout: 600000,
+          },
         },
       };
 
@@ -1253,7 +1371,11 @@ describe('PythonBridge Git Timeout Configuration', () => {
         },
       };
 
-      const bridge = new PythonBridge('python3', '/mock/analyzer', partialConfig);
+      const bridge = new PythonBridge(
+        'python3',
+        '/mock/analyzer',
+        partialConfig
+      );
       mockSuccessfulProcess(JSON.stringify({ success: true }));
 
       await bridge.beginTransaction('session-partial');

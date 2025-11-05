@@ -8,9 +8,9 @@ import json
 import os
 import subprocess
 from pathlib import Path
-from typing import List, Optional
-from .base_parser import BaseParser
+
 from ..models.code_item import CodeItem
+from .base_parser import BaseParser
 
 
 class TypeScriptParser(BaseParser):
@@ -26,7 +26,7 @@ class TypeScriptParser(BaseParser):
 
     MAX_SUBPROCESS_OUTPUT_LEN = 200
 
-    def __init__(self, helper_path: Optional[Path] = None):
+    def __init__(self, helper_path: Path | None = None):
         """Initialize the TypeScript parser and locate the Node.js CLI script.
 
         Uses a three-tier resolution strategy:
@@ -103,7 +103,7 @@ class TypeScriptParser(BaseParser):
             return text[: self.MAX_SUBPROCESS_OUTPUT_LEN] + "..."
         return text
 
-    def parse_file(self, filepath: str) -> List[CodeItem]:
+    def parse_file(self, filepath: str) -> list[CodeItem]:
         """
         Parse a TypeScript or JavaScript file and extract code items.
 
@@ -182,27 +182,26 @@ class TypeScriptParser(BaseParser):
                     raise SyntaxError(error_message)
 
             # Convert JSON data to CodeItem objects
-            items: List[CodeItem] = []
-            for item_data in items_data:
-                items.append(
-                    CodeItem(
-                        name=item_data["name"],
-                        type=item_data["type"],
-                        filepath=item_data["filepath"],
-                        line_number=item_data["line_number"],
-                        end_line=item_data["end_line"],
-                        language=item_data["language"],
-                        complexity=item_data["complexity"],
-                        impact_score=item_data["impact_score"],
-                        has_docs=item_data["has_docs"],
-                        parameters=item_data["parameters"],
-                        return_type=item_data.get("return_type"),
-                        docstring=item_data.get("docstring"),
-                        export_type=item_data["export_type"],
-                        module_system=item_data["module_system"],
-                        audit_rating=None,  # Will be set by audit command if needed
-                    )
+            items: list[CodeItem] = [
+                CodeItem(
+                    name=item_data["name"],
+                    type=item_data["type"],
+                    filepath=item_data["filepath"],
+                    line_number=item_data["line_number"],
+                    end_line=item_data["end_line"],
+                    language=item_data["language"],
+                    complexity=item_data["complexity"],
+                    impact_score=item_data["impact_score"],
+                    has_docs=item_data["has_docs"],
+                    parameters=item_data["parameters"],
+                    return_type=item_data.get("return_type"),
+                    docstring=item_data.get("docstring"),
+                    export_type=item_data["export_type"],
+                    module_system=item_data["module_system"],
+                    audit_rating=None,  # Will be set by audit command if needed
                 )
+                for item_data in items_data
+            ]
 
             return items
 

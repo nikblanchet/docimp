@@ -5,12 +5,14 @@ This test suite verifies complete isolation between the side-car repository
 safety tests to ensure DocImp never interferes with the user's git workflow.
 """
 
-import sys
-from pathlib import Path
-import tempfile
-import subprocess
+import contextlib
 import hashlib
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
+
 import pytest
 
 # Add src to path for imports
@@ -148,9 +150,9 @@ class TestSidecarRepoIsolation:
 
                     # All other commands must have --git-dir flag
                     cmd_str = " ".join(cmd)
-                    assert (
-                        "--git-dir" in cmd_str
-                    ), f"Command missing --git-dir: {cmd_str}"
+                    assert "--git-dir" in cmd_str, (
+                        f"Command missing --git-dir: {cmd_str}"
+                    )
 
     def test_no_git_hook_interference(self):
         """Verify side-car repo never triggers user's git hooks."""
@@ -266,9 +268,9 @@ class TestSidecarRepoIsolation:
 
             # Should only show user's commit, not docimp commits
             log_output = result.stdout
-            assert (
-                "docimp:" not in log_output.lower()
-            ), "User's git log shows docimp commits!"
+            assert "docimp:" not in log_output.lower(), (
+                "User's git log shows docimp commits!"
+            )
             assert "Initial commit" in log_output
 
 
@@ -385,10 +387,8 @@ class TestGitEdgeCases:
 
             # This may raise or fall back to non-git mode
             # Either behavior is acceptable, but should not crash
-            try:
+            with contextlib.suppress(subprocess.CalledProcessError, RuntimeError):
                 _manifest = manager.begin_transaction("test-session")
-            except (subprocess.CalledProcessError, RuntimeError):
-                pass  # Graceful failure is acceptable
 
     def test_git_detached_head_state(self):
         """Test operations when side-car repo in detached HEAD."""

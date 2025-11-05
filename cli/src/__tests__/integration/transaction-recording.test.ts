@@ -15,7 +15,9 @@ const execAsync = promisify(exec);
 describe('Transaction Recording Integration', () => {
   let pythonBridge: PythonBridge;
   // Use DOCIMP_ANALYZER_PATH set by Jest setup (works in both local and CI)
-  const analyzerDir = process.env.DOCIMP_ANALYZER_PATH || resolve(process.cwd(), '..', 'analyzer');
+  const analyzerDir =
+    process.env.DOCIMP_ANALYZER_PATH ||
+    resolve(process.cwd(), '..', 'analyzer');
   const testStateDir = resolve(analyzerDir, '.docimp/state');
 
   beforeEach(() => {
@@ -54,7 +56,7 @@ describe('Transaction Recording Integration', () => {
           item_type: 'function',
           docstring: 'Example function.',
           language: 'python',
-          backup_path: backupPath
+          backup_path: backupPath,
         });
 
         // Record the write
@@ -105,7 +107,7 @@ describe('Transaction Recording Integration', () => {
           item_type: 'function',
           docstring: 'Calculate something.',
           language: 'python',
-          backup_path: backupPath
+          backup_path: backupPath,
         });
 
         await pythonBridge.recordWrite(
@@ -164,7 +166,7 @@ describe('Transaction Recording Integration', () => {
           item_type: 'function',
           docstring: 'Backup test function.',
           language: 'python',
-          backup_path: backupPath
+          backup_path: backupPath,
         });
 
         // Record the write
@@ -215,7 +217,7 @@ describe('Transaction Recording Integration', () => {
           item_type: 'function',
           docstring: 'First function.',
           language: 'python',
-          backup_path: backupPath1
+          backup_path: backupPath1,
         });
         await pythonBridge.recordWrite(
           sessionId,
@@ -234,7 +236,7 @@ describe('Transaction Recording Integration', () => {
           item_type: 'function',
           docstring: 'Second function.',
           language: 'python',
-          backup_path: backupPath2
+          backup_path: backupPath2,
         });
         await pythonBridge.recordWrite(
           sessionId,
@@ -255,12 +257,15 @@ describe('Transaction Recording Integration', () => {
         expect(commits.length).toBeGreaterThanOrEqual(2);
       } finally {
         // Clean up
-        [testFile1, testFile2].forEach(file => {
+        [testFile1, testFile2].forEach((file) => {
           if (existsSync(file)) {
             rmSync(file);
           }
         });
-        [`${testFile1}.20251030-120003.bak`, `${testFile2}.20251030-120004.bak`].forEach(backup => {
+        [
+          `${testFile1}.20251030-120003.bak`,
+          `${testFile2}.20251030-120004.bak`,
+        ].forEach((backup) => {
           if (existsSync(backup)) {
             rmSync(backup);
           }

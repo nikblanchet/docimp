@@ -7,7 +7,14 @@
  * using console.log directly.
  */
 
-import type { AnalysisResult, CodeItem, AuditSummary, SessionSummary, TransactionEntry, RollbackResult } from '../types/analysis.js';
+import type {
+  AnalysisResult,
+  CodeItem,
+  AuditSummary,
+  SessionSummary,
+  TransactionEntry,
+  RollbackResult,
+} from '../types/analysis.js';
 
 /**
  * Display interface for terminal output with dependency injection support.

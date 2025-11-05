@@ -1,7 +1,7 @@
 """Abstract base class for language parsers."""
 
 from abc import ABC, abstractmethod
-from typing import List
+
 from ..models.code_item import CodeItem
 
 
@@ -14,7 +14,7 @@ class BaseParser(ABC):
     """
 
     @abstractmethod
-    def parse_file(self, filepath: str) -> List[CodeItem]:
+    def parse_file(self, filepath: str) -> list[CodeItem]:
         """
         Parse a source file and extract code items.
 

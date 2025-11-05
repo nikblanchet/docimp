@@ -5,8 +5,6 @@ This module constructs prompts for Claude that include code context, style guide
 and tone preferences to generate high-quality documentation.
 """
 
-from typing import Optional
-
 
 class PromptBuilder:
     """
@@ -166,8 +164,7 @@ Calculate the sum of two numbers.
         "tsdoc-aedoc": {
             "name": "TSDoc (API Extractor/AEDoc)",
             "description": (
-                "TSDoc format for Microsoft API Extractor with public API "
-                "annotations"
+                "TSDoc format for Microsoft API Extractor with public API annotations"
             ),
             "language": "typescript",
             "example": """/**
@@ -223,8 +220,8 @@ Calculate the sum of two numbers.
         item_name: str,
         item_type: str,
         language: str,
-        context: Optional[str] = None,
-        feedback: Optional[str] = None,
+        context: str | None = None,
+        feedback: str | None = None,
     ) -> str:
         """
         Build a documentation generation prompt.
@@ -305,7 +302,7 @@ Calculate the sum of two numbers.
                     f"1. Return ONLY the documentation for the {item_type} "
                     f"'{item_name}' - nothing else"
                 ),
-                ("2. The surrounding code is for CONTEXT ONLY - " "do not document it"),
+                ("2. The surrounding code is for CONTEXT ONLY - do not document it"),
                 "3. Do not include the code itself, only the documentation",
                 "4. Use the exact format shown in the example",
             ]
@@ -334,7 +331,7 @@ Calculate the sum of two numbers.
             prompt_parts.extend(
                 [
                     (
-                        "7. Include type hints for all parameters and " "return values"
+                        "7. Include type hints for all parameters and return values"
                     ),  # NOTE: Changed from "5" to "7"
                     (
                         "8. Return only the docstring content - do NOT "
@@ -345,7 +342,7 @@ Calculate the sum of two numbers.
             )
             if self.style_guide == "numpy-rest":
                 prompt_parts.append(
-                    ("7. Use reStructuredText markup: *italic*, **bold**, " "``code``")
+                    "7. Use reStructuredText markup: *italic*, **bold**, ``code``"
                 )
             elif self.style_guide == "numpy-markdown":
                 prompt_parts.append(
@@ -378,32 +375,32 @@ Calculate the sum of two numbers.
                 prompt_parts.extend(
                     [
                         "7. Use @return (not @returns)",
-                        ("8. Include @public, @private, or @protected " "annotations"),
+                        ("8. Include @public, @private, or @protected annotations"),
                     ]
                 )
         elif style_language == "typescript":
             if self.style_guide == "tsdoc-typedoc":
                 prompt_parts.extend(
                     [
-                        ("5. Use TSDoc format with hyphens after " "parameter names"),
+                        ("5. Use TSDoc format with hyphens after parameter names"),
                         "6. Use @returns (not @return)",
-                        ("7. Types are inferred from TypeScript " "signatures"),
+                        ("7. Types are inferred from TypeScript signatures"),
                         "8. Include @remarks for additional details",
                     ]
                 )
             elif self.style_guide == "tsdoc-aedoc":
                 prompt_parts.extend(
                     [
-                        ("5. Use TSDoc format with hyphens after " "parameter names"),
+                        ("5. Use TSDoc format with hyphens after parameter names"),
                         "6. Use @returns (not @return)",
-                        ("7. Include @public, @beta, or @internal " "annotations"),
-                        ("8. Types are inferred from TypeScript " "signatures"),
+                        ("7. Include @public, @beta, or @internal annotations"),
+                        ("8. Types are inferred from TypeScript signatures"),
                     ]
                 )
             elif self.style_guide == "jsdoc-ts":
                 prompt_parts.extend(
                     [
-                        ("5. Use JSDoc format with explicit type " "annotations"),
+                        ("5. Use JSDoc format with explicit type annotations"),
                         (
                             "6. Include {type} annotations even though "
                             "TypeScript provides types"

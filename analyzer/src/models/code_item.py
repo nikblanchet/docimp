@@ -1,6 +1,6 @@
 """CodeItem data model for representing parsed code elements."""
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 
 type CodeItemValue = str | int | float | bool | list[str] | None
 

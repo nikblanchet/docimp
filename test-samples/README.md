@@ -47,7 +47,8 @@ The `expected-results.json` file documents:
 
 ## Restoration
 
-After running interactive commands that modify files (`docimp improve`), restore the original state:
+After running interactive commands that modify files (`docimp improve`), restore the
+original state:
 
 ```bash
 git restore test-samples/example-project/
@@ -227,15 +228,19 @@ The Workflow B test creates a non-interactive audit fixture to simulate user rat
 
 1. **Reads expected-results.json**: Contains sample audit ratings for specific items
 2. **Converts to audit.json format**: Transforms ratings into the session report format
-3. **Path normalization**: Converts relative paths to absolute paths (critical for matching with analysis results)
+3. **Path normalization**: Converts relative paths to absolute paths (critical for
+   matching with analysis results)
 4. **Runs plan command**: Applies audit ratings to impact scores
 5. **Validates results**: Checks that ratings are applied and plan item count is correct
 
-This provides regression protection for the audit rating application feature without requiring interactive user input.
+This provides regression protection for the audit rating application feature without
+requiring interactive user input.
 
 ## Testing Improve Command
 
-The improve command is the primary user-facing feature of DocImp, but it requires manual testing due to:
+The improve command is the primary user-facing feature of DocImp, but it requires manual
+testing due to:
+
 - Claude API interaction (requires ANTHROPIC_API_KEY)
 - Interactive user input (A/E/R/S/Q choices)
 - Actual file modifications
@@ -256,6 +261,7 @@ chmod +x test-workflows-improve.sh
 ```
 
 The script will:
+
 1. Verify ANTHROPIC_API_KEY is set
 2. Clean state and restore files
 3. Run analyze → plan workflow
@@ -267,15 +273,20 @@ The script will:
 ### What to Verify
 
 During manual testing, verify:
+
 - Documentation is inserted at the correct location
-- Documentation matches expected style (NumPy for Python, JSDoc for TypeScript/JavaScript)
+- Documentation matches expected style (NumPy for Python, JSDoc for
+  TypeScript/JavaScript)
 - File syntax remains valid (no indentation errors)
 - Git diff shows the expected changes
-- Multiple user choices work correctly: [A] Accept, [E] Edit, [R] Regenerate, [S] Skip, [Q] Quit
+- Multiple user choices work correctly: [A] Accept, [E] Edit, [R] Regenerate, [S] Skip,
+  [Q] Quit
 
 ### Future Enhancement
 
-When ClaudeClient mocking is implemented, this manual procedure can be converted to automated tests:
+When ClaudeClient mocking is implemented, this manual procedure can be converted to
+automated tests:
+
 - Mock Claude responses with predetermined documentation
 - Validate DocstringWriter inserts at correct locations
 - Test all code paths (accept, edit, regenerate, skip)
@@ -283,7 +294,9 @@ When ClaudeClient mocking is implemented, this manual procedure can be converted
 
 ## Testing Undo Feature
 
-The undo feature integration test verifies the complete undo workflow with real file system operations. This test validates that:
+The undo feature integration test verifies the complete undo workflow with real file
+system operations. This test validates that:
+
 - Accept change adds documentation to a file
 - Undo reverts the file to its original state
 - Git transaction history records both operations (accept + revert commits)
@@ -304,6 +317,7 @@ chmod +x test-undo-integration.sh
 ```
 
 The script will:
+
 1. Verify prerequisites (API key, git, docimp)
 2. Create temporary test directory with sample code
 3. Run analyze and plan
@@ -316,20 +330,27 @@ The script will:
 
 The integration test covers the complete undo workflow end-to-end:
 
-1. **File restoration**: File content exactly matches original after undo (no residual changes)
+1. **File restoration**: File content exactly matches original after undo (no residual
+   changes)
 2. **Git history**: Side-car repository contains both accept and revert commits
-3. **Transaction integrity**: Undo operations integrate correctly with git-based transaction system
+3. **Transaction integrity**: Undo operations integrate correctly with git-based
+   transaction system
 4. **Real file operations**: Uses actual file system and git commands (not mocks)
 
 ### Test Coverage
 
-This integration test complements the unit tests in `cli/src/__tests__/session/InteractiveSession.test.ts`:
+This integration test complements the unit tests in
+`cli/src/__tests__/session/InteractiveSession.test.ts`:
+
 - **Unit tests** (9 tests): Mock PythonBridge, fast execution, isolated components
-- **Integration test** (this): Real file I/O, real git operations, catches integration issues
+- **Integration test** (this): Real file I/O, real git operations, catches integration
+  issues
 
 ### Future Enhancement
 
-When ClaudeClient mocking is implemented, this integration test could be extended to test more complex undo scenarios:
+When ClaudeClient mocking is implemented, this integration test could be extended to
+test more complex undo scenarios:
+
 - Multiple accepts followed by multiple undos
 - Undo after editing a suggestion
 - Undo with file conflicts
@@ -374,7 +395,9 @@ git checkout HEAD -- .
 
 ### Updating Expected Results
 
-When you make intentional changes to the example-project code or when parser improvements legitimately change item counts, use the automated script to regenerate `expected-results.json`:
+When you make intentional changes to the example-project code or when parser
+improvements legitimately change item counts, use the automated script to regenerate
+`expected-results.json`:
 
 ```bash
 # From repository root or test-samples directory
@@ -394,7 +417,10 @@ When you make intentional changes to the example-project code or when parser imp
 5. Output to `expected-results-new.json` for review
 6. Show a diff of what changed
 
-**Version Field**: The `version` field indicates the schema version of `expected-results.json`. Currently at "1.0". This field should be incremented if the structure of expected-results.json changes in breaking ways (e.g., renaming fields, changing data types, or adding required fields).
+**Version Field**: The `version` field indicates the schema version of
+`expected-results.json`. Currently at "1.0". This field should be incremented if the
+structure of expected-results.json changes in breaking ways (e.g., renaming fields,
+changing data types, or adding required fields).
 
 **Review workflow:**
 
@@ -423,11 +449,13 @@ git commit -m "Update expected results after [description of change]"
 - You haven't verified the new counts are correct
 - Tests are failing and you don't understand why
 
-**Important**: Always understand why the numbers changed before accepting new expected results. Unexpected changes may indicate bugs in the parser or analysis logic.
+**Important**: Always understand why the numbers changed before accepting new expected
+results. Unexpected changes may indicate bugs in the parser or analysis logic.
 
 ### Manually-Maintained Sections
 
-The following sections in `expected-results.json` are **NOT** auto-generated and must be updated manually when needed:
+The following sections in `expected-results.json` are **NOT** auto-generated and must be
+updated manually when needed:
 
 - **`description`**: Human-readable description of the file's purpose
 - **`note`**: Important context about how values are generated
@@ -436,7 +464,8 @@ The following sections in `expected-results.json` are **NOT** auto-generated and
 - **`expected_plan_items`**: Expected plan counts for both workflows A and B
 - **`notes`**: Important context about exclusions, restoration, etc.
 
-If you modify these sections, the update script will preserve your changes. The `description` and `note` fields have sensible defaults if missing.
+If you modify these sections, the update script will preserve your changes. The
+`description` and `note` fields have sensible defaults if missing.
 
 ## Contributing
 

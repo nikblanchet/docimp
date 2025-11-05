@@ -51,14 +51,18 @@ describe('PathValidator', () => {
     });
 
     it('throws error for empty string path', () => {
-      expect(() => PathValidator.validatePathExists('')).toThrow('Path cannot be empty');
+      expect(() => PathValidator.validatePathExists('')).toThrow(
+        'Path cannot be empty'
+      );
       expect(() => PathValidator.validatePathExists('')).toThrow(
         'Please provide a valid path to analyze.'
       );
     });
 
     it('throws error for whitespace-only path', () => {
-      expect(() => PathValidator.validatePathExists('   ')).toThrow('Path cannot be empty');
+      expect(() => PathValidator.validatePathExists('   ')).toThrow(
+        'Path cannot be empty'
+      );
     });
 
     it('handles paths with spaces correctly', () => {
@@ -105,12 +109,12 @@ describe('PathValidator', () => {
       fs.chmodSync(unreadableFile, 0o000); // Remove all permissions
 
       try {
-        expect(() => PathValidator.validatePathReadable(unreadableFile)).toThrow(
-          'Permission denied'
-        );
-        expect(() => PathValidator.validatePathReadable(unreadableFile)).toThrow(
-          'You do not have permission to read this path'
-        );
+        expect(() =>
+          PathValidator.validatePathReadable(unreadableFile)
+        ).toThrow('Permission denied');
+        expect(() =>
+          PathValidator.validatePathReadable(unreadableFile)
+        ).toThrow('You do not have permission to read this path');
       } finally {
         // Restore permissions for cleanup
         fs.chmodSync(unreadableFile, 0o644);
@@ -176,7 +180,9 @@ describe('PathValidator', () => {
 
       PathValidator.warnIfEmpty(emptyDir);
 
-      expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining(emptyDir));
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining(emptyDir)
+      );
     });
   });
 

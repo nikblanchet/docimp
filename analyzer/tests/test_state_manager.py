@@ -1,9 +1,10 @@
 """Tests for state directory management."""
 
+import shutil
 import sys
 import tempfile
-import shutil
 from pathlib import Path
+
 import pytest
 
 # Add parent directory to path for imports

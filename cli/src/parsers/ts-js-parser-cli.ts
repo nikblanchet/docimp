@@ -12,31 +12,31 @@ import { parseFile } from './ts-js-parser-helper.js';
  * Main entry point for CLI usage
  */
 function main() {
-    const args = process.argv.slice(2);
+  const args = process.argv.slice(2);
 
-    if (args.length === 0) {
-        console.error('Usage: node ts-js-parser-cli.js <filepath>');
-        process.exit(1);
-    }
+  if (args.length === 0) {
+    console.error('Usage: node ts-js-parser-cli.js <filepath>');
+    process.exit(1);
+  }
 
-    const filepath = args[0];
+  const filepath = args[0];
 
-    if (!fs.existsSync(filepath)) {
-        console.error(JSON.stringify({ error: `File not found: ${filepath}` }));
-        process.exit(1);
-    }
+  if (!fs.existsSync(filepath)) {
+    console.error(JSON.stringify({ error: `File not found: ${filepath}` }));
+    process.exit(1);
+  }
 
-    try {
-        const items = parseFile(filepath);
-        console.log(JSON.stringify(items, null, 2));
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(JSON.stringify({ error: errorMessage }));
-        process.exit(1);
-    }
+  try {
+    const items = parseFile(filepath);
+    console.log(JSON.stringify(items, null, 2));
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(JSON.stringify({ error: errorMessage }));
+    process.exit(1);
+  }
 }
 
 // Run if called directly
 if (import.meta.url === `file://${process.argv[1]}`) {
-    main();
+  main();
 }

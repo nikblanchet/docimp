@@ -47,6 +47,11 @@ jobs:
           cd analyzer
           ruff check .
 
+      - name: Check Python formatting
+        run: |
+          cd analyzer
+          ruff format --check .
+
       - name: Type check with mypy
         run: |
           cd analyzer
@@ -94,6 +99,11 @@ jobs:
         run: |
           cd cli
           npm run lint
+
+      - name: Check TypeScript/JavaScript formatting
+        run: |
+          cd cli
+          npm run format:check
 
       - name: Lint JSDoc
         run: |

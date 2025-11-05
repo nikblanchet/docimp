@@ -2,7 +2,12 @@
  * Unit tests for terminal width detection utilities.
  */
 
-import { getTerminalWidth, shouldUseCompactMode, COMPACT_TABLE_CHARS, COMPACT_TABLE_STYLE } from '../../utils/terminalWidth.js';
+import {
+  getTerminalWidth,
+  shouldUseCompactMode,
+  COMPACT_TABLE_CHARS,
+  COMPACT_TABLE_STYLE,
+} from '../../utils/terminalWidth.js';
 
 describe('terminalWidth', () => {
   let originalColumns: number | undefined;

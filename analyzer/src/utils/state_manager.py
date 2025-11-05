@@ -6,7 +6,6 @@ where all working files (audit results, plans, session reports) are stored.
 
 import os
 from pathlib import Path
-from typing import Optional, List
 
 
 class StateManager:
@@ -37,7 +36,7 @@ class StateManager:
     ANALYZE_FILE = "analyze-latest.json"
 
     @classmethod
-    def get_state_dir(cls, base_path: Optional[Path] = None) -> Path:
+    def get_state_dir(cls, base_path: Path | None = None) -> Path:
         """Get the absolute path to the .docimp/ state directory.
 
         Args:
@@ -52,7 +51,7 @@ class StateManager:
         return (base_path / cls.STATE_DIR_NAME).resolve()
 
     @classmethod
-    def get_session_reports_dir(cls, base_path: Optional[Path] = None) -> Path:
+    def get_session_reports_dir(cls, base_path: Path | None = None) -> Path:
         """Get the absolute path to the session-reports/ directory.
 
         Args:
@@ -65,7 +64,7 @@ class StateManager:
         return cls.get_state_dir(base_path) / cls.SESSION_REPORTS_DIR
 
     @classmethod
-    def get_history_dir(cls, base_path: Optional[Path] = None) -> Path:
+    def get_history_dir(cls, base_path: Path | None = None) -> Path:
         """Get the absolute path to the history/ directory.
 
         Args:
@@ -78,7 +77,7 @@ class StateManager:
         return cls.get_state_dir(base_path) / cls.HISTORY_DIR
 
     @classmethod
-    def get_audit_file(cls, base_path: Optional[Path] = None) -> Path:
+    def get_audit_file(cls, base_path: Path | None = None) -> Path:
         """Get the absolute path to the audit.json file.
 
         Args:
@@ -91,7 +90,7 @@ class StateManager:
         return cls.get_session_reports_dir(base_path) / cls.AUDIT_FILE
 
     @classmethod
-    def get_plan_file(cls, base_path: Optional[Path] = None) -> Path:
+    def get_plan_file(cls, base_path: Path | None = None) -> Path:
         """Get the absolute path to the plan.json file.
 
         Args:
@@ -104,7 +103,7 @@ class StateManager:
         return cls.get_session_reports_dir(base_path) / cls.PLAN_FILE
 
     @classmethod
-    def get_analyze_file(cls, base_path: Optional[Path] = None) -> Path:
+    def get_analyze_file(cls, base_path: Path | None = None) -> Path:
         """Get the absolute path to the analyze-latest.json file.
 
         Args:
@@ -117,7 +116,7 @@ class StateManager:
         return cls.get_session_reports_dir(base_path) / cls.ANALYZE_FILE
 
     @classmethod
-    def ensure_state_dir(cls, base_path: Optional[Path] = None) -> None:
+    def ensure_state_dir(cls, base_path: Path | None = None) -> None:
         """Ensure the state directory structure exists, creating it if necessary.
 
         Creates:
@@ -139,7 +138,7 @@ class StateManager:
         history_dir.mkdir(exist_ok=True)
 
     @classmethod
-    def clear_session_reports(cls, base_path: Optional[Path] = None) -> int:
+    def clear_session_reports(cls, base_path: Path | None = None) -> int:
         """Clear all files in the session-reports/ directory.
 
         This removes all session files (audit, plan, analyze) to start fresh.
@@ -170,7 +169,7 @@ class StateManager:
         return files_removed
 
     @classmethod
-    def state_dir_exists(cls, base_path: Optional[Path] = None) -> bool:
+    def state_dir_exists(cls, base_path: Path | None = None) -> bool:
         """Check if the state directory exists.
 
         Args:
@@ -221,7 +220,7 @@ class StateManager:
                 )
 
     @classmethod
-    def get_transactions_dir(cls, base_path: Optional[Path] = None) -> Path:
+    def get_transactions_dir(cls, base_path: Path | None = None) -> Path:
         """Get the absolute path to the transactions/ directory.
 
         This directory stores transaction manifests for rollback capability.
@@ -238,7 +237,7 @@ class StateManager:
 
     @classmethod
     def get_transaction_file(
-        cls, session_id: str, base_path: Optional[Path] = None
+        cls, session_id: str, base_path: Path | None = None
     ) -> Path:
         """Get the absolute path to a specific transaction manifest file.
 
@@ -254,7 +253,7 @@ class StateManager:
         return cls.get_transactions_dir(base_path) / f"transaction-{session_id}.json"
 
     @classmethod
-    def list_transaction_files(cls, base_path: Optional[Path] = None) -> List[Path]:
+    def list_transaction_files(cls, base_path: Path | None = None) -> list[Path]:
         """List all transaction manifest files, sorted by modification time.
 
         Returns transaction files sorted by modification time (newest first).
@@ -278,7 +277,7 @@ class StateManager:
         )
 
     @classmethod
-    def get_git_state_dir(cls, base_path: Optional[Path] = None) -> Path:
+    def get_git_state_dir(cls, base_path: Path | None = None) -> Path:
         """Get the absolute path to the .docimp/state directory.
 
         This directory contains the side-car git repository used for
@@ -294,7 +293,7 @@ class StateManager:
         return cls.get_state_dir(base_path) / cls.GIT_STATE_DIR
 
     @classmethod
-    def ensure_git_state(cls, base_path: Optional[Path] = None) -> bool:
+    def ensure_git_state(cls, base_path: Path | None = None) -> bool:
         """Ensure git state directory exists and is initialized.
 
         This method initializes the side-car git repository if git is available.

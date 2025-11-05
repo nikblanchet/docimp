@@ -4,12 +4,13 @@ This test suite covers error handling, advanced TypeScript features,
 module patterns, JSDoc edge cases, and complexity calculation accuracy.
 """
 
+import contextlib
+import subprocess
 import sys
 from pathlib import Path
-import pytest
-import subprocess
 from unittest.mock import patch
-import os
+
+import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -49,17 +50,15 @@ class TestTypeScriptParserFileSystemErrors:
 
         try:
             # Remove all permissions
-            os.chmod(restricted_file, 0o000)
+            restricted_file.chmod(0o000)
 
             # Parser should raise an error (specific type may vary by platform)
             with pytest.raises((FileNotFoundError, PermissionError, RuntimeError)):
                 parser.parse_file(str(restricted_file))
         finally:
             # Restore permissions for cleanup
-            try:
-                os.chmod(restricted_file, 0o644)
-            except OSError:
-                pass
+            with contextlib.suppress(OSError):
+                restricted_file.chmod(0o644)
 
     def test_empty_file_handling(self, parser, tmp_path):
         """Test that empty TypeScript files are handled gracefully.
@@ -97,12 +96,12 @@ class TestTypeScriptParserSubprocessErrors:
             raise FileNotFoundError("node: command not found")
 
         # Patch subprocess.run in the parser module's namespace
-        with patch(
-            "src.parsers.typescript_parser.subprocess.run", side_effect=mock_run
+        with (
+            patch("src.parsers.typescript_parser.subprocess.run", side_effect=mock_run),
+            pytest.raises(FileNotFoundError),
         ):
             # Parser catches FileNotFoundError and re-raises with generic message
-            with pytest.raises(FileNotFoundError):
-                parser.parse_file(str(test_file))
+            parser.parse_file(str(test_file))
 
     def test_helper_script_missing(self, tmp_path):
         """Test error message when helper script is missing.

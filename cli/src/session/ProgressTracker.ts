@@ -104,7 +104,13 @@ export class ProgressTracker {
    * @returns Progress string like "5/10 items (3 accepted, 2 skipped)" or with errors if any
    */
   getProgressString(): string {
-    const { completedItems, totalItems, acceptedItems, skippedItems, errorItems } = this.getProgress();
+    const {
+      completedItems,
+      totalItems,
+      acceptedItems,
+      skippedItems,
+      errorItems,
+    } = this.getProgress();
     const parts = [`${acceptedItems} accepted`, `${skippedItems} skipped`];
     if (errorItems > 0) {
       const errorText = errorItems === 1 ? 'error' : 'errors';

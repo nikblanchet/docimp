@@ -11,15 +11,15 @@ Key components:
 - TransactionManager: Manages transaction lifecycle using git backend
 """
 
-from dataclasses import dataclass, asdict, field
-from typing import List, Optional, TYPE_CHECKING
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from src.utils.git_helper import GitTimeoutConfig
 import json
 import shutil
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 
 @dataclass
@@ -70,10 +70,10 @@ class TransactionManifest:
 
     session_id: str
     started_at: str
-    completed_at: Optional[str] = None
-    entries: List[TransactionEntry] = field(default_factory=list)
+    completed_at: str | None = None
+    entries: list[TransactionEntry] = field(default_factory=list)
     status: str = "in_progress"
-    git_commit_sha: Optional[str] = None
+    git_commit_sha: str | None = None
 
 
 @dataclass
@@ -96,11 +96,11 @@ class RollbackResult:
     success: bool
     restored_count: int
     failed_count: int
-    conflicts: List[str] = field(default_factory=list)
+    conflicts: list[str] = field(default_factory=list)
     status: str = "completed"
-    item_name: Optional[str] = None
-    item_type: Optional[str] = None
-    filepath: Optional[str] = None
+    item_name: str | None = None
+    item_type: str | None = None
+    filepath: str | None = None
 
 
 class TransactionManager:
@@ -133,7 +133,7 @@ class TransactionManager:
 
     def __init__(
         self,
-        base_path: Optional[Path] = None,
+        base_path: Path | None = None,
         use_git: bool = True,
         timeout_config: Optional["GitTimeoutConfig"] = None,
     ):
@@ -385,7 +385,7 @@ Metadata:
         # Convert manifest to dict, handling TransactionEntry objects
         manifest_dict = asdict(manifest)
 
-        with open(path, "w") as f:
+        with path.open("w") as f:
             json.dump(manifest_dict, f, indent=2)
 
     def load_manifest(self, path: Path) -> TransactionManifest:
@@ -401,7 +401,7 @@ Metadata:
             FileNotFoundError: If manifest file doesn't exist
             json.JSONDecodeError: If manifest file is invalid JSON
         """
-        with open(path, "r") as f:
+        with path.open() as f:
             data = json.load(f)
 
         # Reconstruct TransactionEntry objects from dicts
@@ -412,7 +412,7 @@ Metadata:
 
     def list_uncommitted_transactions(
         self, transactions_dir: Path
-    ) -> List[TransactionManifest]:
+    ) -> list[TransactionManifest]:
         """List all uncommitted transaction manifests.
 
         Returns only transactions with status 'in_progress', sorted by
@@ -486,7 +486,7 @@ Metadata:
 
         return deleted_count
 
-    def list_session_changes(self, session_id: str) -> List[TransactionEntry]:
+    def list_session_changes(self, session_id: str) -> list[TransactionEntry]:
         """List all commits in a session branch.
 
         Parses the git log for the session branch and extracts TransactionEntry
@@ -545,7 +545,7 @@ Metadata:
 
     def _parse_commit_to_entry(
         self, commit_sha: str, commit_message: str
-    ) -> Optional[TransactionEntry]:
+    ) -> TransactionEntry | None:
         """Parse a git commit message to extract TransactionEntry.
 
         Supports schema versioning with backward compatibility:
@@ -1083,7 +1083,7 @@ Metadata:
             filepath=entry.filepath,
         )
 
-    def _detect_conflicts(self) -> List[str]:
+    def _detect_conflicts(self) -> list[str]:
         """Detect merge conflicts in the working tree.
 
         Checks for all git conflict status codes:
@@ -1118,7 +1118,7 @@ Metadata:
 
         return conflicts
 
-    def rollback_multiple(self, entry_ids: List[str]) -> RollbackResult:
+    def rollback_multiple(self, entry_ids: list[str]) -> RollbackResult:
         """Rollback multiple changes by reverting their git commits.
 
         Parameters:
@@ -1187,7 +1187,7 @@ Metadata:
 
         return result.stdout
 
-    def find_orphaned_backups(self, max_age_days: Optional[int] = None) -> List[Path]:
+    def find_orphaned_backups(self, max_age_days: int | None = None) -> list[Path]:
         """Find backup files (.bak) without corresponding transaction entries.
 
         Scans the project for .bak files and checks if they're tracked in any
@@ -1201,7 +1201,7 @@ Metadata:
         Returns:
             List of Path objects for orphaned backup files
         """
-        from datetime import datetime, timedelta, UTC
+        from datetime import UTC, datetime, timedelta
 
         orphaned = []
         cutoff_time = None

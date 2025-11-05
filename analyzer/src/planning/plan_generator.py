@@ -6,13 +6,12 @@ sorting by impact score.
 """
 
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import List, Optional
 
-from ..models.code_item import CodeItem
-from ..models.analysis_result import AnalysisResult
 from ..audit.quality_rater import load_audit_results
+from ..models.analysis_result import AnalysisResult
+from ..models.code_item import CodeItem
 from ..scoring.impact_scorer import ImpactScorer
 from ..utils.state_manager import StateManager
 
@@ -52,10 +51,10 @@ class PlanItem:
     complexity: int
     impact_score: float
     has_docs: bool
-    audit_rating: Optional[int]
-    parameters: List[str]
-    return_type: Optional[str]
-    docstring: Optional[str]
+    audit_rating: int | None
+    parameters: list[str]
+    return_type: str | None
+    docstring: str | None
     export_type: str
     module_system: str
     reason: str
@@ -112,12 +111,12 @@ class PlanResult:
         invalid_ratings: Details of invalid ratings for debugging.
     """
 
-    items: List[PlanItem]
+    items: list[PlanItem]
     total_items: int
     missing_docs_count: int
     poor_quality_count: int
     invalid_ratings_count: int
-    invalid_ratings: List[dict]
+    invalid_ratings: list[dict]
 
     def to_dict(self) -> dict:
         """Serialize to dictionary for JSON output.
@@ -137,9 +136,9 @@ class PlanResult:
 
 def generate_plan(
     result: AnalysisResult,
-    audit_file: Optional[Path] = None,
+    audit_file: Path | None = None,
     quality_threshold: int = 2,
-    scorer: Optional[ImpactScorer] = None,
+    scorer: ImpactScorer | None = None,
 ) -> PlanResult:
     """Generate a prioritized documentation improvement plan.
 
@@ -192,7 +191,7 @@ def generate_plan(
                 normalized_ratings[(normalized_path, item_name)] = rating
 
     # Apply audit ratings to items and recalculate impact scores
-    invalid_ratings: List[dict] = []
+    invalid_ratings: list[dict] = []
     if audit_results:
         # Use injected scorer or create default if None
         if scorer is None:
@@ -214,7 +213,7 @@ def generate_plan(
                 # Recalculate impact score with audit rating
                 item.impact_score = scorer.calculate_score(item)
 
-    plan_items: List[PlanItem] = []
+    plan_items: list[PlanItem] = []
     missing_docs_count = 0
     poor_quality_count = 0
 
@@ -251,7 +250,7 @@ def generate_plan(
     )
 
 
-def save_plan(plan: PlanResult, output_file: Optional[Path] = None) -> None:
+def save_plan(plan: PlanResult, output_file: Path | None = None) -> None:
     """Save plan to JSON file for the improve command to load.
 
     Args:
@@ -263,5 +262,5 @@ def save_plan(plan: PlanResult, output_file: Optional[Path] = None) -> None:
 
     # Ensure state directory exists before writing
     StateManager.ensure_state_dir()
-    with open(output_file, "w") as f:
+    with output_file.open("w") as f:
         json.dump(plan.to_dict(), f, indent=2)

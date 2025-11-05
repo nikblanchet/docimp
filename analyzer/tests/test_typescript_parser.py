@@ -2,13 +2,14 @@
 
 import sys
 from pathlib import Path
+
 import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.parsers.typescript_parser import TypeScriptParser
 from src.models.code_item import CodeItem
+from src.parsers.typescript_parser import TypeScriptParser
 
 # Test fixture paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -429,6 +430,6 @@ class TestTypeScriptParserMalformedSyntax:
 
         for filename in js_files:
             result = parser.parse_file(str(malformed_dir / filename))
-            assert isinstance(
-                result, list
-            ), f"{filename} should return list (error recovery allows partial parsing)"
+            assert isinstance(result, list), (
+                f"{filename} should return list (error recovery allows partial parsing)"
+            )

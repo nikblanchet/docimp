@@ -9,7 +9,13 @@ import { resolve } from 'path';
 // Set DOCIMP_ANALYZER_PATH for all tests
 // Tests cannot use import.meta.url because Jest doesn't support it
 // This environment variable tells PythonBridge where to find the analyzer
-process.env.DOCIMP_ANALYZER_PATH = resolve(__dirname, '..', '..', '..', 'analyzer');
+process.env.DOCIMP_ANALYZER_PATH = resolve(
+  __dirname,
+  '..',
+  '..',
+  '..',
+  'analyzer'
+);
 
 // Mock import.meta for PythonBridge
 global.URL = class URL {

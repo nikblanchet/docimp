@@ -86,7 +86,12 @@ export class PluginManager implements IPluginManager {
     const absolutePath = resolve(projectRoot, pluginPath);
 
     // Validate path is safe before loading
-    this.validatePluginPath(absolutePath, projectRoot, pluginPath, additionalAllowedDirs);
+    this.validatePluginPath(
+      absolutePath,
+      projectRoot,
+      pluginPath,
+      additionalAllowedDirs
+    );
 
     // Prevent duplicate loading
     if (this.loadedPaths.has(absolutePath)) {
@@ -100,7 +105,8 @@ export class PluginManager implements IPluginManager {
     const module = await import(fileUrl);
 
     // Extract the plugin object (handle default exports and named exports)
-    let plugin: IPlugin | ((deps: PluginDependencies) => IPlugin) = module.default || module;
+    let plugin: IPlugin | ((deps: PluginDependencies) => IPlugin) =
+      module.default || module;
 
     // If the export is a factory function, call it with dependencies (DI pattern)
     if (typeof plugin === 'function') {
@@ -138,9 +144,7 @@ export class PluginManager implements IPluginManager {
   ): void {
     // Check if file exists
     if (!existsSync(absolutePath)) {
-      throw new Error(
-        `Plugin file does not exist: ${originalPath}`
-      );
+      throw new Error(`Plugin file does not exist: ${originalPath}`);
     }
 
     // Resolve symlinks to get canonical path
@@ -177,8 +181,8 @@ export class PluginManager implements IPluginManager {
     if (!isAllowed) {
       throw new Error(
         `Plugin path ${originalPath} is outside allowed directories. ` +
-        `Resolved to: ${canonicalPath}. ` +
-        `Plugins must be in ./plugins/ or node_modules/`
+          `Resolved to: ${canonicalPath}. ` +
+          `Plugins must be in ./plugins/ or node_modules/`
       );
     }
   }
@@ -192,9 +196,7 @@ export class PluginManager implements IPluginManager {
    */
   private validatePlugin(plugin: unknown, pluginPath: string): void {
     if (!plugin || typeof plugin !== 'object') {
-      throw new Error(
-        `Plugin at ${pluginPath} must export an object`
-      );
+      throw new Error(`Plugin at ${pluginPath} must export an object`);
     }
 
     const p = plugin as Record<string, unknown>;
@@ -227,15 +229,11 @@ export class PluginManager implements IPluginManager {
     }
 
     if (hooks.beforeAccept && typeof hooks.beforeAccept !== 'function') {
-      throw new Error(
-        `Plugin ${p.name}: beforeAccept hook must be a function`
-      );
+      throw new Error(`Plugin ${p.name}: beforeAccept hook must be a function`);
     }
 
     if (hooks.afterWrite && typeof hooks.afterWrite !== 'function') {
-      throw new Error(
-        `Plugin ${p.name}: afterWrite hook must be a function`
-      );
+      throw new Error(`Plugin ${p.name}: afterWrite hook must be a function`);
     }
   }
 
@@ -285,7 +283,10 @@ export class PluginManager implements IPluginManager {
 
     const timeoutPromise = new Promise<never>((_, reject) => {
       timerId = setTimeout(
-        () => reject(new Error(`Plugin ${pluginName} timed out after ${timeoutMs}ms`)),
+        () =>
+          reject(
+            new Error(`Plugin ${pluginName} timed out after ${timeoutMs}ms`)
+          ),
         timeoutMs
       );
     });
@@ -350,12 +351,7 @@ export class PluginManager implements IPluginManager {
       try {
         const timeoutMs = plugin.timeout ?? this.getDefaultTimeout();
         const result = await this.withTimeout(
-          plugin.hooks.beforeAccept(
-            docstring,
-            item,
-            config,
-            dependencies
-          ),
+          plugin.hooks.beforeAccept(docstring, item, config, dependencies),
           timeoutMs,
           plugin.name
         );

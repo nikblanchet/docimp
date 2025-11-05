@@ -17,17 +17,17 @@ Related Issues:
 - #235: Add integration tests (this file)
 """
 
-import sys
-from pathlib import Path
-import tempfile
 import py_compile
+import sys
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.writer.docstring_writer import DocstringWriter
 from src.claude.prompt_builder import PromptBuilder
+from src.writer.docstring_writer import DocstringWriter
 
 
 class TestImproveIntegration:
@@ -63,22 +63,22 @@ class TestImproveIntegration:
                 assert success, "DocstringWriter.write_docstring() returned False"
 
                 # Read the result
-                with open(temp_path, "r") as f:
+                with Path(temp_path).open() as f:
                     result = f.read()
 
                 # Verify docstring is present and wrapped in triple quotes
                 assert '"""' in result, "Triple quotes not found in output"
-                assert (
-                    "Calculate the sum of two numbers." in result
-                ), "Docstring content not found"
+                assert "Calculate the sum of two numbers." in result, (
+                    "Docstring content not found"
+                )
 
                 # Verify NO markdown code fences in output
-                assert (
-                    "```python" not in result
-                ), "Found markdown code fence - prompt fix failed!"
-                assert (
-                    "```" not in result or result.count("```") == 0
-                ), "Found backticks - possible markdown wrapper"
+                assert "```python" not in result, (
+                    "Found markdown code fence - prompt fix failed!"
+                )
+                assert "```" not in result or result.count("```") == 0, (
+                    "Found backticks - possible markdown wrapper"
+                )
 
                 # Verify file is syntactically valid
                 py_compile.compile(temp_path, doraise=True)
@@ -125,7 +125,7 @@ class TestImproveIntegration:
                 assert success, "DocstringWriter.write_docstring() returned False"
 
                 # Read result
-                with open(temp_path, "r") as f:
+                with Path(temp_path).open() as f:
                     result = f.read()
 
                 # Verify JSDoc is present
@@ -135,12 +135,12 @@ class TestImproveIntegration:
                 assert "@returns" in result, "JSDoc @returns tag not found"
 
                 # Verify NO markdown code fences
-                assert (
-                    "```javascript" not in result
-                ), "Found markdown code fence - prompt fix failed!"
-                assert (
-                    "```js" not in result
-                ), "Found markdown code fence - prompt fix failed!"
+                assert "```javascript" not in result, (
+                    "Found markdown code fence - prompt fix failed!"
+                )
+                assert "```js" not in result, (
+                    "Found markdown code fence - prompt fix failed!"
+                )
 
             finally:
                 Path(temp_path).unlink(missing_ok=True)
@@ -182,7 +182,7 @@ class TestImproveIntegration:
                 assert success, "DocstringWriter.write_docstring() returned False"
 
                 # Read result
-                with open(temp_path, "r") as f:
+                with Path(temp_path).open() as f:
                     result = f.read()
 
                 # Verify TSDoc is present
@@ -190,12 +190,12 @@ class TestImproveIntegration:
                 assert "Add two numbers" in result, "TSDoc content not found"
 
                 # Verify NO markdown code fences
-                assert (
-                    "```typescript" not in result
-                ), "Found markdown code fence - prompt fix failed!"
-                assert (
-                    "```ts" not in result
-                ), "Found markdown code fence - prompt fix failed!"
+                assert "```typescript" not in result, (
+                    "Found markdown code fence - prompt fix failed!"
+                )
+                assert "```ts" not in result, (
+                    "Found markdown code fence - prompt fix failed!"
+                )
 
             finally:
                 Path(temp_path).unlink(missing_ok=True)
@@ -235,7 +235,7 @@ Examples:
                 assert success, "DocstringWriter.write_docstring() returned False"
 
                 # Read result
-                with open(temp_path, "r") as f:
+                with Path(temp_path).open() as f:
                     result = f.read()
 
                 # Verify docstring with examples is present
@@ -292,7 +292,7 @@ Examples:
                 assert success, "DocstringWriter.write_docstring() returned False"
 
                 # Read result
-                with open(temp_path, "r") as f:
+                with Path(temp_path).open() as f:
                     result = f.read()
 
                 # WITHOUT defensive parser, this will fail (markdown gets
@@ -331,9 +331,7 @@ Examples:
  */"""
 
             # Create temporary JavaScript file
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".js", delete=False
-            ) as f:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".js", delete=False) as f:
                 f.write(
                     "function formatCurrency(amount) {\n"
                     "  return `$${amount.toFixed(2)}`;\n}\n"
@@ -354,7 +352,7 @@ Examples:
                 assert success, "DocstringWriter.write_docstring() returned False"
 
                 # Read result
-                with open(temp_path, "r") as f:
+                with Path(temp_path).open() as f:
                     result = f.read()
 
                 # Verify JSDoc with example is present
@@ -409,9 +407,7 @@ Examples:
             ts_file = temp_path / "test.ts"
 
             python_file.write_text("def multiply(a, b):\n    return a * b\n")
-            js_file.write_text(
-                "export function divide(a, b) {\n  return a / b;\n}\n"
-            )
+            js_file.write_text("export function divide(a, b) {\n  return a / b;\n}\n")
             ts_file.write_text(
                 "export function power(base: number, exp: number): number {\n"
                 "  return Math.pow(base, exp);\n}\n"
@@ -536,13 +532,13 @@ int or float
         # Verify markdown prevention instructions are present
         # These are the specific lines added in the fix (lines 277-280 of
         # prompt_builder.py)
-        assert (
-            "Do NOT wrap your entire response in markdown code fences" in prompt
-        ), "Prompt missing instruction to NOT use markdown wrappers"
+        assert "Do NOT wrap your entire response in markdown code fences" in prompt, (
+            "Prompt missing instruction to NOT use markdown wrappers"
+        )
 
-        assert (
-            "Code examples WITHIN the docstring are fine and encouraged" in prompt
-        ), "Prompt missing clarification about internal code examples"
+        assert "Code examples WITHIN the docstring are fine and encouraged" in prompt, (
+            "Prompt missing clarification about internal code examples"
+        )
 
         # Verify it mentions backticks/code fences explicitly
         assert (

@@ -15,7 +15,11 @@
 
 import { describe, it, expect, beforeAll } from '@jest/globals';
 import { PythonBridge } from '../../python-bridge/PythonBridge.js';
-import type { AnalysisResult, AuditListResult, PlanResult } from '../../types/analysis.js';
+import type {
+  AnalysisResult,
+  AuditListResult,
+  PlanResult,
+} from '../../types/analysis.js';
 import { existsSync } from 'fs';
 import { resolve } from 'path';
 
@@ -204,32 +208,36 @@ describe('PythonBridge Integration (Real Python Subprocess)', () => {
       // This test verifies Zod .passthrough() and .optional() handle missing fields
       // In practice, Python always includes all fields, but we test defensive behavior
 
-      const { AnalysisResultSchema } = await import('../../python-bridge/schemas.js');
+      const { AnalysisResultSchema } = await import(
+        '../../python-bridge/schemas.js'
+      );
 
       // Create minimal JSON with only required fields
       const minimalJson = {
-        items: [{
-          name: 'minimal_function',
-          type: 'function',
-          filepath: '/test/minimal.py',
-          line_number: 1,
-          end_line: 10,
-          language: 'python',
-          complexity: 5,
-          impact_score: 25,
-          has_docs: false,
-          parameters: [],
-          return_type: null,
-          docstring: null,
-          export_type: 'named',
-          module_system: 'esm',
-          audit_rating: null,
-        }],
+        items: [
+          {
+            name: 'minimal_function',
+            type: 'function',
+            filepath: '/test/minimal.py',
+            line_number: 1,
+            end_line: 10,
+            language: 'python',
+            complexity: 5,
+            impact_score: 25,
+            has_docs: false,
+            parameters: [],
+            return_type: null,
+            docstring: null,
+            export_type: 'named',
+            module_system: 'esm',
+            audit_rating: null,
+          },
+        ],
         coverage_percent: 0,
         total_items: 1,
         documented_items: 0,
         by_language: {},
-        parse_failures: []
+        parse_failures: [],
       };
 
       // Validate that Zod schema accepts JSON with missing optional fields
@@ -315,7 +323,11 @@ describe('PythonBridge Integration (Real Python Subprocess)', () => {
         },
       };
 
-      const bridgeWithConfig = new PythonBridge(undefined, undefined, customConfig);
+      const bridgeWithConfig = new PythonBridge(
+        undefined,
+        undefined,
+        customConfig
+      );
 
       // This should complete normally without timing out
       const result: AnalysisResult = await bridgeWithConfig.analyze({
@@ -349,7 +361,11 @@ describe('PythonBridge Integration (Real Python Subprocess)', () => {
         // No pythonBridge section
       };
 
-      const bridgeWithPartialConfig = new PythonBridge(undefined, undefined, configWithoutBridge);
+      const bridgeWithPartialConfig = new PythonBridge(
+        undefined,
+        undefined,
+        configWithoutBridge
+      );
 
       // This should complete normally with default timeout
       const result: AnalysisResult = await bridgeWithPartialConfig.analyze({

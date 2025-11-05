@@ -31,7 +31,9 @@ jest.mock('ora', () => ({
 jest.mock('cli-table3', () => {
   return class MockTable {
     constructor() {}
-    toString() { return ''; }
+    toString() {
+      return '';
+    }
   };
 });
 jest.mock('prompts');
@@ -51,13 +53,13 @@ describe('calculateAuditSummary', () => {
     const ratings: AuditRatings = {
       ratings: {
         'file1.ts': {
-          'function1': 1,  // terrible
-          'function2': 2,  // ok
-          'function3': 3,  // good
+          function1: 1, // terrible
+          function2: 2, // ok
+          function3: 3, // good
         },
         'file2.ts': {
-          'function4': 4,  // excellent
-          'function5': null,  // skipped
+          function4: 4, // excellent
+          function5: null, // skipped
         },
       },
     };
@@ -82,9 +84,9 @@ describe('calculateAuditSummary', () => {
     const ratings: AuditRatings = {
       ratings: {
         'file1.ts': {
-          'function1': null,
-          'function2': null,
-          'function3': null,
+          function1: null,
+          function2: null,
+          function3: null,
         },
       },
     };
@@ -109,8 +111,8 @@ describe('calculateAuditSummary', () => {
     const ratings: AuditRatings = {
       ratings: {
         'file1.ts': {
-          'function1': 2,
-          'function2': 3,
+          function1: 2,
+          function2: 3,
         },
       },
     };
@@ -156,12 +158,12 @@ describe('calculateAuditSummary', () => {
     const ratings: AuditRatings = {
       ratings: {
         'file1.ts': {
-          'function1': 1,
-          'function2': 1,
-          'function3': 1,
+          function1: 1,
+          function2: 1,
+          function3: 1,
         },
         'file2.ts': {
-          'function4': 1,
+          function4: 1,
         },
       },
     };
@@ -186,11 +188,11 @@ describe('calculateAuditSummary', () => {
     const ratings: AuditRatings = {
       ratings: {
         'file1.ts': {
-          'function1': 1,
-          'function2': null,
-          'function3': 2,
-          'function4': null,
-          'function5': 4,
+          function1: 1,
+          function2: null,
+          function3: 2,
+          function4: null,
+          function5: 4,
         },
       },
     };
@@ -271,7 +273,13 @@ describe('auditCore - path validation', () => {
 
   it('throws error for empty string path', async () => {
     await expect(
-      auditCore('', { verbose: false }, mockPythonBridge, mockDisplay, mockConfigLoader)
+      auditCore(
+        '',
+        { verbose: false },
+        mockPythonBridge,
+        mockDisplay,
+        mockConfigLoader
+      )
     ).rejects.toThrow('Path cannot be empty');
 
     // Verify Python bridge was NOT called
@@ -283,7 +291,9 @@ describe('auditCore - path validation', () => {
     const fs = require('fs');
     const os = require('os');
     const path = require('path');
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'docimp-audit-test-'));
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'docimp-audit-test-')
+    );
 
     try {
       mockPythonBridge.audit.mockResolvedValue({ items: [] });
@@ -312,7 +322,9 @@ describe('auditCore - path validation', () => {
     const fs = require('fs');
     const os = require('os');
     const path = require('path');
-    const emptyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'docimp-audit-test-'));
+    const emptyDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'docimp-audit-test-')
+    );
 
     try {
       mockPythonBridge.audit.mockResolvedValue({ items: [] });
@@ -500,7 +512,9 @@ describe('auditCore - boxed docstring display', () => {
     await auditCore('.', {}, mockPythonBridge, mockDisplay, mockConfigLoader);
 
     // Verify boxed docstring was shown
-    expect(mockDisplay.showBoxedDocstring).toHaveBeenCalledWith('/**\n * Test docstring\n */');
+    expect(mockDisplay.showBoxedDocstring).toHaveBeenCalledWith(
+      '/**\n * Test docstring\n */'
+    );
   });
 
   it('does not show dashed lines (uses boxed display instead)', async () => {
@@ -535,9 +549,9 @@ describe('auditCore - boxed docstring display', () => {
     await auditCore('.', {}, mockPythonBridge, mockDisplay, mockConfigLoader);
 
     // Verify no dashed lines were shown (old format)
-    const messages = mockDisplay.showMessage.mock.calls.map(call => call[0]);
-    const hasDashedLines = messages.some(msg =>
-      typeof msg === 'string' && msg.includes('-'.repeat(60))
+    const messages = mockDisplay.showMessage.mock.calls.map((call) => call[0]);
+    const hasDashedLines = messages.some(
+      (msg) => typeof msg === 'string' && msg.includes('-'.repeat(60))
     );
     expect(hasDashedLines).toBe(false);
   });

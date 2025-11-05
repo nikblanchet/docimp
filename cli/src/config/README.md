@@ -1,10 +1,12 @@
 # Configuration System
 
-DocImp uses a JavaScript-based configuration system to provide flexibility and allow custom logic in your configuration files.
+DocImp uses a JavaScript-based configuration system to provide flexibility and allow
+custom logic in your configuration files.
 
 ## Configuration File
 
-The configuration file is `docimp.config.js` in your project root. It's written in JavaScript (not JSON) to allow you to:
+The configuration file is `docimp.config.js` in your project root. It's written in
+JavaScript (not JSON) to allow you to:
 
 - Use functions and custom logic
 - Import other modules
@@ -16,6 +18,7 @@ The configuration file is `docimp.config.js` in your project root. It's written 
 Both CommonJS and ESM formats are supported:
 
 **ESM (recommended):**
+
 ```javascript
 export default {
   styleGuide: 'jsdoc',
@@ -25,6 +28,7 @@ export default {
 ```
 
 **CommonJS:**
+
 ```javascript
 module.exports = {
   styleGuide: 'jsdoc',
@@ -41,7 +45,7 @@ Controls the documentation format:
 
 ```javascript
 {
-  styleGuide: 'jsdoc'  // 'numpy', 'google', 'sphinx', or 'jsdoc'
+  styleGuide: 'jsdoc'; // 'numpy', 'google', 'sphinx', or 'jsdoc'
 }
 ```
 
@@ -56,7 +60,7 @@ Controls the writing style of generated documentation:
 
 ```javascript
 {
-  tone: 'concise'  // 'concise', 'detailed', or 'friendly'
+  tone: 'concise'; // 'concise', 'detailed', or 'friendly'
 }
 ```
 
@@ -135,6 +139,7 @@ score = (complexity_weight × complexity_score) +
 #### Complexity Score
 
 Based on cyclomatic complexity:
+
 - Simple function (complexity 1): score = 5
 - Complex function (complexity 15): score = 75
 - Very complex (complexity 20+): score = 100
@@ -142,6 +147,7 @@ Based on cyclomatic complexity:
 #### Quality Penalty
 
 Based on user audit ratings (after running `docimp audit`):
+
 - No documentation: 100
 - Terrible (1 star): 80
 - OK (2 stars): 40
@@ -154,20 +160,19 @@ Array of paths to validation plugins:
 
 ```javascript
 {
-  plugins: [
-    './plugins/validate-types.js',
-    './plugins/jsdoc-style.js',
-  ]
+  plugins: ['./plugins/validate-types.js', './plugins/jsdoc-style.js'];
 }
 ```
 
 Plugins are JavaScript files that export validation hooks. They can:
+
 - Validate generated documentation before acceptance
 - Enforce style rules
 - Provide auto-fix suggestions
 - Block acceptance if validation fails
 
-**Security Warning**: Plugins have full Node.js access with no sandboxing. Only load plugins you trust.
+**Security Warning**: Plugins have full Node.js access with no sandboxing. Only load
+plugins you trust.
 
 See [Plugin System](../../plugins/README.md) for details on writing plugins.
 
@@ -177,16 +182,12 @@ Glob patterns for files to exclude from analysis:
 
 ```javascript
 {
-  exclude: [
-    '**/test_*.py',
-    '**/*.test.ts',
-    '**/node_modules/**',
-    '**/dist/**',
-  ]
+  exclude: ['**/test_*.py', '**/*.test.ts', '**/node_modules/**', '**/dist/**'];
 }
 ```
 
 Supports standard glob syntax:
+
 - `*` matches any characters (except `/`)
 - `**` matches any characters (including `/`)
 - `?` matches a single character
@@ -231,10 +232,7 @@ export default {
     complexity: 0.7,
     quality: 0.3,
   },
-  exclude: [
-    '**/test_*.py',
-    '**/venv/**',
-  ],
+  exclude: ['**/test_*.py', '**/venv/**'],
 };
 ```
 
@@ -250,14 +248,8 @@ export default {
     requireExamples: 'public',
     enforceTypes: true,
   },
-  plugins: [
-    './plugins/validate-types.js',
-    './plugins/jsdoc-style.js',
-  ],
-  exclude: [
-    '**/*.test.ts',
-    '**/node_modules/**',
-  ],
+  plugins: ['./plugins/validate-types.js', './plugins/jsdoc-style.js'],
+  exclude: ['**/*.test.ts', '**/node_modules/**'],
 };
 ```
 
@@ -265,7 +257,7 @@ export default {
 
 ```javascript
 export default {
-  styleGuide: 'jsdoc',  // Will use JSDoc for JS/TS, NumPy for Python
+  styleGuide: 'jsdoc', // Will use JSDoc for JS/TS, NumPy for Python
   tone: 'concise',
   jsdocStyle: {
     enforceTypes: true,
@@ -274,14 +266,8 @@ export default {
     complexity: 0.6,
     quality: 0.4,
   },
-  plugins: [
-    './plugins/validate-types.js',
-  ],
-  exclude: [
-    '**/*.test.*',
-    '**/node_modules/**',
-    '**/venv/**',
-  ],
+  plugins: ['./plugins/validate-types.js'],
+  exclude: ['**/*.test.*', '**/node_modules/**', '**/venv/**'],
 };
 ```
 
@@ -322,13 +308,15 @@ If you don't provide a configuration file, DocImp uses these defaults:
 
 ## Error Messages
 
-ConfigLoader provides categorized error messages to help diagnose configuration loading issues.
+ConfigLoader provides categorized error messages to help diagnose configuration loading
+issues.
 
 ### Syntax Errors
 
 Invalid JavaScript in the config file (missing commas, unclosed brackets, etc.):
 
 **Example Error:**
+
 ```
 Configuration file has invalid JavaScript syntax
 
@@ -345,11 +333,13 @@ Suggestions:
 ```
 
 **Common Causes:**
+
 - Missing comma between object properties
 - Unclosed brackets or braces
 - Invalid JavaScript syntax
 
 **How to Fix:**
+
 1. Check the line number in "Technical details"
 2. Look for missing commas or brackets near that location
 3. Test your config with `node docimp.config.js` to see Node's native error
@@ -357,9 +347,11 @@ Suggestions:
 
 ### Runtime Errors
 
-Config file is valid JavaScript but fails to execute (missing imports, invalid exports, etc.):
+Config file is valid JavaScript but fails to execute (missing imports, invalid exports,
+etc.):
 
 **Example Error:**
+
 ```
 Configuration file failed to load
 
@@ -376,12 +368,14 @@ Suggestions:
 ```
 
 **Common Causes:**
+
 - Missing or incorrect import paths
 - Module not found
 - Incorrect export syntax
 - Circular dependencies
 
 **How to Fix:**
+
 1. Verify all `import` or `require` statements have correct paths
 2. Check that imported files exist
 3. Ensure relative paths start with `./` or `../`
@@ -392,6 +386,7 @@ Suggestions:
 File not found or invalid path:
 
 **Example Error:**
+
 ```
 Config file not found: /path/to/nonexistent.js
 
@@ -399,6 +394,7 @@ Please check that the config file exists and try again.
 ```
 
 **How to Fix:**
+
 1. Verify the file path is correct
 2. Check file exists at the specified location
 3. Use absolute paths or paths relative to current directory

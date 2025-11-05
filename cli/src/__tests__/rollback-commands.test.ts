@@ -2,13 +2,26 @@
  * Tests for rollback CLI commands.
  */
 
-import { listSessionsCore, listSessionsCommand } from '../commands/listSessions';
+import {
+  listSessionsCore,
+  listSessionsCommand,
+} from '../commands/listSessions';
 import { listChangesCore, listChangesCommand } from '../commands/listChanges';
-import { rollbackSessionCore, rollbackSessionCommand } from '../commands/rollbackSession';
-import { rollbackChangeCore, rollbackChangeCommand } from '../commands/rollbackChange';
+import {
+  rollbackSessionCore,
+  rollbackSessionCommand,
+} from '../commands/rollbackSession';
+import {
+  rollbackChangeCore,
+  rollbackChangeCommand,
+} from '../commands/rollbackChange';
 import type { IPythonBridge } from '../python-bridge/IPythonBridge';
 import type { IDisplay } from '../display/IDisplay';
-import type { SessionSummary, TransactionEntry, RollbackResult } from '../types/analysis';
+import type {
+  SessionSummary,
+  TransactionEntry,
+  RollbackResult,
+} from '../types/analysis';
 import { EXIT_CODE } from '../constants/exitCodes';
 
 // Mock ESM modules
@@ -35,7 +48,9 @@ jest.mock('cli-table3', () => {
   return class MockTable {
     constructor() {}
     push() {}
-    toString() { return 'mocked table'; }
+    toString() {
+      return 'mocked table';
+    }
   };
 });
 
@@ -51,15 +66,15 @@ describe('List Sessions Command', () => {
         started_at: '2024-01-01T10:00:00',
         completed_at: null,
         change_count: 5,
-        status: 'in_progress'
+        status: 'in_progress',
       },
       {
         session_id: 'session-456',
         started_at: '2024-01-02T10:00:00',
         completed_at: '2024-01-02T11:00:00',
         change_count: 3,
-        status: 'committed'
-      }
+        status: 'committed',
+      },
     ];
 
     mockBridge = {
@@ -120,7 +135,9 @@ describe('List Sessions Command', () => {
     });
 
     it('returns ERROR exit code on failure', async () => {
-      (mockBridge.listSessions as jest.Mock).mockRejectedValue(new Error('Git not available'));
+      (mockBridge.listSessions as jest.Mock).mockRejectedValue(
+        new Error('Git not available')
+      );
 
       const exitCode = await listSessionsCommand(mockBridge, mockDisplay);
 
@@ -144,7 +161,7 @@ describe('List Changes Command', () => {
         item_name: 'my_function',
         item_type: 'function',
         language: 'python',
-        success: true
+        success: true,
       },
       {
         entry_id: 'def456',
@@ -153,8 +170,8 @@ describe('List Changes Command', () => {
         item_name: 'MyClass',
         item_type: 'class',
         language: 'typescript',
-        success: true
-      }
+        success: true,
+      },
     ];
 
     mockBridge = {
@@ -195,7 +212,10 @@ describe('List Changes Command', () => {
       await listChangesCore('session-123', mockBridge, mockDisplay);
 
       expect(mockBridge.listChanges).toHaveBeenCalledWith('session-123');
-      expect(mockDisplay.showChangeList).toHaveBeenCalledWith(mockChanges, 'session-123');
+      expect(mockDisplay.showChangeList).toHaveBeenCalledWith(
+        mockChanges,
+        'session-123'
+      );
     });
 
     it('handles "last" session ID', async () => {
@@ -207,15 +227,25 @@ describe('List Changes Command', () => {
 
   describe('listChangesCommand', () => {
     it('returns SUCCESS exit code on success', async () => {
-      const exitCode = await listChangesCommand('session-123', mockBridge, mockDisplay);
+      const exitCode = await listChangesCommand(
+        'session-123',
+        mockBridge,
+        mockDisplay
+      );
 
       expect(exitCode).toBe(EXIT_CODE.SUCCESS);
     });
 
     it('returns ERROR exit code on failure', async () => {
-      (mockBridge.listChanges as jest.Mock).mockRejectedValue(new Error('Session not found'));
+      (mockBridge.listChanges as jest.Mock).mockRejectedValue(
+        new Error('Session not found')
+      );
 
-      const exitCode = await listChangesCommand('session-123', mockBridge, mockDisplay);
+      const exitCode = await listChangesCommand(
+        'session-123',
+        mockBridge,
+        mockDisplay
+      );
 
       expect(exitCode).toBe(EXIT_CODE.ERROR);
       expect(mockDisplay.showError).toHaveBeenCalledWith('Session not found');
@@ -235,7 +265,7 @@ describe('Rollback Session Command', () => {
       failed_count: 0,
       status: 'completed',
       conflicts: [],
-      message: 'Rolled back 3 file(s)'
+      message: 'Rolled back 3 file(s)',
     };
 
     mockBridge = {
@@ -292,27 +322,41 @@ describe('Rollback Session Command', () => {
         failed_count: 2,
         status: 'failed',
         conflicts: ['/path/to/file1.py', '/path/to/file2.ts'],
-        message: 'Rollback failed: 2 file(s) had conflicts'
+        message: 'Rollback failed: 2 file(s) had conflicts',
       };
-      (mockBridge.rollbackSession as jest.Mock).mockResolvedValue(conflictResult);
+      (mockBridge.rollbackSession as jest.Mock).mockResolvedValue(
+        conflictResult
+      );
 
       await rollbackSessionCore('session-123', mockBridge, mockDisplay);
 
-      expect(mockDisplay.showRollbackResult).toHaveBeenCalledWith(conflictResult);
+      expect(mockDisplay.showRollbackResult).toHaveBeenCalledWith(
+        conflictResult
+      );
     });
   });
 
   describe('rollbackSessionCommand', () => {
     it('returns SUCCESS exit code on success', async () => {
-      const exitCode = await rollbackSessionCommand('session-123', mockBridge, mockDisplay);
+      const exitCode = await rollbackSessionCommand(
+        'session-123',
+        mockBridge,
+        mockDisplay
+      );
 
       expect(exitCode).toBe(EXIT_CODE.SUCCESS);
     });
 
     it('returns ERROR exit code on failure', async () => {
-      (mockBridge.rollbackSession as jest.Mock).mockRejectedValue(new Error('Git error'));
+      (mockBridge.rollbackSession as jest.Mock).mockRejectedValue(
+        new Error('Git error')
+      );
 
-      const exitCode = await rollbackSessionCommand('session-123', mockBridge, mockDisplay);
+      const exitCode = await rollbackSessionCommand(
+        'session-123',
+        mockBridge,
+        mockDisplay
+      );
 
       expect(exitCode).toBe(EXIT_CODE.ERROR);
       expect(mockDisplay.showError).toHaveBeenCalledWith('Git error');
@@ -332,7 +376,7 @@ describe('Rollback Change Command', () => {
       failed_count: 0,
       status: 'completed',
       conflicts: [],
-      message: 'Rolled back 1 file(s)'
+      message: 'Rolled back 1 file(s)',
     };
 
     mockBridge = {
@@ -385,15 +429,25 @@ describe('Rollback Change Command', () => {
 
   describe('rollbackChangeCommand', () => {
     it('returns SUCCESS exit code on success', async () => {
-      const exitCode = await rollbackChangeCommand('abc123', mockBridge, mockDisplay);
+      const exitCode = await rollbackChangeCommand(
+        'abc123',
+        mockBridge,
+        mockDisplay
+      );
 
       expect(exitCode).toBe(EXIT_CODE.SUCCESS);
     });
 
     it('returns ERROR exit code on failure', async () => {
-      (mockBridge.rollbackChange as jest.Mock).mockRejectedValue(new Error('Change not found'));
+      (mockBridge.rollbackChange as jest.Mock).mockRejectedValue(
+        new Error('Change not found')
+      );
 
-      const exitCode = await rollbackChangeCommand('abc123', mockBridge, mockDisplay);
+      const exitCode = await rollbackChangeCommand(
+        'abc123',
+        mockBridge,
+        mockDisplay
+      );
 
       expect(exitCode).toBe(EXIT_CODE.ERROR);
       expect(mockDisplay.showError).toHaveBeenCalledWith('Change not found');

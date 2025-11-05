@@ -1,13 +1,13 @@
 """Tests for backup cleanup functionality."""
 
 import sys
-from pathlib import Path
 import tempfile
 import time
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.writer.transaction_manager import TransactionManager, TransactionEntry
+from src.writer.transaction_manager import TransactionEntry, TransactionManager
 
 
 def test_find_orphaned_backups_no_backups():

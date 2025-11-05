@@ -10,7 +10,13 @@ export class PythonBridge {
   }
 
   async analyze(): Promise<any> {
-    return { items: [], coverage_percent: 0, total_items: 0, documented_items: 0, by_language: {} };
+    return {
+      items: [],
+      coverage_percent: 0,
+      total_items: 0,
+      documented_items: 0,
+      by_language: {},
+    };
   }
 
   async audit(): Promise<any> {

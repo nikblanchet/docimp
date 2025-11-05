@@ -37,7 +37,9 @@ jest.mock('ora', () => ({
 jest.mock('cli-table3', () => {
   return class MockTable {
     constructor() {}
-    toString() { return ''; }
+    toString() {
+      return '';
+    }
   };
 });
 
@@ -95,21 +97,11 @@ describe('plan command path validation', () => {
       const nonExistentPath = join(tempDir, 'does-not-exist');
 
       await expect(
-        planCore(
-          nonExistentPath,
-          { verbose: false },
-          mockBridge,
-          mockDisplay
-        )
+        planCore(nonExistentPath, { verbose: false }, mockBridge, mockDisplay)
       ).rejects.toThrow('Path not found');
 
       await expect(
-        planCore(
-          nonExistentPath,
-          { verbose: false },
-          mockBridge,
-          mockDisplay
-        )
+        planCore(nonExistentPath, { verbose: false }, mockBridge, mockDisplay)
       ).rejects.toThrow('Please check that the path exists and try again');
 
       // Verify Python bridge was NOT called
@@ -118,12 +110,7 @@ describe('plan command path validation', () => {
 
     it('passes absolute path to Python bridge', async () => {
       // Run plan with valid temp directory
-      await planCore(
-        tempDir,
-        { verbose: false },
-        mockBridge,
-        mockDisplay
-      );
+      await planCore(tempDir, { verbose: false }, mockBridge, mockDisplay);
 
       // Verify Python bridge was called with absolute path
       expect(mockBridge.plan).toHaveBeenCalledWith(
@@ -149,12 +136,7 @@ describe('plan command path validation', () => {
       fs.mkdirSync(emptyDir);
 
       try {
-        await planCore(
-          emptyDir,
-          { verbose: false },
-          mockBridge,
-          mockDisplay
-        );
+        await planCore(emptyDir, { verbose: false }, mockBridge, mockDisplay);
 
         // Verify warning was issued
         expect(consoleWarnSpy).toHaveBeenCalledWith(

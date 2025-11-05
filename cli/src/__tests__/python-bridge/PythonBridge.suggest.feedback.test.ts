@@ -5,7 +5,14 @@
  * subprocess as --feedback flag when provided.
  */
 
-import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import {
+  describe,
+  it,
+  expect,
+  jest,
+  beforeEach,
+  afterEach,
+} from '@jest/globals';
 import { spawn } from 'child_process';
 import { PythonBridge } from '../../python-bridge/PythonBridge.js';
 
@@ -89,7 +96,9 @@ describe('PythonBridge suggest() feedback integration', () => {
     expect(spawnArgs).toContain('suggest');
     expect(spawnArgs).toContain('--feedback');
     const feedbackIndex = spawnArgs!.indexOf('--feedback');
-    expect(spawnArgs![feedbackIndex + 1]).toBe('Add more details about error handling');
+    expect(spawnArgs![feedbackIndex + 1]).toBe(
+      'Add more details about error handling'
+    );
   });
 
   it('should handle multiline feedback correctly', async () => {
@@ -117,7 +126,8 @@ describe('PythonBridge suggest() feedback integration', () => {
   it('should handle feedback with special characters', async () => {
     mockSuccessfulTextProcess('Docstring');
 
-    const feedbackWithSpecialChars = 'Use @param tags, add `code` formatting, and "quotes"';
+    const feedbackWithSpecialChars =
+      'Use @param tags, add `code` formatting, and "quotes"';
 
     await bridge.suggest({
       target: '/test/file.py:test_function',
