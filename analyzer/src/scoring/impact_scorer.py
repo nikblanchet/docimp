@@ -6,7 +6,6 @@ indicate higher priority for documentation improvement.
 """
 
 import math
-from typing import Optional
 
 from ..models.code_item import CodeItem
 

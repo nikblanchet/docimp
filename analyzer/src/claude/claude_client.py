@@ -7,7 +7,6 @@ documentation suggestions for code items.
 
 import os
 import time
-from typing import Optional
 
 import anthropic
 from anthropic.types import TextBlock

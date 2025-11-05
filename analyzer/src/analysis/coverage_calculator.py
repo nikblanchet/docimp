@@ -1,6 +1,5 @@
 """Coverage calculator for computing documentation metrics."""
 
-from typing import Dict, List
 
 from ..models.analysis_result import LanguageMetrics
 from ..models.code_item import CodeItem

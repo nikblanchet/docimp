@@ -8,7 +8,6 @@ sorting by impact score.
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import List, Optional
 
 from ..audit.quality_rater import load_audit_results
 from ..models.analysis_result import AnalysisResult

@@ -8,7 +8,6 @@ import json
 import os
 import subprocess
 from pathlib import Path
-from typing import List, Optional
 
 from ..models.code_item import CodeItem
 from .base_parser import BaseParser

@@ -13,7 +13,7 @@ Key components:
 
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from src.utils.git_helper import GitTimeoutConfig

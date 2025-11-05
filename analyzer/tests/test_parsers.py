@@ -452,7 +452,8 @@ def parent_with_comprehension(x):
         parent = items[0]
         # Expected: base(1) + comprehension(1) + if(1) = 3
         assert parent.complexity == 3, (
-            f"Expected complexity 3 (base + comprehension + if), got {parent.complexity}"
+            "Expected complexity 3 (base + comprehension + if), "
+            f"got {parent.complexity}"
         )
 
     def test_complexity_async_nested_functions(self, parser, tmp_path):

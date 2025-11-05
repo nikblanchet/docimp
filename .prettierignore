@@ -59,6 +59,7 @@ docs/.doctrees/
 # Test fixtures with intentional formatting issues
 test-samples/malformed/
 test-samples/mixed-valid-invalid/
+cli/src/__tests__/fixtures/
 
 # Git
 .git/

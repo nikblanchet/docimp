@@ -8,7 +8,6 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Optional
 
 from .analysis.analyzer import DocumentationAnalyzer
 from .audit.quality_rater import AuditResult, save_audit_results

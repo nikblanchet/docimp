@@ -1,7 +1,6 @@
 """Abstract base class for language parsers."""
 
 from abc import ABC, abstractmethod
-from typing import List
 
 from ..models.code_item import CodeItem
 

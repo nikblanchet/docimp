@@ -6,7 +6,6 @@ where all working files (audit results, plans, session reports) are stored.
 
 import os
 from pathlib import Path
-from typing import List, Optional
 
 
 class StateManager:

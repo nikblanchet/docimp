@@ -125,7 +125,8 @@ def documented_func():
             plan_names = {item.name for item in plan.items}
             for item in documented_items:
                 assert item.name in plan_names, (
-                    f"Item {item.name} with rating={item.audit_rating} should be in plan"
+                    f"Item {item.name} with rating={item.audit_rating} "
+                    "should be in plan"
                 )
 
             # Verify plan is sorted by impact score (descending)

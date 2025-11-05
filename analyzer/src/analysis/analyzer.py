@@ -3,7 +3,6 @@
 import os
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Set
 
 from ..models.analysis_result import AnalysisResult, ParseFailure
 from ..models.code_item import CodeItem

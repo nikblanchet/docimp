@@ -1,7 +1,6 @@
 """Python parser using AST to extract code items."""
 
 import ast
-from typing import List, Optional
 
 from ..models.code_item import CodeItem
 from .base_parser import BaseParser

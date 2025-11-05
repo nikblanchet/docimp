@@ -5,7 +5,6 @@ This module constructs prompts for Claude that include code context, style guide
 and tone preferences to generate high-quality documentation.
 """
 
-from typing import Optional
 
 
 class PromptBuilder:

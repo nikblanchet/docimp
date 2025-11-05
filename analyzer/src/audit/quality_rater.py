@@ -8,7 +8,6 @@ collected during interactive audits. Ratings are stored in
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Dict, Optional
 
 from ..utils.state_manager import StateManager
 
