@@ -6,7 +6,7 @@
  */
 
 import { readFileSync } from 'node:fs';
-import path from 'node:path';
+import nodePath from 'node:path';
 import chalk from 'chalk';
 import prompts from 'prompts';
 import type { IConfigLoader } from '../config/i-config-loader.js';
@@ -128,7 +128,7 @@ export async function improveCore(
   let planResult: PlanResult;
 
   try {
-    const planContent = readFileSync(resolve(planFilePath), 'utf8');
+    const planContent = readFileSync(nodePath.resolve(planFilePath), 'utf8');
     planResult = JSON.parse(planContent);
   } catch {
     throw new Error(
@@ -382,7 +382,7 @@ export async function improveCore(
     editorLauncher,
     styleGuides,
     tone,
-    basePath: resolve(process.cwd(), path),
+    basePath: nodePath.resolve(process.cwd(), path),
   });
 
   // Run the session
