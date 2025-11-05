@@ -1,0 +1,281 @@
+/**
+ * Tests for SessionStateManager utility.
+ */
+
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
+import {
+  SessionStateManager,
+  type SessionState,
+} from '../../utils/session-state-manager.js';
+import { StateManager } from '../../utils/state-manager.js';
+
+describe('SessionStateManager', () => {
+  let tempDir: string;
+  let originalGetSessionReportsDir: typeof StateManager.getSessionReportsDir;
+  let originalEnsureStateDir: typeof StateManager.ensureStateDir;
+
+  beforeEach(async () => {
+    // Create temp directory for tests
+    tempDir = path.join(process.cwd(), '.test-tmp-' + Date.now());
+    await fs.mkdir(tempDir, { recursive: true });
+
+    // Mock StateManager methods
+    originalGetSessionReportsDir = StateManager.getSessionReportsDir;
+    originalEnsureStateDir = StateManager.ensureStateDir;
+
+    StateManager.getSessionReportsDir = jest.fn(() => tempDir);
+    StateManager.ensureStateDir = jest.fn(() => {
+      /* no-op */
+    });
+  });
+
+  afterEach(async () => {
+    // Restore original methods
+    StateManager.getSessionReportsDir = originalGetSessionReportsDir;
+    StateManager.ensureStateDir = originalEnsureStateDir;
+
+    // Clean up temp directory
+    try {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    } catch {
+      // Ignore if directory doesn't exist
+    }
+  });
+
+  describe('saveSessionState', () => {
+    test('should save audit session state with atomic write', async () => {
+      const state: SessionState = {
+        session_id: 'test-session-123',
+        started_at: new Date().toISOString(),
+        current_index: 5,
+        total_items: 23,
+        partial_ratings: {
+          'file.py': { func1: 3, func2: null },
+        },
+      };
+
+      const resultId = await SessionStateManager.saveSessionState(
+        state,
+        'audit'
+      );
+
+      expect(resultId).toBe('test-session-123');
+
+      // Verify file was created
+      const expectedPath = path.join(
+        tempDir,
+        'audit-session-test-session-123.json'
+      );
+      const exists = await fs
+        .access(expectedPath)
+        .then(() => true)
+        .catch(() => false);
+      expect(exists).toBe(true);
+
+      // Verify contents
+      const fileContent = await fs.readFile(expectedPath, 'utf8');
+      const loaded = JSON.parse(fileContent);
+      expect(loaded).toEqual(state);
+
+      // Verify no temp file left behind
+      const files = await fs.readdir(tempDir);
+      const tempFiles = files.filter((f) => f.endsWith('.tmp'));
+      expect(tempFiles).toHaveLength(0);
+    });
+
+    test('should save improve session state', async () => {
+      const state: SessionState = {
+        session_id: 'test-session-456',
+        transaction_id: 'trans-789',
+        started_at: new Date().toISOString(),
+        current_index: 2,
+        plan_items: [{ name: 'func1' }, { name: 'func2' }],
+        progress: { accepted: 1, skipped: 0, errors: 0 },
+      };
+
+      const resultId = await SessionStateManager.saveSessionState(
+        state,
+        'improve'
+      );
+
+      expect(resultId).toBe('test-session-456');
+
+      // Verify file created
+      const expectedPath = path.join(
+        tempDir,
+        'improve-session-test-session-456.json'
+      );
+      const exists = await fs
+        .access(expectedPath)
+        .then(() => true)
+        .catch(() => false);
+      expect(exists).toBe(true);
+    });
+
+    test('should throw error for invalid session type', async () => {
+      const state: SessionState = {
+        session_id: 'test-session',
+        data: 'test',
+      };
+
+      await expect(
+        SessionStateManager.saveSessionState(state, 'invalid' as 'audit')
+      ).rejects.toThrow('Invalid session_type');
+    });
+
+    test('should throw error for missing session_id', async () => {
+      const state = {
+        started_at: new Date().toISOString(),
+      } as SessionState;
+
+      await expect(
+        SessionStateManager.saveSessionState(state, 'audit')
+      ).rejects.toThrow("must include 'session_id'");
+    });
+  });
+
+  describe('loadSessionState', () => {
+    test('should load session state from JSON file', async () => {
+      const state: SessionState = {
+        session_id: 'test-load-123',
+        started_at: new Date().toISOString(),
+        current_index: 10,
+      };
+
+      // Save state
+      await SessionStateManager.saveSessionState(state, 'audit');
+
+      // Load state
+      const loaded = await SessionStateManager.loadSessionState(
+        'test-load-123',
+        'audit'
+      );
+
+      expect(loaded).toEqual(state);
+    });
+
+    test('should throw error for non-existent session', async () => {
+      await expect(
+        SessionStateManager.loadSessionState('non-existent', 'audit')
+      ).rejects.toThrow('Session file not found');
+    });
+
+    test('should throw error for corrupted JSON', async () => {
+      const filePath = path.join(tempDir, 'audit-session-corrupted.json');
+      await fs.writeFile(filePath, '{ invalid json }', 'utf8');
+
+      await expect(
+        SessionStateManager.loadSessionState('corrupted', 'audit')
+      ).rejects.toThrow(SyntaxError);
+    });
+  });
+
+  describe('listSessions', () => {
+    test('should list all sessions sorted by started_at descending', async () => {
+      // Create sessions with different timestamps
+      const sessions = [
+        {
+          session_id: 'session-1',
+          started_at: '2025-11-05T10:00:00',
+          data: 'session1',
+        },
+        {
+          session_id: 'session-2',
+          started_at: '2025-11-05T11:00:00',
+          data: 'session2',
+        },
+        {
+          session_id: 'session-3',
+          started_at: '2025-11-05T12:00:00',
+          data: 'session3',
+        },
+      ];
+
+      for (const session of sessions) {
+        await SessionStateManager.saveSessionState(session, 'audit');
+      }
+
+      // List sessions
+      const loadedSessions = await SessionStateManager.listSessions('audit');
+
+      expect(loadedSessions).toHaveLength(3);
+
+      // Verify sorted by started_at descending (newest first)
+      expect(loadedSessions[0].started_at).toBe('2025-11-05T12:00:00');
+      expect(loadedSessions[1].started_at).toBe('2025-11-05T11:00:00');
+      expect(loadedSessions[2].started_at).toBe('2025-11-05T10:00:00');
+    });
+
+    test('should return empty list when no sessions exist', async () => {
+      const sessions = await SessionStateManager.listSessions('audit');
+      expect(sessions).toEqual([]);
+    });
+  });
+
+  describe('deleteSessionState', () => {
+    test('should delete session state file', async () => {
+      const state: SessionState = {
+        session_id: 'test-delete',
+        data: 'test',
+      };
+
+      // Save state
+      await SessionStateManager.saveSessionState(state, 'audit');
+      const filePath = path.join(tempDir, 'audit-session-test-delete.json');
+      let exists = await fs
+        .access(filePath)
+        .then(() => true)
+        .catch(() => false);
+      expect(exists).toBe(true);
+
+      // Delete state
+      await SessionStateManager.deleteSessionState('test-delete', 'audit');
+
+      // Verify file deleted
+      exists = await fs
+        .access(filePath)
+        .then(() => true)
+        .catch(() => false);
+      expect(exists).toBe(false);
+    });
+
+    test('should not throw error when deleting non-existent session', async () => {
+      // Should not throw error (idempotent)
+      await expect(
+        SessionStateManager.deleteSessionState('non-existent', 'audit')
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('getLatestSession', () => {
+    test('should get the most recent session', async () => {
+      // Create sessions with different timestamps
+      const session1: SessionState = {
+        session_id: 'session-old',
+        started_at: '2025-11-05T10:00:00',
+        data: 'old',
+      };
+      await SessionStateManager.saveSessionState(session1, 'audit');
+
+      const session2: SessionState = {
+        session_id: 'session-new',
+        started_at: '2025-11-05T12:00:00',
+        data: 'new',
+      };
+      await SessionStateManager.saveSessionState(session2, 'audit');
+
+      // Get latest
+      const latest = await SessionStateManager.getLatestSession('audit');
+
+      expect(latest).not.toBeNull();
+      expect(latest?.session_id).toBe('session-new');
+      expect(latest?.data).toBe('new');
+    });
+
+    test('should return null when no sessions exist', async () => {
+      const latest = await SessionStateManager.getLatestSession('audit');
+      expect(latest).toBeNull();
+    });
+  });
+});
