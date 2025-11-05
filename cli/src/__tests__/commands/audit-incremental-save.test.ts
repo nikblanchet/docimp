@@ -13,11 +13,17 @@ import type { IDisplay } from '../../display/i-display';
 import type { IPythonBridge } from '../../python-bridge/i-python-bridge';
 import type { AuditSessionState } from '../../types/audit-session-state';
 import { CodeExtractor } from '../../utils/code-extractor';
+import { FileTracker } from '../../utils/file-tracker';
 import { PathValidator } from '../../utils/path-validator';
+import { SessionStateManager } from '../../utils/session-state-manager';
 import { StateManager } from '../../utils/state-manager';
 
 // Mock prompts module
 jest.mock('prompts');
+
+// Mock SessionStateManager and FileTracker
+jest.mock('../../utils/session-state-manager');
+jest.mock('../../utils/file-tracker');
 
 // Mock dependencies
 const mockBridge: IPythonBridge = {
@@ -77,6 +83,21 @@ describe('Audit Incremental Save Integration', () => {
     jest
       .spyOn(StateManager, 'getAuditFile')
       .mockReturnValue(path.join(tempSessionReportsDir, 'audit.json'));
+
+    // Mock SessionStateManager to return empty sessions (for auto-detection)
+    (SessionStateManager.listSessions as jest.Mock).mockResolvedValue([]);
+    (SessionStateManager.saveSessionState as jest.Mock).mockImplementation(
+      async (state, type) => {
+        // Actually write the file to temp directory
+        const filename = `${type}-session-${state.session_id}.json`;
+        const filePath = path.join(tempSessionReportsDir, filename);
+        await fs.writeFile(filePath, JSON.stringify(state, null, 2), 'utf8');
+        return state.session_id;
+      }
+    );
+
+    // Mock FileTracker.createSnapshot to return empty snapshot
+    (FileTracker.createSnapshot as jest.Mock).mockResolvedValue({});
 
     // Mock PathValidator to bypass path validation
     jest
@@ -153,17 +174,24 @@ describe('Audit Incremental Save Integration', () => {
 
     await auditCore(
       '/test/path',
-      {},
+      { new: true }, // Bypass auto-detection for clean test
       multipleBridge,
       mockDisplay,
       mockConfigLoader
     );
 
     const sessionFiles = await fs.readdir(tempSessionReportsDir);
-    const sessionPath = path.join(
-      tempSessionReportsDir,
-      sessionFiles.filter((f) => f.startsWith('audit-session-'))[0]
-    );
+    const sessionFile = sessionFiles.filter((f) =>
+      f.startsWith('audit-session-')
+    )[0];
+
+    // Debug: Log what files we found
+    if (!sessionFile) {
+      console.log('Session files found:', sessionFiles);
+      throw new Error(`No session file found in ${tempSessionReportsDir}`);
+    }
+
+    const sessionPath = path.join(tempSessionReportsDir, sessionFile);
     const state: AuditSessionState = JSON.parse(
       await fs.readFile(sessionPath, 'utf8')
     );
@@ -180,7 +208,7 @@ describe('Audit Incremental Save Integration', () => {
 
     await auditCore(
       '/test/path',
-      {},
+      { new: true }, // Bypass auto-detection for clean test
       mockBridge,
       mockDisplay,
       mockConfigLoader
