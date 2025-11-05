@@ -129,10 +129,12 @@ export const CodeExtractor = {
       signatureLines.push(line);
 
       // For languages with braces (JavaScript, TypeScript, Java, C++, etc.)
-      if ((language === 'javascript' || language === 'typescript') && // Check if line contains opening brace
-        trimmed.includes('{')) {
-          break;
-        }
+      if (
+        (language === 'javascript' || language === 'typescript') && // Check if line contains opening brace
+        trimmed.includes('{')
+      ) {
+        break;
+      }
 
       // For Python, just take the first line (def or class line)
       if (language === 'python') {

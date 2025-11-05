@@ -52,28 +52,31 @@ export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
   }
 
   // Validate jsdocStyle
-  if (userConfig.jsdocStyle !== undefined && userConfig.jsdocStyle.requireExamples !== undefined) {
-      const validValues = ['all', 'public', 'none'];
-      if (!validValues.includes(userConfig.jsdocStyle.requireExamples)) {
-        throw new Error(
-          `Invalid jsdocStyle.requireExamples: ${userConfig.jsdocStyle.requireExamples}. Must be one of: ${validValues.join(', ')}`
-        );
-      }
+  if (
+    userConfig.jsdocStyle !== undefined &&
+    userConfig.jsdocStyle.requireExamples !== undefined
+  ) {
+    const validValues = ['all', 'public', 'none'];
+    if (!validValues.includes(userConfig.jsdocStyle.requireExamples)) {
+      throw new Error(
+        `Invalid jsdocStyle.requireExamples: ${userConfig.jsdocStyle.requireExamples}. Must be one of: ${validValues.join(', ')}`
+      );
     }
+  }
 
   // Validate impactWeights
   if (userConfig.impactWeights !== undefined) {
     const { complexity, quality } = userConfig.impactWeights;
     if (complexity !== undefined && (complexity < 0 || complexity > 1)) {
-        throw new Error(
-          `Invalid impactWeights.complexity: ${complexity}. Must be between 0 and 1`
-        );
-      }
+      throw new Error(
+        `Invalid impactWeights.complexity: ${complexity}. Must be between 0 and 1`
+      );
+    }
     if (quality !== undefined && (quality < 0 || quality > 1)) {
-        throw new Error(
-          `Invalid impactWeights.quality: ${quality}. Must be between 0 and 1`
-        );
-      }
+      throw new Error(
+        `Invalid impactWeights.quality: ${quality}. Must be between 0 and 1`
+      );
+    }
     // Warn if weights don't sum to 1
     const complexityWeight =
       complexity ?? defaultConfig.impactWeights!.complexity;
@@ -153,7 +156,9 @@ export function validateAndMerge(userConfig: Partial<IConfig>): IConfig {
         );
       }
       if (!Number.isInteger(userConfig.claude.maxRetries)) {
-        throw new TypeError('claude.maxRetries must be an integer (not a decimal)');
+        throw new TypeError(
+          'claude.maxRetries must be an integer (not a decimal)'
+        );
       }
       if (userConfig.claude.maxRetries < 0) {
         throw new Error('claude.maxRetries must be non-negative');
