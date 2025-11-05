@@ -328,7 +328,7 @@ function parseFile(filepath: string): CodeItem[] {
         (ts.isFunctionExpression(node.right) || ts.isArrowFunction(node.right))
       ) {
         const nameParts = leftText.split('.');
-        const name = nameParts.at(-1);
+        const name = nameParts.at(-1) || 'unknown';
 
         items.push({
           name,

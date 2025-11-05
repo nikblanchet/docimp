@@ -14,7 +14,7 @@
  */
 
 import { describe, it, expect, beforeAll } from '@jest/globals';
-import { PythonBridge } from '../../python-bridge/PythonBridge.js';
+import { PythonBridge } from '../../python-bridge/python-bridge.js';
 import type {
   AnalysisResult,
   AuditListResult,

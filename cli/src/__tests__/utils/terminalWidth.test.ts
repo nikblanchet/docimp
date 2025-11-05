@@ -7,7 +7,7 @@ import {
   shouldUseCompactMode,
   COMPACT_TABLE_CHARS,
   COMPACT_TABLE_STYLE,
-} from '../../utils/terminalWidth.js';
+} from '../../utils/terminal-width.js';
 
 describe('terminalWidth', () => {
   let originalColumns: number | undefined;

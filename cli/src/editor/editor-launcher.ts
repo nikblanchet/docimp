@@ -11,7 +11,7 @@ import { spawn } from 'node:child_process';
 import { promises as fs, close as fsCloseCallback } from 'node:fs';
 import { promisify } from 'node:util';
 import tmp from 'tmp';
-import type { IEditorLauncher } from './IEditorLauncher.js';
+import type { IEditorLauncher } from './i-editor-launcher.js';
 
 // Promisify tmp.file for async/await usage
 const temporaryFile = (
@@ -84,7 +84,7 @@ export class EditorLauncher implements IEditorLauncher {
       await fsClose(fd);
 
       // Write initial text to temp file
-      await fs.writeFile(temporaryPath, initialText, 'utf-8');
+      await fs.writeFile(temporaryPath, initialText, 'utf8');
 
       // Get editor command
       const editorCmd = this.getEditorCommand();

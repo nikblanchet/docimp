@@ -9,19 +9,19 @@
  */
 
 import { existsSync, realpathSync } from 'node:fs';
-import { resolve, sep, extname } from 'node:path';
+import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parse as commentParserParse } from 'comment-parser';
 import * as typescript from 'typescript';
-import type { IConfig } from '../config/IConfig.js';
-import { isPluginConfig } from '../config/IConfig.js';
+import type { IConfig } from '../config/i-config.js';
+import { isPluginConfig } from '../config/i-config.js';
 import type {
   IPlugin,
   PluginResult,
   CodeItemMetadata,
   PluginDependencies,
 } from './IPlugin.js';
-import type { IPluginManager } from './IPluginManager.js';
+import type { IPluginManager } from './i-plugin-manager.js';
 
 // Import dependencies to inject into plugins
 
@@ -83,7 +83,7 @@ export class PluginManager implements IPluginManager {
     additionalAllowedDirectories?: string[]
   ): Promise<void> {
     // Resolve relative paths from project root
-    const absolutePath = resolve(projectRoot, pluginPath);
+    const absolutePath = path.resolve(projectRoot, pluginPath);
 
     // Validate path is safe before loading
     this.validatePluginPath(
@@ -158,7 +158,7 @@ export class PluginManager implements IPluginManager {
     }
 
     // Validate file extension
-    const extension = extname(canonicalPath);
+    const extension = path.extname(canonicalPath);
     const validExtensions = ['.js', '.mjs', '.cjs'];
     if (!validExtensions.includes(extension)) {
       throw new Error(
@@ -168,14 +168,14 @@ export class PluginManager implements IPluginManager {
 
     // Define allowed directories (whitelist)
     const allowedDirectories = [
-      resolve(projectRoot, 'plugins'),
-      resolve(projectRoot, 'node_modules'),
+      path.resolve(projectRoot, 'plugins'),
+      path.resolve(projectRoot, 'node_modules'),
       ...(additionalAllowedDirectories || []),
     ];
 
     // Check if canonical path is within allowed directories
-    const isAllowed = allowedDirectories.some((dir) =>
-      canonicalPath.startsWith(dir + sep)
+    const isAllowed = allowedDirectories.some((directory) =>
+      canonicalPath.startsWith(directory + path.sep)
     );
 
     if (!isAllowed) {

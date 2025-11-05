@@ -9,8 +9,8 @@ import { spawn, spawnSync, ChildProcess } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { z } from 'zod';
-import type { IConfig } from '../config/IConfig.js';
-import { defaultConfig } from '../config/IConfig.js';
+import type { IConfig } from '../config/i-config.js';
+import { defaultConfig } from '../config/i-config.js';
 import type {
   AnalysisResult,
   AuditListResult,
@@ -27,7 +27,7 @@ import type {
   PlanOptions,
   SuggestOptions,
   ApplyData,
-} from './IPythonBridge.js';
+} from './i-python-bridge.js';
 import {
   AnalysisResultSchema,
   AuditListResultSchema,

@@ -5,9 +5,9 @@
  * tracked in the transaction system.
  */
 
-import { EXIT_CODE, type ExitCode } from '../constants/exitCodes.js';
-import type { IDisplay } from '../display/IDisplay.js';
-import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
+import { EXIT_CODE, type ExitCode } from '../constants/exit-codes.js';
+import type { IDisplay } from '../display/i-display.js';
+import type { IPythonBridge } from '../python-bridge/i-python-bridge.js';
 
 /**
  * Core list-sessions logic (extracted for testability).

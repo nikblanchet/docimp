@@ -32,7 +32,7 @@ jest.mock('chalk', () => {
   return { default: chalk, ...chalk };
 });
 
-import { TerminalDisplay } from '../../display/TerminalDisplay.js';
+import { TerminalDisplay } from '../../display/terminal-display.js';
 import type {
   AnalysisResult,
   CodeItem,
