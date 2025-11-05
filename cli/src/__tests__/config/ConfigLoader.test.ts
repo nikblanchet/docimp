@@ -234,7 +234,7 @@ export default {
       );
 
       await expect(configLoader.load(configPath)).rejects.toThrow(
-        'failed to load'
+        'Failed to load'
       );
       await expect(configLoader.load(configPath)).rejects.toThrow('import');
     });
@@ -248,7 +248,7 @@ module.exports = config;`
       );
 
       await expect(configLoader.load(configPath)).rejects.toThrow(
-        'failed to load'
+        'Failed to load'
       );
       await expect(configLoader.load(configPath)).rejects.toThrow(
         'Config file:'
