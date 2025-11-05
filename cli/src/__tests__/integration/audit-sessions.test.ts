@@ -228,7 +228,7 @@ describe('Audit Session Management Integration Tests', () => {
       expect(consoleOutput.join('\n')).toContain('Deletion cancelled');
     });
 
-    it('should delete session without confirmation when --no-confirm flag used', async () => {
+    it('should delete session without confirmation when --force flag used', async () => {
       const sessionId = '550e8400-e29b-41d4-a716-446655440060';
 
       // Mock: session exists
@@ -236,7 +236,7 @@ describe('Audit Session Management Integration Tests', () => {
         session_id: sessionId,
       });
 
-      await deleteAuditSessionCore(sessionId, { noConfirm: true });
+      await deleteAuditSessionCore(sessionId, { force: true });
 
       expect(prompts).not.toHaveBeenCalled();
       expect(SessionStateManager.deleteSessionState).toHaveBeenCalledWith(

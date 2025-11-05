@@ -349,7 +349,7 @@ program
   .command('delete-audit-session [session-id]')
   .description('Delete audit session(s)')
   .option('--all', 'Delete all audit sessions')
-  .option('--no-confirm', 'Skip confirmation prompt')
+  .option('--force', 'Skip confirmation prompt')
   .action(async (sessionId, options) => {
     try {
       const exitCode = await deleteAuditSessionCommand(sessionId, options);

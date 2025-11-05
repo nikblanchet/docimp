@@ -123,11 +123,11 @@ export async function listAuditSessionsCommand(): Promise<ExitCode> {
  * @param sessionId - Session ID to delete, or undefined for --all flag
  * @param options - Command options
  * @param options.all - Delete all sessions
- * @param options.noConfirm - Skip confirmation prompt
+ * @param options.force - Skip confirmation prompt
  */
 export async function deleteAuditSessionCore(
   sessionId: string | undefined,
-  options: { all?: boolean; noConfirm?: boolean }
+  options: { all?: boolean; force?: boolean }
 ): Promise<void> {
   // Validate input
   if (!sessionId && !options.all) {
@@ -149,8 +149,8 @@ export async function deleteAuditSessionCore(
       return;
     }
 
-    // Confirmation prompt (unless --no-confirm)
-    if (!options.noConfirm) {
+    // Confirmation prompt (unless --force)
+    if (!options.force) {
       const response = await prompts({
         type: 'confirm',
         name: 'value',
@@ -196,8 +196,8 @@ export async function deleteAuditSessionCore(
     throw error;
   }
 
-  // Confirmation prompt (unless --no-confirm)
-  if (!options.noConfirm) {
+  // Confirmation prompt (unless --force)
+  if (!options.force) {
     const response = await prompts({
       type: 'confirm',
       name: 'value',
@@ -224,12 +224,12 @@ export async function deleteAuditSessionCore(
  * @param sessionId - Session ID to delete, or undefined for --all flag
  * @param options - Command options
  * @param options.all - Delete all sessions
- * @param options.noConfirm - Skip confirmation prompt
+ * @param options.force - Skip confirmation prompt
  * @returns Exit code (EXIT_CODE.SUCCESS for success, EXIT_CODE.ERROR for failure)
  */
 export async function deleteAuditSessionCommand(
   sessionId: string | undefined,
-  options: { all?: boolean; noConfirm?: boolean }
+  options: { all?: boolean; force?: boolean }
 ): Promise<ExitCode> {
   try {
     await deleteAuditSessionCore(sessionId, options);
