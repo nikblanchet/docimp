@@ -1456,3 +1456,5 @@ pipelines where you want to enforce clean syntax before analyzing documentation.
 ---
 
 **Star this repo if DocImp helps your project!** ⭐
+
+<!-- CI infrastructure test -->
