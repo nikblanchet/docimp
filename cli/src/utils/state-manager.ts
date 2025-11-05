@@ -169,4 +169,32 @@ export class StateManager {
   static stateDirExists(basePath?: string): boolean {
     return existsSync(this.getStateDir(basePath));
   }
+
+  /**
+   * Get the absolute path to an audit session state file.
+   *
+   * @param sessionId - UUID of the audit session
+   * @param basePath - Base directory to resolve from. If not provided, uses current working directory.
+   * @returns Absolute path to .docimp/session-reports/audit-session-{sessionId}.json.
+   */
+  static getAuditSessionFile(sessionId: string, basePath?: string): string {
+    return path.join(
+      this.getSessionReportsDir(basePath),
+      `audit-session-${sessionId}.json`
+    );
+  }
+
+  /**
+   * Get the absolute path to an improve session state file.
+   *
+   * @param sessionId - UUID of the improve session
+   * @param basePath - Base directory to resolve from. If not provided, uses current working directory.
+   * @returns Absolute path to .docimp/session-reports/improve-session-{sessionId}.json.
+   */
+  static getImproveSessionFile(sessionId: string, basePath?: string): string {
+    return path.join(
+      this.getSessionReportsDir(basePath),
+      `improve-session-${sessionId}.json`
+    );
+  }
 }
