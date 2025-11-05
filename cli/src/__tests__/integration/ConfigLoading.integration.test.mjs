@@ -92,8 +92,16 @@ describe('ConfigLoader - File Loading Integration', () => {
       assert.equal(config.styleGuides.python, 'sphinx');
 
       // Default values should be present for unspecified fields
-      assert.equal(config.styleGuides.javascript, 'jsdoc-vanilla', 'Should have default JavaScript style guide');
-      assert.equal(config.styleGuides.typescript, 'tsdoc-typedoc', 'Should have default TypeScript style guide');
+      assert.equal(
+        config.styleGuides.javascript,
+        'jsdoc-vanilla',
+        'Should have default JavaScript style guide'
+      );
+      assert.equal(
+        config.styleGuides.typescript,
+        'tsdoc-typedoc',
+        'Should have default TypeScript style guide'
+      );
       assert.ok(config.tone, 'Should have default tone');
       assert.ok(config.impactWeights, 'Should have default impactWeights');
     });
@@ -208,10 +216,7 @@ describe('ConfigLoader - File Loading Integration', () => {
       // Impact weights should sum to 1.0
       const sum =
         config.impactWeights.complexity + config.impactWeights.quality;
-      assert.ok(
-        Math.abs(sum - 1.0) < 0.01,
-        'Impact weights should sum to 1.0'
-      );
+      assert.ok(Math.abs(sum - 1.0) < 0.01, 'Impact weights should sum to 1.0');
     });
   });
 

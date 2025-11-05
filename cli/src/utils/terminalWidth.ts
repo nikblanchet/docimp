@@ -10,31 +10,35 @@
  * Used when terminal width is below threshold to maximize content space.
  */
 export const COMPACT_TABLE_CHARS: Record<string, string> = {
-  'top': '',
+  top: '',
   'top-mid': '',
   'top-left': '',
   'top-right': '',
-  'bottom': '',
+  bottom: '',
   'bottom-mid': '',
   'bottom-left': '',
   'bottom-right': '',
-  'left': '',
+  left: '',
   'left-mid': '',
-  'mid': '',
+  mid: '',
   'mid-mid': '',
-  'right': '',
+  right: '',
   'right-mid': '',
-  'middle': ' '
+  middle: ' ',
 };
 
 /**
  * Compact table style configuration for narrow terminals.
  * Removes padding and header styling to conserve space.
  */
-export const COMPACT_TABLE_STYLE: { 'padding-left': number; 'padding-right': number; head: string[] } = {
+export const COMPACT_TABLE_STYLE: {
+  'padding-left': number;
+  'padding-right': number;
+  head: string[];
+} = {
   'padding-left': 0,
   'padding-right': 1,
-  head: []
+  head: [],
 };
 
 /**

@@ -66,8 +66,12 @@ export async function planCore(
     display.showMessage('Documentation Improvement Plan');
     display.showMessage('='.repeat(60));
     display.showMessage(`\nTotal items to improve: ${result.total_items}`);
-    display.showMessage(`  Missing documentation: ${result.missing_docs_count}`);
-    display.showMessage(`  Poor quality documentation: ${result.poor_quality_count}`);
+    display.showMessage(
+      `  Missing documentation: ${result.missing_docs_count}`
+    );
+    display.showMessage(
+      `  Poor quality documentation: ${result.poor_quality_count}`
+    );
 
     if (result.items.length > 0) {
       display.showMessage('\nTop 10 priorities (by impact score):');
@@ -87,13 +91,17 @@ export async function planCore(
       }
 
       if (result.items.length > 10) {
-        display.showMessage(`\n  ... and ${result.items.length - 10} more items`);
+        display.showMessage(
+          `\n  ... and ${result.items.length - 10} more items`
+        );
       }
     }
 
     display.showMessage('\n' + '='.repeat(60));
     display.showMessage(`Plan saved to: ${planFile}`);
-    display.showMessage('Run \'docimp improve\' to start improving documentation.');
+    display.showMessage(
+      "Run 'docimp improve' to start improving documentation."
+    );
     display.showMessage('='.repeat(60) + '\n');
   } catch (error) {
     stopSpinner();

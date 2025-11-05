@@ -40,7 +40,7 @@ class ClaudeClient:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         model: str = "claude-sonnet-4-20250514",
         max_retries: int = 3,
         retry_delay: float = 1.0,

@@ -2,6 +2,7 @@ import eslint from '@eslint/js';
 import tseslint from '@typescript-eslint/eslint-plugin';
 import tsparser from '@typescript-eslint/parser';
 import jsdoc from 'eslint-plugin-jsdoc';
+import prettierConfig from 'eslint-config-prettier';
 
 export default [
   eslint.configs.recommended,
@@ -104,4 +105,6 @@ export default [
   {
     ignores: ['dist/**', 'node_modules/**', 'coverage/**', '**/*.test.ts', '**/__tests__/**', '**/__mocks__/**'],
   },
+  // Prettier config must be last to disable conflicting rules
+  prettierConfig,
 ];

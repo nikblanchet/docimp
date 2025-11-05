@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Optional
 
 from .analysis.analyzer import DocumentationAnalyzer
-from .audit.quality_rater import save_audit_results, AuditResult
+from .audit.quality_rater import AuditResult, save_audit_results
 from .claude.claude_client import ClaudeClient
 from .claude.prompt_builder import PromptBuilder
 from .parsers.python_parser import PythonParser
@@ -428,7 +428,7 @@ def cmd_suggest(
             return 1
 
         # Read the file
-        with open(filepath, "r") as f:
+        with open(filepath) as f:
             code_content = f.read()
 
         # Determine language from file extension
@@ -818,8 +818,9 @@ def cmd_record_write(args: argparse.Namespace, manager: TransactionManager) -> i
 
         # Create a minimal manifest for this session
         # The manifest is built from git commits, so we just need the session_id
+        from datetime import UTC, datetime
+
         from .writer.transaction_manager import TransactionManifest
-        from datetime import datetime, UTC
 
         manifest = TransactionManifest(
             session_id=session_id, started_at=datetime.now(UTC).isoformat()
@@ -887,8 +888,9 @@ def cmd_commit_transaction(
 
         # Create a minimal manifest for this session
         # The manifest will be populated from git commits
+        from datetime import UTC, datetime
+
         from .writer.transaction_manager import TransactionManifest
-        from datetime import datetime, UTC
 
         manifest = TransactionManifest(
             session_id=session_id, started_at=datetime.now(UTC).isoformat()
@@ -1299,7 +1301,7 @@ def cmd_interactive_rollback(
         return 1
 
 
-def main(argv: Optional[list] = None) -> int:
+def main(argv: list | None = None) -> int:
     """Main entry point for the CLI.
 
     Args:
@@ -1537,8 +1539,7 @@ def main(argv: Optional[list] = None) -> int:
         type=int,
         default=300000,
         help=(
-            "Maximum timeout cap for any git operation "
-            "(milliseconds, default: 300000)"
+            "Maximum timeout cap for any git operation (milliseconds, default: 300000)"
         ),
     )
 
@@ -1592,8 +1593,7 @@ def main(argv: Optional[list] = None) -> int:
         type=int,
         default=300000,
         help=(
-            "Maximum timeout cap for any git operation "
-            "(milliseconds, default: 300000)"
+            "Maximum timeout cap for any git operation (milliseconds, default: 300000)"
         ),
     )
 
@@ -1635,8 +1635,7 @@ def main(argv: Optional[list] = None) -> int:
         type=int,
         default=300000,
         help=(
-            "Maximum timeout cap for any git operation "
-            "(milliseconds, default: 300000)"
+            "Maximum timeout cap for any git operation (milliseconds, default: 300000)"
         ),
     )
 

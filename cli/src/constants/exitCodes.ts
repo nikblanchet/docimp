@@ -22,4 +22,4 @@ export const EXIT_CODE = {
  * Type representing valid exit codes.
  * All command functions should return this type.
  */
-export type ExitCode = typeof EXIT_CODE[keyof typeof EXIT_CODE];
+export type ExitCode = (typeof EXIT_CODE)[keyof typeof EXIT_CODE];

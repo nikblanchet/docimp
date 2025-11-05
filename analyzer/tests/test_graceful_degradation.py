@@ -7,17 +7,17 @@ This test suite verifies that DocImp handles edge cases gracefully:
 - Edge case scenarios
 """
 
-import sys
-from pathlib import Path
-import tempfile
 import subprocess
+import sys
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.writer.transaction_manager import TransactionManager
 from src.utils.git_helper import GitHelper
+from src.writer.transaction_manager import TransactionManager
 
 
 class TestGitUnavailable:

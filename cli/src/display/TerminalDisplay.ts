@@ -9,8 +9,21 @@ import chalk from 'chalk';
 import Table from 'cli-table3';
 import ora, { Ora } from 'ora';
 import type { IDisplay } from './IDisplay.js';
-import type { AnalysisResult, CodeItem, LanguageMetrics, AuditSummary, ParseFailure, SessionSummary, TransactionEntry, RollbackResult } from '../types/analysis.js';
-import { shouldUseCompactMode, COMPACT_TABLE_CHARS, COMPACT_TABLE_STYLE } from '../utils/terminalWidth.js';
+import type {
+  AnalysisResult,
+  CodeItem,
+  LanguageMetrics,
+  AuditSummary,
+  ParseFailure,
+  SessionSummary,
+  TransactionEntry,
+  RollbackResult,
+} from '../types/analysis.js';
+import {
+  shouldUseCompactMode,
+  COMPACT_TABLE_CHARS,
+  COMPACT_TABLE_STYLE,
+} from '../utils/terminalWidth.js';
 
 /**
  * Terminal display implementation with rich formatting.
@@ -40,16 +53,17 @@ export class TerminalDisplay implements IDisplay {
       head: headers,
       colWidths: isCompact ? compactWidths : fullWidths,
       chars: isCompact ? COMPACT_TABLE_CHARS : undefined,
-      style: isCompact
-        ? COMPACT_TABLE_STYLE
-        : { head: [], border: ['grey'] }
+      style: isCompact ? COMPACT_TABLE_STYLE : { head: [], border: ['grey'] },
     });
   }
 
   /**
    * Display complete analysis results with formatting.
    */
-  public showAnalysisResult(result: AnalysisResult, format: 'summary' | 'json'): void {
+  public showAnalysisResult(
+    result: AnalysisResult,
+    format: 'summary' | 'json'
+  ): void {
     if (format === 'json') {
       console.log(JSON.stringify(result, null, 2));
       return;
@@ -76,7 +90,7 @@ export class TerminalDisplay implements IDisplay {
     console.log(chalk.bold('Overall Coverage:'));
     console.log(
       `  ${coverageColor(result.coverage_percent.toFixed(1) + '%')} ` +
-      `(${result.documented_items}/${result.total_items} items)`
+        `(${result.documented_items}/${result.total_items} items)`
     );
     console.log(`  ${coverageBar}`);
     console.log('');
@@ -104,7 +118,9 @@ export class TerminalDisplay implements IDisplay {
   /**
    * Display language-specific breakdown with table.
    */
-  private showLanguageBreakdown(byLanguage: Record<string, LanguageMetrics>): void {
+  private showLanguageBreakdown(
+    byLanguage: Record<string, LanguageMetrics>
+  ): void {
     console.log(chalk.bold('By Language:'));
     console.log('');
 
@@ -114,10 +130,10 @@ export class TerminalDisplay implements IDisplay {
         chalk.cyan('Coverage'),
         chalk.cyan('Items'),
         chalk.cyan('Avg Complexity'),
-        chalk.cyan('Avg Impact')
+        chalk.cyan('Avg Impact'),
       ],
-      [15, 15, 15, 18, 15],  // Full widths
-      [12, 12, 12, 14, 12]   // Compact widths
+      [15, 15, 15, 18, 15], // Full widths
+      [12, 12, 12, 14, 12] // Compact widths
     );
 
     // Sort languages alphabetically
@@ -133,7 +149,7 @@ export class TerminalDisplay implements IDisplay {
         coverageColor(metrics.coverage_percent.toFixed(1) + '%') + warning,
         `${metrics.documented_items}/${metrics.total_items}`,
         metrics.avg_complexity.toFixed(1),
-        metrics.avg_impact_score.toFixed(1)
+        metrics.avg_impact_score.toFixed(1),
       ]);
     }
 
@@ -145,7 +161,9 @@ export class TerminalDisplay implements IDisplay {
    * Display top undocumented items by impact score.
    */
   private showTopUndocumented(undocumented: CodeItem[]): void {
-    console.log(chalk.bold('Top Undocumented Items') + chalk.gray(' (by impact score)'));
+    console.log(
+      chalk.bold('Top Undocumented Items') + chalk.gray(' (by impact score)')
+    );
     console.log('');
 
     // Sort by impact score descending
@@ -158,10 +176,10 @@ export class TerminalDisplay implements IDisplay {
         chalk.cyan('Score'),
         chalk.cyan('Type'),
         chalk.cyan('Name'),
-        chalk.cyan('Location')
+        chalk.cyan('Location'),
       ],
-      [10, 12, 30, 40],  // Full widths
-      [8, 10, 20, 28]    // Compact widths
+      [10, 12, 30, 40], // Full widths
+      [8, 10, 20, 28] // Compact widths
     );
 
     for (const item of sorted) {
@@ -172,14 +190,18 @@ export class TerminalDisplay implements IDisplay {
         scoreColor(item.impact_score.toFixed(1)),
         item.type,
         this.truncate(item.name, 28),
-        chalk.gray(`${relativePath}:${item.line_number}`)
+        chalk.gray(`${relativePath}:${item.line_number}`),
       ]);
     }
 
     console.log(table.toString());
 
     if (undocumented.length > 10) {
-      console.log(chalk.gray(`  ... and ${undocumented.length - 10} more undocumented items`));
+      console.log(
+        chalk.gray(
+          `  ... and ${undocumented.length - 10} more undocumented items`
+        )
+      );
     }
     console.log('');
   }
@@ -188,12 +210,19 @@ export class TerminalDisplay implements IDisplay {
    * Display parse failures with file paths and error messages.
    */
   private showParseFailures(failures: ParseFailure[]): void {
-    console.log(chalk.yellow('⚠ Parse Failures: ') + chalk.bold(`${failures.length} ${failures.length === 1 ? 'file' : 'files'}`));
+    console.log(
+      chalk.yellow('⚠ Parse Failures: ') +
+        chalk.bold(
+          `${failures.length} ${failures.length === 1 ? 'file' : 'files'}`
+        )
+    );
     console.log('');
 
     for (const failure of failures) {
       const relativePath = this.getRelativePath(failure.filepath);
-      console.log(`  ${chalk.red('•')} ${chalk.gray(relativePath)}: ${failure.error}`);
+      console.log(
+        `  ${chalk.red('•')} ${chalk.gray(relativePath)}: ${failure.error}`
+      );
     }
     console.log('');
   }
@@ -211,22 +240,32 @@ export class TerminalDisplay implements IDisplay {
       console.log(`  Tone: ${chalk.cyan(String(config.tone))}`);
     }
     if (config.plugins) {
-      const pluginCount = Array.isArray(config.plugins) ? config.plugins.length : 0;
+      const pluginCount = Array.isArray(config.plugins)
+        ? config.plugins.length
+        : 0;
       console.log(`  Plugins: ${chalk.cyan(String(pluginCount))} loaded`);
     }
     if (config.exclude) {
-      const excludeCount = Array.isArray(config.exclude) ? config.exclude.length : 0;
-      console.log(`  Exclude patterns: ${chalk.cyan(String(excludeCount))} patterns`);
+      const excludeCount = Array.isArray(config.exclude)
+        ? config.exclude.length
+        : 0;
+      console.log(
+        `  Exclude patterns: ${chalk.cyan(String(excludeCount))} patterns`
+      );
     }
 
     if (config.jsdocStyle && typeof config.jsdocStyle === 'object') {
       const jsdoc = config.jsdocStyle as Record<string, unknown>;
       console.log('  JSDoc options:');
       if ('enforceTypes' in jsdoc) {
-        console.log(`    Enforce types: ${chalk.cyan(String(jsdoc.enforceTypes))}`);
+        console.log(
+          `    Enforce types: ${chalk.cyan(String(jsdoc.enforceTypes))}`
+        );
       }
       if ('requireExamples' in jsdoc) {
-        console.log(`    Require examples: ${chalk.cyan(String(jsdoc.requireExamples))}`);
+        console.log(
+          `    Require examples: ${chalk.cyan(String(jsdoc.requireExamples))}`
+        );
       }
     }
     console.log('');
@@ -275,10 +314,10 @@ export class TerminalDisplay implements IDisplay {
         chalk.cyan('Type'),
         chalk.cyan('Language'),
         chalk.cyan('Impact'),
-        chalk.cyan('Location')
+        chalk.cyan('Location'),
       ],
-      [25, 12, 12, 10, 35],  // Full widths
-      [18, 10, 10, 8, 20]    // Compact widths
+      [25, 12, 12, 10, 35], // Full widths
+      [18, 10, 10, 8, 20] // Compact widths
     );
 
     for (const item of items) {
@@ -290,7 +329,7 @@ export class TerminalDisplay implements IDisplay {
         item.type,
         this.capitalizeLanguage(item.language),
         scoreColor(item.impact_score.toFixed(1)),
-        chalk.gray(`${relativePath}:${item.line_number}`)
+        chalk.gray(`${relativePath}:${item.line_number}`),
       ]);
     }
 
@@ -321,9 +360,7 @@ export class TerminalDisplay implements IDisplay {
     const bar = this.createProgressBar(percent);
     const status = `${current}/${total}`;
 
-    const line = message
-      ? `${bar} ${status} - ${message}`
-      : `${bar} ${status}`;
+    const line = message ? `${bar} ${status} - ${message}` : `${bar} ${status}`;
 
     process.stdout.write('\r' + line);
 
@@ -361,7 +398,9 @@ export class TerminalDisplay implements IDisplay {
     const empty = width - filled;
     const color = this.getCoverageColor(percent);
 
-    return '[' + color('█'.repeat(filled)) + chalk.gray('░'.repeat(empty)) + ']';
+    return (
+      '[' + color('█'.repeat(filled)) + chalk.gray('░'.repeat(empty)) + ']'
+    );
   }
 
   /**
@@ -411,9 +450,18 @@ export class TerminalDisplay implements IDisplay {
 
     console.log('');
     console.log('┌' + horizontalLine + '┐');
-    console.log('│' + this.padCenter('Documentation Quality Audit Complete', width) + '│');
+    console.log(
+      '│' + this.padCenter('Documentation Quality Audit Complete', width) + '│'
+    );
     console.log('├' + horizontalLine + '┤');
-    console.log('│' + this.padLeft(`Audited: ${auditedItems} / ${totalItems} documented items (${percent.toFixed(1)}%)`, width) + '│');
+    console.log(
+      '│' +
+        this.padLeft(
+          `Audited: ${auditedItems} / ${totalItems} documented items (${percent.toFixed(1)}%)`,
+          width
+        ) +
+        '│'
+    );
     console.log('│' + ' '.repeat(width) + '│');
 
     // Rating breakdown
@@ -446,7 +494,9 @@ export class TerminalDisplay implements IDisplay {
     console.log('│' + this.padLeft(auditFile, width) + '│');
     console.log('│' + ' '.repeat(width) + '│');
     console.log('│' + this.padLeft('Next steps:', width) + '│');
-    console.log('│' + this.padLeft("Run 'docimp plan .' to generate", width) + '│');
+    console.log(
+      '│' + this.padLeft("Run 'docimp plan .' to generate", width) + '│'
+    );
     console.log('│' + this.padLeft('improvement priorities.', width) + '│');
     console.log('└' + horizontalLine + '┘');
     console.log('');
@@ -468,7 +518,11 @@ export class TerminalDisplay implements IDisplay {
    * Pad string to left-align it within specified width.
    * @returns Left-aligned and padded string.
    */
-  private padLeft(str: string, width: number, hasColor: boolean = false): string {
+  private padLeft(
+    str: string,
+    width: number,
+    hasColor: boolean = false
+  ): string {
     const strippedLength = hasColor ? this.stripAnsiLength(str) : str.length;
     const padding = width - strippedLength;
     // Handle case where string exceeds width (no padding)
@@ -543,7 +597,9 @@ export class TerminalDisplay implements IDisplay {
     if (truncated) {
       const remainingLines = totalLines - displayedLines;
       console.log('');
-      console.log(`... (${remainingLines} more lines, press C to see full code)`);
+      console.log(
+        `... (${remainingLines} more lines, press C to see full code)`
+      );
     }
   }
 
@@ -578,22 +634,25 @@ export class TerminalDisplay implements IDisplay {
         chalk.cyan('Session ID'),
         chalk.cyan('Started'),
         chalk.cyan('Changes'),
-        chalk.cyan('Status')
+        chalk.cyan('Status'),
       ],
-      [38, 20, 10, 20],  // Full widths
-      [28, 16, 8, 14]    // Compact widths
+      [38, 20, 10, 20], // Full widths
+      [28, 16, 8, 14] // Compact widths
     );
 
     for (const session of sessions) {
-      const statusColor = session.status === 'in_progress' ? chalk.yellow :
-                         session.status === 'committed' ? chalk.green :
-                         chalk.gray;
+      const statusColor =
+        session.status === 'in_progress'
+          ? chalk.yellow
+          : session.status === 'committed'
+            ? chalk.green
+            : chalk.gray;
 
       table.push([
         session.session_id,
         session.started_at.substring(0, 19).replace('T', ' '),
         session.change_count.toString(),
-        statusColor(session.status)
+        statusColor(session.status),
       ]);
     }
 
@@ -619,28 +678,30 @@ export class TerminalDisplay implements IDisplay {
         chalk.cyan('Entry ID'),
         chalk.cyan('File'),
         chalk.cyan('Item'),
-        chalk.cyan('Timestamp')
+        chalk.cyan('Timestamp'),
       ],
-      [12, 40, 25, 20],  // Full widths
-      [10, 28, 18, 16]   // Compact widths
+      [12, 40, 25, 20], // Full widths
+      [10, 28, 18, 16] // Compact widths
     );
 
     for (const change of changes) {
       // Truncate filepath if too long
-      const filepath = change.filepath.length > 37
-        ? '...' + change.filepath.slice(-37)
-        : change.filepath;
+      const filepath =
+        change.filepath.length > 37
+          ? '...' + change.filepath.slice(-37)
+          : change.filepath;
 
       // Truncate item name if too long
-      const itemName = change.item_name.length > 22
-        ? change.item_name.slice(0, 22) + '...'
-        : change.item_name;
+      const itemName =
+        change.item_name.length > 22
+          ? change.item_name.slice(0, 22) + '...'
+          : change.item_name;
 
       table.push([
         change.entry_id,
         filepath,
         itemName,
-        change.timestamp.substring(0, 19).replace('T', ' ')
+        change.timestamp.substring(0, 19).replace('T', ' '),
       ]);
     }
 
@@ -661,7 +722,9 @@ export class TerminalDisplay implements IDisplay {
       console.log(chalk.dim(`Restored ${result.restored_count} file(s)`));
     } else {
       console.log(chalk.red('✗ Rollback failed'));
-      console.log(chalk.dim(`Failed: ${result.failed_count} file(s) had conflicts`));
+      console.log(
+        chalk.dim(`Failed: ${result.failed_count} file(s) had conflicts`)
+      );
 
       if (result.conflicts && result.conflicts.length > 0) {
         console.log('');

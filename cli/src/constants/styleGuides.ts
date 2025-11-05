@@ -19,7 +19,10 @@ export interface StyleGuideChoice {
  * Style guide choices organized by language.
  * Each language has an array of available style guide options with display titles and values.
  */
-export const STYLE_GUIDE_CHOICES: Record<SupportedLanguage, StyleGuideChoice[]> = {
+export const STYLE_GUIDE_CHOICES: Record<
+  SupportedLanguage,
+  StyleGuideChoice[]
+> = {
   python: [
     { title: 'Google', value: 'google' },
     { title: 'NumPy + reST', value: 'numpy-rest' },
@@ -43,9 +46,9 @@ export const STYLE_GUIDE_CHOICES: Record<SupportedLanguage, StyleGuideChoice[]> 
  * Used for validation of CLI flags and configuration values.
  */
 export const VALID_STYLE_GUIDES: Record<SupportedLanguage, string[]> = {
-  python: STYLE_GUIDE_CHOICES.python.map(c => c.value),
-  javascript: STYLE_GUIDE_CHOICES.javascript.map(c => c.value),
-  typescript: STYLE_GUIDE_CHOICES.typescript.map(c => c.value),
+  python: STYLE_GUIDE_CHOICES.python.map((c) => c.value),
+  javascript: STYLE_GUIDE_CHOICES.javascript.map((c) => c.value),
+  typescript: STYLE_GUIDE_CHOICES.typescript.map((c) => c.value),
 };
 
 /**
@@ -57,7 +60,7 @@ export const VALID_TONES = ['concise', 'detailed', 'friendly'] as const;
 /**
  * Type for valid tone values.
  */
-export type Tone = typeof VALID_TONES[number];
+export type Tone = (typeof VALID_TONES)[number];
 
 /**
  * Tone choice options for interactive prompts.

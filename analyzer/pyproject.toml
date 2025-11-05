@@ -14,22 +14,31 @@ target-version = "py313"
 line-length = 88
 
 [tool.ruff.lint]
-# Enable pycodestyle (E), pyflakes (F), and flake8-datetimez (DTZ)
-# E: pycodestyle errors (including E501 line too long)
+# Enable comprehensive rule set for modern Python 3.13+
+#
+# Rule Groups:
+# E: pycodestyle errors (PEP 8 violations)
 # F: pyflakes (undefined names, unused imports, etc.)
 # DTZ: flake8-datetimez (timezone-naive datetime usage)
+# UP: pyupgrade (modernize syntax - dict vs Dict, | vs Union, etc.)
+# PTH: flake8-use-pathlib (prefer pathlib.Path over os.path)
+# I: isort (import sorting and organization)
+# SIM: flake8-simplify (remove unnecessary complexity)
+# PERF: perflint (performance anti-patterns)
+# YTT: flake8-2020 (modern sys.version_info checks)
 #
-# DTZ rules prevent timezone-naive datetime usage:
-# DTZ001: datetime.datetime() without tzinfo
-# DTZ002: datetime.datetime.today()
-# DTZ003: datetime.datetime.utcnow() [deprecated in Python 3.12+]
-# DTZ004: datetime.datetime.utcfromtimestamp() [deprecated in Python 3.12+]
-# DTZ005: datetime.datetime.now() without tz parameter
-# DTZ006: datetime.datetime.fromtimestamp() without tz parameter
-# DTZ007: datetime.datetime.strptime() without %z
-# DTZ011: datetime.date.today()
-# DTZ012: datetime.date.fromtimestamp()
-select = ["E", "F", "DTZ"]
+# See .planning/MODERNIZATION.md for detailed rule descriptions
+select = [
+    "E",     # pycodestyle errors
+    "F",     # pyflakes
+    "DTZ",   # flake8-datetimez - timezone-aware datetime
+    "UP",    # pyupgrade - modernize syntax (Python 3.9+ type hints)
+    "PTH",   # flake8-use-pathlib - prefer Path over os.path
+    "I",     # isort - import sorting
+    "SIM",   # flake8-simplify - code simplification
+    "PERF",  # perflint - performance anti-patterns
+    "YTT",   # flake8-2020 - modern version checks
+]
 
 # Don't ignore any rules - we want strict enforcement
 ignore = []

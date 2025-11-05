@@ -4,8 +4,8 @@ This module provides utilities for interacting with the side-car git repository
 used for transaction tracking and rollback capability.
 """
 
-import subprocess
 import shutil
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
@@ -43,7 +43,7 @@ class GitHelper:
     """
 
     @staticmethod
-    def _categorize_operation(args: List[str]) -> str:
+    def _categorize_operation(args: list[str]) -> str:
         """Categorize git operation as fast/default/slow based on command.
 
         Args:
@@ -83,7 +83,7 @@ class GitHelper:
         return "default"
 
     @staticmethod
-    def _calculate_timeout(args: List[str], config: GitTimeoutConfig) -> float:
+    def _calculate_timeout(args: list[str], config: GitTimeoutConfig) -> float:
         """Calculate timeout in seconds based on operation type and config.
 
         Uses progressive scaling: categorize operation, apply scale factor,
@@ -191,11 +191,11 @@ class GitHelper:
 
     @staticmethod
     def run_git_command(
-        args: List[str],
+        args: list[str],
         base_path: Path,
         check: bool = True,
         capture_output: bool = True,
-        timeout_config: Optional[GitTimeoutConfig] = None,
+        timeout_config: GitTimeoutConfig | None = None,
     ) -> subprocess.CompletedProcess:
         """Run a git command with proper isolation flags and timeout.
 

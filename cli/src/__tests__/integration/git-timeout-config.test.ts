@@ -59,7 +59,11 @@ describe('Git Timeout Config Integration', () => {
         },
       };
 
-      const bridge = new PythonBridge('python3', '/mock/analyzer', customConfig);
+      const bridge = new PythonBridge(
+        'python3',
+        '/mock/analyzer',
+        customConfig
+      );
       mockTransactionSuccess();
 
       await bridge.beginTransaction('session-abc-123');
@@ -95,7 +99,11 @@ describe('Git Timeout Config Integration', () => {
         },
       };
 
-      const bridge = new PythonBridge('python3', '/mock/analyzer', customConfig);
+      const bridge = new PythonBridge(
+        'python3',
+        '/mock/analyzer',
+        customConfig
+      );
       mockTransactionSuccess();
 
       await bridge.recordWrite(
@@ -130,7 +138,11 @@ describe('Git Timeout Config Integration', () => {
         },
       };
 
-      const bridge = new PythonBridge('python3', '/mock/analyzer', customConfig);
+      const bridge = new PythonBridge(
+        'python3',
+        '/mock/analyzer',
+        customConfig
+      );
       mockTransactionSuccess();
 
       await bridge.commitTransaction('session-final');
@@ -174,7 +186,11 @@ describe('Git Timeout Config Integration', () => {
         },
       };
 
-      const bridge = new PythonBridge('python3', '/mock/analyzer', partialConfig);
+      const bridge = new PythonBridge(
+        'python3',
+        '/mock/analyzer',
+        partialConfig
+      );
       mockTransactionSuccess();
 
       await bridge.beginTransaction('session-partial');

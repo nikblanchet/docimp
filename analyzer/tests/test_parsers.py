@@ -2,13 +2,14 @@
 
 import sys
 from pathlib import Path
+
 import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.parsers.python_parser import PythonParser
 from src.models.code_item import CodeItem
+from src.parsers.python_parser import PythonParser
 
 # Test fixture paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -146,9 +147,9 @@ class TestPythonParser:
         except SyntaxError as e:
             error_msg = str(e)
             # Error message should mention the file
-            assert (
-                "python_missing_colon.py" in error_msg
-            ), f"Error message should include filename, got: {error_msg}"
+            assert "python_missing_colon.py" in error_msg, (
+                f"Error message should include filename, got: {error_msg}"
+            )
 
     def test_complexity_calculation(self, parser, tmp_path):
         """Test that cyclomatic complexity is calculated correctly."""
@@ -198,12 +199,12 @@ def complex_func(x):
         assert "ExampleClass.value" in item_names
 
         # Ensure methods are NOT extracted as plain functions
-        assert (
-            "__init__" not in item_names
-        ), "Method __init__ should not appear as plain function"
-        assert (
-            "value" not in item_names
-        ), "Method value should not appear as plain function"
+        assert "__init__" not in item_names, (
+            "Method __init__ should not appear as plain function"
+        )
+        assert "value" not in item_names, (
+            "Method value should not appear as plain function"
+        )
 
         # Verify item types
         types_by_name = {item.name: item.type for item in items}
@@ -332,9 +333,9 @@ def function():
         # Verify nested function in method is extracted as function, not method
         assert "nested_in_method" in item_names
         nested_func = next(item for item in items if item.name == "nested_in_method")
-        assert (
-            nested_func.type == "function"
-        ), "Function nested in method should be type 'function'"
+        assert nested_func.type == "function", (
+            "Function nested in method should be type 'function'"
+        )
 
         # Verify nested class
         assert "Inner" in item_names
@@ -394,9 +395,9 @@ def parent_function(x):
         )
 
         # Nested function should have complexity 3 (base 1 + two if statements)
-        assert (
-            nested.complexity == 3
-        ), f"Nested complexity should be 3, got {nested.complexity}"
+        assert nested.complexity == 3, (
+            f"Nested complexity should be 3, got {nested.complexity}"
+        )
 
     def test_complexity_with_lambdas(self, parser, tmp_path):
         """Test that lambda functions are correctly traversed in complexity
@@ -423,9 +424,9 @@ def parent_with_lambda(x):
         parent = items[0]
         # Expected: base(1) + if(1) = 2
         # Lambda is traversed but doesn't add complexity
-        assert (
-            parent.complexity == 2
-        ), f"Expected complexity 2 (base + if), got {parent.complexity}"
+        assert parent.complexity == 2, (
+            f"Expected complexity 2 (base + if), got {parent.complexity}"
+        )
 
     def test_complexity_with_comprehensions(self, parser, tmp_path):
         """Test that comprehensions with conditionals are counted correctly."""
@@ -450,9 +451,9 @@ def parent_with_comprehension(x):
 
         parent = items[0]
         # Expected: base(1) + comprehension(1) + if(1) = 3
-        assert (
-            parent.complexity == 3
-        ), f"Expected complexity 3 (base + comprehension + if), got {parent.complexity}"
+        assert parent.complexity == 3, (
+            f"Expected complexity 3 (base + comprehension + if), got {parent.complexity}"
+        )
 
     def test_complexity_async_nested_functions(self, parser, tmp_path):
         """Test that async nested functions are isolated from async parent."""
@@ -482,14 +483,14 @@ async def parent_async(x):
         nested = next(item for item in items if item.name == "nested_async")
 
         # Parent: base(1) + if(1) = 2
-        assert (
-            parent.complexity == 2
-        ), f"Async parent should have complexity 2, got {parent.complexity}"
+        assert parent.complexity == 2, (
+            f"Async parent should have complexity 2, got {parent.complexity}"
+        )
 
         # Nested: base(1) + if(1) + while(1) = 3
-        assert (
-            nested.complexity == 3
-        ), f"Async nested should have complexity 3, got {nested.complexity}"
+        assert nested.complexity == 3, (
+            f"Async nested should have complexity 3, got {nested.complexity}"
+        )
 
     def test_complexity_parent_with_many_branches(self, parser, tmp_path):
         """Test complex parent with multiple decision points and nested function."""
@@ -535,9 +536,9 @@ def complex_parent(x):
         )
 
         # Nested: base(1) + if(1) + while(1) + for(1) + if(1) = 5
-        assert (
-            nested.complexity == 5
-        ), f"Nested should have complexity 5, got {nested.complexity}"
+        assert nested.complexity == 5, (
+            f"Nested should have complexity 5, got {nested.complexity}"
+        )
 
     def test_complexity_method_with_nested_function(self, parser, tmp_path):
         """Test that nested function in class method has isolated complexity."""
@@ -570,14 +571,14 @@ class MyClass:
         helper = next(item for item in items if item.name == "helper")
 
         # Method: base(1) + if(1) = 2
-        assert (
-            method.complexity == 2
-        ), f"Method should have complexity 2, got {method.complexity}"
+        assert method.complexity == 2, (
+            f"Method should have complexity 2, got {method.complexity}"
+        )
 
         # Helper: base(1) + if(1) + while(1) = 3
-        assert (
-            helper.complexity == 3
-        ), f"Helper should have complexity 3, got {helper.complexity}"
+        assert helper.complexity == 3, (
+            f"Helper should have complexity 3, got {helper.complexity}"
+        )
 
     def test_extracts_end_line_for_functions(self, parser, tmp_path):
         """Test that end_line is extracted correctly for functions."""
@@ -717,9 +718,9 @@ class TestTypeScriptParserErrorHandling:
 
     def test_malformed_json_with_nonzero_returncode_raises_runtimeerror(self, parser):
         """Test that malformed JSON with nonzero returncode raises RuntimeError."""
+        import subprocess
         import tempfile
         from unittest.mock import patch
-        import subprocess
 
         with tempfile.NamedTemporaryFile(suffix=".ts", delete=False) as tmp:
             tmp.write(b"function test() {}")
@@ -748,9 +749,9 @@ class TestTypeScriptParserErrorHandling:
     def test_malformed_json_with_zero_returncode_raises_runtimeerror(self, parser):
         """Test that malformed JSON with returncode=0 raises RuntimeError (not
         SyntaxError)."""
+        import subprocess
         import tempfile
         from unittest.mock import patch
-        import subprocess
 
         with tempfile.NamedTemporaryFile(suffix=".ts", delete=False) as tmp:
             tmp.write(b"function test() {}")
@@ -782,9 +783,9 @@ class TestTypeScriptParserErrorHandling:
 
     def test_error_messages_include_subprocess_output(self, parser):
         """Test that error messages include subprocess stdout/stderr for debugging."""
+        import subprocess
         import tempfile
         from unittest.mock import patch
-        import subprocess
 
         with tempfile.NamedTemporaryFile(suffix=".ts", delete=False) as tmp:
             tmp.write(b"function test() {}")

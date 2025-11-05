@@ -8,7 +8,7 @@ import os
 import re
 import shutil
 import tempfile
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Optional
 
@@ -34,7 +34,7 @@ class DocstringWriter:
     - Path traversal protection (files must be within allowed base directory)
     """
 
-    def __init__(self, base_path: Optional[str] = None):
+    def __init__(self, base_path: str | None = None):
         """Initialize the docstring writer.
 
         Parameters
@@ -131,15 +131,15 @@ class DocstringWriter:
             If the file content doesn't match expected content
         """
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 actual_content = f.read()
         except Exception as e:
-            raise IOError(f"Failed to read back written file '{file_path}': {e}")
+            raise OSError(f"Failed to read back written file '{file_path}': {e}")
 
         if actual_content != expected_content:
             expected_len = len(expected_content)
             actual_len = len(actual_content)
-            raise IOError(
+            raise OSError(
                 f"Write validation failed for '{file_path}'. "
                 f"Expected {expected_len} bytes, got {actual_len} bytes. "
                 f"Content mismatch detected."
@@ -164,7 +164,7 @@ class DocstringWriter:
             shutil.copy2(backup_path, target_path)
         except Exception as e:
             # This is a critical failure - we failed to restore the original file
-            raise IOError(
+            raise OSError(
                 f"CRITICAL: Failed to restore '{target_path}' from backup "
                 f"'{backup_path}'. "
                 f"Original error: {e}. Both backup and target may be in "
@@ -178,8 +178,8 @@ class DocstringWriter:
         item_type: str,
         docstring: str,
         language: str,
-        line_number: Optional[int] = None,
-        explicit_backup_path: Optional[str] = None,
+        line_number: int | None = None,
+        explicit_backup_path: str | None = None,
     ) -> bool:
         """Write documentation to a source file.
 
@@ -242,7 +242,7 @@ class DocstringWriter:
         file_path = self._validate_path(filepath)
 
         # Read file content
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read()
 
         # Apply docstring based on language
@@ -281,7 +281,7 @@ class DocstringWriter:
         # Safety check: verify backup path is unique (should always be true
         # with microseconds)
         if backup_path.exists():
-            raise IOError(
+            raise OSError(
                 f"Backup path collision: '{backup_path}' already exists. "
                 f"This should not happen with timestamp-based naming."
             )
@@ -331,7 +331,7 @@ class DocstringWriter:
         item_name: str,
         item_type: str,
         docstring: str,
-        line_number: Optional[int] = None,
+        line_number: int | None = None,
     ) -> str:
         """Insert Python docstring into content.
 
@@ -396,7 +396,7 @@ class DocstringWriter:
         item_name: str,
         item_type: str,
         docstring: str,
-        line_number: Optional[int] = None,
+        line_number: int | None = None,
     ) -> str:
         """Insert JSDoc comment into JavaScript/TypeScript content.
 

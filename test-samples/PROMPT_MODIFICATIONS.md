@@ -1,7 +1,7 @@
 # Prompt Modification Guide for Testing
 
-**File to modify:** `analyzer/src/claude/prompt_builder.py`
-**Lines to modify:** After line 274, before line 276
+**File to modify:** `analyzer/src/claude/prompt_builder.py` **Lines to modify:** After
+line 274, before line 276
 
 ## Current Code (Lines 267-278)
 
@@ -21,7 +21,8 @@
 
 ## Modification Location
 
-Insert new requirements **AFTER line 274** (after the closing `])` of the requirements list) and **BEFORE line 276** (before the `# Add style-specific requirements` comment).
+Insert new requirements **AFTER line 274** (after the closing `])` of the requirements
+list) and **BEFORE line 276** (before the `# Add style-specific requirements` comment).
 
 ---
 
@@ -29,17 +30,17 @@ Insert new requirements **AFTER line 274** (after the closing `])` of the requir
 
 ### Code to Insert
 
-```python
+````python
         # OPTION A: Prevent markdown code fence wrappers
         prompt_parts.extend([
             "5. IMPORTANT: Return the raw docstring text only. Do NOT wrap your entire response in markdown code fences (```python, ```javascript, etc.)",
             "6. Code examples WITHIN the docstring are fine and encouraged - just don't wrap the whole docstring in backticks",
         ])
-```
+````
 
 ### Full Modified Section (Lines 267-280)
 
-```python
+````python
         prompt_parts.extend([
             "",
             "Requirements:",
@@ -64,9 +65,10 @@ Insert new requirements **AFTER line 274** (after the closing `])` of the requir
                 "8. Use triple-quoted docstrings",  # NOTE: Changed from "6" to "8"
             ])
             # ... rest continues with adjusted numbering
-```
+````
 
-**IMPORTANT:** You'll also need to adjust the numbering in the language-specific requirements below (change "5" to "7", "6" to "8", etc.).
+**IMPORTANT:** You'll also need to adjust the numbering in the language-specific
+requirements below (change "5" to "7", "6" to "8", etc.).
 
 ---
 
@@ -119,7 +121,7 @@ Insert new requirements **AFTER line 274** (after the closing `])` of the requir
 
 ### Code to Insert
 
-```python
+````python
         # OPTION C: Show correct response format with examples
         prompt_parts.extend([
             "5. Response format - return ONLY the docstring content:",
@@ -127,11 +129,11 @@ Insert new requirements **AFTER line 274** (after the closing `])` of the requir
             "   JavaScript/TypeScript: /** Your documentation here */",
             "6. Do NOT wrap your response in markdown code blocks like ```python or ```javascript",
         ])
-```
+````
 
 ### Full Modified Section (Lines 267-280)
 
-```python
+````python
         prompt_parts.extend([
             "",
             "Requirements:",
@@ -158,7 +160,7 @@ Insert new requirements **AFTER line 274** (after the closing `])` of the requir
                 "8. Use triple-quoted docstrings",  # NOTE: Changed from "6" to "8"
             ])
             # ... rest continues with adjusted numbering
-```
+````
 
 **IMPORTANT:** Adjust numbering in language-specific requirements.
 
@@ -236,6 +238,7 @@ elif style_language == 'typescript':
 ## Testing Workflow
 
 1. **Backup original file:**
+
    ```bash
    cp analyzer/src/claude/prompt_builder.py analyzer/src/claude/prompt_builder.py.backup
    ```
@@ -284,4 +287,5 @@ print(prompt)
 # Check that your new requirements (5 and 6) are present
 ```
 
-This lets you verify the prompt contains your modifications before running the full improve workflow.
+This lets you verify the prompt contains your modifications before running the full
+improve workflow.

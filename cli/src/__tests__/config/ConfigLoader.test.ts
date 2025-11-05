@@ -150,29 +150,33 @@ import { pathToFileURL } from 'node:url';
 
       await expect(
         configLoader.load('/path/to/nonexistent/config.js')
-      ).rejects.toThrow('Please check that the config file exists and try again');
+      ).rejects.toThrow(
+        'Please check that the config file exists and try again'
+      );
     });
 
     it('should throw error for empty config path', async () => {
-      await expect(
-        configLoader.load('')
-      ).rejects.toThrow('Config file path cannot be empty');
+      await expect(configLoader.load('')).rejects.toThrow(
+        'Config file path cannot be empty'
+      );
     });
 
     it('should throw error when config path is a directory', async () => {
       const fs = require('fs');
       const os = require('os');
       const path = require('path');
-      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'docimp-config-test-'));
+      const tempDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'docimp-config-test-')
+      );
 
       try {
-        await expect(
-          configLoader.load(tempDir)
-        ).rejects.toThrow('Config path is not a file');
+        await expect(configLoader.load(tempDir)).rejects.toThrow(
+          'Config path is not a file'
+        );
 
-        await expect(
-          configLoader.load(tempDir)
-        ).rejects.toThrow('Please provide a path to a configuration file, not a directory');
+        await expect(configLoader.load(tempDir)).rejects.toThrow(
+          'Please provide a path to a configuration file, not a directory'
+        );
       } finally {
         fs.rmSync(tempDir, { recursive: true, force: true });
       }
@@ -229,7 +233,9 @@ export default {
 };`
       );
 
-      await expect(configLoader.load(configPath)).rejects.toThrow('failed to load');
+      await expect(configLoader.load(configPath)).rejects.toThrow(
+        'failed to load'
+      );
       await expect(configLoader.load(configPath)).rejects.toThrow('import');
     });
 
@@ -241,9 +247,15 @@ export default {
 module.exports = config;`
       );
 
-      await expect(configLoader.load(configPath)).rejects.toThrow('failed to load');
-      await expect(configLoader.load(configPath)).rejects.toThrow('Config file:');
-      await expect(configLoader.load(configPath)).rejects.toThrow('Technical details:');
+      await expect(configLoader.load(configPath)).rejects.toThrow(
+        'failed to load'
+      );
+      await expect(configLoader.load(configPath)).rejects.toThrow(
+        'Config file:'
+      );
+      await expect(configLoader.load(configPath)).rejects.toThrow(
+        'Technical details:'
+      );
     });
 
     it('should show config file location prominently', async () => {
@@ -260,7 +272,9 @@ export default {};`
         const message = (error as Error).message;
         // Config file path should appear early in the message
         const lines = message.split('\n');
-        const configLineIndex = lines.findIndex((line) => line.includes('Config file:'));
+        const configLineIndex = lines.findIndex((line) =>
+          line.includes('Config file:')
+        );
         expect(configLineIndex).toBeGreaterThan(-1);
         expect(configLineIndex).toBeLessThan(5); // Should be in first 5 lines
       }

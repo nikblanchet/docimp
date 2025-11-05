@@ -355,16 +355,16 @@ export const defaultConfig: IConfig = {
     retryDelay: 1.0,
   },
   pythonBridge: {
-    defaultTimeout: 60000,      // 60 seconds
-    suggestTimeout: 300000,     // 5 minutes
-    killEscalationDelay: 5000,  // 5 seconds
+    defaultTimeout: 60000, // 60 seconds
+    suggestTimeout: 300000, // 5 minutes
+    killEscalationDelay: 5000, // 5 seconds
   },
   transaction: {
     git: {
-      baseTimeout: 30000,       // 30 seconds (default operations)
-      fastScale: 0.167,         // 30s * 0.167 = 5s (fast operations)
-      slowScale: 4.0,           // 30s * 4.0 = 120s (slow operations)
-      maxTimeout: 300000,       // 5 minutes (absolute maximum)
+      baseTimeout: 30000, // 30 seconds (default operations)
+      fastScale: 0.167, // 30s * 0.167 = 5s (fast operations)
+      slowScale: 4.0, // 30s * 4.0 = 120s (slow operations)
+      maxTimeout: 300000, // 5 minutes (absolute maximum)
     },
   },
 };

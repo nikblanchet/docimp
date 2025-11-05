@@ -1,6 +1,7 @@
 """AnalysisResult data model for aggregated code analysis results."""
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
+
 from .code_item import CodeItem, CodeItemValue
 
 type LanguageMetricsValue = str | int | float

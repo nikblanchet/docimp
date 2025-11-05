@@ -26,13 +26,18 @@ describe('CodeExtractor', () => {
   describe('extractCodeBlock', () => {
     it('should extract a simple code block with line numbers', () => {
       testFile = path.join(testDir, 'simple.ts');
-      fs.writeFileSync(testFile, `function add(a: number, b: number): number {
+      fs.writeFileSync(
+        testFile,
+        `function add(a: number, b: number): number {
   return a + b;
-}`);
+}`
+      );
 
       const result = CodeExtractor.extractCodeBlock(testFile, 1, 3);
 
-      expect(result.code).toContain('   1 | function add(a: number, b: number): number {');
+      expect(result.code).toContain(
+        '   1 | function add(a: number, b: number): number {'
+      );
       expect(result.code).toContain('   2 |   return a + b;');
       expect(result.code).toContain('   3 | }');
       expect(result.truncated).toBe(false);
@@ -42,14 +47,19 @@ describe('CodeExtractor', () => {
 
     it('should extract without line numbers when disabled', () => {
       testFile = path.join(testDir, 'simple.ts');
-      fs.writeFileSync(testFile, `function add(a: number, b: number): number {
+      fs.writeFileSync(
+        testFile,
+        `function add(a: number, b: number): number {
   return a + b;
-}`);
+}`
+      );
 
       const result = CodeExtractor.extractCodeBlock(testFile, 1, 3, 0, false);
 
       expect(result.code).not.toContain('|');
-      expect(result.code).toContain('function add(a: number, b: number): number {');
+      expect(result.code).toContain(
+        'function add(a: number, b: number): number {'
+      );
       expect(result.code).toContain('  return a + b;');
       expect(result.code).toContain('}');
     });
@@ -60,7 +70,10 @@ describe('CodeExtractor', () => {
       for (let i = 1; i <= 50; i++) {
         lines.push(`  line${i}();`);
       }
-      fs.writeFileSync(testFile, `function longFunction() {\n${lines.join('\n')}\n}`);
+      fs.writeFileSync(
+        testFile,
+        `function longFunction() {\n${lines.join('\n')}\n}`
+      );
 
       const result = CodeExtractor.extractCodeBlock(testFile, 1, 52, 10);
 
@@ -72,12 +85,15 @@ describe('CodeExtractor', () => {
 
     it('should not truncate when maxLines is 0', () => {
       testFile = path.join(testDir, 'medium.ts');
-      fs.writeFileSync(testFile, `function test() {
+      fs.writeFileSync(
+        testFile,
+        `function test() {
   const x = 1;
   const y = 2;
   const z = 3;
   return x + y + z;
-}`);
+}`
+      );
 
       const result = CodeExtractor.extractCodeBlock(testFile, 1, 6, 0);
 
@@ -88,9 +104,12 @@ describe('CodeExtractor', () => {
 
     it('should not truncate when code is shorter than maxLines', () => {
       testFile = path.join(testDir, 'short.ts');
-      fs.writeFileSync(testFile, `function short() {
+      fs.writeFileSync(
+        testFile,
+        `function short() {
   return 42;
-}`);
+}`
+      );
 
       const result = CodeExtractor.extractCodeBlock(testFile, 1, 3, 20);
 
@@ -101,9 +120,12 @@ describe('CodeExtractor', () => {
 
     it('should handle single line extraction', () => {
       testFile = path.join(testDir, 'oneliner.ts');
-      fs.writeFileSync(testFile, `const add = (a, b) => a + b;
+      fs.writeFileSync(
+        testFile,
+        `const add = (a, b) => a + b;
 const sub = (a, b) => a - b;
-const mul = (a, b) => a * b;`);
+const mul = (a, b) => a * b;`
+      );
 
       const result = CodeExtractor.extractCodeBlock(testFile, 2, 2);
 
@@ -130,44 +152,68 @@ const mul = (a, b) => a * b;`);
   describe('extractSignature', () => {
     it('should extract Python function signature', () => {
       testFile = path.join(testDir, 'python.py');
-      fs.writeFileSync(testFile, `def calculate_score(complexity: int, quality: float) -> float:
+      fs.writeFileSync(
+        testFile,
+        `def calculate_score(complexity: int, quality: float) -> float:
     """Calculate impact score."""
     base_score = complexity * 5
     quality_penalty = (4 - quality) * 20
-    return min(100, base_score + quality_penalty)`);
+    return min(100, base_score + quality_penalty)`
+      );
 
       const result = CodeExtractor.extractSignature(testFile, 1, 5, 'python');
 
-      expect(result.signature).toContain('   1 | def calculate_score(complexity: int, quality: float) -> float:');
+      expect(result.signature).toContain(
+        '   1 | def calculate_score(complexity: int, quality: float) -> float:'
+      );
       expect(result.signature).not.toContain('base_score');
       expect(result.totalLines).toBe(5);
     });
 
     it('should extract JavaScript function signature with opening brace', () => {
       testFile = path.join(testDir, 'javascript.js');
-      fs.writeFileSync(testFile, `function calculateScore(complexity, quality) {
+      fs.writeFileSync(
+        testFile,
+        `function calculateScore(complexity, quality) {
   const baseScore = complexity * 5;
   const qualityPenalty = (4 - quality) * 20;
   return Math.min(100, baseScore + qualityPenalty);
-}`);
+}`
+      );
 
-      const result = CodeExtractor.extractSignature(testFile, 1, 5, 'javascript');
+      const result = CodeExtractor.extractSignature(
+        testFile,
+        1,
+        5,
+        'javascript'
+      );
 
-      expect(result.signature).toContain('   1 | function calculateScore(complexity, quality) {');
+      expect(result.signature).toContain(
+        '   1 | function calculateScore(complexity, quality) {'
+      );
       expect(result.signature).not.toContain('baseScore');
       expect(result.totalLines).toBe(5);
     });
 
     it('should extract TypeScript multi-line signature', () => {
       testFile = path.join(testDir, 'typescript.ts');
-      fs.writeFileSync(testFile, `function processData(
+      fs.writeFileSync(
+        testFile,
+        `function processData(
   input: string,
   options: ProcessOptions
 ): Promise<Result> {
   return process(input, options);
-}`);
+}`
+      );
 
-      const result = CodeExtractor.extractSignature(testFile, 1, 6, 'typescript', 5);
+      const result = CodeExtractor.extractSignature(
+        testFile,
+        1,
+        6,
+        'typescript',
+        5
+      );
 
       expect(result.signature).toContain('function processData(');
       expect(result.signature).toContain('input: string,');
@@ -177,7 +223,9 @@ const mul = (a, b) => a * b;`);
 
     it('should respect maxLines parameter for signatures', () => {
       testFile = path.join(testDir, 'long-sig.ts');
-      fs.writeFileSync(testFile, `function withManyParams(
+      fs.writeFileSync(
+        testFile,
+        `function withManyParams(
   param1: string,
   param2: number,
   param3: boolean,
@@ -185,9 +233,16 @@ const mul = (a, b) => a * b;`);
   param5: object
 ) {
   return true;
-}`);
+}`
+      );
 
-      const result = CodeExtractor.extractSignature(testFile, 1, 9, 'typescript', 3);
+      const result = CodeExtractor.extractSignature(
+        testFile,
+        1,
+        9,
+        'typescript',
+        3
+      );
 
       const lines = result.signature.split('\n');
       expect(lines.length).toBe(3);
@@ -196,14 +251,17 @@ const mul = (a, b) => a * b;`);
 
     it('should extract Python class signature', () => {
       testFile = path.join(testDir, 'class.py');
-      fs.writeFileSync(testFile, `class DataProcessor:
+      fs.writeFileSync(
+        testFile,
+        `class DataProcessor:
     """Process data efficiently."""
 
     def __init__(self):
         self.data = []
 
     def process(self):
-        return len(self.data)`);
+        return len(self.data)`
+      );
 
       const result = CodeExtractor.extractSignature(testFile, 1, 8, 'python');
 

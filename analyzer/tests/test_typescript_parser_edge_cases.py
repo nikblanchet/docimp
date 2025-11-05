@@ -4,12 +4,13 @@ This test suite covers error handling, advanced TypeScript features,
 module patterns, JSDoc edge cases, and complexity calculation accuracy.
 """
 
+import os
+import subprocess
 import sys
 from pathlib import Path
-import pytest
-import subprocess
 from unittest.mock import patch
-import os
+
+import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))

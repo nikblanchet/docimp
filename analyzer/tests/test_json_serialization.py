@@ -14,8 +14,8 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.models.code_item import CodeItem
 from src.models.analysis_result import AnalysisResult, LanguageMetrics
+from src.models.code_item import CodeItem
 
 
 def format_analysis_result_as_json(result: AnalysisResult) -> str:

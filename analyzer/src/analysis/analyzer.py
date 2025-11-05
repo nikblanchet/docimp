@@ -4,8 +4,9 @@ import os
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Set
-from ..models.code_item import CodeItem
+
 from ..models.analysis_result import AnalysisResult, ParseFailure
+from ..models.code_item import CodeItem
 from ..parsers.base_parser import BaseParser
 from ..scoring.impact_scorer import ImpactScorer
 from .coverage_calculator import CoverageCalculator
@@ -57,10 +58,10 @@ class DocumentationAnalyzer:
 
     def __init__(
         self,
-        parsers: Dict[str, BaseParser],
+        parsers: dict[str, BaseParser],
         scorer: ImpactScorer,
-        calculator: Optional[CoverageCalculator] = None,
-        exclude_patterns: Optional[Set[str]] = None,
+        calculator: CoverageCalculator | None = None,
+        exclude_patterns: set[str] | None = None,
     ) -> None:
         """Initialize the analyzer with injected dependencies.
 
@@ -115,8 +116,8 @@ class DocumentationAnalyzer:
             print(f"Discovered {len(files)} files to analyze", file=sys.stderr)
 
         # Parse all files
-        all_items: List[CodeItem] = []
-        parse_failures: List[ParseFailure] = []
+        all_items: list[CodeItem] = []
+        parse_failures: list[ParseFailure] = []
         for i, filepath in enumerate(files, 1):
             if verbose and len(files) > 10:
                 # Show progress for large codebases
@@ -154,7 +155,7 @@ class DocumentationAnalyzer:
             parse_failures=parse_failures,
         )
 
-    def _discover_files(self, path: Path) -> List[Path]:
+    def _discover_files(self, path: Path) -> list[Path]:
         """Discover all parseable source files in a directory tree.
 
         Args:
@@ -170,7 +171,7 @@ class DocumentationAnalyzer:
             return []
 
         # Directory - walk recursively
-        files: List[Path] = []
+        files: list[Path] = []
         for root, dirs, filenames in os.walk(path):
             # Filter out excluded directories
             dirs[:] = [d for d in dirs if d not in self.exclude_patterns]
@@ -196,7 +197,7 @@ class DocumentationAnalyzer:
 
     def _parse_file(
         self, filepath: Path, strict: bool = False
-    ) -> tuple[List[CodeItem], Optional[ParseFailure]]:
+    ) -> tuple[list[CodeItem], ParseFailure | None]:
         """Parse a single file using the appropriate language parser.
 
         Args:

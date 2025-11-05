@@ -35,7 +35,9 @@ export class PathValidator {
    */
   static validatePathExists(inputPath: string): string {
     if (!inputPath || inputPath.trim() === '') {
-      throw new Error('Path cannot be empty.\nPlease provide a valid path to analyze.');
+      throw new Error(
+        'Path cannot be empty.\nPlease provide a valid path to analyze.'
+      );
     }
 
     const absolutePath = path.resolve(inputPath);
@@ -139,7 +141,8 @@ export class PathValidator {
   static validateConfigPath(configPath: string): string {
     if (!configPath || configPath.trim() === '') {
       throw new Error(
-        'Config file path cannot be empty.\n' + 'Please provide a valid config file path.'
+        'Config file path cannot be empty.\n' +
+          'Please provide a valid config file path.'
       );
     }
 

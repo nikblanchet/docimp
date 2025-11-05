@@ -6,6 +6,7 @@ from parser through to coverage calculation.
 
 import sys
 from pathlib import Path
+
 import pytest
 
 # Add parent directory to path for imports
@@ -52,24 +53,24 @@ class TestJavaScriptIntegration:
         assert len(js_items) > 0, "No JavaScript items found"
 
         # Verify ESM detection
-        assert any(
-            item.module_system == "esm" for item in js_items
-        ), "ESM module system not detected"
+        assert any(item.module_system == "esm" for item in js_items), (
+            "ESM module system not detected"
+        )
 
         # Verify named exports
-        assert any(
-            item.export_type == "named" for item in js_items
-        ), "Named exports not detected"
+        assert any(item.export_type == "named" for item in js_items), (
+            "Named exports not detected"
+        )
 
         # Verify complexity calculation
-        assert all(
-            item.complexity >= 1 for item in js_items
-        ), "Invalid complexity scores"
+        assert all(item.complexity >= 1 for item in js_items), (
+            "Invalid complexity scores"
+        )
 
         # Verify impact scores are calculated
-        assert all(
-            item.impact_score > 0 for item in js_items
-        ), "Impact scores not calculated"
+        assert all(item.impact_score > 0 for item in js_items), (
+            "Impact scores not calculated"
+        )
 
     def test_analyze_commonjs_file(self, analyzer, examples_dir):
         """Test analyzing CommonJS file."""
@@ -92,14 +93,14 @@ class TestJavaScriptIntegration:
         assert len(cjs_items) > 0, "No CommonJS items found"
 
         # Verify CommonJS detection
-        assert all(
-            item.module_system == "commonjs" for item in cjs_items
-        ), "CommonJS module system not detected"
+        assert all(item.module_system == "commonjs" for item in cjs_items), (
+            "CommonJS module system not detected"
+        )
 
         # Verify CommonJS exports
-        assert any(
-            item.export_type == "commonjs" for item in cjs_items
-        ), "CommonJS exports not detected"
+        assert any(item.export_type == "commonjs" for item in cjs_items), (
+            "CommonJS exports not detected"
+        )
 
     def test_javascript_coverage_calculation(self, analyzer, examples_dir):
         """Test that coverage is calculated correctly for JavaScript."""
@@ -144,9 +145,9 @@ class TestJavaScriptIntegration:
 
         # Check that docstrings are extracted
         for item in documented_items:
-            assert (
-                item.docstring is not None
-            ), f"Documented item {item.name} has no docstring"
+            assert item.docstring is not None, (
+                f"Documented item {item.name} has no docstring"
+            )
 
     @pytest.mark.integration
     def test_mixed_language_project(self, examples_dir):
@@ -169,9 +170,9 @@ class TestJavaScriptIntegration:
 
         # Should have at least Python and JavaScript (or TypeScript)
         assert "python" in languages, "No Python items found"
-        assert (
-            "javascript" in languages or "typescript" in languages
-        ), "No JavaScript/TypeScript items found"
+        assert "javascript" in languages or "typescript" in languages, (
+            "No JavaScript/TypeScript items found"
+        )
 
         # Verify by_language breakdown exists
         if hasattr(result, "by_language"):

@@ -12,7 +12,9 @@ import { defaultConfig } from '../../config/IConfig.js';
 describe('Transaction Lifecycle Integration', () => {
   let pythonBridge: PythonBridge;
   // Use DOCIMP_ANALYZER_PATH set by Jest setup (works in both local and CI)
-  const analyzerDir = process.env.DOCIMP_ANALYZER_PATH || resolve(process.cwd(), '..', 'analyzer');
+  const analyzerDir =
+    process.env.DOCIMP_ANALYZER_PATH ||
+    resolve(process.cwd(), '..', 'analyzer');
   const testStateDir = resolve(analyzerDir, '.docimp/state');
 
   beforeEach(() => {

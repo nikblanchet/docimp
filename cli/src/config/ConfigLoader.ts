@@ -43,7 +43,7 @@ export class ConfigLoader implements IConfigLoader {
       if (configPath === '') {
         throw new Error(
           'Config file path cannot be empty.\n' +
-          'Please provide a valid config file path.'
+            'Please provide a valid config file path.'
         );
       }
       // Use PathValidator for file existence and type validation

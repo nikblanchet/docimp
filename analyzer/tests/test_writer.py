@@ -5,8 +5,9 @@ to ensure it correctly inserts JSDoc comments.
 """
 
 import sys
-from pathlib import Path
 import tempfile
+from pathlib import Path
+
 import pytest
 
 # Add parent directory to path for imports
@@ -65,7 +66,7 @@ def write_and_check(writer, code, jsdoc, item_name, item_type):
         assert success, f"Writer returned False for {item_name}"
 
         # Read result
-        with open(temp_path, "r") as f:
+        with open(temp_path) as f:
             result = f.read()
 
         return result
@@ -398,9 +399,9 @@ def test_backup_cleanup_on_idempotent_write(writer):
         backup_files = list(
             Path(temp_path).parent.glob(f"{Path(temp_path).name}.*.bak")
         )
-        assert (
-            len(backup_files) == 0
-        ), "No backup should be created for idempotent operation (content unchanged)"
+        assert len(backup_files) == 0, (
+            "No backup should be created for idempotent operation (content unchanged)"
+        )
 
     finally:
         # Clean up temp file only (no backup to clean)
@@ -429,12 +430,12 @@ def test_backup_cleanup_on_write_failure(writer):
 
         # Verify backup file was cleaned up despite the failure
         backup_path = Path(temp_path + ".bak")
-        assert (
-            not backup_path.exists()
-        ), "Backup file should be deleted even after write failure"
+        assert not backup_path.exists(), (
+            "Backup file should be deleted even after write failure"
+        )
 
         # Verify original file is still intact (restored from backup)
-        with open(temp_path, "r") as f:
+        with open(temp_path) as f:
             content = f.read()
         assert content == code, "Original file should be restored after failure"
 
@@ -628,14 +629,14 @@ class TestPathTraversalValidation:
             # Verify docstring was actually written
             content = test_file.read_text()
             assert '"""' in content, "Docstring markers should be present"
-            assert (
-                "Test function documentation." in content
-            ), "Docstring content should be present in file"
+            assert "Test function documentation." in content, (
+                "Docstring content should be present in file"
+            )
 
             # Verify original code is preserved
-            assert (
-                "def foo():" in content
-            ), "Original function definition should be preserved"
+            assert "def foo():" in content, (
+                "Original function definition should be preserved"
+            )
 
 
 class TestAtomicWrites:
@@ -674,9 +675,9 @@ class TestAtomicWrites:
             assert success, "Write should succeed"
 
             # Verify temp file was created and cleaned up
-            assert (
-                len(temp_files_created) == 1
-            ), "Exactly one temp file should be created"
+            assert len(temp_files_created) == 1, (
+                "Exactly one temp file should be created"
+            )
             temp_file_path = Path(temp_files_created[0])
             assert not temp_file_path.exists(), "Temp file should be cleaned up"
 
@@ -691,7 +692,7 @@ class TestAtomicWrites:
 
     def test_disk_full_scenario(self):
         """Test that disk full scenario is detected and original file is untouched."""
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import MagicMock, patch
 
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create test file
@@ -706,17 +707,20 @@ class TestAtomicWrites:
             mock_usage.free = 10  # Only 10 bytes free (not enough for any write)
 
             # Patch at the module where it's used, not where it's imported from
-            with patch(
-                "src.writer.docstring_writer.shutil.disk_usage", return_value=mock_usage
+            with (
+                patch(
+                    "src.writer.docstring_writer.shutil.disk_usage",
+                    return_value=mock_usage,
+                ),
+                pytest.raises(OSError, match="Insufficient disk space"),
             ):
-                with pytest.raises(OSError, match="Insufficient disk space"):
-                    writer.write_docstring(
-                        filepath=str(test_file),
-                        item_name="foo",
-                        item_type="function",
-                        docstring="New documentation",
-                        language="python",
-                    )
+                writer.write_docstring(
+                    filepath=str(test_file),
+                    item_name="foo",
+                    item_type="function",
+                    docstring="New documentation",
+                    language="python",
+                )
 
             # Verify original file is untouched
             content = test_file.read_text()
@@ -741,7 +745,7 @@ class TestAtomicWrites:
             # Mock _validate_write to raise validation error
             def mock_validate(file_path, expected_content):
                 # Always fail validation
-                raise IOError(
+                raise OSError(
                     f"Write validation failed for '{file_path}'. Content "
                     f"mismatch detected."
                 )
@@ -785,21 +789,23 @@ class TestAtomicWrites:
                 raise PermissionError("Mock restore failure")
 
             # Also mock os.replace to fail, triggering restore attempt
-            with patch(
-                "src.writer.docstring_writer.shutil.copy2", side_effect=mock_copy2
-            ):
-                with patch(
+            with (
+                patch(
+                    "src.writer.docstring_writer.shutil.copy2", side_effect=mock_copy2
+                ),
+                patch(
                     "src.writer.docstring_writer.os.replace",
                     side_effect=PermissionError("Mock replace failure"),
-                ):
-                    with pytest.raises(IOError, match="CRITICAL: Failed to restore"):
-                        writer.write_docstring(
-                            filepath=str(test_file),
-                            item_name="foo",
-                            item_type="function",
-                            docstring="New docs",
-                            language="python",
-                        )
+                ),
+                pytest.raises(IOError, match="CRITICAL: Failed to restore"),
+            ):
+                writer.write_docstring(
+                    filepath=str(test_file),
+                    item_name="foo",
+                    item_type="function",
+                    docstring="New docs",
+                    language="python",
+                )
 
     def test_atomic_rename_behavior(self):
         """Test that os.replace is used for atomic rename."""
@@ -837,15 +843,15 @@ class TestAtomicWrites:
 
             src, dst = replace_calls[0]
             # Verify temp file was in same directory as target
-            assert (
-                Path(src).parent == Path(dst).parent
-            ), "Temp file must be in same directory as target for atomic rename"
+            assert Path(src).parent == Path(dst).parent, (
+                "Temp file must be in same directory as target for atomic rename"
+            )
 
             # Verify destination is the target file (resolve both to handle
             # symlinks like /var -> /private/var on macOS)
-            assert (
-                Path(dst).resolve() == test_file.resolve()
-            ), "Destination should be the target file"
+            assert Path(dst).resolve() == test_file.resolve(), (
+                "Destination should be the target file"
+            )
 
     def test_temp_file_creation_failure(self):
         """Test that mkstemp failure is handled without NameError."""
@@ -859,20 +865,20 @@ class TestAtomicWrites:
             writer = DocstringWriter(base_path=temp_dir)
 
             # Mock mkstemp to fail
-            with patch(
-                "tempfile.mkstemp",
-                side_effect=OSError("Disk full during temp file creation"),
+            with (
+                patch(
+                    "tempfile.mkstemp",
+                    side_effect=OSError("Disk full during temp file creation"),
+                ),
+                pytest.raises(OSError, match="Disk full during temp file creation"),
             ):
-                with pytest.raises(
-                    OSError, match="Disk full during temp file creation"
-                ):
-                    writer.write_docstring(
-                        filepath=str(test_file),
-                        item_name="foo",
-                        item_type="function",
-                        docstring="New docs",
-                        language="python",
-                    )
+                writer.write_docstring(
+                    filepath=str(test_file),
+                    item_name="foo",
+                    item_type="function",
+                    docstring="New docs",
+                    language="python",
+                )
 
             # Verify original file is untouched
             content = test_file.read_text()
@@ -915,21 +921,21 @@ class TestAtomicWrites:
             # approach creates new file)
             if user_backup.exists():
                 content = user_backup.read_text()
-                assert (
-                    content == important_content
-                ), "User's original .bak file should not be overwritten"
+                assert content == important_content, (
+                    "User's original .bak file should not be overwritten"
+                )
 
             # Verify docstring was written to actual file
             test_content = test_file.read_text()
             assert '"""' in test_content, "Docstring should be present"
-            assert (
-                "New documentation" in test_content
-            ), "Docstring content should be in file"
+            assert "New documentation" in test_content, (
+                "Docstring content should be in file"
+            )
 
             # Verify timestamp backup IS preserved (for transaction tracking)
             timestamp_backups = list(Path(temp_dir).glob("test.py.*.bak"))
             # Filter out the user's manual .bak file
             timestamp_backups = [b for b in timestamp_backups if b != user_backup]
-            assert (
-                len(timestamp_backups) == 1
-            ), "Timestamp-based backup should be preserved for transaction tracking"
+            assert len(timestamp_backups) == 1, (
+                "Timestamp-based backup should be preserved for transaction tracking"
+            )

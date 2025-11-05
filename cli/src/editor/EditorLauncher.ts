@@ -11,10 +11,12 @@ import { spawn } from 'child_process';
 import { promises as fs, close as fsCloseCallback } from 'fs';
 import { promisify } from 'util';
 import tmp from 'tmp';
-import type { IEditorLauncher} from './IEditorLauncher.js';
+import type { IEditorLauncher } from './IEditorLauncher.js';
 
 // Promisify tmp.file for async/await usage
-const tmpFile = (options: tmp.FileOptions): Promise<{
+const tmpFile = (
+  options: tmp.FileOptions
+): Promise<{
   name: string;
   fd: number;
   removeCallback: () => void;
@@ -60,14 +62,21 @@ export class EditorLauncher implements IEditorLauncher {
    * @param extension - File extension for syntax highlighting (default: '.txt')
    * @returns Promise resolving to edited text, or null if editing was cancelled
    */
-  async editText(initialText: string, extension: string = '.txt'): Promise<string | null> {
+  async editText(
+    initialText: string,
+    extension: string = '.txt'
+  ): Promise<string | null> {
     // Create temporary file with automatic cleanup
     // tmp.file returns: { name: string, fd: number, removeCallback: () => void }
-    const { name: tempPath, fd, removeCallback } = await tmpFile({
+    const {
+      name: tempPath,
+      fd,
+      removeCallback,
+    } = await tmpFile({
       prefix: 'docimp-edit-',
       postfix: extension,
-      keep: false,  // Auto-cleanup on process exit
-      discardDescriptor: false  // We need the file descriptor
+      keep: false, // Auto-cleanup on process exit
+      discardDescriptor: false, // We need the file descriptor
     });
 
     try {
@@ -92,7 +101,10 @@ export class EditorLauncher implements IEditorLauncher {
         removeCallback();
       } catch (cleanupError) {
         // Log cleanup failure but don't fail the operation
-        console.warn(`Warning: Failed to cleanup temp file ${tempPath}:`, cleanupError);
+        console.warn(
+          `Warning: Failed to cleanup temp file ${tempPath}:`,
+          cleanupError
+        );
         // File will still be cleaned up on process exit
       }
 
@@ -102,13 +114,15 @@ export class EditorLauncher implements IEditorLauncher {
       }
 
       return editedText;
-
     } catch (error) {
       // Cleanup on error
       try {
         removeCallback();
       } catch (cleanupError) {
-        console.warn(`Warning: Failed to cleanup temp file ${tempPath} after error:`, cleanupError);
+        console.warn(
+          `Warning: Failed to cleanup temp file ${tempPath} after error:`,
+          cleanupError
+        );
       }
       throw error;
     }

@@ -32,11 +32,11 @@ export function calculateAuditSummary(
 ): AuditSummary {
   // Count ratings by type
   const ratingCounts = {
-    terrible: 0,  // Rating 1
-    ok: 0,        // Rating 2
-    good: 0,      // Rating 3
+    terrible: 0, // Rating 1
+    ok: 0, // Rating 2
+    good: 0, // Rating 3
     excellent: 0, // Rating 4
-    skipped: 0,   // Rating null
+    skipped: 0, // Rating null
   };
 
   let auditedItems = 0;
@@ -130,7 +130,7 @@ export async function auditCore(
     }
 
     display.showMessage(`\nFound ${items.length} documented items to audit.`);
-    display.showMessage('Rate the quality of each item\'s documentation.\n');
+    display.showMessage("Rate the quality of each item's documentation.\n");
 
     // Initialize ratings structure
     const ratings: AuditRatings = { ratings: {} };
@@ -214,15 +214,18 @@ export async function auditCore(
         if (showCodeOption) {
           // [C] option available - different messages for different modes
           if (showCodeMode === 'truncated') {
-            promptMessage = '[1] Terrible  [2] Poor  [3] Good  [4] Excellent  [C] Full code  [S] Skip  [Q] Quit\n\nYour rating:';
+            promptMessage =
+              '[1] Terrible  [2] Poor  [3] Good  [4] Excellent  [C] Full code  [S] Skip  [Q] Quit\n\nYour rating:';
           } else {
             // signature and on-demand modes
-            promptMessage = '[1] Terrible  [2] Poor  [3] Good  [4] Excellent  [C] Show code  [S] Skip  [Q] Quit\n\nYour rating:';
+            promptMessage =
+              '[1] Terrible  [2] Poor  [3] Good  [4] Excellent  [C] Show code  [S] Skip  [Q] Quit\n\nYour rating:';
           }
           validOptions = ['1', '2', '3', '4', 'C', 'S', 'Q'];
         } else {
           // No [C] option (complete mode)
-          promptMessage = '[1] Terrible  [2] Poor  [3] Good  [4] Excellent  [S] Skip  [Q] Quit\n\nYour rating:';
+          promptMessage =
+            '[1] Terrible  [2] Poor  [3] Good  [4] Excellent  [S] Skip  [Q] Quit\n\nYour rating:';
         }
 
         // Prompt for rating

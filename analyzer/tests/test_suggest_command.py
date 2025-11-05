@@ -5,17 +5,17 @@ This module tests that the suggest command properly passes feedback
 to PromptBuilder when the --feedback flag is provided.
 """
 
+import argparse
 import sys
 from pathlib import Path
-from unittest.mock import Mock, patch, mock_open
-import argparse
+from unittest.mock import Mock, mock_open, patch
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.main import cmd_suggest
 from src.claude.claude_client import ClaudeClient
 from src.claude.prompt_builder import PromptBuilder
+from src.main import cmd_suggest
 
 
 class TestSuggestCommandFeedbackIntegration:

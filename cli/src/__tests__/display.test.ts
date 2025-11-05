@@ -13,8 +13,17 @@ jest.mock('chalk', () => {
     const chalkMock: any = (str: string) => str;
 
     // Add all color/style methods that return the mock itself for chaining
-    const methods = ['bold', 'dim', 'green', 'yellow', 'red', 'blue', 'cyan', 'gray'];
-    methods.forEach(method => {
+    const methods = [
+      'bold',
+      'dim',
+      'green',
+      'yellow',
+      'red',
+      'blue',
+      'cyan',
+      'gray',
+    ];
+    methods.forEach((method) => {
       chalkMock[method] = chalkMock;
     });
 
@@ -35,7 +44,9 @@ jest.mock('ora', () => ({
 jest.mock('cli-table3', () => {
   return class MockTable {
     constructor() {}
-    toString() { return ''; }
+    toString() {
+      return '';
+    }
   };
 });
 
@@ -75,17 +86,43 @@ describe('TerminalDisplay.showAuditSummary', () => {
     const loggedLines = consoleLogSpy.mock.calls.map((call) => call[0]);
 
     // Verify key content is present
-    expect(loggedLines.some((line) => line.includes('Documentation Quality Audit Complete'))).toBe(true);
-    expect(loggedLines.some((line) => line.includes('Audited: 10 / 20 documented items (50.0%)'))).toBe(true);
-    expect(loggedLines.some((line) => line.includes('Rating Breakdown:'))).toBe(true);
-    expect(loggedLines.some((line) => line.includes('Terrible (1):  2 items'))).toBe(true);
-    expect(loggedLines.some((line) => line.includes('OK (2):        3 items'))).toBe(true);
-    expect(loggedLines.some((line) => line.includes('Good (3):      4 items'))).toBe(true);
-    expect(loggedLines.some((line) => line.includes('Excellent (4): 1 item'))).toBe(true);
-    expect(loggedLines.some((line) => line.includes('Audit saved to:'))).toBe(true);
-    expect(loggedLines.some((line) => line.includes('.docimp/session-reports/audit.json'))).toBe(true);
+    expect(
+      loggedLines.some((line) =>
+        line.includes('Documentation Quality Audit Complete')
+      )
+    ).toBe(true);
+    expect(
+      loggedLines.some((line) =>
+        line.includes('Audited: 10 / 20 documented items (50.0%)')
+      )
+    ).toBe(true);
+    expect(loggedLines.some((line) => line.includes('Rating Breakdown:'))).toBe(
+      true
+    );
+    expect(
+      loggedLines.some((line) => line.includes('Terrible (1):  2 items'))
+    ).toBe(true);
+    expect(
+      loggedLines.some((line) => line.includes('OK (2):        3 items'))
+    ).toBe(true);
+    expect(
+      loggedLines.some((line) => line.includes('Good (3):      4 items'))
+    ).toBe(true);
+    expect(
+      loggedLines.some((line) => line.includes('Excellent (4): 1 item'))
+    ).toBe(true);
+    expect(loggedLines.some((line) => line.includes('Audit saved to:'))).toBe(
+      true
+    );
+    expect(
+      loggedLines.some((line) =>
+        line.includes('.docimp/session-reports/audit.json')
+      )
+    ).toBe(true);
     expect(loggedLines.some((line) => line.includes('Next steps:'))).toBe(true);
-    expect(loggedLines.some((line) => line.includes("Run 'docimp plan .'"))).toBe(true);
+    expect(
+      loggedLines.some((line) => line.includes("Run 'docimp plan .'"))
+    ).toBe(true);
   });
 
   it('displays audit summary with skipped items', () => {
@@ -107,7 +144,9 @@ describe('TerminalDisplay.showAuditSummary', () => {
     const loggedLines = consoleLogSpy.mock.calls.map((call) => call[0]);
 
     // Verify skipped items are shown
-    expect(loggedLines.some((line) => line.includes('Skipped:       2 items'))).toBe(true);
+    expect(
+      loggedLines.some((line) => line.includes('Skipped:       2 items'))
+    ).toBe(true);
   });
 
   it('displays audit summary for partial audit (early quit)', () => {
@@ -129,7 +168,11 @@ describe('TerminalDisplay.showAuditSummary', () => {
     const loggedLines = consoleLogSpy.mock.calls.map((call) => call[0]);
 
     // Verify partial percentage is calculated correctly
-    expect(loggedLines.some((line) => line.includes('Audited: 10 / 50 documented items (20.0%)'))).toBe(true);
+    expect(
+      loggedLines.some((line) =>
+        line.includes('Audited: 10 / 50 documented items (20.0%)')
+      )
+    ).toBe(true);
   });
 
   it('displays audit summary with only terrible ratings', () => {
@@ -151,10 +194,14 @@ describe('TerminalDisplay.showAuditSummary', () => {
     const loggedLines = consoleLogSpy.mock.calls.map((call) => call[0]);
 
     // Verify only terrible ratings are shown (no OK, Good, Excellent)
-    expect(loggedLines.some((line) => line.includes('Terrible (1):  5 items'))).toBe(true);
+    expect(
+      loggedLines.some((line) => line.includes('Terrible (1):  5 items'))
+    ).toBe(true);
     expect(loggedLines.some((line) => line.includes('OK (2):'))).toBe(false);
     expect(loggedLines.some((line) => line.includes('Good (3):'))).toBe(false);
-    expect(loggedLines.some((line) => line.includes('Excellent (4):'))).toBe(false);
+    expect(loggedLines.some((line) => line.includes('Excellent (4):'))).toBe(
+      false
+    );
   });
 
   it('displays box formatting correctly', () => {
@@ -179,7 +226,9 @@ describe('TerminalDisplay.showAuditSummary', () => {
     expect(loggedLines.some((line) => line.startsWith('┌'))).toBe(true);
     expect(loggedLines.some((line) => line.startsWith('└'))).toBe(true);
     expect(loggedLines.some((line) => line.startsWith('├'))).toBe(true);
-    expect(loggedLines.filter((line) => line.startsWith('│')).length).toBeGreaterThan(5);
+    expect(
+      loggedLines.filter((line) => line.startsWith('│')).length
+    ).toBeGreaterThan(5);
   });
 
   it('handles zero total items gracefully', () => {
@@ -201,7 +250,11 @@ describe('TerminalDisplay.showAuditSummary', () => {
     const loggedLines = consoleLogSpy.mock.calls.map((call) => call[0]);
 
     // Verify it doesn't crash and shows 0.0%
-    expect(loggedLines.some((line) => line.includes('Audited: 0 / 0 documented items (0.0%)'))).toBe(true);
+    expect(
+      loggedLines.some((line) =>
+        line.includes('Audited: 0 / 0 documented items (0.0%)')
+      )
+    ).toBe(true);
   });
 
   it('uses singular "item" when count is 1', () => {
@@ -223,11 +276,21 @@ describe('TerminalDisplay.showAuditSummary', () => {
     const loggedLines = consoleLogSpy.mock.calls.map((call) => call[0]);
 
     // Verify singular "item" is used for count of 1
-    expect(loggedLines.some((line) => line.includes('Terrible (1):  1 item'))).toBe(true);
-    expect(loggedLines.some((line) => line.includes('OK (2):        1 item'))).toBe(true);
-    expect(loggedLines.some((line) => line.includes('Good (3):      1 item'))).toBe(true);
-    expect(loggedLines.some((line) => line.includes('Excellent (4): 1 item'))).toBe(true);
-    expect(loggedLines.some((line) => line.includes('Skipped:       1 item'))).toBe(true);
+    expect(
+      loggedLines.some((line) => line.includes('Terrible (1):  1 item'))
+    ).toBe(true);
+    expect(
+      loggedLines.some((line) => line.includes('OK (2):        1 item'))
+    ).toBe(true);
+    expect(
+      loggedLines.some((line) => line.includes('Good (3):      1 item'))
+    ).toBe(true);
+    expect(
+      loggedLines.some((line) => line.includes('Excellent (4): 1 item'))
+    ).toBe(true);
+    expect(
+      loggedLines.some((line) => line.includes('Skipped:       1 item'))
+    ).toBe(true);
 
     // Verify plural "items" is NOT used
     expect(loggedLines.some((line) => line.includes('1 items'))).toBe(false);
@@ -267,18 +330,27 @@ describe('TerminalDisplay.showBoxedDocstring', () => {
   });
 
   it('displays multi-line docstring with all lines', () => {
-    const docstring = 'Calculate impact score.\n\nArgs:\n  complexity: Cyclomatic complexity\n\nReturns:\n  Impact score (0-100)';
+    const docstring =
+      'Calculate impact score.\n\nArgs:\n  complexity: Cyclomatic complexity\n\nReturns:\n  Impact score (0-100)';
 
     display.showBoxedDocstring(docstring);
 
     const loggedLines = consoleLogSpy.mock.calls.map((call) => call[0]);
 
     // Verify all content lines are present
-    expect(loggedLines.some((line) => line.includes('Calculate impact score.'))).toBe(true);
+    expect(
+      loggedLines.some((line) => line.includes('Calculate impact score.'))
+    ).toBe(true);
     expect(loggedLines.some((line) => line.includes('Args:'))).toBe(true);
-    expect(loggedLines.some((line) => line.includes('complexity: Cyclomatic complexity'))).toBe(true);
+    expect(
+      loggedLines.some((line) =>
+        line.includes('complexity: Cyclomatic complexity')
+      )
+    ).toBe(true);
     expect(loggedLines.some((line) => line.includes('Returns:'))).toBe(true);
-    expect(loggedLines.some((line) => line.includes('Impact score (0-100)'))).toBe(true);
+    expect(
+      loggedLines.some((line) => line.includes('Impact score (0-100)'))
+    ).toBe(true);
   });
 
   it('uses default width of 60 characters', () => {
@@ -346,7 +418,8 @@ describe('TerminalDisplay.showBoxedDocstring', () => {
   });
 
   it('handles very long single line by padding correctly', () => {
-    const longDocstring = 'This is a very long docstring that contains many words and exceeds the typical width.';
+    const longDocstring =
+      'This is a very long docstring that contains many words and exceeds the typical width.';
 
     display.showBoxedDocstring(longDocstring);
 
@@ -374,7 +447,8 @@ describe('TerminalDisplay.showCodeBlock', () => {
   });
 
   it('displays non-truncated code without truncation message', () => {
-    const code = '  45 | function add(a, b) {\n  46 |   return a + b;\n  47 | }';
+    const code =
+      '  45 | function add(a, b) {\n  46 |   return a + b;\n  47 | }';
     const truncated = false;
     const totalLines = 3;
     const displayedLines = 3;
@@ -404,7 +478,11 @@ describe('TerminalDisplay.showCodeBlock', () => {
     expect(loggedLines[0]).toBe(code);
 
     // Verify truncation message appears
-    expect(loggedLines.some((line) => line.includes('... (8 more lines, press C to see full code)'))).toBe(true);
+    expect(
+      loggedLines.some((line) =>
+        line.includes('... (8 more lines, press C to see full code)')
+      )
+    ).toBe(true);
   });
 
   it('calculates remaining lines correctly', () => {
@@ -418,11 +496,16 @@ describe('TerminalDisplay.showCodeBlock', () => {
     const loggedLines = consoleLogSpy.mock.calls.map((call) => call[0]);
 
     // 25 - 5 = 20 remaining lines
-    expect(loggedLines.some((line) => line.includes('... (20 more lines, press C to see full code)'))).toBe(true);
+    expect(
+      loggedLines.some((line) =>
+        line.includes('... (20 more lines, press C to see full code)')
+      )
+    ).toBe(true);
   });
 
   it('displays code with line numbers correctly', () => {
-    const code = '   1 | import sys\n   2 | import os\n   3 | \n   4 | def main():';
+    const code =
+      '   1 | import sys\n   2 | import os\n   3 | \n   4 | def main():';
     const truncated = false;
     const totalLines = 4;
     const displayedLines = 4;
@@ -466,7 +549,8 @@ describe('TerminalDisplay.showCodeBlock', () => {
   });
 
   it('handles multi-line code with proper formatting', () => {
-    const code = '  10 | class Calculator:\n  11 |   def __init__(self):\n  12 |     self.value = 0\n  13 | \n  14 |   def add(self, x):';
+    const code =
+      '  10 | class Calculator:\n  11 |   def __init__(self):\n  12 |     self.value = 0\n  13 | \n  14 |   def add(self, x):';
     const truncated = false;
     const totalLines = 5;
     const displayedLines = 5;
@@ -496,7 +580,8 @@ describe('TerminalDisplay.showSignature', () => {
   });
 
   it('displays signature with correct message format', () => {
-    const signature = ' 134 | def connect(self, config: dict, retry: int = 3) -> Connection:';
+    const signature =
+      ' 134 | def connect(self, config: dict, retry: int = 3) -> Connection:';
     const totalLines = 42;
 
     display.showSignature(signature, totalLines);
@@ -507,11 +592,16 @@ describe('TerminalDisplay.showSignature', () => {
     expect(loggedLines[0]).toBe(signature);
 
     // Verify message format is exact
-    expect(loggedLines.some((line) => line === '(Full code: 42 lines, press C to see all)')).toBe(true);
+    expect(
+      loggedLines.some(
+        (line) => line === '(Full code: 42 lines, press C to see all)'
+      )
+    ).toBe(true);
   });
 
   it('displays total line count correctly', () => {
-    const signature = '  10 | function calculateImpactScore(complexity: number): number {';
+    const signature =
+      '  10 | function calculateImpactScore(complexity: number): number {';
     const totalLines = 28;
 
     display.showSignature(signature, totalLines);
@@ -536,7 +626,8 @@ describe('TerminalDisplay.showSignature', () => {
   });
 
   it('handles multi-line signature', () => {
-    const signature = '  10 | function veryLongFunctionName(\n  11 |   param1: string,\n  12 |   param2: number\n  13 | ): Result {';
+    const signature =
+      '  10 | function veryLongFunctionName(\n  11 |   param1: string,\n  12 |   param2: number\n  13 | ): Result {';
     const totalLines = 50;
 
     display.showSignature(signature, totalLines);
@@ -591,7 +682,7 @@ describe('TerminalDisplay.showAnalysisResult with parse failures', () => {
         },
         {
           filepath: '/path/to/another_broken.ts',
-          error: 'Unexpected token \'}\'',
+          error: "Unexpected token '}'",
         },
       ],
     };
@@ -601,12 +692,20 @@ describe('TerminalDisplay.showAnalysisResult with parse failures', () => {
     const loggedLines = consoleLogSpy.mock.calls.map((call) => call[0]);
 
     // Verify parse failures section is displayed
-    expect(loggedLines.some((line) => line.includes('⚠ Parse Failures:'))).toBe(true);
+    expect(
+      loggedLines.some((line) => line.includes('⚠ Parse Failures:'))
+    ).toBe(true);
     expect(loggedLines.some((line) => line.includes('2 files'))).toBe(true);
     expect(loggedLines.some((line) => line.includes('broken.py'))).toBe(true);
-    expect(loggedLines.some((line) => line.includes('invalid syntax'))).toBe(true);
-    expect(loggedLines.some((line) => line.includes('another_broken.ts'))).toBe(true);
-    expect(loggedLines.some((line) => line.includes('Unexpected token'))).toBe(true);
+    expect(loggedLines.some((line) => line.includes('invalid syntax'))).toBe(
+      true
+    );
+    expect(loggedLines.some((line) => line.includes('another_broken.ts'))).toBe(
+      true
+    );
+    expect(loggedLines.some((line) => line.includes('Unexpected token'))).toBe(
+      true
+    );
   });
 
   it('does not display parse failures section when empty', () => {
@@ -624,7 +723,9 @@ describe('TerminalDisplay.showAnalysisResult with parse failures', () => {
     const loggedLines = consoleLogSpy.mock.calls.map((call) => call[0]);
 
     // Verify parse failures section is NOT displayed
-    expect(loggedLines.some((line) => line.includes('Parse Failures'))).toBe(false);
+    expect(loggedLines.some((line) => line.includes('Parse Failures'))).toBe(
+      false
+    );
   });
 
   it('uses singular "file" when only one failure', () => {
@@ -675,7 +776,9 @@ describe('TerminalDisplay.showAnalysisResult with parse failures', () => {
     const loggedLines = consoleLogSpy.mock.calls.map((call) => call[0]);
 
     // Verify relative path is shown
-    expect(loggedLines.some((line) => line.includes('project/broken.py'))).toBe(true);
+    expect(loggedLines.some((line) => line.includes('project/broken.py'))).toBe(
+      true
+    );
 
     // Restore original cwd
     process.cwd = originalCwd;
@@ -698,7 +801,9 @@ describe('TerminalDisplay.showAnalysisResult with parse failures', () => {
 
     display.showAnalysisResult(result, 'json');
 
-    const loggedOutput = consoleLogSpy.mock.calls.map((call) => call[0]).join('\n');
+    const loggedOutput = consoleLogSpy.mock.calls
+      .map((call) => call[0])
+      .join('\n');
     const jsonResult = JSON.parse(loggedOutput);
 
     // Verify parse_failures is included in JSON

@@ -94,7 +94,9 @@ describe('ConfigValidator', () => {
 
     it('should reject invalid styleGuide for javascript', () => {
       expect(() => {
-        validateAndMerge({ styleGuides: { javascript: 'invalid-style' } } as any);
+        validateAndMerge({
+          styleGuides: { javascript: 'invalid-style' },
+        } as any);
       }).toThrow('Invalid styleGuides.javascript');
     });
 
@@ -406,7 +408,9 @@ describe('ConfigValidator', () => {
         expect.stringContaining('claude.retryDelay (120s) is very high')
       );
       expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('With exponential backoff, this may cause very long waits')
+        expect.stringContaining(
+          'With exponential backoff, this may cause very long waits'
+        )
       );
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         expect.stringContaining('Recommended range: 0.5-60 seconds')
@@ -443,13 +447,17 @@ describe('ConfigValidator', () => {
     it('should reject timeout with NaN', () => {
       expect(() => {
         validateAndMerge({ claude: { timeout: NaN } } as any);
-      }).toThrow('claude.timeout must be a finite number (not Infinity or NaN)');
+      }).toThrow(
+        'claude.timeout must be a finite number (not Infinity or NaN)'
+      );
     });
 
     it('should reject timeout with Infinity', () => {
       expect(() => {
         validateAndMerge({ claude: { timeout: Infinity } } as any);
-      }).toThrow('claude.timeout must be a finite number (not Infinity or NaN)');
+      }).toThrow(
+        'claude.timeout must be a finite number (not Infinity or NaN)'
+      );
     });
 
     it('should reject timeout with -Infinity', () => {
@@ -461,25 +469,33 @@ describe('ConfigValidator', () => {
     it('should reject maxRetries with NaN', () => {
       expect(() => {
         validateAndMerge({ claude: { maxRetries: NaN } } as any);
-      }).toThrow('claude.maxRetries must be a finite number (not Infinity or NaN)');
+      }).toThrow(
+        'claude.maxRetries must be a finite number (not Infinity or NaN)'
+      );
     });
 
     it('should reject maxRetries with Infinity', () => {
       expect(() => {
         validateAndMerge({ claude: { maxRetries: Infinity } } as any);
-      }).toThrow('claude.maxRetries must be a finite number (not Infinity or NaN)');
+      }).toThrow(
+        'claude.maxRetries must be a finite number (not Infinity or NaN)'
+      );
     });
 
     it('should reject retryDelay with NaN', () => {
       expect(() => {
         validateAndMerge({ claude: { retryDelay: NaN } } as any);
-      }).toThrow('claude.retryDelay must be a finite number (not Infinity or NaN)');
+      }).toThrow(
+        'claude.retryDelay must be a finite number (not Infinity or NaN)'
+      );
     });
 
     it('should reject retryDelay with Infinity', () => {
       expect(() => {
         validateAndMerge({ claude: { retryDelay: Infinity } } as any);
-      }).toThrow('claude.retryDelay must be a finite number (not Infinity or NaN)');
+      }).toThrow(
+        'claude.retryDelay must be a finite number (not Infinity or NaN)'
+      );
     });
   });
 

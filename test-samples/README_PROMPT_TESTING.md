@@ -1,6 +1,7 @@
 # Prompt Wording Testing - Issue #234
 
-This directory contains all the infrastructure needed to manually test three prompt wording options to fix the markdown code fence bug (#231).
+This directory contains all the infrastructure needed to manually test three prompt
+wording options to fix the markdown code fence bug (#231).
 
 ## Quick Start
 
@@ -20,30 +21,30 @@ cd test-samples
 
 ### Test Documentation
 
-| File | Purpose |
-|------|---------|
+| File                             | Purpose                                                              |
+| -------------------------------- | -------------------------------------------------------------------- |
 | `MANUAL_TEST_PROMPT_WORDINGS.md` | Complete test plan with objectives, procedures, and success criteria |
-| `PROMPT_MODIFICATIONS.md` | Detailed guide for modifying PromptBuilder with each wording option |
-| `README_PROMPT_TESTING.md` | This file - overview and quick reference |
+| `PROMPT_MODIFICATIONS.md`        | Detailed guide for modifying PromptBuilder with each wording option  |
+| `README_PROMPT_TESTING.md`       | This file - overview and quick reference                             |
 
 ### Test Execution
 
-| File | Purpose |
-|------|---------|
+| File                      | Purpose                                                             |
+| ------------------------- | ------------------------------------------------------------------- |
 | `test-prompt-wordings.sh` | Interactive test script that guides you through the testing process |
 
 ### Results Templates
 
-| File | Purpose |
-|------|---------|
+| File                  | Purpose                                                         |
+| --------------------- | --------------------------------------------------------------- |
 | `RESULTS_OPTION_A.md` | Results tracking for Option A (Explicit Code Fence Prohibition) |
-| `RESULTS_OPTION_B.md` | Results tracking for Option B (Output Format Focused) |
-| `RESULTS_OPTION_C.md` | Results tracking for Option C (Example-Based Format) |
+| `RESULTS_OPTION_B.md` | Results tracking for Option B (Output Format Focused)           |
+| `RESULTS_OPTION_C.md` | Results tracking for Option C (Example-Based Format)            |
 
 ### Test Codebase
 
-| Directory | Purpose |
-|-----------|---------|
+| Directory          | Purpose                                                                   |
+| ------------------ | ------------------------------------------------------------------------- |
 | `example-project/` | Sample codebase with Python, JavaScript, and TypeScript files for testing |
 
 ## The Three Prompt Wording Options
@@ -52,13 +53,13 @@ cd test-samples
 
 **Strategy:** Direct prohibition of markdown wrappers
 
-```python
+````python
 "5. IMPORTANT: Return the raw docstring text only. Do NOT wrap your entire response in markdown code fences (```python, ```javascript, etc.)",
 "6. Code examples WITHIN the docstring are fine and encouraged - just don't wrap the whole docstring in backticks"
-```
+````
 
-**Pros:** Very explicit, addresses the exact problem
-**Cons:** Might be too specific, could confuse about internal code examples
+**Pros:** Very explicit, addresses the exact problem **Cons:** Might be too specific,
+could confuse about internal code examples
 
 ### Option B: Output Format Focused
 
@@ -69,22 +70,22 @@ cd test-samples
 "6. Return only the documentation text that should appear in the file (e.g., triple-quoted string for Python, JSDoc comment for JavaScript)"
 ```
 
-**Pros:** Explains the "why", helps Claude understand context
-**Cons:** Less explicit, relies on Claude understanding intent
+**Pros:** Explains the "why", helps Claude understand context **Cons:** Less explicit,
+relies on Claude understanding intent
 
 ### Option C: Example-Based Format
 
 **Strategy:** Show expected output format with examples
 
-```python
+````python
 "5. Response format - return ONLY the docstring content:",
 "   Python: \"\"\"Your documentation here\"\"\"",
 "   JavaScript/TypeScript: /** Your documentation here */",
 "6. Do NOT wrap your response in markdown code blocks like ```python or ```javascript"
-```
+````
 
-**Pros:** Shows exactly what's expected
-**Cons:** More verbose, language-specific examples needed
+**Pros:** Shows exactly what's expected **Cons:** More verbose, language-specific
+examples needed
 
 ## Testing Workflow
 
@@ -117,9 +118,9 @@ For each option (A, B, C):
 3. **Test 8-10 functions** - Cover Python, JavaScript, TypeScript
 4. **Record observations** - Fill in the corresponding `RESULTS_OPTION_X.md`
 5. **Check for markdown fences:**
-   ```bash
+   ````bash
    grep -r '```' src/ || echo "Clean!"
-   ```
+   ````
 6. **Verify syntax:**
    ```bash
    python -m py_compile src/python/*.py
@@ -150,28 +151,28 @@ After testing all three options:
 
 ### Python (`example-project/src/python/`)
 
-| File | Function | Why |
-|------|----------|-----|
-| calculator.py | multiply | Simple baseline |
-| calculator.py | power | Complex, previously broken |
-| validator.py | validate_username | Medium complexity, previously broken |
-| validator.py | sanitize_input | Simple, no current docs |
+| File          | Function          | Why                                  |
+| ------------- | ----------------- | ------------------------------------ |
+| calculator.py | multiply          | Simple baseline                      |
+| calculator.py | power             | Complex, previously broken           |
+| validator.py  | validate_username | Medium complexity, previously broken |
+| validator.py  | sanitize_input    | Simple, no current docs              |
 
 ### JavaScript (`example-project/src/javascript/`)
 
-| File | Function | Why |
-|------|----------|-----|
-| helpers.cjs | clone | Simple case |
-| helpers.cjs | merge | Complex recursive, previously broken |
-| helpers.cjs | generateRandomString | Simple, no docs |
-| api.js | post | Async function |
+| File        | Function             | Why                                  |
+| ----------- | -------------------- | ------------------------------------ |
+| helpers.cjs | clone                | Simple case                          |
+| helpers.cjs | merge                | Complex recursive, previously broken |
+| helpers.cjs | generateRandomString | Simple, no docs                      |
+| api.js      | post                 | Async function                       |
 
 ### TypeScript (`example-project/src/typescript/`)
 
-| File | Function | Why |
-|------|----------|-----|
-| service.ts | createUser | Async method |
-| service.ts | deleteUser | Simple async |
+| File       | Function     | Why               |
+| ---------- | ------------ | ----------------- |
+| service.ts | createUser   | Async method      |
+| service.ts | deleteUser   | Simple async      |
 | service.ts | validateUser | Previously broken |
 
 ## Success Criteria
@@ -215,12 +216,14 @@ git restore src/
 ## After Testing
 
 1. **Commit results** to branch `issue-234-test-prompt-wordings`:
+
    ```bash
    git add test-samples/RESULTS_*.md
    git commit -m "test: manual testing results for prompt wording options"
    ```
 
 2. **Restore PromptBuilder** if you made temporary changes:
+
    ```bash
    mv analyzer/src/claude/prompt_builder.py.backup analyzer/src/claude/prompt_builder.py
    ```

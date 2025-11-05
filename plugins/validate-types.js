@@ -226,10 +226,14 @@ export default function createValidator(dependencies) {
 
   // Validate that required dependencies are available
   if (!ts) {
-    throw new Error('TypeScript dependency is required for validate-types plugin');
+    throw new Error(
+      'TypeScript dependency is required for validate-types plugin'
+    );
   }
   if (!parseJSDoc) {
-    throw new Error('commentParser dependency is required for validate-types plugin');
+    throw new Error(
+      'commentParser dependency is required for validate-types plugin'
+    );
   }
 
   // ============================================================================
@@ -257,10 +261,10 @@ export default function createValidator(dependencies) {
       }
 
       // Extract @param tags from the first comment block
-      const paramTags = parsed[0].tags.filter(tag => tag.tag === 'param');
+      const paramTags = parsed[0].tags.filter((tag) => tag.tag === 'param');
 
       // Extract parameter names, handling special patterns
-      return paramTags.map(tag => {
+      return paramTags.map((tag) => {
         let paramName = tag.name;
 
         // Handle optional parameters: [name], [name='default']
@@ -321,31 +325,42 @@ export default function createValidator(dependencies) {
       if (ts.isFunctionDeclaration(node) && node.name?.text === functionName) {
         functionInfo = {
           params: node.parameters.map((p) => p.name.getText(sourceFile)),
-          isAsync: node.modifiers?.some(
-            (m) => m.kind === ts.SyntaxKind.AsyncKeyword
-          ) || false,
+          isAsync:
+            node.modifiers?.some(
+              (m) => m.kind === ts.SyntaxKind.AsyncKeyword
+            ) || false,
         };
       }
 
       // Check for variable declarations with arrow functions
-      if (ts.isVariableDeclaration(node) && node.name.getText(sourceFile) === functionName) {
+      if (
+        ts.isVariableDeclaration(node) &&
+        node.name.getText(sourceFile) === functionName
+      ) {
         if (node.initializer && ts.isArrowFunction(node.initializer)) {
           functionInfo = {
-            params: node.initializer.parameters.map((p) => p.name.getText(sourceFile)),
-            isAsync: node.initializer.modifiers?.some(
-              (m) => m.kind === ts.SyntaxKind.AsyncKeyword
-            ) || false,
+            params: node.initializer.parameters.map((p) =>
+              p.name.getText(sourceFile)
+            ),
+            isAsync:
+              node.initializer.modifiers?.some(
+                (m) => m.kind === ts.SyntaxKind.AsyncKeyword
+              ) || false,
           };
         }
       }
 
       // Check for method declarations in classes
-      if (ts.isMethodDeclaration(node) && node.name.getText(sourceFile) === functionName) {
+      if (
+        ts.isMethodDeclaration(node) &&
+        node.name.getText(sourceFile) === functionName
+      ) {
         functionInfo = {
           params: node.parameters.map((p) => p.name.getText(sourceFile)),
-          isAsync: node.modifiers?.some(
-            (m) => m.kind === ts.SyntaxKind.AsyncKeyword
-          ) || false,
+          isAsync:
+            node.modifiers?.some(
+              (m) => m.kind === ts.SyntaxKind.AsyncKeyword
+            ) || false,
         };
       }
 
@@ -377,7 +392,9 @@ export default function createValidator(dependencies) {
       // Cache HIT
       cacheStats.hits++;
       if (process.env.DEBUG_DOCIMP_CACHE) {
-        console.error(`[validate-types] Cache HIT: ${filepath} (${cacheStats.hits} total hits)`);
+        console.error(
+          `[validate-types] Cache HIT: ${filepath} (${cacheStats.hits} total hits)`
+        );
       }
 
       // Move to end of access order (most recently used) - O(1) operation
@@ -393,18 +410,25 @@ export default function createValidator(dependencies) {
         cached.service.dispose();
       } catch (error) {
         if (process.env.DEBUG_DOCIMP_CACHE) {
-          console.error(`[validate-types] Error disposing language service for ${filepath}:`, error);
+          console.error(
+            `[validate-types] Error disposing language service for ${filepath}:`,
+            error
+          );
         }
       }
       cacheStats.invalidations++;
       if (process.env.DEBUG_DOCIMP_CACHE) {
-        console.error(`[validate-types] Cache INVALIDATE: ${filepath} (${cacheStats.invalidations} total invalidations)`);
+        console.error(
+          `[validate-types] Cache INVALIDATE: ${filepath} (${cacheStats.invalidations} total invalidations)`
+        );
       }
     } else {
       // New file - miss
       cacheStats.misses++;
       if (process.env.DEBUG_DOCIMP_CACHE) {
-        console.error(`[validate-types] Cache MISS: ${filepath} (${cacheStats.misses} total misses)`);
+        console.error(
+          `[validate-types] Cache MISS: ${filepath} (${cacheStats.misses} total misses)`
+        );
       }
     }
 
@@ -421,14 +445,19 @@ export default function createValidator(dependencies) {
             evictedEntry.service.dispose();
           } catch (error) {
             if (process.env.DEBUG_DOCIMP_CACHE) {
-              console.error(`[validate-types] Error disposing evicted language service for ${lruPath}:`, error);
+              console.error(
+                `[validate-types] Error disposing evicted language service for ${lruPath}:`,
+                error
+              );
             }
           }
         }
         languageServiceCache.delete(lruPath);
         cacheAccessOrder.delete(lruPath);
         if (process.env.DEBUG_DOCIMP_CACHE) {
-          console.error(`[validate-types] Cache EVICT (LRU): ${lruPath} (cache size: ${languageServiceCache.size})`);
+          console.error(
+            `[validate-types] Cache EVICT (LRU): ${lruPath} (cache size: ${languageServiceCache.size})`
+          );
         }
       }
     }
@@ -466,8 +495,10 @@ export default function createValidator(dependencies) {
         return ts.ScriptKind.JS;
       },
       getNewLine: () => '\n',
-      fileExists: (fileName) => fileName === filepath || ts.sys.fileExists(fileName),
-      readFile: (fileName) => fileContents.get(fileName) || ts.sys.readFile(fileName),
+      fileExists: (fileName) =>
+        fileName === filepath || ts.sys.fileExists(fileName),
+      readFile: (fileName) =>
+        fileContents.get(fileName) || ts.sys.readFile(fileName),
       readDirectory: ts.sys.readDirectory,
       directoryExists: ts.sys.directoryExists,
       getDirectories: ts.sys.getDirectories,
@@ -504,13 +535,15 @@ export default function createValidator(dependencies) {
     const perfStart = process.env.DEBUG_DOCIMP_PERF ? performance.now() : null;
 
     // If no code provided, try to read the file
-    const sourceCode = code || (function() {
-      try {
-        return readFileSync(filepath, 'utf-8');
-      } catch {
-        return null;
-      }
-    })();
+    const sourceCode =
+      code ||
+      (function () {
+        try {
+          return readFileSync(filepath, 'utf-8');
+        } catch {
+          return null;
+        }
+      })();
 
     if (!sourceCode) {
       return { valid: true, errors: [] }; // Can't validate without source
@@ -526,20 +559,23 @@ export default function createValidator(dependencies) {
     } catch (error) {
       if (perfStart !== null) {
         const duration = (performance.now() - perfStart).toFixed(2);
-        console.error(`[validate-types] Validation failed after ${duration}ms for ${filepath}`);
+        console.error(
+          `[validate-types] Validation failed after ${duration}ms for ${filepath}`
+        );
       }
       return {
         valid: false,
-        errors: [`TypeScript compiler error: ${error.message}`]
+        errors: [`TypeScript compiler error: ${error.message}`],
       };
     }
 
     // Format errors with line/column information (ts from closure)
     const errors = diagnostics.map((d) => {
       const message = ts.flattenDiagnosticMessageText(d.messageText, '\n');
-      const position = d.start !== undefined && d.file
-        ? d.file.getLineAndCharacterOfPosition(d.start)
-        : null;
+      const position =
+        d.start !== undefined && d.file
+          ? d.file.getLineAndCharacterOfPosition(d.start)
+          : null;
       const location = position
         ? ` (line ${position.line + 1}, col ${position.character + 1})`
         : '';
@@ -548,7 +584,9 @@ export default function createValidator(dependencies) {
 
     if (perfStart !== null) {
       const duration = (performance.now() - perfStart).toFixed(2);
-      console.error(`[validate-types] Validation took ${duration}ms for ${filepath}`);
+      console.error(
+        `[validate-types] Validation took ${duration}ms for ${filepath}`
+      );
     }
 
     return {
@@ -606,8 +644,9 @@ export default function createValidator(dependencies) {
       } catch (error) {
         return {
           accept: false,
-          reason: `Failed to initialize TypeScript document registry: ${error.message}. ` +
-                  `Ensure TypeScript is properly installed and compatible.`,
+          reason:
+            `Failed to initialize TypeScript document registry: ${error.message}. ` +
+            `Ensure TypeScript is properly installed and compatible.`,
         };
       }
     }
@@ -631,7 +670,11 @@ export default function createValidator(dependencies) {
     let functionInfo = null;
     if (item.code && item.filepath) {
       const service = getCachedLanguageService(item.filepath, item.code);
-      functionInfo = extractFunctionSignature(service, item.filepath, item.name);
+      functionInfo = extractFunctionSignature(
+        service,
+        item.filepath,
+        item.name
+      );
     }
 
     // Validate parameter names match
@@ -654,9 +697,7 @@ export default function createValidator(dependencies) {
         }
 
         if (mismatches.length > 0) {
-          errors.push(
-            'Parameter name mismatch:\n' + mismatches.join('\n')
-          );
+          errors.push('Parameter name mismatch:\n' + mismatches.join('\n'));
         }
       }
     }
@@ -665,8 +706,7 @@ export default function createValidator(dependencies) {
     const compilerResult = validateWithCompiler(item.filepath, item.code);
     if (!compilerResult.valid) {
       errors.push(
-        'TypeScript compiler errors:\n  ' +
-          compilerResult.errors.join('\n  ')
+        'TypeScript compiler errors:\n  ' + compilerResult.errors.join('\n  ')
       );
     }
 

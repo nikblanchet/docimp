@@ -2,7 +2,13 @@
  * Tests for analyze command auto-clean functionality.
  */
 
-import { mkdtempSync, rmSync, writeFileSync, existsSync, readFileSync } from 'fs';
+import {
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+  existsSync,
+  readFileSync,
+} from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { analyzeCore } from '../commands/analyze';
@@ -39,7 +45,9 @@ jest.mock('ora', () => ({
 jest.mock('cli-table3', () => {
   return class MockTable {
     constructor() {}
-    toString() { return ''; }
+    toString() {
+      return '';
+    }
   };
 });
 
@@ -145,7 +153,12 @@ describe('analyze command auto-clean', () => {
 
     it('throws error for empty string path', async () => {
       await expect(
-        analyzeCore('', { format: 'json', verbose: false }, mockBridge, mockDisplay)
+        analyzeCore(
+          '',
+          { format: 'json', verbose: false },
+          mockBridge,
+          mockDisplay
+        )
       ).rejects.toThrow('Path cannot be empty');
 
       // Verify Python bridge was NOT called
@@ -298,7 +311,9 @@ describe('analyze command auto-clean', () => {
     it('displays message when keeping reports in verbose mode', async () => {
       // Setup: Create state directory
       const fs = require('fs');
-      fs.mkdirSync(join(tempDir, '.docimp', 'session-reports'), { recursive: true });
+      fs.mkdirSync(join(tempDir, '.docimp', 'session-reports'), {
+        recursive: true,
+      });
       fs.mkdirSync(join(tempDir, '.docimp', 'history'), { recursive: true });
 
       // Run analyze with --keep-old-reports and --verbose
@@ -329,7 +344,12 @@ describe('analyze command auto-clean', () => {
       );
 
       // Verify analyze-latest.json was created
-      const analyzeFile = join(tempDir, '.docimp', 'session-reports', 'analyze-latest.json');
+      const analyzeFile = join(
+        tempDir,
+        '.docimp',
+        'session-reports',
+        'analyze-latest.json'
+      );
       expect(existsSync(analyzeFile)).toBe(true);
 
       // Verify content
@@ -364,9 +384,12 @@ describe('analyze command auto-clean', () => {
         documented_items: 0,
         by_language: {},
         parse_failures: [
-          { filepath: 'broken.py', error: 'SyntaxError: invalid syntax (missing colon)' },
-          { filepath: 'malformed.ts', error: 'SyntaxError: Unexpected token' }
-        ]
+          {
+            filepath: 'broken.py',
+            error: 'SyntaxError: invalid syntax (missing colon)',
+          },
+          { filepath: 'malformed.ts', error: 'SyntaxError: Unexpected token' },
+        ],
       };
 
       // Update mock bridge to return failures
@@ -386,8 +409,8 @@ describe('analyze command auto-clean', () => {
         expect.objectContaining({
           parse_failures: expect.arrayContaining([
             expect.objectContaining({ filepath: 'broken.py' }),
-            expect.objectContaining({ filepath: 'malformed.ts' })
-          ])
+            expect.objectContaining({ filepath: 'malformed.ts' }),
+          ]),
         }),
         expect.any(String) // format parameter
       );
@@ -412,19 +435,23 @@ describe('analyze command auto-clean', () => {
             docstring: null,
             export_type: 'internal',
             module_system: 'unknown',
-            audit_rating: null
-          }
+            audit_rating: null,
+          },
         ],
         coverage_percent: 0,
         total_items: 1,
         documented_items: 0,
-        by_language: { python: { total: 1, documented: 0, coverage_percent: 0 } },
+        by_language: {
+          python: { total: 1, documented: 0, coverage_percent: 0 },
+        },
         parse_failures: [
-          { filepath: 'broken.py', error: 'SyntaxError: invalid syntax' }
-        ]
+          { filepath: 'broken.py', error: 'SyntaxError: invalid syntax' },
+        ],
       };
 
-      mockBridge.analyze = jest.fn().mockResolvedValue(mockResultWithMixedOutcome);
+      mockBridge.analyze = jest
+        .fn()
+        .mockResolvedValue(mockResultWithMixedOutcome);
 
       // Run analyze
       await analyzeCore(
@@ -440,7 +467,8 @@ describe('analyze command auto-clean', () => {
       expect(mockBridge.analyze).toHaveBeenCalled();
 
       // Verify both successful items and failures are present in result
-      const callArg = (mockDisplay.showAnalysisResult as jest.Mock).mock.calls[0][0];
+      const callArg = (mockDisplay.showAnalysisResult as jest.Mock).mock
+        .calls[0][0];
       expect(callArg.items.length).toBe(1);
       expect(callArg.parse_failures.length).toBe(1);
     });

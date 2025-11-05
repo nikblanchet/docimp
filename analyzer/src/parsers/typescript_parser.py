@@ -9,8 +9,9 @@ import os
 import subprocess
 from pathlib import Path
 from typing import List, Optional
-from .base_parser import BaseParser
+
 from ..models.code_item import CodeItem
+from .base_parser import BaseParser
 
 
 class TypeScriptParser(BaseParser):
@@ -26,7 +27,7 @@ class TypeScriptParser(BaseParser):
 
     MAX_SUBPROCESS_OUTPUT_LEN = 200
 
-    def __init__(self, helper_path: Optional[Path] = None):
+    def __init__(self, helper_path: Path | None = None):
         """Initialize the TypeScript parser and locate the Node.js CLI script.
 
         Uses a three-tier resolution strategy:
@@ -103,7 +104,7 @@ class TypeScriptParser(BaseParser):
             return text[: self.MAX_SUBPROCESS_OUTPUT_LEN] + "..."
         return text
 
-    def parse_file(self, filepath: str) -> List[CodeItem]:
+    def parse_file(self, filepath: str) -> list[CodeItem]:
         """
         Parse a TypeScript or JavaScript file and extract code items.
 
@@ -182,7 +183,7 @@ class TypeScriptParser(BaseParser):
                     raise SyntaxError(error_message)
 
             # Convert JSON data to CodeItem objects
-            items: List[CodeItem] = []
+            items: list[CodeItem] = []
             for item_data in items_data:
                 items.append(
                     CodeItem(

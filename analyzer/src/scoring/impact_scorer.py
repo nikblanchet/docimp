@@ -86,7 +86,7 @@ class ImpactScorer:
 
         return min(100.0, score)
 
-    def _get_quality_penalty(self, rating: Optional[int]) -> float:
+    def _get_quality_penalty(self, rating: int | None) -> float:
         """Map audit rating to quality penalty.
 
         Args:

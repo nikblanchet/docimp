@@ -352,7 +352,7 @@ describe('PluginManager', () => {
           timeout: 100, // 100ms timeout
           hooks: {
             beforeAccept: async () => {
-              await new Promise(resolve => setTimeout(resolve, 10)); // 10ms delay
+              await new Promise((resolve) => setTimeout(resolve, 10)); // 10ms delay
               return { accept: true };
             },
           },
@@ -388,7 +388,7 @@ describe('PluginManager', () => {
           timeout: 100, // 100ms timeout
           hooks: {
             beforeAccept: async () => {
-              await new Promise(resolve => setTimeout(resolve, 200)); // 200ms delay (exceeds timeout)
+              await new Promise((resolve) => setTimeout(resolve, 200)); // 200ms delay (exceeds timeout)
               return { accept: true };
             },
           },
@@ -426,7 +426,7 @@ describe('PluginManager', () => {
           version: '1.0.0',
           hooks: {
             beforeAccept: async () => {
-              await new Promise(resolve => setTimeout(resolve, 10)); // 10ms delay
+              await new Promise((resolve) => setTimeout(resolve, 10)); // 10ms delay
               return { accept: true };
             },
           },
@@ -463,7 +463,7 @@ describe('PluginManager', () => {
           timeout: 100,
           hooks: {
             beforeAccept: async () => {
-              await new Promise(resolve => setTimeout(resolve, 200)); // Exceeds timeout
+              await new Promise((resolve) => setTimeout(resolve, 200)); // Exceeds timeout
               return { accept: true };
             },
           },
@@ -516,7 +516,7 @@ describe('PluginManager', () => {
           timeout: 100,
           hooks: {
             afterWrite: async () => {
-              await new Promise(resolve => setTimeout(resolve, 10)); // 10ms delay
+              await new Promise((resolve) => setTimeout(resolve, 10)); // 10ms delay
               return { accept: true };
             },
           },
@@ -548,7 +548,7 @@ describe('PluginManager', () => {
           timeout: 100,
           hooks: {
             afterWrite: async () => {
-              await new Promise(resolve => setTimeout(resolve, 200)); // Exceeds timeout
+              await new Promise((resolve) => setTimeout(resolve, 200)); // Exceeds timeout
               return { accept: true };
             },
           },
@@ -595,7 +595,7 @@ describe('PluginManager', () => {
           // No timeout specified - should use global timeout
           hooks: {
             beforeAccept: async () => {
-              await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay
+              await new Promise((resolve) => setTimeout(resolve, 100)); // 100ms delay
               return { accept: true };
             },
           },
@@ -643,7 +643,7 @@ describe('PluginManager', () => {
           timeout: 50, // 50ms plugin-specific timeout (should override global)
           hooks: {
             beforeAccept: async () => {
-              await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay
+              await new Promise((resolve) => setTimeout(resolve, 100)); // 100ms delay
               return { accept: true };
             },
           },
@@ -683,7 +683,7 @@ describe('PluginManager', () => {
           version: '1.0.0',
           hooks: {
             beforeAccept: async () => {
-              await new Promise(resolve => setTimeout(resolve, 10));
+              await new Promise((resolve) => setTimeout(resolve, 10));
               return { accept: true };
             },
           },
@@ -747,7 +747,10 @@ describe('PluginManager', () => {
       writeFileSync(resolve(pluginsDir, 'valid.js'), '// valid plugin');
       writeFileSync(resolve(pluginsDir, 'invalid.sh'), '#!/bin/sh');
       writeFileSync(resolve(srcDir, 'disallowed.js'), '// not a plugin');
-      writeFileSync(resolve(nodeModulesDir, 'package-plugin.js'), '// npm plugin');
+      writeFileSync(
+        resolve(nodeModulesDir, 'package-plugin.js'),
+        '// npm plugin'
+      );
     });
 
     afterEach(() => {
@@ -853,11 +856,7 @@ describe('PluginManager', () => {
 
       it('should reject absolute paths outside project', () => {
         expect(() => {
-          testValidatePath(
-            '/tmp/malicious.js',
-            testDir,
-            '/tmp/malicious.js'
-          );
+          testValidatePath('/tmp/malicious.js', testDir, '/tmp/malicious.js');
         }).toThrow('Plugin file does not exist');
       });
 
@@ -915,28 +914,19 @@ describe('PluginManager', () => {
     describe('integration with loadPlugin', () => {
       it('should reject loading plugin from disallowed directory', async () => {
         await expect(
-          pluginManager.loadPlugins(
-            ['./src/disallowed.js'],
-            testDir
-          )
+          pluginManager.loadPlugins(['./src/disallowed.js'], testDir)
         ).rejects.toThrow('outside allowed directories');
       });
 
       it('should reject loading non-existent plugin', async () => {
         await expect(
-          pluginManager.loadPlugins(
-            ['./plugins/nonexistent.js'],
-            testDir
-          )
+          pluginManager.loadPlugins(['./plugins/nonexistent.js'], testDir)
         ).rejects.toThrow('Plugin file does not exist');
       });
 
       it('should reject loading file with wrong extension', async () => {
         await expect(
-          pluginManager.loadPlugins(
-            ['./plugins/invalid.sh'],
-            testDir
-          )
+          pluginManager.loadPlugins(['./plugins/invalid.sh'], testDir)
         ).rejects.toThrow('Plugin file must have .js, .mjs, or .cjs extension');
       });
     });

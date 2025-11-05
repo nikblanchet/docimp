@@ -9,7 +9,7 @@ import validateTypesPlugin, {
   clearCache,
   getCacheStats,
   getCacheSize,
-  clearCacheForFile
+  clearCacheForFile,
 } from '../validate-types.js';
 import * as typescript from 'typescript';
 import { parse as commentParserParse } from 'comment-parser';
@@ -894,7 +894,12 @@ describe('validate-types plugin', () => {
           code: `function func${i}(x) { return x; }`,
         };
 
-        await validateTypesPlugin.hooks.beforeAccept(docstring, item, config, dependencies);
+        await validateTypesPlugin.hooks.beforeAccept(
+          docstring,
+          item,
+          config,
+          dependencies
+        );
       }
 
       const stats = getCacheStats();
@@ -938,7 +943,12 @@ describe('validate-types plugin', () => {
           complexity: 1,
           export_type: 'named',
         };
-        await validateTypesPlugin.hooks.beforeAccept(docstring, item, config, dependencies);
+        await validateTypesPlugin.hooks.beforeAccept(
+          docstring,
+          item,
+          config,
+          dependencies
+        );
       }
 
       // Access test0.js again (should move it to end of LRU order)
@@ -1037,7 +1047,11 @@ describe('validate-types plugin', () => {
         ...item,
         code: 'function testFunc(x) { return x * 2; }',
       };
-      await validateTypesPlugin.hooks.beforeAccept(docstring, modifiedItem, config);
+      await validateTypesPlugin.hooks.beforeAccept(
+        docstring,
+        modifiedItem,
+        config
+      );
       stats = getCacheStats();
       expect(stats.invalidations).toBe(1);
     });
@@ -1121,7 +1135,12 @@ describe('validate-types plugin', () => {
           complexity: 1,
           export_type: 'named',
         };
-        await validateTypesPlugin.hooks.beforeAccept(docstring, item, config, dependencies);
+        await validateTypesPlugin.hooks.beforeAccept(
+          docstring,
+          item,
+          config,
+          dependencies
+        );
       }
 
       expect(getCacheSize()).toBe(3);
@@ -1192,21 +1211,23 @@ describe('validate-types plugin', () => {
       ).dispose;
 
       // Mock dispose to track calls
-      const disposeSpy = jest.fn(function() {
+      const disposeSpy = jest.fn(function () {
         disposeCallCount++;
         return originalDispose.call(this);
       });
 
       // Patch the prototype
       const ts = (await import('typescript')).default;
-      const proto = Object.getPrototypeOf(ts.createLanguageService({
-        getScriptFileNames: () => [],
-        getScriptVersion: () => '0',
-        getScriptSnapshot: () => undefined,
-        getCurrentDirectory: () => process.cwd(),
-        getCompilationSettings: () => ({}),
-        getDefaultLibFileName: () => 'lib.d.ts',
-      }));
+      const proto = Object.getPrototypeOf(
+        ts.createLanguageService({
+          getScriptFileNames: () => [],
+          getScriptVersion: () => '0',
+          getScriptSnapshot: () => undefined,
+          getCurrentDirectory: () => process.cwd(),
+          getCompilationSettings: () => ({}),
+          getDefaultLibFileName: () => 'lib.d.ts',
+        })
+      );
       const originalProtoDispose = proto.dispose;
       proto.dispose = disposeSpy;
 
@@ -1238,7 +1259,12 @@ describe('validate-types plugin', () => {
             complexity: 1,
             export_type: 'named',
           };
-          await validateTypesPlugin.hooks.beforeAccept(docstring, item, config, dependencies);
+          await validateTypesPlugin.hooks.beforeAccept(
+            docstring,
+            item,
+            config,
+            dependencies
+          );
         }
 
         // At least one dispose should have been called (for the evicted entry)
@@ -1253,16 +1279,18 @@ describe('validate-types plugin', () => {
     it('should call dispose() on all services when clearCache() is called', async () => {
       let disposeCallCount = 0;
       const ts = (await import('typescript')).default;
-      const proto = Object.getPrototypeOf(ts.createLanguageService({
-        getScriptFileNames: () => [],
-        getScriptVersion: () => '0',
-        getScriptSnapshot: () => undefined,
-        getCurrentDirectory: () => process.cwd(),
-        getCompilationSettings: () => ({}),
-        getDefaultLibFileName: () => 'lib.d.ts',
-      }));
+      const proto = Object.getPrototypeOf(
+        ts.createLanguageService({
+          getScriptFileNames: () => [],
+          getScriptVersion: () => '0',
+          getScriptSnapshot: () => undefined,
+          getCurrentDirectory: () => process.cwd(),
+          getCompilationSettings: () => ({}),
+          getDefaultLibFileName: () => 'lib.d.ts',
+        })
+      );
       const originalDispose = proto.dispose;
-      const disposeSpy = jest.fn(function() {
+      const disposeSpy = jest.fn(function () {
         disposeCallCount++;
         return originalDispose.call(this);
       });
@@ -1296,7 +1324,12 @@ describe('validate-types plugin', () => {
             complexity: 1,
             export_type: 'named',
           };
-          await validateTypesPlugin.hooks.beforeAccept(docstring, item, config, dependencies);
+          await validateTypesPlugin.hooks.beforeAccept(
+            docstring,
+            item,
+            config,
+            dependencies
+          );
         }
 
         // Reset spy count before clearCache
@@ -1315,16 +1348,18 @@ describe('validate-types plugin', () => {
 
     it('should call dispose() when clearCacheForFile() is called', async () => {
       const ts = (await import('typescript')).default;
-      const proto = Object.getPrototypeOf(ts.createLanguageService({
-        getScriptFileNames: () => [],
-        getScriptVersion: () => '0',
-        getScriptSnapshot: () => undefined,
-        getCurrentDirectory: () => process.cwd(),
-        getCompilationSettings: () => ({}),
-        getDefaultLibFileName: () => 'lib.d.ts',
-      }));
+      const proto = Object.getPrototypeOf(
+        ts.createLanguageService({
+          getScriptFileNames: () => [],
+          getScriptVersion: () => '0',
+          getScriptSnapshot: () => undefined,
+          getCurrentDirectory: () => process.cwd(),
+          getCompilationSettings: () => ({}),
+          getDefaultLibFileName: () => 'lib.d.ts',
+        })
+      );
       const originalDispose = proto.dispose;
-      const disposeSpy = jest.fn(function() {
+      const disposeSpy = jest.fn(function () {
         return originalDispose.call(this);
       });
       proto.dispose = disposeSpy;
@@ -1357,7 +1392,12 @@ describe('validate-types plugin', () => {
         };
 
         // Add to cache
-        await validateTypesPlugin.hooks.beforeAccept(docstring, item, config, dependencies);
+        await validateTypesPlugin.hooks.beforeAccept(
+          docstring,
+          item,
+          config,
+          dependencies
+        );
 
         // Reset spy
         disposeSpy.mockClear();

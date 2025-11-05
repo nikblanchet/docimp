@@ -159,7 +159,9 @@ describe('jsdoc-style plugin', () => {
       );
 
       expect(result.accept).toBe(false);
-      expect(result.reason).toContain('Description should end with punctuation');
+      expect(result.reason).toContain(
+        'Description should end with punctuation'
+      );
     });
 
     it('should NOT offer auto-fix for punctuation (Issue #96)', async () => {
@@ -498,7 +500,9 @@ describe('jsdoc-style plugin', () => {
       );
 
       expect(result.accept).toBe(false);
-      expect(result.reason).toContain('comment-parser dependency not available');
+      expect(result.reason).toContain(
+        'comment-parser dependency not available'
+      );
     });
 
     it('should accept when dependencies are provided', async () => {

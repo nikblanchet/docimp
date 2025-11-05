@@ -56,14 +56,20 @@ jest.mock('ora', () => ({
 jest.mock('cli-table3', () => {
   return class MockTable {
     constructor() {}
-    toString() { return ''; }
+    toString() {
+      return '';
+    }
   };
 });
 jest.mock('../../display/TerminalDisplay.js');
 
-const mockReadFileSync = readFileSync as jest.MockedFunction<typeof readFileSync>;
+const mockReadFileSync = readFileSync as jest.MockedFunction<
+  typeof readFileSync
+>;
 const mockPrompts = prompts as jest.MockedFunction<typeof prompts>;
-const MockInteractiveSession = InteractiveSession as jest.MockedClass<typeof InteractiveSession>;
+const MockInteractiveSession = InteractiveSession as jest.MockedClass<
+  typeof InteractiveSession
+>;
 
 describe('improve command', () => {
   let originalEnv: NodeJS.ProcessEnv;
@@ -129,7 +135,9 @@ describe('improve command', () => {
     };
 
     // Setup mock session that will be returned when InteractiveSession is instantiated
-    mockSession = new MockInteractiveSession({} as any) as jest.Mocked<InteractiveSession>;
+    mockSession = new MockInteractiveSession(
+      {} as any
+    ) as jest.Mocked<InteractiveSession>;
     mockSession.run = jest.fn().mockResolvedValue(undefined);
     MockInteractiveSession.mockImplementation(() => mockSession);
 
@@ -138,7 +146,11 @@ describe('improve command', () => {
     fs.existsSync.mockImplementation((path: string) => {
       // Allow './test' path and .docimp paths to exist for tests
       const pathStr = String(path);
-      if (pathStr.includes('./test') || pathStr.includes('.docimp') || pathStr.includes('/test')) {
+      if (
+        pathStr.includes('./test') ||
+        pathStr.includes('.docimp') ||
+        pathStr.includes('/test')
+      ) {
         return true;
       }
       return false;
@@ -151,26 +163,28 @@ describe('improve command', () => {
     fs.accessSync.mockImplementation(() => {}); // Allow read access
 
     // Mock plan file
-    mockReadFileSync.mockReturnValue(JSON.stringify({
-      items: [
-        {
-          name: 'testFunc',
-          type: 'function',
-          filepath: 'test.js',
-          line_number: 10,
-          language: 'javascript',
-          complexity: 5,
-          impact_score: 75,
-          reason: 'High complexity',
-          export_type: 'named',
-          module_system: 'esm',
-          parameters: [],
-          has_docs: false,
-          docstring: null,
-          audit_rating: null,
-        },
-      ],
-    }));
+    mockReadFileSync.mockReturnValue(
+      JSON.stringify({
+        items: [
+          {
+            name: 'testFunc',
+            type: 'function',
+            filepath: 'test.js',
+            line_number: 10,
+            language: 'javascript',
+            complexity: 5,
+            impact_score: 75,
+            reason: 'High complexity',
+            export_type: 'named',
+            module_system: 'esm',
+            parameters: [],
+            has_docs: false,
+            docstring: null,
+            audit_rating: null,
+          },
+        ],
+      })
+    );
 
     // Mock user prompts - use mockImplementation to provide fresh values for each call
     mockPrompts.mockImplementation((promptConfig: any) => {
@@ -194,14 +208,30 @@ describe('improve command', () => {
       delete process.env.ANTHROPIC_API_KEY;
 
       await expect(async () => {
-        await improveCore('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+        await improveCore(
+          './test',
+          {},
+          mockBridge,
+          mockDisplay,
+          mockConfigLoader,
+          mockPluginManager,
+          mockEditorLauncher
+        );
       }).rejects.toThrow('ANTHROPIC_API_KEY environment variable is required');
     });
 
     it('should continue if ANTHROPIC_API_KEY is set', async () => {
       process.env.ANTHROPIC_API_KEY = 'sk-ant-test';
 
-      await improveCore('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        {},
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       expect(mockSession.run).toHaveBeenCalled();
     });
@@ -209,13 +239,29 @@ describe('improve command', () => {
 
   describe('configuration loading', () => {
     it('should load default config when no config specified', async () => {
-      await improveCore('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        {},
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       expect(mockConfigLoader.load).toHaveBeenCalledWith(undefined);
     });
 
     it('should load custom config when specified', async () => {
-      await improveCore('./test', { config: './custom.config.js' }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        { config: './custom.config.js' },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       expect(mockConfigLoader.load).toHaveBeenCalledWith('./custom.config.js');
     });
@@ -224,14 +270,30 @@ describe('improve command', () => {
       mockConfigLoader.load.mockRejectedValueOnce(new Error('Invalid config'));
 
       await expect(async () => {
-        await improveCore('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+        await improveCore(
+          './test',
+          {},
+          mockBridge,
+          mockDisplay,
+          mockConfigLoader,
+          mockPluginManager,
+          mockEditorLauncher
+        );
       }).rejects.toThrow();
     });
   });
 
   describe('plan file loading', () => {
     it('should load default plan file', async () => {
-      await improveCore('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        {},
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       expect(mockReadFileSync).toHaveBeenCalledWith(
         expect.stringMatching(/\.docimp\/session-reports\/plan\.json$/),
@@ -240,7 +302,15 @@ describe('improve command', () => {
     });
 
     it('should load custom plan file when specified', async () => {
-      await improveCore('./test', { planFile: './custom-plan.json' }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        { planFile: './custom-plan.json' },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       expect(mockReadFileSync).toHaveBeenCalledWith(
         expect.stringMatching(/custom-plan\.json$/),
@@ -254,7 +324,15 @@ describe('improve command', () => {
       });
 
       await expect(async () => {
-        await improveCore('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+        await improveCore(
+          './test',
+          {},
+          mockBridge,
+          mockDisplay,
+          mockConfigLoader,
+          mockPluginManager,
+          mockEditorLauncher
+        );
       }).rejects.toThrow();
     });
 
@@ -262,14 +340,30 @@ describe('improve command', () => {
       mockReadFileSync.mockReturnValueOnce('invalid json');
 
       await expect(async () => {
-        await improveCore('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+        await improveCore(
+          './test',
+          {},
+          mockBridge,
+          mockDisplay,
+          mockConfigLoader,
+          mockPluginManager,
+          mockEditorLauncher
+        );
       }).rejects.toThrow();
     });
 
     it('should handle empty plan file', async () => {
       mockReadFileSync.mockReturnValueOnce(JSON.stringify({ items: [] }));
 
-      await improveCore('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        {},
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       expect(mockSession.run).not.toHaveBeenCalled();
     });
@@ -277,29 +371,39 @@ describe('improve command', () => {
 
   describe('language support validation', () => {
     it('should fail fast if plan contains unsupported languages', async () => {
-      mockReadFileSync.mockReturnValueOnce(JSON.stringify({
-        items: [
-          {
-            name: 'testFunc',
-            type: 'function',
-            filepath: 'test.rb',
-            line_number: 10,
-            language: 'ruby',
-            complexity: 5,
-            impact_score: 75,
-            reason: 'High complexity',
-            export_type: 'named',
-            module_system: 'unknown',
-            parameters: [],
-            has_docs: false,
-            docstring: null,
-            audit_rating: null,
-          },
-        ],
-      }));
+      mockReadFileSync.mockReturnValueOnce(
+        JSON.stringify({
+          items: [
+            {
+              name: 'testFunc',
+              type: 'function',
+              filepath: 'test.rb',
+              line_number: 10,
+              language: 'ruby',
+              complexity: 5,
+              impact_score: 75,
+              reason: 'High complexity',
+              export_type: 'named',
+              module_system: 'unknown',
+              parameters: [],
+              has_docs: false,
+              docstring: null,
+              audit_rating: null,
+            },
+          ],
+        })
+      );
 
       await expect(async () => {
-        await improveCore('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+        await improveCore(
+          './test',
+          {},
+          mockBridge,
+          mockDisplay,
+          mockConfigLoader,
+          mockPluginManager,
+          mockEditorLauncher
+        );
       }).rejects.toThrow();
 
       // Should not prompt for style guides
@@ -307,93 +411,112 @@ describe('improve command', () => {
     });
 
     it('should fail fast with multiple unsupported languages', async () => {
-      mockReadFileSync.mockReturnValueOnce(JSON.stringify({
-        items: [
-          {
-            name: 'testFunc1',
-            type: 'function',
-            filepath: 'test.rb',
-            line_number: 10,
-            language: 'ruby',
-            complexity: 5,
-            impact_score: 75,
-            reason: 'reason',
-            export_type: 'named',
-            module_system: 'unknown',
-            parameters: [],
-            has_docs: false,
-            docstring: null,
-            audit_rating: null,
-          },
-          {
-            name: 'testFunc2',
-            type: 'function',
-            filepath: 'test.go',
-            line_number: 10,
-            language: 'go',
-            complexity: 5,
-            impact_score: 75,
-            reason: 'reason',
-            export_type: 'named',
-            module_system: 'unknown',
-            parameters: [],
-            has_docs: false,
-            docstring: null,
-            audit_rating: null,
-          },
-        ],
-      }));
+      mockReadFileSync.mockReturnValueOnce(
+        JSON.stringify({
+          items: [
+            {
+              name: 'testFunc1',
+              type: 'function',
+              filepath: 'test.rb',
+              line_number: 10,
+              language: 'ruby',
+              complexity: 5,
+              impact_score: 75,
+              reason: 'reason',
+              export_type: 'named',
+              module_system: 'unknown',
+              parameters: [],
+              has_docs: false,
+              docstring: null,
+              audit_rating: null,
+            },
+            {
+              name: 'testFunc2',
+              type: 'function',
+              filepath: 'test.go',
+              line_number: 10,
+              language: 'go',
+              complexity: 5,
+              impact_score: 75,
+              reason: 'reason',
+              export_type: 'named',
+              module_system: 'unknown',
+              parameters: [],
+              has_docs: false,
+              docstring: null,
+              audit_rating: null,
+            },
+          ],
+        })
+      );
 
       await expect(async () => {
-        await improveCore('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+        await improveCore(
+          './test',
+          {},
+          mockBridge,
+          mockDisplay,
+          mockConfigLoader,
+          mockPluginManager,
+          mockEditorLauncher
+        );
       }).rejects.toThrow();
-
     });
 
     it('should continue if all languages are supported', async () => {
-      mockReadFileSync.mockReturnValueOnce(JSON.stringify({
-        items: [
-          {
-            name: 'pyFunc',
-            type: 'function',
-            filepath: 'test.py',
-            line_number: 10,
-            language: 'python',
-            complexity: 5,
-            impact_score: 75,
-            reason: 'reason',
-            export_type: 'named',
-            module_system: 'unknown',
-            parameters: [],
-            has_docs: false,
-            docstring: null,
-            audit_rating: null,
-          },
-          {
-            name: 'tsFunc',
-            type: 'function',
-            filepath: 'test.ts',
-            line_number: 10,
-            language: 'typescript',
-            complexity: 5,
-            impact_score: 75,
-            reason: 'reason',
-            export_type: 'named',
-            module_system: 'esm',
-            parameters: [],
-            has_docs: false,
-            docstring: null,
-            audit_rating: null,
-          },
-        ],
-      }));
+      mockReadFileSync.mockReturnValueOnce(
+        JSON.stringify({
+          items: [
+            {
+              name: 'pyFunc',
+              type: 'function',
+              filepath: 'test.py',
+              line_number: 10,
+              language: 'python',
+              complexity: 5,
+              impact_score: 75,
+              reason: 'reason',
+              export_type: 'named',
+              module_system: 'unknown',
+              parameters: [],
+              has_docs: false,
+              docstring: null,
+              audit_rating: null,
+            },
+            {
+              name: 'tsFunc',
+              type: 'function',
+              filepath: 'test.ts',
+              line_number: 10,
+              language: 'typescript',
+              complexity: 5,
+              impact_score: 75,
+              reason: 'reason',
+              export_type: 'named',
+              module_system: 'esm',
+              parameters: [],
+              has_docs: false,
+              docstring: null,
+              audit_rating: null,
+            },
+          ],
+        })
+      );
 
       mockPrompts
-        .mockResolvedValueOnce({ styleGuide: 'google' })        // Python style
+        .mockResolvedValueOnce({ styleGuide: 'google' }) // Python style
         .mockResolvedValueOnce({ styleGuide: 'tsdoc-typedoc' }) // TypeScript style
-        .mockResolvedValueOnce({ tone: 'concise' });            // Tone
+        .mockResolvedValueOnce({ tone: 'concise' }); // Tone
 
-      await improveCore('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        {},
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       // Should prompt for both languages and tone
       expect(mockPrompts).toHaveBeenCalledTimes(3);
@@ -403,18 +526,40 @@ describe('improve command', () => {
 
   describe('user preferences', () => {
     it('should prompt for style guides per language and tone', async () => {
-      await improveCore('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        {},
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       // Should be called twice: once for javascript style, once for tone
       expect(mockPrompts).toHaveBeenCalledTimes(2);
       // First call: javascript style guide
-      expect(mockPrompts).toHaveBeenNthCalledWith(1, expect.objectContaining({ name: 'styleGuide' }));
+      expect(mockPrompts).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ name: 'styleGuide' })
+      );
       // Second call: tone
-      expect(mockPrompts).toHaveBeenNthCalledWith(2, expect.objectContaining({ name: 'tone' }));
+      expect(mockPrompts).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ name: 'tone' })
+      );
     });
 
     it('should use command-line tone override', async () => {
-      await improveCore('./test', { tone: 'detailed' }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        { tone: 'detailed' },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       expect(MockInteractiveSession).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -425,10 +570,18 @@ describe('improve command', () => {
 
     it('should use prompted values when no tone override', async () => {
       mockPrompts
-        .mockResolvedValueOnce({ styleGuide: 'jsdoc-google' })  // JavaScript style
-        .mockResolvedValueOnce({ tone: 'friendly' });           // Tone
+        .mockResolvedValueOnce({ styleGuide: 'jsdoc-google' }) // JavaScript style
+        .mockResolvedValueOnce({ tone: 'friendly' }); // Tone
 
-      await improveCore('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        {},
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       expect(MockInteractiveSession).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -441,7 +594,15 @@ describe('improve command', () => {
 
   describe('plugin loading', () => {
     it('should load plugins from config', async () => {
-      await improveCore('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        {},
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       expect(mockPluginManager.loadPlugins).toHaveBeenCalledWith([
         './plugins/validate-types.js',
@@ -449,9 +610,19 @@ describe('improve command', () => {
     });
 
     it('should continue without plugins if loading fails', async () => {
-      mockPluginManager.loadPlugins.mockRejectedValueOnce(new Error('Plugin load failed'));
+      mockPluginManager.loadPlugins.mockRejectedValueOnce(
+        new Error('Plugin load failed')
+      );
 
-      await improveCore('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        {},
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       // Should still create session
       expect(mockSession.run).toHaveBeenCalled();
@@ -469,7 +640,15 @@ describe('improve command', () => {
         exclude: [],
       });
 
-      await improveCore('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        {},
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       expect(mockPluginManager.loadPlugins).not.toHaveBeenCalled();
     });
@@ -477,7 +656,15 @@ describe('improve command', () => {
 
   describe('session execution', () => {
     it('should create and run interactive session', async () => {
-      await improveCore('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        {},
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       expect(MockInteractiveSession).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -532,9 +719,19 @@ describe('improve command', () => {
           audit_rating: null,
         },
       ];
-      mockReadFileSync.mockReturnValueOnce(JSON.stringify({ items: planItems }));
+      mockReadFileSync.mockReturnValueOnce(
+        JSON.stringify({ items: planItems })
+      );
 
-      await improveCore('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        {},
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       expect(mockSession.run).toHaveBeenCalledWith(planItems);
     });
@@ -543,14 +740,30 @@ describe('improve command', () => {
       mockSession.run.mockRejectedValueOnce(new Error('Session failed'));
 
       await expect(async () => {
-        await improveCore('./test', {}, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+        await improveCore(
+          './test',
+          {},
+          mockBridge,
+          mockDisplay,
+          mockConfigLoader,
+          mockPluginManager,
+          mockEditorLauncher
+        );
       }).rejects.toThrow();
     });
   });
 
   describe('verbose mode', () => {
     it('should pass verbose flag to components', async () => {
-      await improveCore('./test', { verbose: true }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        { verbose: true },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       // Session should be created (verbose doesn't prevent creation)
       expect(mockSession.run).toHaveBeenCalled();
@@ -559,32 +772,46 @@ describe('improve command', () => {
 
   describe('CLI style guide flags', () => {
     it('should use CLI flag and skip prompt when --python-style provided', async () => {
-      mockReadFileSync.mockReturnValueOnce(JSON.stringify({
-        items: [{
-          name: 'pyFunc',
-          type: 'function',
-          filepath: 'test.py',
-          line_number: 10,
-          language: 'python',
-          complexity: 5,
-          impact_score: 75,
-          reason: 'reason',
-          export_type: 'named',
-          module_system: 'unknown',
-          parameters: [],
-          has_docs: false,
-          docstring: null,
-          audit_rating: null,
-        }],
-      }));
+      mockReadFileSync.mockReturnValueOnce(
+        JSON.stringify({
+          items: [
+            {
+              name: 'pyFunc',
+              type: 'function',
+              filepath: 'test.py',
+              line_number: 10,
+              language: 'python',
+              complexity: 5,
+              impact_score: 75,
+              reason: 'reason',
+              export_type: 'named',
+              module_system: 'unknown',
+              parameters: [],
+              has_docs: false,
+              docstring: null,
+              audit_rating: null,
+            },
+          ],
+        })
+      );
 
       mockPrompts.mockResolvedValueOnce({ tone: 'concise' });
 
-      await improveCore('./test', { pythonStyle: 'numpy-rest' }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        { pythonStyle: 'numpy-rest' },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       // Should only prompt for tone, not python style
       expect(mockPrompts).toHaveBeenCalledTimes(1);
-      expect(mockPrompts).toHaveBeenCalledWith(expect.objectContaining({ name: 'tone' }));
+      expect(mockPrompts).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'tone' })
+      );
 
       // Session should receive CLI flag value
       expect(MockInteractiveSession).toHaveBeenCalledWith(
@@ -595,49 +822,59 @@ describe('improve command', () => {
     });
 
     it('should use multiple CLI flags and skip all prompts except tone', async () => {
-      mockReadFileSync.mockReturnValueOnce(JSON.stringify({
-        items: [
-          {
-            name: 'pyFunc',
-            type: 'function',
-            filepath: 'test.py',
-            line_number: 10,
-            language: 'python',
-            complexity: 5,
-            impact_score: 75,
-            reason: 'reason',
-            export_type: 'named',
-            module_system: 'unknown',
-            parameters: [],
-            has_docs: false,
-            docstring: null,
-            audit_rating: null,
-          },
-          {
-            name: 'jsFunc',
-            type: 'function',
-            filepath: 'test.js',
-            line_number: 20,
-            language: 'javascript',
-            complexity: 3,
-            impact_score: 50,
-            reason: 'reason',
-            export_type: 'named',
-            module_system: 'esm',
-            parameters: [],
-            has_docs: false,
-            docstring: null,
-            audit_rating: null,
-          },
-        ],
-      }));
+      mockReadFileSync.mockReturnValueOnce(
+        JSON.stringify({
+          items: [
+            {
+              name: 'pyFunc',
+              type: 'function',
+              filepath: 'test.py',
+              line_number: 10,
+              language: 'python',
+              complexity: 5,
+              impact_score: 75,
+              reason: 'reason',
+              export_type: 'named',
+              module_system: 'unknown',
+              parameters: [],
+              has_docs: false,
+              docstring: null,
+              audit_rating: null,
+            },
+            {
+              name: 'jsFunc',
+              type: 'function',
+              filepath: 'test.js',
+              line_number: 20,
+              language: 'javascript',
+              complexity: 3,
+              impact_score: 50,
+              reason: 'reason',
+              export_type: 'named',
+              module_system: 'esm',
+              parameters: [],
+              has_docs: false,
+              docstring: null,
+              audit_rating: null,
+            },
+          ],
+        })
+      );
 
       mockPrompts.mockResolvedValueOnce({ tone: 'detailed' });
 
-      await improveCore('./test', {
-        pythonStyle: 'google',
-        javascriptStyle: 'jsdoc-google',
-      }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        {
+          pythonStyle: 'google',
+          javascriptStyle: 'jsdoc-google',
+        },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       // Should only prompt for tone
       expect(mockPrompts).toHaveBeenCalledTimes(1);
@@ -650,36 +887,72 @@ describe('improve command', () => {
 
     it('should reject invalid python style guide', async () => {
       await expect(async () => {
-        await improveCore('./test', { pythonStyle: 'invalid-style' }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+        await improveCore(
+          './test',
+          { pythonStyle: 'invalid-style' },
+          mockBridge,
+          mockDisplay,
+          mockConfigLoader,
+          mockPluginManager,
+          mockEditorLauncher
+        );
       }).rejects.toThrow();
-
     });
 
     it('should reject invalid javascript style guide', async () => {
       await expect(async () => {
-        await improveCore('./test', { javascriptStyle: 'invalid-style' }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+        await improveCore(
+          './test',
+          { javascriptStyle: 'invalid-style' },
+          mockBridge,
+          mockDisplay,
+          mockConfigLoader,
+          mockPluginManager,
+          mockEditorLauncher
+        );
       }).rejects.toThrow();
-
     });
 
     it('should reject invalid typescript style guide', async () => {
       await expect(async () => {
-        await improveCore('./test', { typescriptStyle: 'invalid-style' }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+        await improveCore(
+          './test',
+          { typescriptStyle: 'invalid-style' },
+          mockBridge,
+          mockDisplay,
+          mockConfigLoader,
+          mockPluginManager,
+          mockEditorLauncher
+        );
       }).rejects.toThrow();
-
     });
 
     it('should reject invalid tone', async () => {
       await expect(async () => {
-        await improveCore('./test', { tone: 'invalid-tone' }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+        await improveCore(
+          './test',
+          { tone: 'invalid-tone' },
+          mockBridge,
+          mockDisplay,
+          mockConfigLoader,
+          mockPluginManager,
+          mockEditorLauncher
+        );
       }).rejects.toThrow();
-
     });
   });
 
   describe('non-interactive mode', () => {
     it('should use config values without prompting when --non-interactive', async () => {
-      await improveCore('./test', { nonInteractive: true }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        { nonInteractive: true },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       // Should not prompt at all
       expect(mockPrompts).not.toHaveBeenCalled();
@@ -694,11 +967,19 @@ describe('improve command', () => {
     });
 
     it('should use CLI flags over config in non-interactive mode', async () => {
-      await improveCore('./test', {
-        nonInteractive: true,
-        javascriptStyle: 'jsdoc-google',
-        tone: 'detailed',
-      }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        {
+          nonInteractive: true,
+          javascriptStyle: 'jsdoc-google',
+          tone: 'detailed',
+        },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       expect(mockPrompts).not.toHaveBeenCalled();
       expect(MockInteractiveSession).toHaveBeenCalledWith(
@@ -710,24 +991,28 @@ describe('improve command', () => {
     });
 
     it('should fail in non-interactive mode when config missing for detected language', async () => {
-      mockReadFileSync.mockReturnValueOnce(JSON.stringify({
-        items: [{
-          name: 'pyFunc',
-          type: 'function',
-          filepath: 'test.py',
-          line_number: 10,
-          language: 'python',
-          complexity: 5,
-          impact_score: 75,
-          reason: 'reason',
-          export_type: 'named',
-          module_system: 'unknown',
-          parameters: [],
-          has_docs: false,
-          docstring: null,
-          audit_rating: null,
-        }],
-      }));
+      mockReadFileSync.mockReturnValueOnce(
+        JSON.stringify({
+          items: [
+            {
+              name: 'pyFunc',
+              type: 'function',
+              filepath: 'test.py',
+              line_number: 10,
+              language: 'python',
+              complexity: 5,
+              impact_score: 75,
+              reason: 'reason',
+              export_type: 'named',
+              module_system: 'unknown',
+              parameters: [],
+              has_docs: false,
+              docstring: null,
+              audit_rating: null,
+            },
+          ],
+        })
+      );
 
       // Config only has javascript, but plan needs python
       mockConfigLoader.load.mockResolvedValueOnce({
@@ -738,31 +1023,43 @@ describe('improve command', () => {
       });
 
       await expect(async () => {
-        await improveCore('./test', { nonInteractive: true }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+        await improveCore(
+          './test',
+          { nonInteractive: true },
+          mockBridge,
+          mockDisplay,
+          mockConfigLoader,
+          mockPluginManager,
+          mockEditorLauncher
+        );
       }).rejects.toThrow();
 
       expect(mockPrompts).not.toHaveBeenCalled();
     });
 
     it('should succeed in non-interactive mode with CLI flag for missing config', async () => {
-      mockReadFileSync.mockReturnValueOnce(JSON.stringify({
-        items: [{
-          name: 'pyFunc',
-          type: 'function',
-          filepath: 'test.py',
-          line_number: 10,
-          language: 'python',
-          complexity: 5,
-          impact_score: 75,
-          reason: 'reason',
-          export_type: 'named',
-          module_system: 'unknown',
-          parameters: [],
-          has_docs: false,
-          docstring: null,
-          audit_rating: null,
-        }],
-      }));
+      mockReadFileSync.mockReturnValueOnce(
+        JSON.stringify({
+          items: [
+            {
+              name: 'pyFunc',
+              type: 'function',
+              filepath: 'test.py',
+              line_number: 10,
+              language: 'python',
+              complexity: 5,
+              impact_score: 75,
+              reason: 'reason',
+              export_type: 'named',
+              module_system: 'unknown',
+              parameters: [],
+              has_docs: false,
+              docstring: null,
+              audit_rating: null,
+            },
+          ],
+        })
+      );
 
       // Config missing python, but CLI flag provides it
       mockConfigLoader.load.mockResolvedValueOnce({
@@ -772,10 +1069,18 @@ describe('improve command', () => {
         exclude: [],
       });
 
-      await improveCore('./test', {
-        nonInteractive: true,
-        pythonStyle: 'google',
-      }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        {
+          nonInteractive: true,
+          pythonStyle: 'google',
+        },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       expect(mockPrompts).not.toHaveBeenCalled();
       expect(MockInteractiveSession).toHaveBeenCalledWith(
@@ -793,7 +1098,15 @@ describe('improve command', () => {
         exclude: [],
       });
 
-      await improveCore('./test', { nonInteractive: true }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        { nonInteractive: true },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       expect(MockInteractiveSession).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -805,48 +1118,58 @@ describe('improve command', () => {
 
   describe('mixed interactive and CLI flags', () => {
     it('should skip prompt for language with CLI flag, prompt for others', async () => {
-      mockReadFileSync.mockReturnValueOnce(JSON.stringify({
-        items: [
-          {
-            name: 'pyFunc',
-            type: 'function',
-            filepath: 'test.py',
-            line_number: 10,
-            language: 'python',
-            complexity: 5,
-            impact_score: 75,
-            reason: 'reason',
-            export_type: 'named',
-            module_system: 'unknown',
-            parameters: [],
-            has_docs: false,
-            docstring: null,
-            audit_rating: null,
-          },
-          {
-            name: 'jsFunc',
-            type: 'function',
-            filepath: 'test.js',
-            line_number: 20,
-            language: 'javascript',
-            complexity: 3,
-            impact_score: 50,
-            reason: 'reason',
-            export_type: 'named',
-            module_system: 'esm',
-            parameters: [],
-            has_docs: false,
-            docstring: null,
-            audit_rating: null,
-          },
-        ],
-      }));
+      mockReadFileSync.mockReturnValueOnce(
+        JSON.stringify({
+          items: [
+            {
+              name: 'pyFunc',
+              type: 'function',
+              filepath: 'test.py',
+              line_number: 10,
+              language: 'python',
+              complexity: 5,
+              impact_score: 75,
+              reason: 'reason',
+              export_type: 'named',
+              module_system: 'unknown',
+              parameters: [],
+              has_docs: false,
+              docstring: null,
+              audit_rating: null,
+            },
+            {
+              name: 'jsFunc',
+              type: 'function',
+              filepath: 'test.js',
+              line_number: 20,
+              language: 'javascript',
+              complexity: 3,
+              impact_score: 50,
+              reason: 'reason',
+              export_type: 'named',
+              module_system: 'esm',
+              parameters: [],
+              has_docs: false,
+              docstring: null,
+              audit_rating: null,
+            },
+          ],
+        })
+      );
 
       mockPrompts
         .mockResolvedValueOnce({ styleGuide: 'jsdoc-vanilla' }) // JavaScript prompt
-        .mockResolvedValueOnce({ tone: 'concise' });            // Tone prompt
+        .mockResolvedValueOnce({ tone: 'concise' }); // Tone prompt
 
-      await improveCore('./test', { pythonStyle: 'google' }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        { pythonStyle: 'google' },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       // Should prompt for javascript (no flag) and tone
       expect(mockPrompts).toHaveBeenCalledTimes(2);
@@ -858,11 +1181,21 @@ describe('improve command', () => {
     });
 
     it('should skip tone prompt when --tone flag provided', async () => {
-      await improveCore('./test', { tone: 'friendly' }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        { tone: 'friendly' },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       // Should only prompt for javascript style, not tone
       expect(mockPrompts).toHaveBeenCalledTimes(1);
-      expect(mockPrompts).toHaveBeenCalledWith(expect.objectContaining({ name: 'styleGuide' }));
+      expect(mockPrompts).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'styleGuide' })
+      );
       expect(MockInteractiveSession).toHaveBeenCalledWith(
         expect.objectContaining({
           tone: 'friendly',
@@ -875,7 +1208,15 @@ describe('improve command', () => {
     it('should display all style guides and exit without requiring API key', async () => {
       delete process.env.ANTHROPIC_API_KEY;
 
-      await improveCore('./test', { listStyles: true }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        { listStyles: true },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       // Should not attempt to load config or plan
       expect(mockConfigLoader.load).not.toHaveBeenCalled();
@@ -885,7 +1226,15 @@ describe('improve command', () => {
     });
 
     it('should display all style guides without requiring plan file', async () => {
-      await improveCore('./test', { listStyles: true }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        { listStyles: true },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       // Should not load plan file
       expect(mockReadFileSync).not.toHaveBeenCalled();
@@ -893,7 +1242,15 @@ describe('improve command', () => {
     });
 
     it('should return early after displaying styles', async () => {
-      await improveCore('./test', { listStyles: true }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        { listStyles: true },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       // Should not create interactive session
       expect(mockSession.run).not.toHaveBeenCalled();
@@ -902,10 +1259,18 @@ describe('improve command', () => {
 
   describe('verbose logging', () => {
     it('should work in non-interactive mode with verbose flag', async () => {
-      await improveCore('./test', {
-        nonInteractive: true,
-        verbose: true,
-      }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        {
+          nonInteractive: true,
+          verbose: true,
+        },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       // Verify session was created with correct config
       expect(MockInteractiveSession).toHaveBeenCalled();
@@ -913,11 +1278,19 @@ describe('improve command', () => {
     });
 
     it('should work with CLI flag in verbose mode', async () => {
-      await improveCore('./test', {
-        nonInteractive: true,
-        javascriptStyle: 'jsdoc-google',
-        verbose: true,
-      }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        {
+          nonInteractive: true,
+          javascriptStyle: 'jsdoc-google',
+          verbose: true,
+        },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       // Verify CLI flag was used
       expect(MockInteractiveSession).toHaveBeenCalledWith(
@@ -932,7 +1305,15 @@ describe('improve command', () => {
         .mockResolvedValueOnce({ styleGuide: 'jsdoc-vanilla' })
         .mockResolvedValueOnce({ tone: 'concise' });
 
-      await improveCore('./test', { verbose: true }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        { verbose: true },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       // Verify prompts were called and session created
       expect(mockPrompts).toHaveBeenCalled();
@@ -940,11 +1321,19 @@ describe('improve command', () => {
     });
 
     it('should accept verbose flag with other options', async () => {
-      await improveCore('./test', {
-        nonInteractive: true,
-        verbose: true,
-        tone: 'detailed',
-      }, mockBridge, mockDisplay, mockConfigLoader, mockPluginManager, mockEditorLauncher);
+      await improveCore(
+        './test',
+        {
+          nonInteractive: true,
+          verbose: true,
+          tone: 'detailed',
+        },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockPluginManager,
+        mockEditorLauncher
+      );
 
       // Verify all options passed correctly
       expect(MockInteractiveSession).toHaveBeenCalledWith(

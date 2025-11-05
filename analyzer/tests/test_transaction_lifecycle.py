@@ -7,14 +7,14 @@ Tests both git-based and non-git modes to ensure both work correctly.
 """
 
 import sys
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.writer.transaction_manager import TransactionManager
 from src.utils.git_helper import GitHelper
+from src.writer.transaction_manager import TransactionManager
 
 
 class TestFullLifecycle:

@@ -1,15 +1,16 @@
 """Tests for TransactionManager."""
 
 import sys
-from pathlib import Path
 import tempfile
 import time
+from pathlib import Path
+
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.writer.transaction_manager import TransactionManager
 from src.utils.git_helper import GitHelper
+from src.writer.transaction_manager import TransactionManager
 
 
 def test_begin_transaction_creates_manifest():
@@ -509,8 +510,9 @@ def test_transaction_manager_passes_timeout_to_git():
     if not GitHelper.check_git_available():
         pytest.skip("Git not available")
 
+    from unittest.mock import MagicMock, patch
+
     from src.utils.git_helper import GitTimeoutConfig
-    from unittest.mock import patch, MagicMock
 
     with tempfile.TemporaryDirectory() as tmpdir:
         base_path = Path(tmpdir)

@@ -269,7 +269,9 @@ describe('EditorLauncher', () => {
 
       setImmediate(() => mockProcess.emit('error', new Error('spawn failed')));
 
-      await expect(promise).rejects.toThrow('Failed to launch editor: spawn failed');
+      await expect(promise).rejects.toThrow(
+        'Failed to launch editor: spawn failed'
+      );
     });
 
     it('should clean up temp file on editor error', async () => {
@@ -283,7 +285,9 @@ describe('EditorLauncher', () => {
 
       setImmediate(() => mockProcess.emit('error', new Error('spawn failed')));
 
-      await expect(promise).rejects.toThrow('Failed to launch editor: spawn failed');
+      await expect(promise).rejects.toThrow(
+        'Failed to launch editor: spawn failed'
+      );
 
       expect(mockRemoveCallback).toHaveBeenCalled();
     });
@@ -485,7 +489,11 @@ describe('EditorLauncher', () => {
       // Verify command is split correctly
       expect(mockSpawn).toHaveBeenCalledWith(
         'emacs',
-        expect.arrayContaining(['-nw', '--no-splash', expect.stringMatching(/\.txt$/)]),
+        expect.arrayContaining([
+          '-nw',
+          '--no-splash',
+          expect.stringMatching(/\.txt$/),
+        ]),
         expect.objectContaining({ stdio: 'inherit' })
       );
     });
@@ -503,7 +511,9 @@ describe('EditorLauncher', () => {
 
       // Without shell:true, spawn will try to execute 'vim;' as a literal command
       // which will fail (which is the correct security behavior)
-      setImmediate(() => mockProcess.emit('error', new Error('spawn vim; ENOENT')));
+      setImmediate(() =>
+        mockProcess.emit('error', new Error('spawn vim; ENOENT'))
+      );
 
       await expect(promise).rejects.toThrow('Failed to launch editor');
 

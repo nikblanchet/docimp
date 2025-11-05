@@ -6,7 +6,15 @@
  * configuration, and parse JSON responses.
  */
 
-import type { AnalysisResult, AuditListResult, AuditRatings, PlanResult, SessionSummary, TransactionEntry, RollbackResult } from '../types/analysis.js';
+import type {
+  AnalysisResult,
+  AuditListResult,
+  AuditRatings,
+  PlanResult,
+  SessionSummary,
+  TransactionEntry,
+  RollbackResult,
+} from '../types/analysis.js';
 import type { IConfig } from '../config/IConfig.js';
 
 /**

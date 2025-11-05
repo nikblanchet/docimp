@@ -36,7 +36,10 @@ describe('TypeScript/JavaScript Parser', () => {
   /**
    * Helper to create a test file.
    */
-  async function createTestFile(filename: string, content: string): Promise<string> {
+  async function createTestFile(
+    filename: string,
+    content: string
+  ): Promise<string> {
     const filepath = join(testDir, filename);
     await writeFile(filepath, content, 'utf8');
     testFiles.push(filepath);
@@ -321,14 +324,14 @@ describe('TypeScript/JavaScript Parser', () => {
       // Should have 1 class + 2 methods = 3 items
       expect(items.length).toBe(3);
 
-      const classItem = items.find(item => item.type === 'class');
+      const classItem = items.find((item) => item.type === 'class');
       expect(classItem).toBeDefined();
       expect(classItem!.name).toBe('Calculator');
 
-      const methods = items.filter(item => item.type === 'method');
+      const methods = items.filter((item) => item.type === 'method');
       expect(methods).toHaveLength(2);
-      expect(methods.map(m => m.name)).toContain('Calculator.add');
-      expect(methods.map(m => m.name)).toContain('Calculator.subtract');
+      expect(methods.map((m) => m.name)).toContain('Calculator.add');
+      expect(methods.map((m) => m.name)).toContain('Calculator.subtract');
     });
   });
 

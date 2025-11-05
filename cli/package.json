@@ -14,7 +14,12 @@
     "test:integration": "node --test src/__tests__/integration/*.mjs",
     "test:all": "npm test && npm run test:integration",
     "lint": "eslint src --ext .ts",
-    "lint:jsdoc": "eslint src --ext .ts,.js,.mjs,.cjs"
+    "lint:jsdoc": "eslint src --ext .ts,.js,.mjs,.cjs",
+    "format": "prettier --write \"src/**/*.{ts,js,mjs,cjs}\" \"../plugins/**/*.{js,mjs,cjs}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,js,mjs,cjs}\" \"../plugins/**/*.{js,mjs,cjs}\"",
+    "format:ts": "prettier --write \"src/**/*.ts\"",
+    "format:js": "prettier --write \"src/**/*.{js,mjs,cjs}\" \"../plugins/**/*.{js,mjs,cjs}\"",
+    "prepare": "husky"
   },
   "keywords": [
     "documentation",
@@ -46,8 +51,22 @@
     "@typescript-eslint/eslint-plugin": "^8.20.0",
     "@typescript-eslint/parser": "^8.20.0",
     "eslint": "^9.18.0",
+    "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsdoc": "^61.1.2",
+    "husky": "^9.1.7",
     "jest": "^29.7.0",
+    "lint-staged": "^16.2.6",
+    "prettier": "^3.6.2",
     "ts-jest": "^29.2.5"
+  },
+  "lint-staged": {
+    "*.{ts,js,mjs,cjs}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.py": [
+      "ruff format",
+      "ruff check --fix"
+    ]
   }
 }

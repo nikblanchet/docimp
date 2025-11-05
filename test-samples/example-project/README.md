@@ -1,6 +1,7 @@
 # Example Project
 
-This is a sample polyglot codebase for testing DocImp's documentation analysis and improvement capabilities.
+This is a sample polyglot codebase for testing DocImp's documentation analysis and
+improvement capabilities.
 
 ## Purpose
 

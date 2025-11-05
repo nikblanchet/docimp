@@ -13,7 +13,6 @@ import type { IPythonBridge } from '../python-bridge/IPythonBridge.js';
 import type { IDisplay } from '../display/IDisplay.js';
 import type { IConfigLoader } from '../config/IConfigLoader.js';
 
-
 /**
  * Core analyze logic (extracted for testability).
  *

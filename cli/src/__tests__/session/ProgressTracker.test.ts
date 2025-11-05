@@ -199,7 +199,9 @@ describe('ProgressTracker', () => {
 
       const progressString = tracker.getProgressString();
 
-      expect(progressString).toBe('3/10 items (1 accepted, 1 skipped, 1 error)');
+      expect(progressString).toBe(
+        '3/10 items (1 accepted, 1 skipped, 1 error)'
+      );
     });
 
     it('should not include errors in progress string when zero', () => {
@@ -221,7 +223,9 @@ describe('ProgressTracker', () => {
 
       const progressString = tracker.getProgressString();
 
-      expect(progressString).toBe('4/10 items (1 accepted, 0 skipped, 3 errors)');
+      expect(progressString).toBe(
+        '4/10 items (1 accepted, 0 skipped, 3 errors)'
+      );
     });
   });
 

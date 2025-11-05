@@ -1,10 +1,11 @@
 """Tests for GitHelper utilities."""
 
-import sys
-from pathlib import Path
-import tempfile
 import subprocess
+import sys
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
+
 import pytest
 
 # Add src to path for imports

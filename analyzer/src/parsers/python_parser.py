@@ -2,8 +2,9 @@
 
 import ast
 from typing import List, Optional
-from .base_parser import BaseParser
+
 from ..models.code_item import CodeItem
+from .base_parser import BaseParser
 
 
 class PythonParser(BaseParser):
@@ -14,7 +15,7 @@ class PythonParser(BaseParser):
     cyclomatic complexity and docstring presence.
     """
 
-    def parse_file(self, filepath: str) -> List[CodeItem]:
+    def parse_file(self, filepath: str) -> list[CodeItem]:
         """
         Parse a Python file and extract code items.
 
@@ -36,11 +37,11 @@ class PythonParser(BaseParser):
             If the file contains invalid Python syntax
         """
         try:
-            with open(filepath, "r", encoding="utf-8") as f:
+            with open(filepath, encoding="utf-8") as f:
                 source = f.read()
 
             tree = ast.parse(source, filename=filepath)
-            items: List[CodeItem] = []
+            items: list[CodeItem] = []
 
             # Build parent map to detect methods (functions inside classes)
             # This prevents method duplication while still extracting nested functions.
@@ -86,7 +87,7 @@ class PythonParser(BaseParser):
 
     def _extract_function(
         self, node: ast.FunctionDef | ast.AsyncFunctionDef, filepath: str
-    ) -> Optional[CodeItem]:
+    ) -> CodeItem | None:
         """Extract a function definition as a CodeItem."""
         return CodeItem(
             name=node.name,
@@ -105,7 +106,7 @@ class PythonParser(BaseParser):
             module_system="unknown",  # Python uses imports, not module systems
         )
 
-    def _extract_class(self, node: ast.ClassDef, filepath: str) -> Optional[CodeItem]:
+    def _extract_class(self, node: ast.ClassDef, filepath: str) -> CodeItem | None:
         """Extract a class definition as a CodeItem."""
         return CodeItem(
             name=node.name,
@@ -129,7 +130,7 @@ class PythonParser(BaseParser):
         node: ast.FunctionDef | ast.AsyncFunctionDef,
         class_name: str,
         filepath: str,
-    ) -> Optional[CodeItem]:
+    ) -> CodeItem | None:
         """Extract a method definition as a CodeItem."""
         return CodeItem(
             name=f"{class_name}.{node.name}",
@@ -156,7 +157,7 @@ class PythonParser(BaseParser):
 
     def _extract_parameters(
         self, node: ast.FunctionDef | ast.AsyncFunctionDef
-    ) -> List[str]:
+    ) -> list[str]:
         """Extract parameter names from a function."""
         params = []
 
@@ -176,7 +177,7 @@ class PythonParser(BaseParser):
 
     def _extract_return_type(
         self, node: ast.FunctionDef | ast.AsyncFunctionDef
-    ) -> Optional[str]:
+    ) -> str | None:
         """Extract return type annotation if present."""
         if node.returns:
             return ast.unparse(node.returns)
@@ -205,19 +206,20 @@ class PythonParser(BaseParser):
                     continue
 
                 # Count decision points
-                if isinstance(child, (ast.If, ast.While, ast.For, ast.AsyncFor)):
-                    complexity += 1
-                elif isinstance(child, ast.ExceptHandler):
+                if isinstance(
+                    child, (ast.If, ast.While, ast.For, ast.AsyncFor)
+                ) or isinstance(child, ast.ExceptHandler):
                     complexity += 1
                 elif isinstance(child, ast.BoolOp):
                     complexity += len(child.values) - 1
-                elif isinstance(
-                    child, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
+                elif (
+                    isinstance(
+                        child,
+                        (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp),
+                    )
+                    or isinstance(child, ast.Assert)
+                    or isinstance(child, (ast.With, ast.AsyncWith))
                 ):
-                    complexity += 1
-                elif isinstance(child, ast.Assert):
-                    complexity += 1
-                elif isinstance(child, (ast.With, ast.AsyncWith)):
                     complexity += 1
 
                 # Recursively traverse non-function children

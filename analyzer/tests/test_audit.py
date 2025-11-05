@@ -1,16 +1,17 @@
 """Basic smoke tests for audit functionality."""
 
-import sys
 import json
+import sys
 from pathlib import Path
 from unittest.mock import patch
+
 import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.audit.quality_rater import AuditResult, load_audit_results, save_audit_results
-from src.main import cmd_audit, cmd_apply_audit
+from src.main import cmd_apply_audit, cmd_audit
 from src.parsers.python_parser import PythonParser
 from src.parsers.typescript_parser import TypeScriptParser
 from src.scoring.impact_scorer import ImpactScorer
@@ -22,8 +23,8 @@ class TestAuditCommand:
     @pytest.fixture
     def mock_analyzer(self):
         """Create a mock analyzer with documented and undocumented items."""
-        from src.models.code_item import CodeItem
         from src.models.analysis_result import AnalysisResult
+        from src.models.code_item import CodeItem
 
         documented_item = CodeItem(
             name="documented_func",
@@ -154,7 +155,7 @@ class TestApplyAuditCommand:
         assert audit_file.exists()
 
         # Verify contents
-        with open(audit_file, "r") as f:
+        with open(audit_file) as f:
             saved_data = json.load(f)
 
         assert saved_data["ratings"] == audit_data["ratings"]
@@ -201,7 +202,7 @@ class TestAuditPersistence:
         assert audit_file.exists()
 
         # Verify contents
-        with open(audit_file, "r") as f:
+        with open(audit_file) as f:
             saved_data = json.load(f)
 
         assert "ratings" in saved_data
@@ -218,7 +219,7 @@ class TestAuditPersistence:
         save_audit_results(audit_result, audit_file)
 
         # Load and verify
-        with open(audit_file, "r") as f:
+        with open(audit_file) as f:
             saved_data = json.load(f)
 
         assert saved_data["ratings"]["test.py"]["rated_func"] == 3
