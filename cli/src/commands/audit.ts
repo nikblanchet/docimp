@@ -165,7 +165,7 @@ async function saveAuditProgress(state: AuditSessionState): Promise<void> {
  * @param isoTimestamp - ISO 8601 timestamp
  * @returns Human-readable elapsed time (e.g., "2h ago", "5m ago")
  */
-function formatElapsedTime(isoTimestamp: string): string {
+export function formatElapsedTime(isoTimestamp: string): string {
   const started = new Date(isoTimestamp);
   const now = new Date();
   const elapsed = now.getTime() - started.getTime();
@@ -193,7 +193,7 @@ function formatElapsedTime(isoTimestamp: string): string {
  * @param defaultYes - Default to Yes if user presses Enter
  * @returns True if user selected Yes, false otherwise
  */
-async function promptYesNo(
+export async function promptYesNo(
   message: string,
   defaultYes: boolean
 ): Promise<boolean> {
@@ -324,7 +324,7 @@ async function loadResumeSession(
  * @param partialRatings - Ratings from session state
  * @returns Items with null or undefined ratings
  */
-function filterUnratedItems(
+export function filterUnratedItems(
   items: AuditItem[],
   partialRatings: Record<string, Record<string, number | null>>
 ): AuditItem[] {
