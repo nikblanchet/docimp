@@ -6,12 +6,12 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import path from 'node:path';
 import chalk from 'chalk';
 import prompts from 'prompts';
+import type { IConfigLoader } from '../config/i-config-loader.js';
 import type { IConfig } from '../config/i-config.js';
 import { isPluginConfig } from '../config/i-config.js';
-import type { IConfigLoader } from '../config/i-config-loader.js';
 import { EXIT_CODE, type ExitCode } from '../constants/exit-codes.js';
 import {
   STYLE_GUIDE_CHOICES,

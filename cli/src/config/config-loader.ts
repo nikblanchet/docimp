@@ -11,9 +11,9 @@ import { pathToFileURL } from 'node:url';
 import { PathValidator } from '../utils/path-validator.js';
 import { ConfigErrorClassifier } from './config-error-classifier.js';
 import { validateAndMerge } from './config-validator.js';
+import type { IConfigLoader } from './i-config-loader.js';
 import type { IConfig } from './i-config.js';
 import { defaultConfig } from './i-config.js';
-import type { IConfigLoader } from './i-config-loader.js';
 
 /**
  * Configuration loader class.

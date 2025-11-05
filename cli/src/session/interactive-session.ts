@@ -15,8 +15,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { UserCancellationError } from '../commands/improve.js';
 import type { IConfig } from '../config/i-config.js';
 import type { IEditorLauncher } from '../editor/i-editor-launcher.js';
-import type { PluginResult, CodeItemMetadata } from '../plugins/IPlugin.js';
 import type { IPluginManager } from '../plugins/i-plugin-manager.js';
+import type { PluginResult, CodeItemMetadata } from '../plugins/i-plugin.js';
 import type { IPythonBridge } from '../python-bridge/i-python-bridge.js';
 import type { PlanItem, SupportedLanguage } from '../types/analysis.js';
 import type { IInteractiveSession } from './i-interactive-session.js';
@@ -267,8 +267,6 @@ export class InteractiveSession implements IInteractiveSession {
           console.log(chalk.yellow('No changes made in editor'));
           continue;
         }
-      
-      break;
       }
       case 'regenerate': {
         // Prompt for feedback
@@ -287,8 +285,6 @@ export class InteractiveSession implements IInteractiveSession {
         } else {
           continue;
         }
-      
-      break;
       }
       case 'skip': {
         tracker.recordSkipped();
@@ -299,8 +295,6 @@ export class InteractiveSession implements IInteractiveSession {
         await this.handleUndo();
         // Stay on current item - continue loop to re-present
         continue;
-      
-      break;
       }
       case 'quit': {
         return false; // Stop processing

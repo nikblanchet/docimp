@@ -102,19 +102,19 @@ export class StateManager {
    * @param basePath - Base directory to resolve from. If not provided, uses current working directory.
    */
   static ensureStateDir(basePath?: string): void {
-    const stateDir = this.getStateDir(basePath);
-    const sessionReportsDir = this.getSessionReportsDir(basePath);
-    const historyDir = this.getHistoryDir(basePath);
+    const stateDirectory = this.getStateDir(basePath);
+    const sessionReportsDirectory = this.getSessionReportsDir(basePath);
+    const historyDirectory = this.getHistoryDir(basePath);
 
     // Create directories with recursive option (idempotent)
-    if (!existsSync(stateDir)) {
-      mkdirSync(stateDir, { recursive: true });
+    if (!existsSync(stateDirectory)) {
+      mkdirSync(stateDirectory, { recursive: true });
     }
-    if (!existsSync(sessionReportsDir)) {
-      mkdirSync(sessionReportsDir, { recursive: true });
+    if (!existsSync(sessionReportsDirectory)) {
+      mkdirSync(sessionReportsDirectory, { recursive: true });
     }
-    if (!existsSync(historyDir)) {
-      mkdirSync(historyDir, { recursive: true });
+    if (!existsSync(historyDirectory)) {
+      mkdirSync(historyDirectory, { recursive: true });
     }
   }
 
@@ -129,20 +129,20 @@ export class StateManager {
    * @returns Number of files removed.
    */
   static clearSessionReports(basePath?: string): number {
-    const sessionReportsDir = this.getSessionReportsDir(basePath);
+    const sessionReportsDirectory = this.getSessionReportsDir(basePath);
 
     // Ensure directory exists first
-    if (!existsSync(sessionReportsDir)) {
+    if (!existsSync(sessionReportsDirectory)) {
       this.ensureStateDir(basePath);
       return 0;
     }
 
     // Remove all files in session-reports/
     let filesRemoved = 0;
-    const items = readdirSync(sessionReportsDir);
+    const items = readdirSync(sessionReportsDirectory);
 
     for (const item of items) {
-      const itemPath = path.join(sessionReportsDir, item);
+      const itemPath = path.join(sessionReportsDirectory, item);
       const stats = statSync(itemPath);
 
       if (stats.isFile()) {

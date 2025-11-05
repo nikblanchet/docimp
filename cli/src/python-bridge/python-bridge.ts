@@ -7,7 +7,7 @@
 
 import { spawn, spawnSync, ChildProcess } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import path from 'node:path';
 import { z } from 'zod';
 import type { IConfig } from '../config/i-config.js';
 import { defaultConfig } from '../config/i-config.js';
@@ -57,12 +57,12 @@ import {
  * @returns Absolute path to analyzer directory
  * @throws Error if analyzer directory not found in any location
  */
-function findAnalyzerDir(): string {
+function findAnalyzerDirectory(): string {
   // Check environment variable first (allows custom installations)
   const environmentPath = process.env.DOCIMP_ANALYZER_PATH;
   if (environmentPath) {
     if (existsSync(environmentPath)) {
-      return resolve(environmentPath);
+      return path.resolve(environmentPath);
     }
     throw new Error(
       `DOCIMP_ANALYZER_PATH is set to "${environmentPath}" but directory does not exist.\n` +
@@ -74,12 +74,12 @@ function findAnalyzerDir(): string {
   // Try multiple strategies based on common deployment scenarios
   const strategies = [
     {
-      path: resolve(process.cwd(), '..', 'analyzer'),
+      path: path.resolve(process.cwd(), '..', 'analyzer'),
       context: 'cli/ directory (development/tests)',
     },
-    { path: resolve(process.cwd(), 'analyzer'), context: 'repo root' },
+    { path: path.resolve(process.cwd(), 'analyzer'), context: 'repo root' },
     {
-      path: resolve(process.cwd(), '..', '..', 'analyzer'),
+      path: path.resolve(process.cwd(), '..', '..', 'analyzer'),
       context: 'global npm install',
     },
   ];
@@ -179,7 +179,7 @@ export class PythonBridge implements IPythonBridge {
 
     // Auto-detect analyzer path relative to module location
     // This works regardless of user's cwd, global install, or directory structure
-    this.analyzerModule = analyzerPath ? analyzerPath : findAnalyzerDir();
+    this.analyzerModule = analyzerPath || findAnalyzerDirectory();
 
     // Load timeout settings from config or use defaults
     this.defaultTimeout =
@@ -309,7 +309,7 @@ export class PythonBridge implements IPythonBridge {
   async analyze(options: AnalyzeOptions): Promise<AnalysisResult> {
     // Resolve path to absolute before passing to Python subprocess
     // This is necessary because the subprocess runs with CWD set to analyzer/
-    const absolutePath = resolve(process.cwd(), options.path);
+    const absolutePath = path.resolve(process.cwd(), options.path);
 
     const arguments_ = [
       '-m',
@@ -344,13 +344,13 @@ export class PythonBridge implements IPythonBridge {
    */
   async audit(options: AuditOptions): Promise<AuditListResult> {
     // Resolve path to absolute before passing to Python subprocess
-    const absolutePath = resolve(process.cwd(), options.path);
+    const absolutePath = path.resolve(process.cwd(), options.path);
 
     const arguments_ = ['-m', 'src.main', 'audit', absolutePath];
 
     if (options.auditFile) {
       // Resolve audit file to absolute path (Python subprocess runs in analyzer/ dir)
-      const absoluteAuditFile = resolve(process.cwd(), options.auditFile);
+      const absoluteAuditFile = path.resolve(process.cwd(), options.auditFile);
       arguments_.push('--audit-file', absoluteAuditFile);
     }
 
@@ -378,7 +378,7 @@ export class PythonBridge implements IPythonBridge {
 
     if (auditFile) {
       // Resolve audit file to absolute path (Python subprocess runs in analyzer/ dir)
-      const absoluteAuditFile = resolve(process.cwd(), auditFile);
+      const absoluteAuditFile = path.resolve(process.cwd(), auditFile);
       arguments_.push('--audit-file', absoluteAuditFile);
     }
 
@@ -446,19 +446,19 @@ export class PythonBridge implements IPythonBridge {
    */
   async plan(options: PlanOptions): Promise<PlanResult> {
     // Resolve path to absolute before passing to Python subprocess
-    const absolutePath = resolve(process.cwd(), options.path);
+    const absolutePath = path.resolve(process.cwd(), options.path);
 
     const arguments_ = ['-m', 'src.main', 'plan', absolutePath];
 
     if (options.auditFile) {
       // Resolve audit file to absolute path (Python subprocess runs in analyzer/ dir)
-      const absoluteAuditFile = resolve(process.cwd(), options.auditFile);
+      const absoluteAuditFile = path.resolve(process.cwd(), options.auditFile);
       arguments_.push('--audit-file', absoluteAuditFile);
     }
 
     if (options.planFile) {
       // Resolve plan file to absolute path (Python subprocess runs in analyzer/ dir)
-      const absolutePlanFile = resolve(process.cwd(), options.planFile);
+      const absolutePlanFile = path.resolve(process.cwd(), options.planFile);
       arguments_.push('--plan-file', absolutePlanFile);
     }
 
@@ -614,7 +614,7 @@ export class PythonBridge implements IPythonBridge {
       }
     };
 
-    const timeoutPromise = new Promise<never>((_, reject) => {
+    const timeoutPromise = new Promise<never>((_resolve, reject) => {
       timeoutId = setTimeout(() => {
         // Try graceful shutdown first (SIGTERM)
         childProcess.kill('SIGTERM');
