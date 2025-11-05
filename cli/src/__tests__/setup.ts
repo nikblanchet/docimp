@@ -5,15 +5,11 @@
  */
 
 import { resolve } from 'path';
-import { fileURLToPath } from 'url';
-
-const setupDir = fileURLToPath(new URL('.', import.meta.url));
 
 // Set DOCIMP_ANALYZER_PATH for all tests
-// Resolve relative paths via import.meta.url so this works in ESM without __dirname
 // This environment variable tells PythonBridge where to find the analyzer
 process.env.DOCIMP_ANALYZER_PATH = resolve(
-  setupDir,
+  __dirname,
   '..',
   '..',
   '..',
