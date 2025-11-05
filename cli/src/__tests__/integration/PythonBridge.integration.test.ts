@@ -21,13 +21,11 @@ import type {
   PlanResult,
 } from '../../types/analysis.js';
 import { existsSync } from 'fs';
-import { fileURLToPath } from 'url';
+import { resolve } from 'path';
 
 describe('PythonBridge Integration (Real Python Subprocess)', () => {
   let bridge: PythonBridge;
-  const examplesPath = fileURLToPath(
-    new URL('../../../../examples/', import.meta.url)
-  );
+  const examplesPath = resolve(__dirname, '../../../../examples');
 
   beforeAll(() => {
     // Verify examples directory exists

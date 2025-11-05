@@ -137,8 +137,7 @@ export class TerminalDisplay implements IDisplay {
     );
 
     // Sort languages alphabetically
-    // eslint-disable-next-line unicorn/no-array-sort
-    const languages = Object.keys(byLanguage).sort();
+    const languages = Object.keys(byLanguage).toSorted();
 
     for (const lang of languages) {
       const metrics = byLanguage[lang];
@@ -169,8 +168,7 @@ export class TerminalDisplay implements IDisplay {
 
     // Sort by impact score descending
     const sorted = undocumented
-      // eslint-disable-next-line unicorn/no-array-sort
-      .sort((a, b) => b.impact_score - a.impact_score)
+      .toSorted((a, b) => b.impact_score - a.impact_score)
       .slice(0, 10);
 
     const table = this.createResponsiveTable(
