@@ -334,7 +334,10 @@ class StateManager:
         Returns:
             Absolute path to .docimp/session-reports/audit-session-{session_id}.json.
         """
-        return cls.get_session_reports_dir(base_path) / f"audit-session-{session_id}.json"
+        return (
+            cls.get_session_reports_dir(base_path)
+            / f"audit-session-{session_id}.json"
+        )
 
     @classmethod
     def get_improve_session_file(
@@ -350,4 +353,7 @@ class StateManager:
         Returns:
             Absolute path to .docimp/session-reports/improve-session-{session_id}.json.
         """
-        return cls.get_session_reports_dir(base_path) / f"improve-session-{session_id}.json"
+        return (
+            cls.get_session_reports_dir(base_path)
+            / f"improve-session-{session_id}.json"
+        )
