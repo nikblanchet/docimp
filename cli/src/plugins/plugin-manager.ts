@@ -15,13 +15,13 @@ import { parse as commentParserParse } from 'comment-parser';
 import * as typescript from 'typescript';
 import type { IConfig } from '../config/i-config.js';
 import { isPluginConfig } from '../config/i-config.js';
+import type { IPluginManager } from './i-plugin-manager.js';
 import type {
   IPlugin,
   PluginResult,
   CodeItemMetadata,
   PluginDependencies,
-} from './IPlugin.js';
-import type { IPluginManager } from './i-plugin-manager.js';
+} from './i-plugin.js';
 
 // Import dependencies to inject into plugins
 
@@ -281,7 +281,7 @@ export class PluginManager implements IPluginManager {
   ): Promise<T> {
     let timerId: NodeJS.Timeout;
 
-    const timeoutPromise = new Promise<never>((_, reject) => {
+    const timeoutPromise = new Promise<never>((_resolve, reject) => {
       timerId = setTimeout(
         () =>
           reject(

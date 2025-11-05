@@ -6,7 +6,7 @@
  */
 
 import * as fs from 'node:fs';
-import * as path from 'node:path';
+import path from 'node:path';
 import * as ts from 'typescript';
 
 /**
@@ -82,7 +82,7 @@ function getDocstring(node: ts.Node, sourceFile: ts.SourceFile): string | null {
 
   if (jsDocumentComments.length > 0) {
     const firstComment = jsDocumentComments[0];
-    return fullText.substring(firstComment.pos, firstComment.end).trim();
+    return fullText.slice(firstComment.pos, firstComment.end).trim();
   }
 
   return null;

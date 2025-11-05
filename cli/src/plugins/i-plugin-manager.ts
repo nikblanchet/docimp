@@ -5,7 +5,7 @@
  */
 
 import type { IConfig } from '../config/i-config.js';
-import type { PluginResult, CodeItemMetadata } from './IPlugin.js';
+import type { PluginResult, CodeItemMetadata } from './i-plugin.js';
 
 /**
  * Plugin manager interface.
