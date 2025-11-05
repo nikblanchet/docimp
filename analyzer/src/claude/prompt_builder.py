@@ -6,7 +6,6 @@ and tone preferences to generate high-quality documentation.
 """
 
 
-
 class PromptBuilder:
     """
     Builder for creating documentation generation prompts.

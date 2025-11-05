@@ -97,9 +97,7 @@ class TestTypeScriptParserSubprocessErrors:
 
         # Patch subprocess.run in the parser module's namespace
         with (
-            patch(
-                "src.parsers.typescript_parser.subprocess.run", side_effect=mock_run
-            ),
+            patch("src.parsers.typescript_parser.subprocess.run", side_effect=mock_run),
             pytest.raises(FileNotFoundError),
         ):
             # Parser catches FileNotFoundError and re-raises with generic message
