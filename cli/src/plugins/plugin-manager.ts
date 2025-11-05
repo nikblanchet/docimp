@@ -47,7 +47,7 @@ export class PluginManager implements IPluginManager {
    *
    * @param pluginPaths - Array of paths to plugin files
    * @param projectRoot - Project root directory (for relative path resolution)
-   * @param additionalAllowedDirs - Additional directories to allow plugin loading from (for testing only)
+   * @param additionalAllowedDirectories - Additional directories to allow plugin loading from (for testing only)
    * @throws Error if plugin loading fails
    */
   async loadPlugins(
@@ -75,7 +75,7 @@ export class PluginManager implements IPluginManager {
    *
    * @param pluginPath - Path to plugin file (relative or absolute)
    * @param projectRoot - Project root directory
-   * @param additionalAllowedDirs - Additional directories to allow plugin loading from (for testing only)
+   * @param additionalAllowedDirectories - Additional directories to allow plugin loading from (for testing only)
    */
   private async loadPlugin(
     pluginPath: string,
@@ -133,7 +133,7 @@ export class PluginManager implements IPluginManager {
    * @param absolutePath - Absolute path to plugin file
    * @param projectRoot - Project root directory
    * @param originalPath - Original path from config (for error messages)
-   * @param additionalAllowedDirs - Additional directories to allow (for testing only)
+   * @param additionalAllowedDirectories - Additional directories to allow (for testing only)
    * @throws Error if plugin path is unsafe or invalid
    */
   private validatePluginPath(

@@ -642,7 +642,7 @@ export class PythonBridge implements IPythonBridge {
   /**
    * Execute Python subprocess and return text output (not JSON).
    *
-   * @param args - Command-line arguments for Python
+   * @param arguments_ - Command-line arguments for Python
    * @param verbose - Whether to show verbose output
    * @param timeoutMs - Timeout in milliseconds (default: this.suggestTimeout for suggest, this.defaultTimeout otherwise)
    * @returns Promise resolving to text output
@@ -727,7 +727,7 @@ export class PythonBridge implements IPythonBridge {
   /**
    * Execute Python subprocess and parse JSON output.
    *
-   * @param args - Command-line arguments for Python
+   * @param arguments_ - Command-line arguments for Python
    * @param verbose - Whether to show verbose output
    * @param schema - Optional Zod schema for runtime validation
    * @param timeoutMs - Timeout in milliseconds (default: this.defaultTimeout)
