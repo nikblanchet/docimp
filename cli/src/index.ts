@@ -87,6 +87,13 @@ program
   )
   .option('--config <path>', 'Path to configuration file')
   .option('--verbose', 'Enable verbose output')
+  .option('--resume', 'Resume an incomplete audit session')
+  .option(
+    '--resume-file <file>',
+    'Resume specific session file (skips selection list)'
+  )
+  .option('--new', 'Force new session (ignore existing sessions)')
+  .option('--clear-session', 'Delete all incomplete sessions and exit')
   .action(async (path, options) => {
     try {
       // Instantiate dependencies
