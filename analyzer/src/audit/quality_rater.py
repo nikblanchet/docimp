@@ -75,7 +75,7 @@ def load_audit_results(audit_file: Path | None = None) -> AuditResult:
         return AuditResult(ratings={})
 
     try:
-        with open(audit_file) as f:
+        with audit_file.open() as f:
             data = json.load(f)
         return AuditResult(ratings=data.get("ratings", {}))
     except (OSError, json.JSONDecodeError):
@@ -98,5 +98,5 @@ def save_audit_results(
 
     # Ensure state directory exists before writing
     StateManager.ensure_state_dir()
-    with open(audit_file, "w") as f:
+    with audit_file.open("w") as f:
         json.dump(audit_result.to_dict(), f, indent=2)

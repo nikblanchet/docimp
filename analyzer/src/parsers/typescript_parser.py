@@ -182,27 +182,26 @@ class TypeScriptParser(BaseParser):
                     raise SyntaxError(error_message)
 
             # Convert JSON data to CodeItem objects
-            items: list[CodeItem] = []
-            for item_data in items_data:
-                items.append(
-                    CodeItem(
-                        name=item_data["name"],
-                        type=item_data["type"],
-                        filepath=item_data["filepath"],
-                        line_number=item_data["line_number"],
-                        end_line=item_data["end_line"],
-                        language=item_data["language"],
-                        complexity=item_data["complexity"],
-                        impact_score=item_data["impact_score"],
-                        has_docs=item_data["has_docs"],
-                        parameters=item_data["parameters"],
-                        return_type=item_data.get("return_type"),
-                        docstring=item_data.get("docstring"),
-                        export_type=item_data["export_type"],
-                        module_system=item_data["module_system"],
-                        audit_rating=None,  # Will be set by audit command if needed
-                    )
+            items: list[CodeItem] = [
+                CodeItem(
+                    name=item_data["name"],
+                    type=item_data["type"],
+                    filepath=item_data["filepath"],
+                    line_number=item_data["line_number"],
+                    end_line=item_data["end_line"],
+                    language=item_data["language"],
+                    complexity=item_data["complexity"],
+                    impact_score=item_data["impact_score"],
+                    has_docs=item_data["has_docs"],
+                    parameters=item_data["parameters"],
+                    return_type=item_data.get("return_type"),
+                    docstring=item_data.get("docstring"),
+                    export_type=item_data["export_type"],
+                    module_system=item_data["module_system"],
+                    audit_rating=None,  # Will be set by audit command if needed
                 )
+                for item_data in items_data
+            ]
 
             return items
 

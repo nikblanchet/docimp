@@ -20,7 +20,7 @@ class TestAnalyzeAutoClean:
         """Test that analyze clears old audit.json by default."""
         with TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
-            original_cwd = os.getcwd()
+            original_cwd = Path.cwd()
 
             try:
                 # Change to temp directory so StateManager uses it as base
@@ -54,7 +54,7 @@ class TestAnalyzeAutoClean:
         """Test that analyze clears old plan.json by default."""
         with TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
-            original_cwd = os.getcwd()
+            original_cwd = Path.cwd()
 
             try:
                 # Change to temp directory so StateManager uses it as base
@@ -88,7 +88,7 @@ class TestAnalyzeAutoClean:
         """Test that analyze preserves reports with --keep-old-reports flag."""
         with TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
-            original_cwd = os.getcwd()
+            original_cwd = Path.cwd()
 
             try:
                 # Change to temp directory so StateManager uses it as base
@@ -135,7 +135,7 @@ class TestAnalyzeAutoClean:
         """Test that analyze saves result to analyze-latest.json."""
         with TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
-            original_cwd = os.getcwd()
+            original_cwd = Path.cwd()
 
             try:
                 # Change to temp directory so StateManager uses it as base
@@ -170,7 +170,7 @@ class TestAnalyzeAutoClean:
         """Test that analyze clears all files in session-reports."""
         with TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
-            original_cwd = os.getcwd()
+            original_cwd = Path.cwd()
 
             try:
                 # Change to temp directory so StateManager uses it as base
@@ -222,7 +222,7 @@ class TestAnalyzeAutoClean:
         """Test that analyze does not touch the history directory."""
         with TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
-            original_cwd = os.getcwd()
+            original_cwd = Path.cwd()
 
             try:
                 # Change to temp directory so StateManager uses it as base
@@ -259,7 +259,7 @@ class TestAnalyzeAutoClean:
         """Test that analyze creates state directory if it doesn't exist."""
         with TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
-            original_cwd = os.getcwd()
+            original_cwd = Path.cwd()
 
             try:
                 # Change to temp directory so StateManager uses it as base

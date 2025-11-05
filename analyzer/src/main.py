@@ -128,11 +128,11 @@ def format_summary(result) -> str:
         lines.append("Top Undocumented Items (by impact):")
         lines.append("-" * 60)
         sorted_items = sorted(undocumented, key=lambda x: x.impact_score, reverse=True)
-        for item in sorted_items[:10]:  # Show top 10
-            lines.append(
-                f"  [{item.impact_score:5.1f}] {item.type:8s} "
-                f"{item.name:30s} ({item.filepath}:{item.line_number})"
-            )
+        lines.extend(
+            f"  [{item.impact_score:5.1f}] {item.type:8s} "
+            f"{item.name:30s} ({item.filepath}:{item.line_number})"
+            for item in sorted_items[:10]  # Show top 10
+        )
 
         if len(undocumented) > 10:
             lines.append(f"  ... and {len(undocumented) - 10} more")
@@ -184,7 +184,7 @@ def cmd_analyze(args: argparse.Namespace, parsers: dict, scorer: ImpactScorer) -
         result = analyzer.analyze(args.path, verbose=args.verbose, strict=args.strict)
 
         # Save analysis result to state directory
-        with open(analyze_file, "w") as f:
+        with analyze_file.open("w") as f:
             f.write(format_json(result))
 
         if args.verbose:
@@ -427,7 +427,7 @@ def cmd_suggest(
             return 1
 
         # Read the file
-        with open(filepath) as f:
+        with filepath.open() as f:
             code_content = f.read()
 
         # Determine language from file extension

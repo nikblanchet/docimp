@@ -262,5 +262,5 @@ def save_plan(plan: PlanResult, output_file: Path | None = None) -> None:
 
     # Ensure state directory exists before writing
     StateManager.ensure_state_dir()
-    with open(output_file, "w") as f:
+    with output_file.open("w") as f:
         json.dump(plan.to_dict(), f, indent=2)

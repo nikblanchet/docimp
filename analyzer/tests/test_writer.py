@@ -66,7 +66,7 @@ def write_and_check(writer, code, jsdoc, item_name, item_type):
         assert success, f"Writer returned False for {item_name}"
 
         # Read result
-        with open(temp_path) as f:
+        with Path(temp_path).open() as f:
             result = f.read()
 
         return result
@@ -435,7 +435,7 @@ def test_backup_cleanup_on_write_failure(writer):
         )
 
         # Verify original file is still intact (restored from backup)
-        with open(temp_path) as f:
+        with Path(temp_path).open() as f:
             content = f.read()
         assert content == code, "Original file should be restored after failure"
 
@@ -750,15 +750,17 @@ class TestAtomicWrites:
                     f"mismatch detected."
                 )
 
-            with patch.object(writer, "_validate_write", side_effect=mock_validate):
-                with pytest.raises(IOError, match="Write validation failed"):
-                    writer.write_docstring(
-                        filepath=str(test_file),
-                        item_name="bar",
-                        item_type="function",
-                        docstring="Test docs",
-                        language="javascript",
-                    )
+            with (
+                patch.object(writer, "_validate_write", side_effect=mock_validate),
+                pytest.raises(IOError, match="Write validation failed"),
+            ):
+                writer.write_docstring(
+                    filepath=str(test_file),
+                    item_name="bar",
+                    item_type="function",
+                    docstring="Test docs",
+                    language="javascript",
+                )
 
             # Verify original file is restored
             content = test_file.read_text()

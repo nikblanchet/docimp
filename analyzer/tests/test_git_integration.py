@@ -5,6 +5,7 @@ This test suite verifies complete isolation between the side-car repository
 safety tests to ensure DocImp never interferes with the user's git workflow.
 """
 
+import contextlib
 import hashlib
 import subprocess
 import sys
@@ -386,10 +387,8 @@ class TestGitEdgeCases:
 
             # This may raise or fall back to non-git mode
             # Either behavior is acceptable, but should not crash
-            try:
+            with contextlib.suppress(subprocess.CalledProcessError, RuntimeError):
                 _manifest = manager.begin_transaction("test-session")
-            except (subprocess.CalledProcessError, RuntimeError):
-                pass  # Graceful failure is acceptable
 
     def test_git_detached_head_state(self):
         """Test operations when side-car repo in detached HEAD."""

@@ -353,14 +353,16 @@ class TestDocumentationAnalyzer:
             test_file.write_text("def foo():\n    pass")
 
             # Mock parser to raise unexpected exception
-            with patch.object(
-                analyzer.parsers["python"],
-                "parse_file",
-                side_effect=UnexpectedException("unexpected"),
+            with (
+                patch.object(
+                    analyzer.parsers["python"],
+                    "parse_file",
+                    side_effect=UnexpectedException("unexpected"),
+                ),
+                pytest.raises(UnexpectedException),
             ):
                 # Should re-raise the unexpected exception
-                with pytest.raises(UnexpectedException):
-                    analyzer.analyze(str(temp_path))
+                analyzer.analyze(str(temp_path))
 
     def test_strict_mode_fails_on_first_parse_error(self, analyzer):
         """Test that strict=True raises exception on first parse error."""

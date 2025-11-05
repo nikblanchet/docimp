@@ -1,6 +1,7 @@
 """Python parser using AST to extract code items."""
 
 import ast
+from pathlib import Path
 
 from ..models.code_item import CodeItem
 from .base_parser import BaseParser
@@ -36,7 +37,7 @@ class PythonParser(BaseParser):
             If the file contains invalid Python syntax
         """
         try:
-            with open(filepath, encoding="utf-8") as f:
+            with Path(filepath).open(encoding="utf-8") as f:
                 source = f.read()
 
             tree = ast.parse(source, filename=filepath)
@@ -158,11 +159,8 @@ class PythonParser(BaseParser):
         self, node: ast.FunctionDef | ast.AsyncFunctionDef
     ) -> list[str]:
         """Extract parameter names from a function."""
-        params = []
-
         # Regular arguments
-        for arg in node.args.args:
-            params.append(arg.arg)
+        params = [arg.arg for arg in node.args.args]
 
         # *args
         if node.args.vararg:
@@ -206,18 +204,22 @@ class PythonParser(BaseParser):
 
                 # Count decision points
                 if isinstance(
-                    child, (ast.If, ast.While, ast.For, ast.AsyncFor)
-                ) or isinstance(child, ast.ExceptHandler):
+                    child, (ast.If, ast.While, ast.For, ast.AsyncFor, ast.ExceptHandler)
+                ):
                     complexity += 1
                 elif isinstance(child, ast.BoolOp):
                     complexity += len(child.values) - 1
-                elif (
-                    isinstance(
-                        child,
-                        (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp),
-                    )
-                    or isinstance(child, ast.Assert)
-                    or isinstance(child, (ast.With, ast.AsyncWith))
+                elif isinstance(
+                    child,
+                    (
+                        ast.ListComp,
+                        ast.SetComp,
+                        ast.DictComp,
+                        ast.GeneratorExp,
+                        ast.Assert,
+                        ast.With,
+                        ast.AsyncWith,
+                    ),
                 ):
                     complexity += 1
 

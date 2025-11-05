@@ -35,9 +35,11 @@ class TestClaudeClientInitialization:
 
     def test_initialization_without_api_key_raises_error(self):
         """Test that missing API key raises ValueError."""
-        with patch.dict("os.environ", {}, clear=True):
-            with pytest.raises(ValueError, match="API key must be provided"):
-                ClaudeClient()
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            pytest.raises(ValueError, match="API key must be provided"),
+        ):
+            ClaudeClient()
 
     def test_custom_model_configuration(self):
         """Test ClaudeClient with custom model."""

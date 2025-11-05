@@ -155,7 +155,7 @@ class TestApplyAuditCommand:
         assert audit_file.exists()
 
         # Verify contents
-        with open(audit_file) as f:
+        with audit_file.open() as f:
             saved_data = json.load(f)
 
         assert saved_data["ratings"] == audit_data["ratings"]
@@ -182,7 +182,7 @@ class TestAuditPersistence:
             }
         }
 
-        with open(audit_file, "w") as f:
+        with audit_file.open("w") as f:
             json.dump(test_data, f)
 
         result = load_audit_results(audit_file)
@@ -202,7 +202,7 @@ class TestAuditPersistence:
         assert audit_file.exists()
 
         # Verify contents
-        with open(audit_file) as f:
+        with audit_file.open() as f:
             saved_data = json.load(f)
 
         assert "ratings" in saved_data
@@ -219,7 +219,7 @@ class TestAuditPersistence:
         save_audit_results(audit_result, audit_file)
 
         # Load and verify
-        with open(audit_file) as f:
+        with audit_file.open() as f:
             saved_data = json.load(f)
 
         assert saved_data["ratings"]["test.py"]["rated_func"] == 3

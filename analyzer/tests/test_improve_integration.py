@@ -63,7 +63,7 @@ class TestImproveIntegration:
                 assert success, "DocstringWriter.write_docstring() returned False"
 
                 # Read the result
-                with open(temp_path) as f:
+                with Path(temp_path).open() as f:
                     result = f.read()
 
                 # Verify docstring is present and wrapped in triple quotes
@@ -125,7 +125,7 @@ class TestImproveIntegration:
                 assert success, "DocstringWriter.write_docstring() returned False"
 
                 # Read result
-                with open(temp_path) as f:
+                with Path(temp_path).open() as f:
                     result = f.read()
 
                 # Verify JSDoc is present
@@ -182,7 +182,7 @@ class TestImproveIntegration:
                 assert success, "DocstringWriter.write_docstring() returned False"
 
                 # Read result
-                with open(temp_path) as f:
+                with Path(temp_path).open() as f:
                     result = f.read()
 
                 # Verify TSDoc is present
@@ -235,7 +235,7 @@ Examples:
                 assert success, "DocstringWriter.write_docstring() returned False"
 
                 # Read result
-                with open(temp_path) as f:
+                with Path(temp_path).open() as f:
                     result = f.read()
 
                 # Verify docstring with examples is present
@@ -292,7 +292,7 @@ Examples:
                 assert success, "DocstringWriter.write_docstring() returned False"
 
                 # Read result
-                with open(temp_path) as f:
+                with Path(temp_path).open() as f:
                     result = f.read()
 
                 # WITHOUT defensive parser, this will fail (markdown gets
@@ -352,7 +352,7 @@ Examples:
                 assert success, "DocstringWriter.write_docstring() returned False"
 
                 # Read result
-                with open(temp_path) as f:
+                with Path(temp_path).open() as f:
                     result = f.read()
 
                 # Verify JSDoc with example is present

@@ -319,11 +319,11 @@ class TestGitHelper:
             # Fast operation should work even with short timeout
             # status is fast (10ms * 0.1 = 1ms timeout)
             try:
-                result = GitHelper.run_git_command(
+                _result = GitHelper.run_git_command(
                     ["status", "--short"], base_path, timeout_config=config
                 )
-                # If git is very fast, this might succeed
-                assert result.returncode == 0 or True  # Allow timeout
+                # If git is very fast, this might succeed - either case is acceptable
+                assert True  # Allow both success and timeout
             except TimeoutError:
                 # This is acceptable - the timeout is intentionally very short
                 pass

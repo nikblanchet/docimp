@@ -7,6 +7,7 @@ This test suite verifies that DocImp handles edge cases gracefully:
 - Edge case scenarios
 """
 
+import contextlib
 import subprocess
 import sys
 import tempfile
@@ -80,10 +81,8 @@ class TestPermissionErrors:
 
                 # Attempting operations should either fail gracefully or skip
                 # The important thing is no crash
-                try:
+                with contextlib.suppress(PermissionError, OSError):
                     _manifest = manager.begin_transaction("test-session")
-                except (PermissionError, OSError):
-                    pass  # Acceptable to fail with clear error
             finally:
                 # Restore permissions for cleanup
                 base_path.chmod(0o755)
@@ -218,11 +217,11 @@ class TestGitStateRecovery:
             manager = TransactionManager(base_path=base_path, use_git=True)
 
             # Operations should either work or fail gracefully
-            try:
+            with contextlib.suppress(
+                subprocess.CalledProcessError, RuntimeError, FileNotFoundError
+            ):
                 _manifest = manager.begin_transaction("test-session")
                 # May succeed or fail depending on implementation
-            except (subprocess.CalledProcessError, RuntimeError, FileNotFoundError):
-                pass  # Acceptable to fail with clear error
 
 
 class TestBackupManagement:

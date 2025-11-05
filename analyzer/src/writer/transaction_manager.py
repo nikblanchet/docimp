@@ -385,7 +385,7 @@ Metadata:
         # Convert manifest to dict, handling TransactionEntry objects
         manifest_dict = asdict(manifest)
 
-        with open(path, "w") as f:
+        with path.open("w") as f:
             json.dump(manifest_dict, f, indent=2)
 
     def load_manifest(self, path: Path) -> TransactionManifest:
@@ -401,7 +401,7 @@ Metadata:
             FileNotFoundError: If manifest file doesn't exist
             json.JSONDecodeError: If manifest file is invalid JSON
         """
-        with open(path) as f:
+        with path.open() as f:
             data = json.load(f)
 
         # Reconstruct TransactionEntry objects from dicts

@@ -118,10 +118,9 @@ class DocumentationAnalyzer:
         all_items: list[CodeItem] = []
         parse_failures: list[ParseFailure] = []
         for i, filepath in enumerate(files, 1):
-            if verbose and len(files) > 10:
+            if verbose and len(files) > 10 and (i % 10 == 0 or i == len(files)):
                 # Show progress for large codebases
-                if i % 10 == 0 or i == len(files):
-                    print(f"Progress: {i}/{len(files)} files parsed", file=sys.stderr)
+                print(f"Progress: {i}/{len(files)} files parsed", file=sys.stderr)
 
             items, failure = self._parse_file(filepath, strict=strict)
             all_items.extend(items)

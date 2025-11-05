@@ -130,7 +130,7 @@ class DocstringWriter:
             If the file content doesn't match expected content
         """
         try:
-            with open(file_path, encoding="utf-8") as f:
+            with file_path.open(encoding="utf-8") as f:
                 actual_content = f.read()
         except Exception as e:
             raise OSError(f"Failed to read back written file '{file_path}': {e}")
@@ -241,7 +241,7 @@ class DocstringWriter:
         file_path = self._validate_path(filepath)
 
         # Read file content
-        with open(file_path, encoding="utf-8") as f:
+        with file_path.open(encoding="utf-8") as f:
             content = f.read()
 
         # Apply docstring based on language
@@ -305,7 +305,7 @@ class DocstringWriter:
             shutil.copy2(file_path, backup_path)
 
             # Atomic rename (overwrites target)
-            os.replace(temp_path, file_path)
+            temp_path.replace(file_path)
 
             return True
 
