@@ -386,6 +386,49 @@ rollback commands are unavailable.
 
 ---
 
+### Audit Session Management
+
+DocImp allows you to manage audit sessions for long-running audits that may be interrupted
+or span multiple work sessions.
+
+**List audit sessions**:
+
+```bash
+# List all audit sessions (shows session ID, progress, status)
+docimp list-audit-sessions
+```
+
+Output includes:
+- Session ID (shortened to 12 characters)
+- Started timestamp (relative, e.g., "2h ago")
+- Completed timestamp (or "N/A" if in-progress)
+- Items rated (e.g., "5/23" means 5 of 23 items rated)
+- Status: "completed" (green) or "in-progress" (yellow)
+
+**Delete audit sessions**:
+
+```bash
+# Delete a specific session
+docimp delete-audit-session <session-id>
+
+# Delete all audit sessions
+docimp delete-audit-session --all
+
+# Skip confirmation prompt
+docimp delete-audit-session <session-id> --force
+docimp delete-audit-session --all --force
+```
+
+Use cases:
+- Clean up incomplete sessions before starting fresh
+- Remove old completed sessions
+- Batch delete with `--all` flag
+- Script deletion with `--force` flag (skips confirmation)
+
+**Session file location**: `.docimp/session-reports/audit-session-{uuid}.json`
+
+---
+
 ## Workflows
 
 DocImp supports two monodirectional workflows in MVP:
