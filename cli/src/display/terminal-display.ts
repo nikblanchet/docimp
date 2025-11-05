@@ -527,7 +527,9 @@ export class TerminalDisplay implements IDisplay {
     width: number,
     hasColor: boolean = false
   ): string {
-    const strippedLength = hasColor ? this.stripAnsiLength(string_) : string_.length;
+    const strippedLength = hasColor
+      ? this.stripAnsiLength(string_)
+      : string_.length;
     const padding = width - strippedLength;
     // Handle case where string exceeds width (no padding)
     if (padding < 2) {

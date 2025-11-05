@@ -5,7 +5,13 @@
  * where all working files (audit results, plans, session reports) are stored.
  */
 
-import { existsSync, mkdirSync, readdirSync, unlinkSync, statSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  unlinkSync,
+  statSync,
+} from 'node:fs';
 import path from 'node:path';
 
 /**

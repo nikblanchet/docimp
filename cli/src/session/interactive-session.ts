@@ -239,67 +239,67 @@ export class InteractiveSession implements IInteractiveSession {
       const action = await this.promptUserAction(validationResults);
 
       switch (action) {
-      case 'accept': {
-        // Write to file
-        const success = await this.writeDocstring(item, currentDocstring);
-        if (success) {
-          tracker.recordAccepted();
-          console.log(
-            chalk.green(`✓ Documentation written to ${item.filepath}`)
+        case 'accept': {
+          // Write to file
+          const success = await this.writeDocstring(item, currentDocstring);
+          if (success) {
+            tracker.recordAccepted();
+            console.log(
+              chalk.green(`✓ Documentation written to ${item.filepath}`)
+            );
+          } else {
+            console.log(chalk.red('Failed to write documentation'));
+            tracker.recordError();
+          }
+          return true; // Continue to next item
+        }
+        case 'edit': {
+          // Launch editor
+          const edited = await this.editDocstring(
+            currentDocstring,
+            item.language
           );
-        } else {
-          console.log(chalk.red('Failed to write documentation'));
-          tracker.recordError();
-        }
-        return true; // Continue to next item
-      }
-      case 'edit': {
-        // Launch editor
-        const edited = await this.editDocstring(
-          currentDocstring,
-          item.language
-        );
-        if (edited) {
-          currentDocstring = edited;
-          // Loop back to validate edited version
-          continue;
-        } else {
-          console.log(chalk.yellow('No changes made in editor'));
-          continue;
-        }
-      }
-      case 'regenerate': {
-        // Prompt for feedback
-        feedback = await this.promptFeedback();
-        if (feedback) {
-          // Request new suggestion with feedback
-          const newDocstring = await this.requestSuggestion(item, feedback);
-          if (newDocstring) {
-            currentDocstring = newDocstring;
-            // Loop back to show new suggestion
+          if (edited) {
+            currentDocstring = edited;
+            // Loop back to validate edited version
             continue;
           } else {
-            console.log(chalk.red('Failed to regenerate suggestion'));
+            console.log(chalk.yellow('No changes made in editor'));
             continue;
           }
-        } else {
+        }
+        case 'regenerate': {
+          // Prompt for feedback
+          feedback = await this.promptFeedback();
+          if (feedback) {
+            // Request new suggestion with feedback
+            const newDocstring = await this.requestSuggestion(item, feedback);
+            if (newDocstring) {
+              currentDocstring = newDocstring;
+              // Loop back to show new suggestion
+              continue;
+            } else {
+              console.log(chalk.red('Failed to regenerate suggestion'));
+              continue;
+            }
+          } else {
+            continue;
+          }
+        }
+        case 'skip': {
+          tracker.recordSkipped();
+          console.log(chalk.yellow('Skipping item'));
+          return true; // Continue to next item
+        }
+        case 'undo': {
+          await this.handleUndo();
+          // Stay on current item - continue loop to re-present
           continue;
         }
-      }
-      case 'skip': {
-        tracker.recordSkipped();
-        console.log(chalk.yellow('Skipping item'));
-        return true; // Continue to next item
-      }
-      case 'undo': {
-        await this.handleUndo();
-        // Stay on current item - continue loop to re-present
-        continue;
-      }
-      case 'quit': {
-        return false; // Stop processing
-      }
-      // No default
+        case 'quit': {
+          return false; // Stop processing
+        }
+        // No default
       }
     }
   }

@@ -213,7 +213,8 @@ export class ConfigErrorClassifier {
 
     // Check for common syntax error patterns
     if (errorMessage.includes('Unexpected end of input')) {
-      suggestions.push('Check for unclosed brackets, braces, or parentheses', 
+      suggestions.push(
+        'Check for unclosed brackets, braces, or parentheses',
         'Ensure all opening brackets have matching closing brackets'
       );
     } else if (
@@ -223,13 +224,20 @@ export class ConfigErrorClassifier {
         errorMessage.includes(')'))
     ) {
       suggestions.push(
-        'Check for missing commas between object properties or array elements'
-      , 'Verify proper nesting of brackets and braces');
+        'Check for missing commas between object properties or array elements',
+        'Verify proper nesting of brackets and braces'
+      );
     } else {
-      suggestions.push('Check for missing commas between object properties', 'Verify all brackets and braces are properly closed');
+      suggestions.push(
+        'Check for missing commas between object properties',
+        'Verify all brackets and braces are properly closed'
+      );
     }
 
-    suggestions.push('Validate JavaScript syntax in your editor', 'Try testing your config with: node docimp.config.js');
+    suggestions.push(
+      'Validate JavaScript syntax in your editor',
+      'Try testing your config with: node docimp.config.js'
+    );
 
     return suggestions;
   }
@@ -244,17 +252,26 @@ export class ConfigErrorClassifier {
 
     // Check for module-specific errors
     if (errorMessage.includes('Cannot find module')) {
-      suggestions.push('Verify all import/require paths are correct', 'Check that imported modules exist', 'Ensure relative paths start with ./ or ../');
+      suggestions.push(
+        'Verify all import/require paths are correct',
+        'Check that imported modules exist',
+        'Ensure relative paths start with ./ or ../'
+      );
     } else if (errorMessage.includes('does not provide an export')) {
       suggestions.push(
-        'Check that the imported module exports the expected value'
-      , 
+        'Check that the imported module exports the expected value',
         'Verify you are using the correct export name (default vs named)'
       );
     } else if (errorMessage.includes('Circular dependency')) {
-      suggestions.push('Check for circular dependencies in your imports', 'Restructure imports to break the circular dependency');
+      suggestions.push(
+        'Check for circular dependencies in your imports',
+        'Restructure imports to break the circular dependency'
+      );
     } else {
-      suggestions.push('Verify all import/require statements are valid', 'Check file permissions allow reading');
+      suggestions.push(
+        'Verify all import/require statements are valid',
+        'Check file permissions allow reading'
+      );
     }
 
     suggestions.push('Try testing your config with: node docimp.config.js');

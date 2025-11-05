@@ -202,12 +202,13 @@ function detectModuleSystem(
     }
 
     // Check for require() calls
-    if (ts.isCallExpression(node) && 
-        ts.isIdentifier(node.expression) &&
-        node.expression.text === 'require'
-      ) {
-        hasCommonJs = true;
-      }
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === 'require'
+    ) {
+      hasCommonJs = true;
+    }
 
     ts.forEachChild(node, visit);
   }
@@ -243,7 +244,9 @@ function parseFile(filepath: string): CodeItem[] {
 
   // Create source file with proper script kind
   const scriptKind =
-    extension === '.ts' || extension === '.tsx' ? ts.ScriptKind.TS : ts.ScriptKind.JS;
+    extension === '.ts' || extension === '.tsx'
+      ? ts.ScriptKind.TS
+      : ts.ScriptKind.JS;
 
   const sourceFile = ts.createSourceFile(
     filepath,
@@ -271,7 +274,10 @@ function parseFile(filepath: string): CodeItem[] {
       ) {
         // Extract each method/property
         for (const property of node.right.properties) {
-          if (ts.isMethodDeclaration(property) || ts.isPropertyAssignment(property)) {
+          if (
+            ts.isMethodDeclaration(property) ||
+            ts.isPropertyAssignment(property)
+          ) {
             const name =
               property.name && ts.isIdentifier(property.name)
                 ? property.name.text
@@ -297,8 +303,8 @@ function parseFile(filepath: string): CodeItem[] {
                   sourceFile.getLineAndCharacterOfPosition(property.getStart())
                     .line + 1,
                 end_line:
-                  sourceFile.getLineAndCharacterOfPosition(property.getEnd()).line +
-                  1,
+                  sourceFile.getLineAndCharacterOfPosition(property.getEnd())
+                    .line + 1,
                 language,
                 complexity: calculateComplexity(functionNode),
                 impact_score: 0,
