@@ -137,7 +137,7 @@ export class TerminalDisplay implements IDisplay {
     );
 
     // Sort languages alphabetically
-    const languages = Object.keys(byLanguage).sort();
+    const languages = Object.keys(byLanguage).toSorted();
 
     for (const lang of languages) {
       const metrics = byLanguage[lang];
@@ -168,7 +168,7 @@ export class TerminalDisplay implements IDisplay {
 
     // Sort by impact score descending
     const sorted = undocumented
-      .sort((a, b) => b.impact_score - a.impact_score)
+      .toSorted((a, b) => b.impact_score - a.impact_score)
       .slice(0, 10);
 
     const table = this.createResponsiveTable(
@@ -338,18 +338,22 @@ export class TerminalDisplay implements IDisplay {
   }
 
   /**
+   * Stop the currently active spinner.
+   */
+  private stopSpinner(): void {
+    if (this.spinner) {
+      this.spinner.stop();
+      this.spinner = null;
+    }
+  }
+
+  /**
    * Start a progress spinner.
    * @returns A function to stop the spinner.
    */
   public startSpinner(message: string): () => void {
     this.spinner = ora(message).start();
-
-    return () => {
-      if (this.spinner) {
-        this.spinner.stop();
-        this.spinner = null;
-      }
-    };
+    return this.stopSpinner.bind(this);
   }
 
   /**

@@ -244,14 +244,9 @@ export async function auditCore(
 
         if (showCodeOption) {
           // [C] option available - different messages for different modes
-          if (showCodeMode === 'truncated') {
-            promptMessage =
-              '[1] Terrible  [2] Poor  [3] Good  [4] Excellent  [C] Full code  [S] Skip  [Q] Quit\n\nYour rating:';
-          } else {
-            // signature and on-demand modes
-            promptMessage =
-              '[1] Terrible  [2] Poor  [3] Good  [4] Excellent  [C] Show code  [S] Skip  [Q] Quit\n\nYour rating:';
-          }
+          promptMessage = showCodeMode === 'truncated'
+            ? '[1] Terrible  [2] Poor  [3] Good  [4] Excellent  [C] Full code  [S] Skip  [Q] Quit\n\nYour rating:'
+            : '[1] Terrible  [2] Poor  [3] Good  [4] Excellent  [C] Show code  [S] Skip  [Q] Quit\n\nYour rating:';
           validOptions = ['1', '2', '3', '4', 'C', 'S', 'Q'];
         } else {
           // No [C] option (complete mode)

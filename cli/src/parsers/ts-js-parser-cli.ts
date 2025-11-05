@@ -1,3 +1,6 @@
+/* eslint-disable n/no-process-exit, unicorn/no-process-exit */
+// This is a CLI entry point invoked as a subprocess - process.exit() is appropriate here
+
 /**
  * TypeScript/JavaScript Parser CLI Entry Point
  *
