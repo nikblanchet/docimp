@@ -5,7 +5,7 @@
 import { mkdtempSync, rmSync, writeFileSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
 import { join, resolve, isAbsolute } from 'path';
-import { StateManager } from '../utils/StateManager';
+import { StateManager } from '../utils/state-manager';
 
 describe('StateManager', () => {
   let tempDir: string;

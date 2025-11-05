@@ -5,24 +5,24 @@
 import {
   listSessionsCore,
   listSessionsCommand,
-} from '../commands/listSessions';
-import { listChangesCore, listChangesCommand } from '../commands/listChanges';
+} from '../commands/list-sessions';
+import { listChangesCore, listChangesCommand } from '../commands/list-changes';
 import {
   rollbackSessionCore,
   rollbackSessionCommand,
-} from '../commands/rollbackSession';
+} from '../commands/rollback-session';
 import {
   rollbackChangeCore,
   rollbackChangeCommand,
-} from '../commands/rollbackChange';
-import type { IPythonBridge } from '../python-bridge/IPythonBridge';
-import type { IDisplay } from '../display/IDisplay';
+} from '../commands/rollback-change';
+import type { IPythonBridge } from '../python-bridge/i-python-bridge';
+import type { IDisplay } from '../display/i-display';
 import type {
   SessionSummary,
   TransactionEntry,
   RollbackResult,
 } from '../types/analysis';
-import { EXIT_CODE } from '../constants/exitCodes';
+import { EXIT_CODE } from '../constants/exit-codes';
 
 // Mock ESM modules
 jest.mock('chalk', () => ({
