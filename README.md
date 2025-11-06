@@ -272,6 +272,35 @@ Complexity: 8
 [C] Full code  [S] Skip  [Q] Quit
 ```
 
+#### Resuming Interrupted Audit Sessions
+
+DocImp automatically saves your progress after each rating. If your audit is interrupted, you can easily resume where you left off.
+
+```bash
+# Auto-detection: Prompts to resume if session exists
+docimp audit ./src
+
+# Explicit resume of latest session
+docimp audit ./src --resume
+
+# Explicit resume of specific session
+docimp audit ./src --resume abc12345
+
+# Start fresh session (bypass auto-detection)
+docimp audit ./src --new
+
+# Clear latest session and exit
+docimp audit --clear-session
+```
+
+**Smart File Invalidation**: When resuming, DocImp automatically detects if source files have been modified since the session started. Modified files are re-analyzed, and you'll see a warning with the count of changed files. Your previous ratings for unchanged files are preserved.
+
+**Session State**: Each session saves:
+- Current position in the audit queue
+- All ratings completed so far (1-4 or skipped)
+- File snapshots for modification detection
+- Display configuration (showCode mode, maxLines)
+
 ### Plan
 
 Generate prioritized improvement plan.
@@ -318,6 +347,41 @@ docimp improve ./src
 - JSDoc types are incorrect or missing
 - Style guide violations (preferred tags, punctuation)
 - Missing examples for public APIs
+
+#### Resuming Interrupted Improve Sessions
+
+DocImp automatically saves session progress after each action (accept, skip, undo). You can pause and resume improve sessions at any time.
+
+```bash
+# Auto-detection: Prompts to resume if session exists
+docimp improve ./src
+
+# Explicit resume of latest session
+docimp improve ./src --resume
+
+# Explicit resume of specific session
+docimp improve ./src --resume abc12345
+
+# Start fresh session (bypass auto-detection)
+docimp improve ./src --new
+
+# Clear latest session and exit
+docimp improve --clear-session
+```
+
+**Transaction Integration**: Resume sessions continue using the existing git transaction branch, preserving full rollback capability. If resuming a committed session, DocImp creates a new transaction branch and links it to the previous session.
+
+**Smart File Invalidation**: Modified files are automatically re-analyzed when resuming. Impact scores and complexity metrics are updated based on current code state.
+
+**Preference Restoration**: Your original style guide and tone preferences are restored from the session state, so you don't need to re-enter them.
+
+**Session State**: Each session saves:
+- Current position in the plan queue
+- Progress metrics (accepted/skipped/errors)
+- Transaction ID for rollback integration
+- User preferences (style guides, tone)
+- File snapshots for modification detection
+- Complete plan with item metadata
 
 ### Rollback & Undo
 
