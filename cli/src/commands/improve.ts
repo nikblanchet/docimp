@@ -8,6 +8,7 @@
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import chalk from 'chalk';
+import Table from 'cli-table3';
 import prompts from 'prompts';
 import type { IConfigLoader } from '../config/i-config-loader.js';
 import type { IConfig } from '../config/i-config.js';
@@ -25,8 +26,19 @@ import type { IPluginManager } from '../plugins/i-plugin-manager.js';
 import type { IPythonBridge } from '../python-bridge/i-python-bridge.js';
 import type { IInteractiveSession } from '../session/i-interactive-session.js';
 import { InteractiveSession } from '../session/interactive-session.js';
-import type { PlanResult, SupportedLanguage } from '../types/analysis.js';
+import type {
+  PlanResult,
+  PlanItem,
+  SupportedLanguage,
+} from '../types/analysis.js';
+import {
+  ImproveSessionStateSchema,
+  type ImproveSessionState,
+  type ImproveStatusRecord,
+} from '../types/improve-session-state.js';
+import { FileTracker } from '../utils/file-tracker.js';
 import { PathValidator } from '../utils/path-validator.js';
+import { SessionStateManager } from '../utils/session-state-manager.js';
 import { StateManager } from '../utils/state-manager.js';
 
 /**
@@ -38,6 +50,388 @@ export class UserCancellationError extends Error {
     super(message);
     this.name = 'UserCancellationError';
   }
+}
+
+/**
+ * Format elapsed time in human-readable format.
+ *
+ * @param isoTimestamp - ISO 8601 timestamp
+ * @returns Human-readable elapsed time (e.g., "2h ago", "5m ago")
+ */
+export function formatElapsedTime(isoTimestamp: string): string {
+  const started = new Date(isoTimestamp);
+  const now = new Date();
+  const elapsed = now.getTime() - started.getTime();
+  const seconds = Math.floor(elapsed / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (days > 0) {
+    return `${days}d ago`;
+  }
+  if (hours > 0) {
+    return `${hours}h ago`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ago`;
+  }
+  return `${seconds}s ago`;
+}
+
+/**
+ * Prompt user with Yes/No question.
+ *
+ * @param message - Question to display
+ * @param defaultYes - Default to Yes if user presses Enter
+ * @returns True if user selected Yes, false otherwise
+ */
+export async function promptYesNo(
+  message: string,
+  defaultYes: boolean
+): Promise<boolean> {
+  const response = await prompts({
+    type: 'confirm',
+    name: 'value',
+    message,
+    initial: defaultYes,
+  });
+
+  // Handle Ctrl+C (undefined response)
+  if (response.value === undefined) {
+    return false;
+  }
+
+  return response.value as boolean;
+}
+
+/**
+ * Prompt user to select a session from a list.
+ *
+ * @param type - Session type ('audit' or 'improve')
+ * @returns Selected session ID, or null if cancelled
+ */
+async function promptSelectSession(
+  type: 'audit' | 'improve'
+): Promise<string | null> {
+  const sessions = await SessionStateManager.listSessions(type);
+  const incomplete = sessions.filter(
+    (s) => !(s as ImproveSessionState).completed_at
+  );
+
+  if (incomplete.length === 0) {
+    throw new Error(`No incomplete ${type} sessions found`);
+  }
+
+  // Display table with session details
+  const table = new Table({
+    head: ['#', 'Session ID', 'Progress', 'Started'],
+    colWidths: [5, 15, 30, 15],
+  });
+
+  for (const [index, session] of incomplete.entries()) {
+    const improveSession = session as ImproveSessionState;
+    const sessionId = improveSession.session_id.slice(0, 12);
+
+    // Count processed items (with status records)
+    let processed = 0;
+    for (const fileImprovements of Object.values(
+      improveSession.partial_improvements
+    )) {
+      for (const statusRecord of Object.values(fileImprovements)) {
+        // Empty dict = not yet processed
+        if (Object.keys(statusRecord as object).length > 0) {
+          processed++;
+        }
+      }
+    }
+
+    const remaining = improveSession.total_items - processed;
+    const progress = `${processed} processed, ${remaining} remaining`;
+    const started = formatElapsedTime(String(improveSession.started_at));
+    table.push([index + 1, sessionId, progress, started]);
+  }
+
+  console.log('\nIncomplete sessions:\n');
+  console.log(table.toString());
+
+  const response = await prompts({
+    type: 'number',
+    name: 'value',
+    message: 'Select session number (or 0 to cancel):',
+    min: 0,
+    max: incomplete.length,
+  });
+
+  // Handle Ctrl+C or cancel
+  if (response.value === undefined || response.value === 0) {
+    return null;
+  }
+
+  const selectedIndex = Number(response.value) - 1;
+  return incomplete[selectedIndex].session_id;
+}
+
+/**
+ * Delete all incomplete improve sessions.
+ *
+ * @param display - Display instance for messaging
+ */
+async function handleClearSessions(display: IDisplay): Promise<void> {
+  const sessions = await SessionStateManager.listSessions('improve');
+  const incomplete = sessions.filter((s) => !s.completed_at);
+
+  if (incomplete.length === 0) {
+    display.showMessage('No incomplete improve sessions to clear');
+    return;
+  }
+
+  display.showMessage(
+    `Clearing ${incomplete.length} incomplete improve session(s)...`
+  );
+
+  for (const session of incomplete) {
+    await SessionStateManager.deleteSessionState(session.session_id, 'improve');
+  }
+
+  display.showMessage(`Cleared ${incomplete.length} session(s)`);
+}
+
+/**
+ * Load and validate a resume session.
+ *
+ * @param sessionIdOrFile - Session ID or file path to resume
+ * @param display - Display instance for messaging
+ * @returns Validated improve session state
+ */
+async function loadResumeImproveSession(
+  sessionIdOrFile: string,
+  display: IDisplay
+): Promise<ImproveSessionState> {
+  // Load session state
+  const sessionState = await SessionStateManager.loadSessionState(
+    sessionIdOrFile,
+    'improve'
+  );
+
+  // Validate schema with Zod
+  const validated = ImproveSessionStateSchema.parse(sessionState);
+
+  // Count processed items
+  let processed = 0;
+  for (const fileImprovements of Object.values(
+    validated.partial_improvements
+  )) {
+    for (const statusRecord of Object.values(fileImprovements)) {
+      if (Object.keys(statusRecord as object).length > 0) {
+        processed++;
+      }
+    }
+  }
+
+  const remaining = validated.total_items - processed;
+
+  // Show concise banner
+  const sessionId = validated.session_id.slice(0, 8);
+  display.showMessage(
+    `Resuming session ${sessionId} (${processed} processed, ${remaining} remaining)`
+  );
+
+  return validated;
+}
+
+/**
+ * Filter items to only those not yet processed.
+ *
+ * @param items - All plan items
+ * @param partialImprovements - Improvements from session state
+ * @returns Items with empty status records (not yet processed)
+ */
+export function filterUnprocessedItems(
+  items: PlanItem[],
+  partialImprovements: Record<
+    string,
+    Record<string, ImproveStatusRecord | Record<string, never>>
+  >
+): PlanItem[] {
+  return items.filter((item) => {
+    const statusRecord = partialImprovements[item.filepath]?.[item.name];
+    // Empty dict {} = not yet processed
+    return !statusRecord || Object.keys(statusRecord as object).length === 0;
+  });
+}
+
+/**
+ * Handle file invalidation for resumed improve sessions.
+ *
+ * Detects file modifications and invalidates items from changed files.
+ * Only detects external edits (session's own writes are excluded via snapshot updates).
+ *
+ * @param sessionState - Current session state
+ * @param items - All plan items from session
+ * @param display - Display instance for warnings
+ * @returns Updated items and session state
+ */
+async function handleFileInvalidationImprove(
+  sessionState: ImproveSessionState,
+  items: PlanItem[],
+  display: IDisplay
+): Promise<{
+  items: PlanItem[];
+  sessionState: ImproveSessionState;
+}> {
+  // Detect file changes
+  const changedFiles = await FileTracker.detectChanges(
+    sessionState.file_snapshot
+  );
+
+  if (changedFiles.length === 0) {
+    return { items, sessionState }; // No changes
+  }
+
+  // Show warning banner
+  display.showMessage(
+    chalk.yellow(
+      `Warning: ${changedFiles.length} file(s) modified since last session.`
+    )
+  );
+  display.showMessage(
+    chalk.yellow(
+      `Items from these files have been invalidated and will be skipped.`
+    )
+  );
+
+  // Update file snapshot with new checksums
+  const newSnapshot = await FileTracker.createSnapshot(changedFiles);
+  sessionState.file_snapshot = Object.assign(
+    {},
+    sessionState.file_snapshot,
+    newSnapshot
+  );
+
+  // Clear status records for changed items (user must re-process)
+  for (const filepath of changedFiles) {
+    if (sessionState.partial_improvements[filepath]) {
+      // Reset all status records to empty dicts for this file
+      for (const itemName of Object.keys(
+        sessionState.partial_improvements[filepath]
+      )) {
+        sessionState.partial_improvements[filepath][itemName] = {};
+      }
+    }
+  }
+
+  // Filter out items from changed files
+  const validItems = items.filter(
+    (item) => !changedFiles.includes(item.filepath)
+  );
+
+  return { items: validItems, sessionState };
+}
+
+/**
+ * Detect and prompt for resuming an existing improve session.
+ *
+ * Implements hybrid UX:
+ * - Priority 1: --new flag bypasses detection (start fresh)
+ * - Priority 2: --clear-session deletes all incomplete, exits
+ * - Priority 3: --resume-file loads specific session (skip list)
+ * - Priority 4: --resume shows session list for selection
+ * - Priority 5: Auto-detect latest incomplete, prompt user (default Yes)
+ *
+ * @param options - Command options
+ * @param options.resume - Resume an incomplete session (show list)
+ * @param options.resumeFile - Resume specific session file (skip list)
+ * @param options.new - Force new session (bypass detection)
+ * @param options.clearSession - Delete all incomplete sessions and exit
+ * @param display - Display instance for messaging
+ * @returns Session ID to resume, or null to start fresh
+ */
+async function detectAndPromptResumeImprove(
+  options: {
+    resume?: boolean;
+    resumeFile?: string;
+    new?: boolean;
+    clearSession?: boolean;
+  },
+  display: IDisplay
+): Promise<string | null> {
+  // Validate conflicting flags
+  if (options.resume && options.new) {
+    throw new Error(
+      'Cannot use --resume and --new flags together. ' +
+        'Use --resume to continue existing session or --new to start fresh.'
+    );
+  }
+
+  if (options.resumeFile && !options.resume) {
+    throw new Error(
+      '--resume-file requires --resume flag. ' +
+        'Use: docimp improve <path> --resume --resume-file <file>'
+    );
+  }
+
+  // Priority 1: --new flag bypasses detection
+  if (options.new) {
+    return null;
+  }
+
+  // Priority 2: --clear-session deletes all incomplete, exits
+  if (options.clearSession) {
+    await handleClearSessions(display);
+    // Throw error to exit gracefully (caught by command wrapper)
+    throw new Error('CLEAR_SESSION_COMPLETE');
+  }
+
+  // Priority 3: --resume-file specified
+  if (options.resumeFile) {
+    return options.resumeFile;
+  }
+
+  // Priority 4: --resume flag (show session list)
+  if (options.resume) {
+    const sessionId = await promptSelectSession('improve');
+    if (!sessionId) {
+      display.showMessage('Session selection cancelled, starting new session');
+      return null;
+    }
+    return sessionId;
+  }
+
+  // Priority 5: Auto-detect (no flags provided)
+  const sessions = await SessionStateManager.listSessions('improve');
+  const incomplete = sessions.filter(
+    (s) => !(s as ImproveSessionState).completed_at
+  );
+
+  if (incomplete.length === 0) {
+    return null; // No incomplete sessions, start fresh
+  }
+
+  // Get latest incomplete session
+  const latest = incomplete[0] as ImproveSessionState; // listSessions returns sorted by started_at desc
+
+  // Count processed items
+  let processed = 0;
+  for (const fileImprovements of Object.values(latest.partial_improvements)) {
+    for (const statusRecord of Object.values(fileImprovements)) {
+      if (Object.keys(statusRecord as object).length > 0) {
+        processed++;
+      }
+    }
+  }
+
+  const remaining = latest.total_items - processed;
+  const elapsed = formatElapsedTime(String(latest.started_at));
+  const sessionId = latest.session_id.slice(0, 8);
+
+  // Prompt user (default Yes)
+  const shouldResume = await promptYesNo(
+    `Found session ${sessionId} (${processed} processed, ${remaining} remaining, ${elapsed}). Resume? [Y/n]`,
+    true
+  );
+
+  return shouldResume ? latest.session_id : null;
 }
 
 /**
@@ -54,6 +448,10 @@ export class UserCancellationError extends Error {
  * @param options.nonInteractive - Run in non-interactive mode
  * @param options.verbose - Enable verbose output
  * @param options.listStyles - List available style guides and exit
+ * @param options.resume - Resume an incomplete session (show list)
+ * @param options.resumeFile - Resume specific session file (skip list)
+ * @param options.new - Force new session (bypass detection)
+ * @param options.clearSession - Delete all incomplete sessions and exit
  * @param bridge - Python bridge instance (dependency injection)
  * @param display - Display instance (dependency injection)
  * @param configLoader - Config loader instance (dependency injection)
@@ -72,6 +470,10 @@ export async function improveCore(
     nonInteractive?: boolean;
     verbose?: boolean;
     listStyles?: boolean;
+    resume?: boolean;
+    resumeFile?: string;
+    new?: boolean;
+    clearSession?: boolean;
   },
   bridge: IPythonBridge,
   display: IDisplay,
@@ -123,7 +525,18 @@ export async function improveCore(
   // Load configuration
   const config: IConfig = await configLoader.load(options.config);
 
-  // Load plan file
+  // Detect and prompt for resume (Priority 1-5)
+  const sessionIdToResume = await detectAndPromptResumeImprove(
+    {
+      resume: options.resume,
+      resumeFile: options.resumeFile,
+      new: options.new,
+      clearSession: options.clearSession,
+    },
+    display
+  );
+
+  // Load plan file (needed for both resume and fresh sessions)
   const planFilePath = options.planFile || StateManager.getPlanFile();
   let planResult: PlanResult;
 
@@ -142,21 +555,56 @@ export async function improveCore(
     return;
   }
 
-  // Detect languages present in plan
+  // Handle resume session: file invalidation and filtering
+  let resumeSessionState: ImproveSessionState | null = null;
+  let itemsToProcess = planResult.items;
+
+  if (sessionIdToResume) {
+    // Load and validate session state
+    resumeSessionState = await loadResumeImproveSession(
+      sessionIdToResume,
+      display
+    );
+
+    // Handle file invalidation (detect external edits)
+    const invalidationResult = await handleFileInvalidationImprove(
+      resumeSessionState,
+      planResult.items,
+      display
+    );
+
+    resumeSessionState = invalidationResult.sessionState;
+    itemsToProcess = invalidationResult.items;
+
+    // Filter to unprocessed items only
+    itemsToProcess = filterUnprocessedItems(
+      itemsToProcess,
+      resumeSessionState.partial_improvements
+    );
+
+    if (itemsToProcess.length === 0) {
+      display.showMessage(
+        chalk.green('All items in session already processed!')
+      );
+      return;
+    }
+  }
+
+  // Detect languages present in items to process
   // Note: PlanItem.language never includes 'skipped' by design
   const detectedLanguages = [
-    ...new Set(planResult.items.map((item) => item.language)),
+    ...new Set(itemsToProcess.map((item) => item.language)),
   ];
 
   if (detectedLanguages.length === 0) {
     throw new Error('No valid languages found in plan. All items are skipped.');
   }
 
-  // Collect user preferences
-  display.showMessage(chalk.bold('\n Interactive Documentation Improvement'));
-  display.showMessage(chalk.dim('Using Claude AI with plugin validation\n'));
+  // Collect user preferences (skip if resuming - use session state values)
+  let styleGuides: Partial<Record<SupportedLanguage, string>> = {};
+  let tone: string;
 
-  // Validate CLI flag style guides
+  // Validate CLI flag style guides (always done, regardless of resume)
   const cliStyleGuides: Partial<Record<SupportedLanguage, string>> = {};
 
   if (options.pythonStyle) {
@@ -211,145 +659,164 @@ export async function improveCore(
     );
   }
 
-  // Build style guides from CLI flags, config, or prompts
-  const styleGuides: Partial<Record<SupportedLanguage, string>> = {};
-
-  // In non-interactive mode, validate all required values are available
-  if (options.nonInteractive) {
-    const missingLanguages: string[] = [];
-
-    for (const lang of detectedLanguages) {
-      // Check CLI flag first, then config
-      const cliValue = cliStyleGuides[lang];
-      const configValue = config.styleGuides?.[lang];
-
-      if (cliValue) {
-        if (options.verbose) {
-          display.showMessage(
-            chalk.dim(`Using CLI flag for ${lang}: ${cliValue}`)
-          );
-        }
-        styleGuides[lang] = cliValue;
-      } else if (configValue) {
-        if (options.verbose) {
-          display.showMessage(
-            chalk.dim(`Using config value for ${lang}: ${configValue}`)
-          );
-        }
-        styleGuides[lang] = configValue;
-      } else {
-        missingLanguages.push(lang);
-      }
-    }
-
-    if (missingLanguages.length > 0) {
-      throw new Error(
-        `Non-interactive mode requires style guides for all detected languages.\n` +
-          `Missing configuration for: ${missingLanguages.join(', ')}\n\n` +
-          `Please either:\n` +
-          `  1. Add styleGuides.${missingLanguages[0]} to your docimp.config.js\n` +
-          `  2. Use CLI flags: --${missingLanguages[0]}-style <style>\n` +
-          `  3. Run without --non-interactive for interactive prompts`
+  // Build style guides and tone: resume session or collect preferences
+  if (resumeSessionState) {
+    // Resuming: Use style guides and tone from session state
+    styleGuides = resumeSessionState.config.styleGuides as Partial<
+      Record<SupportedLanguage, string>
+    >;
+    tone = resumeSessionState.config.tone;
+    if (options.verbose) {
+      display.showMessage(chalk.dim(`Resuming with saved preferences:`));
+      display.showMessage(
+        chalk.dim(`  Style guides: ${JSON.stringify(styleGuides)}`)
       );
+      display.showMessage(chalk.dim(`  Tone: ${tone}`));
     }
   } else {
-    // Interactive mode: prompt only for languages without CLI flags
-    for (const lang of detectedLanguages) {
-      // If CLI flag provided, use it and skip prompt
-      if (cliStyleGuides[lang]) {
-        if (options.verbose) {
-          display.showMessage(
-            chalk.dim(`Using CLI flag for ${lang}: ${cliStyleGuides[lang]}`)
-          );
+    // Fresh session: Collect preferences
+    display.showMessage(chalk.bold('\n Interactive Documentation Improvement'));
+    display.showMessage(chalk.dim('Using Claude AI with plugin validation\n'));
+
+    // In non-interactive mode, validate all required values are available
+    if (options.nonInteractive) {
+      const missingLanguages: string[] = [];
+
+      for (const lang of detectedLanguages) {
+        // Check CLI flag first, then config
+        const cliValue = cliStyleGuides[lang];
+        const configValue = config.styleGuides?.[lang];
+
+        if (cliValue) {
+          if (options.verbose) {
+            display.showMessage(
+              chalk.dim(`Using CLI flag for ${lang}: ${cliValue}`)
+            );
+          }
+          styleGuides[lang] = cliValue;
+        } else if (configValue) {
+          if (options.verbose) {
+            display.showMessage(
+              chalk.dim(`Using config value for ${lang}: ${configValue}`)
+            );
+          }
+          styleGuides[lang] = configValue;
+        } else {
+          missingLanguages.push(lang);
         }
-        styleGuides[lang] = cliStyleGuides[lang];
-        continue;
       }
 
-      // Otherwise, prompt with config as initial selection
-      const choices = STYLE_GUIDE_CHOICES[lang];
-      const configuredStyle = config.styleGuides?.[lang as SupportedLanguage];
-      const initialIndex = configuredStyle
-        ? choices.findIndex((choice) => choice.value === configuredStyle)
-        : -1;
-
-      if (options.verbose && configuredStyle) {
-        display.showMessage(
-          chalk.dim(
-            `Config has ${lang} style guide: ${configuredStyle} (pre-selected)`
-          )
+      if (missingLanguages.length > 0) {
+        throw new Error(
+          `Non-interactive mode requires style guides for all detected languages.\n` +
+            `Missing configuration for: ${missingLanguages.join(', ')}\n\n` +
+            `Please either:\n` +
+            `  1. Add styleGuides.${missingLanguages[0]} to your docimp.config.js\n` +
+            `  2. Use CLI flags: --${missingLanguages[0]}-style <style>\n` +
+            `  3. Run without --non-interactive for interactive prompts`
         );
       }
+    } else {
+      // Interactive mode: prompt only for languages without CLI flags
+      for (const lang of detectedLanguages) {
+        // If CLI flag provided, use it and skip prompt
+        if (cliStyleGuides[lang]) {
+          if (options.verbose) {
+            display.showMessage(
+              chalk.dim(`Using CLI flag for ${lang}: ${cliStyleGuides[lang]}`)
+            );
+          }
+          styleGuides[lang] = cliStyleGuides[lang];
+          continue;
+        }
 
-      const response = await prompts({
-        type: 'select',
-        name: 'styleGuide',
-        message: `Select documentation style guide for ${chalk.cyan(lang)}:`,
-        choices,
-        initial: Math.max(initialIndex, 0),
-      });
+        // Otherwise, prompt with config as initial selection
+        const choices = STYLE_GUIDE_CHOICES[lang];
+        const configuredStyle = config.styleGuides?.[lang as SupportedLanguage];
+        const initialIndex = configuredStyle
+          ? choices.findIndex((choice) => choice.value === configuredStyle)
+          : -1;
 
-      if (response.styleGuide) {
-        if (options.verbose) {
+        if (options.verbose && configuredStyle) {
           display.showMessage(
             chalk.dim(
-              `User selected ${lang} style guide: ${response.styleGuide}`
+              `Config has ${lang} style guide: ${configuredStyle} (pre-selected)`
             )
           );
         }
-        styleGuides[lang] = response.styleGuide;
-      } else {
-        throw new UserCancellationError('Style guide selection cancelled.');
+
+        const response = await prompts({
+          type: 'select',
+          name: 'styleGuide',
+          message: `Select documentation style guide for ${chalk.cyan(lang)}:`,
+          choices,
+          initial: Math.max(initialIndex, 0),
+        });
+
+        if (response.styleGuide) {
+          if (options.verbose) {
+            display.showMessage(
+              chalk.dim(
+                `User selected ${lang} style guide: ${response.styleGuide}`
+              )
+            );
+          }
+          styleGuides[lang] = response.styleGuide;
+        } else {
+          throw new UserCancellationError('Style guide selection cancelled.');
+        }
       }
     }
-  }
 
-  // Determine tone from CLI flag, config, or prompt
-  let tone: string;
+    // Determine tone from CLI flag, config, or prompt
+    // (tone already declared at top)
 
-  if (options.tone) {
-    // CLI flag takes precedence
-    if (options.verbose) {
-      display.showMessage(
-        chalk.dim(`Using CLI flag for tone: ${options.tone}`)
-      );
-    }
-    tone = options.tone;
-  } else if (options.nonInteractive) {
-    // Non-interactive mode: use config or default
-    tone = config.tone || 'concise';
-    if (options.verbose) {
-      const source = config.tone ? 'config' : 'default';
-      display.showMessage(chalk.dim(`Using ${source} value for tone: ${tone}`));
-    }
-  } else {
-    // Interactive mode: prompt with config as initial selection
-    const toneInitialIndex = config.tone
-      ? TONE_CHOICES.findIndex((choice) => choice.value === config.tone)
-      : -1;
+    if (options.tone) {
+      // CLI flag takes precedence
+      if (options.verbose) {
+        display.showMessage(
+          chalk.dim(`Using CLI flag for tone: ${options.tone}`)
+        );
+      }
+      tone = options.tone;
+    } else if (options.nonInteractive) {
+      // Non-interactive mode: use config or default
+      tone = config.tone || 'concise';
+      if (options.verbose) {
+        const source = config.tone ? 'config' : 'default';
+        display.showMessage(
+          chalk.dim(`Using ${source} value for tone: ${tone}`)
+        );
+      }
+    } else {
+      // Interactive mode: prompt with config as initial selection
+      const toneInitialIndex = config.tone
+        ? TONE_CHOICES.findIndex((choice) => choice.value === config.tone)
+        : -1;
 
-    if (options.verbose && config.tone) {
-      display.showMessage(
-        chalk.dim(`Config has tone: ${config.tone} (pre-selected)`)
-      );
-    }
+      if (options.verbose && config.tone) {
+        display.showMessage(
+          chalk.dim(`Config has tone: ${config.tone} (pre-selected)`)
+        );
+      }
 
-    const toneResponse = await prompts({
-      type: 'select',
-      name: 'tone',
-      message: 'Select documentation tone (applies to all languages):',
-      choices: TONE_CHOICES,
-      initial: Math.max(toneInitialIndex, 0),
-    });
+      const toneResponse = await prompts({
+        type: 'select',
+        name: 'tone',
+        message: 'Select documentation tone (applies to all languages):',
+        choices: TONE_CHOICES,
+        initial: Math.max(toneInitialIndex, 0),
+      });
 
-    tone = toneResponse.tone || 'concise';
-    if (!toneResponse.tone) {
-      throw new UserCancellationError('Tone selection cancelled.');
+      tone = toneResponse.tone || 'concise';
+      if (!toneResponse.tone) {
+        throw new UserCancellationError('Tone selection cancelled.');
+      }
+      if (options.verbose) {
+        display.showMessage(chalk.dim(`User selected tone: ${tone}`));
+      }
     }
-    if (options.verbose) {
-      display.showMessage(chalk.dim(`User selected tone: ${tone}`));
-    }
-  }
+  } // End of fresh session preference collection
 
   // Load plugins
   const pluginPaths = isPluginConfig(config.plugins)
@@ -383,10 +850,11 @@ export async function improveCore(
     styleGuides,
     tone,
     basePath: nodePath.resolve(process.cwd(), path),
+    resumeSessionState: resumeSessionState ?? undefined,
   });
 
-  // Run the session
-  await session.run(planResult.items);
+  // Run the session with filtered items
+  await session.run(itemsToProcess);
 }
 
 /**
@@ -423,6 +891,10 @@ export async function improveCommand(
     nonInteractive?: boolean;
     verbose?: boolean;
     listStyles?: boolean;
+    resume?: boolean;
+    resumeFile?: string;
+    new?: boolean;
+    clearSession?: boolean;
   },
   bridge: IPythonBridge,
   display: IDisplay,
@@ -442,6 +914,11 @@ export async function improveCommand(
     );
     return EXIT_CODE.SUCCESS;
   } catch (error) {
+    // Clear session complete - exit gracefully with code 0
+    if (error instanceof Error && error.message === 'CLEAR_SESSION_COMPLETE') {
+      return EXIT_CODE.SUCCESS;
+    }
+
     // User cancellation is not an error - exit gracefully with code 0
     if (error instanceof UserCancellationError) {
       display.showError(error.message);

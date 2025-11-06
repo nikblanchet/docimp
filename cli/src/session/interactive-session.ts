@@ -49,6 +49,9 @@ export interface SessionOptions {
 
   /** Base directory for path validation */
   basePath: string;
+
+  /** Resume session state (optional, for resuming interrupted sessions) */
+  resumeSessionState?: ImproveSessionState;
 }
 
 /**
@@ -86,6 +89,14 @@ export class InteractiveSession implements IInteractiveSession {
     this.tone = options.tone;
     this.editorLauncher = options.editorLauncher;
     this.basePath = options.basePath;
+
+    // If resuming, load session state and current index
+    if (options.resumeSessionState) {
+      this.sessionState = options.resumeSessionState;
+      this.currentIndex = options.resumeSessionState.current_index;
+      this.sessionId = options.resumeSessionState.session_id;
+      // Note: transactionActive will be set in run() based on transaction_id
+    }
   }
 
   /**
@@ -100,25 +111,43 @@ export class InteractiveSession implements IInteractiveSession {
       return;
     }
 
-    // Initialize transaction for tracking documentation changes
-    this.sessionId = uuidv4();
+    const isResuming = this.sessionState !== null;
 
-    try {
-      await this.pythonBridge.beginTransaction(this.sessionId);
-      this.transactionActive = true;
-    } catch (error) {
-      console.warn(
-        chalk.yellow('Warning: Failed to initialize transaction tracking:'),
-        chalk.dim(error instanceof Error ? error.message : String(error))
-      );
-      console.warn(
-        chalk.yellow('Session will continue without rollback capability.\n')
-      );
-      this.transactionActive = false;
+    // Initialize transaction for tracking documentation changes (skip if resuming)
+    if (isResuming) {
+      // Resuming: Use existing transaction ID (Session 6a: basic resume, no transaction status check)
+      // Note: Session 6b will add transaction state verification
+      this.transactionActive = true; // Assume transaction is active for Session 6a
+    } else {
+      this.sessionId = uuidv4();
+
+      try {
+        await this.pythonBridge.beginTransaction(this.sessionId);
+        this.transactionActive = true;
+      } catch (error) {
+        console.warn(
+          chalk.yellow('Warning: Failed to initialize transaction tracking:'),
+          chalk.dim(error instanceof Error ? error.message : String(error))
+        );
+        console.warn(
+          chalk.yellow('Session will continue without rollback capability.\n')
+        );
+        this.transactionActive = false;
+      }
     }
 
-    console.log(chalk.bold(`\n Starting interactive improvement session`));
-    console.log(chalk.dim(`Found ${items.length} items to improve`));
+    if (isResuming) {
+      console.log(chalk.bold(`\n Resuming interactive improvement session`));
+      console.log(
+        chalk.dim(
+          `Resuming from item ${this.currentIndex + 1} of ${items.length}`
+        )
+      );
+    } else {
+      console.log(chalk.bold(`\n Starting interactive improvement session`));
+      console.log(chalk.dim(`Found ${items.length} items to improve`));
+    }
+
     if (this.transactionActive) {
       console.log(
         chalk.dim(
@@ -129,23 +158,26 @@ export class InteractiveSession implements IInteractiveSession {
       console.log(chalk.dim(`Transaction tracking: disabled\n`));
     }
 
-    // Initialize session state for save/resume capability
-    try {
-      await this.initializeSessionState(items);
-    } catch (error) {
-      console.warn(
-        chalk.yellow('Warning: Failed to initialize session state:'),
-        chalk.dim(error instanceof Error ? error.message : String(error))
-      );
-      console.warn(
-        chalk.yellow('Session will continue without save capability.\n')
-      );
+    // Initialize session state for save/resume capability (skip if resuming)
+    if (!isResuming) {
+      try {
+        await this.initializeSessionState(items);
+      } catch (error) {
+        console.warn(
+          chalk.yellow('Warning: Failed to initialize session state:'),
+          chalk.dim(error instanceof Error ? error.message : String(error))
+        );
+        console.warn(
+          chalk.yellow('Session will continue without save capability.\n')
+        );
+      }
     }
 
     const tracker = new ProgressTracker(items.length);
 
     try {
-      for (let index = 0; index < items.length; index++) {
+      // Start from currentIndex (0 for fresh, resumeState.current_index for resume)
+      for (let index = this.currentIndex; index < items.length; index++) {
         const item = items[index];
         this.currentIndex = index;
 
@@ -767,6 +799,26 @@ export class InteractiveSession implements IInteractiveSession {
     this.sessionState.partial_improvements[item.filepath][item.name] =
       statusRecord as ImproveSessionState['partial_improvements'][string][string];
     this.sessionState.current_index = this.currentIndex;
+
+    // Update file snapshot after successful accept (to exclude own writes from invalidation)
+    if (status === 'accepted') {
+      try {
+        const newSnapshot = await FileTracker.createSnapshot([item.filepath]);
+        this.sessionState.file_snapshot = Object.assign(
+          {},
+          this.sessionState.file_snapshot,
+          newSnapshot
+        );
+      } catch (error) {
+        console.warn(
+          chalk.yellow(
+            `Warning: Failed to update file snapshot for ${item.filepath}:`
+          ),
+          chalk.dim(error instanceof Error ? error.message : String(error))
+        );
+        // Continue without updating snapshot - next resume will detect this as external edit
+      }
+    }
 
     // Save checkpoint
     await SessionStateManager.saveSessionState(this.sessionState, 'improve');
