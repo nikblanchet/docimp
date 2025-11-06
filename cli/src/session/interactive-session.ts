@@ -875,6 +875,7 @@ export class InteractiveSession implements IInteractiveSession {
     // Create initial session state
     this.sessionState = {
       session_id: this.sessionId,
+      schema_version: '1.0',
       transaction_id: this.sessionId, // Use same ID for transaction link
       started_at: new Date().toISOString(),
       current_index: 0,
