@@ -4,6 +4,7 @@
  * Tests the main interactive documentation improvement workflow.
  */
 
+import { randomUUID } from 'node:crypto';
 import { InteractiveSession } from '../../session/interactive-session.js';
 import { PythonBridge } from '../../python-bridge/python-bridge.js';
 import { PluginManager } from '../../plugins/plugin-manager.js';
@@ -1467,12 +1468,18 @@ describe('InteractiveSession', () => {
   describe('Transaction Resume (Session 6b)', () => {
     let resumeSession: InteractiveSession;
     let mockResumeState: any;
+    let testSessionId: string;
+    let testTransactionId: string;
 
     beforeEach(() => {
+      // Generate valid UUIDs for this test
+      testSessionId = randomUUID();
+      testTransactionId = randomUUID();
+
       // Create mock resume state
       mockResumeState = {
-        session_id: 'test-session-123',
-        transaction_id: 'test-session-123',
+        session_id: testSessionId,
+        transaction_id: testTransactionId,
         started_at: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
         current_index: 1, // Resuming from second item
         total_items: 3,
@@ -1518,7 +1525,7 @@ describe('InteractiveSession', () => {
       // Mock listSessions to return in-progress status
       mockPythonBridge.listSessions = jest.fn().mockResolvedValue([
         {
-          session_id: 'test-session-123',
+          session_id: testSessionId,
           started_at: mockResumeState.started_at,
           completed_at: null,
           change_count: 1,
@@ -1541,7 +1548,7 @@ describe('InteractiveSession', () => {
       // Mock listSessions to return committed status
       mockPythonBridge.listSessions = jest.fn().mockResolvedValue([
         {
-          session_id: 'test-session-123',
+          session_id: testSessionId,
           started_at: mockResumeState.started_at,
           completed_at: new Date().toISOString(),
           change_count: 1,

@@ -49,12 +49,16 @@ describe('SessionStateManager', () => {
       const sessionId = randomUUID();
       const state: SessionState = {
         session_id: sessionId,
+        schema_version: '1.0',
         started_at: new Date().toISOString(),
         current_index: 5,
         total_items: 23,
         partial_ratings: {
           'file.py': { func1: 3, func2: null },
         },
+        file_snapshot: {},
+        config: { showCodeMode: 'complete', maxLines: 20 },
+        completed_at: null,
       };
 
       const resultId = await SessionStateManager.saveSessionState(
@@ -90,11 +94,18 @@ describe('SessionStateManager', () => {
       const sessionId = randomUUID();
       const state: SessionState = {
         session_id: sessionId,
+        schema_version: '1.0',
         transaction_id: randomUUID(),
         started_at: new Date().toISOString(),
         current_index: 2,
-        plan_items: [{ name: 'func1' }, { name: 'func2' }],
-        progress: { accepted: 1, skipped: 0, errors: 0 },
+        total_items: 2,
+        partial_improvements: {},
+        file_snapshot: {},
+        config: {
+          styleGuides: { typescript: 'tsdoc-typedoc' },
+          tone: 'concise',
+        },
+        completed_at: null,
       };
 
       const resultId = await SessionStateManager.saveSessionState(
@@ -143,6 +154,7 @@ describe('SessionStateManager', () => {
       const sessionId = randomUUID();
       const state: SessionState = {
         session_id: sessionId,
+        schema_version: '1.0',
         started_at: new Date().toISOString(),
         current_index: 10,
         total_items: 20,
@@ -186,18 +198,36 @@ describe('SessionStateManager', () => {
       const sessions = [
         {
           session_id: randomUUID(),
-          started_at: '2025-11-05T10:00:00',
-          data: 'session1',
+          schema_version: '1.0',
+          started_at: '2025-11-05T10:00:00Z',
+          current_index: 0,
+          total_items: 1,
+          partial_ratings: {},
+          file_snapshot: {},
+          config: { showCodeMode: 'complete', maxLines: 20 },
+          completed_at: null,
         },
         {
           session_id: randomUUID(),
-          started_at: '2025-11-05T11:00:00',
-          data: 'session2',
+          schema_version: '1.0',
+          started_at: '2025-11-05T11:00:00Z',
+          current_index: 0,
+          total_items: 1,
+          partial_ratings: {},
+          file_snapshot: {},
+          config: { showCodeMode: 'complete', maxLines: 20 },
+          completed_at: null,
         },
         {
           session_id: randomUUID(),
-          started_at: '2025-11-05T12:00:00',
-          data: 'session3',
+          schema_version: '1.0',
+          started_at: '2025-11-05T12:00:00Z',
+          current_index: 0,
+          total_items: 1,
+          partial_ratings: {},
+          file_snapshot: {},
+          config: { showCodeMode: 'complete', maxLines: 20 },
+          completed_at: null,
         },
       ];
 
@@ -211,9 +241,9 @@ describe('SessionStateManager', () => {
       expect(loadedSessions).toHaveLength(3);
 
       // Verify sorted by started_at descending (newest first)
-      expect(loadedSessions[0].started_at).toBe('2025-11-05T12:00:00');
-      expect(loadedSessions[1].started_at).toBe('2025-11-05T11:00:00');
-      expect(loadedSessions[2].started_at).toBe('2025-11-05T10:00:00');
+      expect(loadedSessions[0].started_at).toBe('2025-11-05T12:00:00Z');
+      expect(loadedSessions[1].started_at).toBe('2025-11-05T11:00:00Z');
+      expect(loadedSessions[2].started_at).toBe('2025-11-05T10:00:00Z');
     });
 
     test('should return empty list when no sessions exist', async () => {
