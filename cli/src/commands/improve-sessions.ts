@@ -63,22 +63,22 @@ function countProcessedItems(session: ImproveSessionState): {
           status: 'accepted' | 'skipped' | 'error';
         };
         switch (record.status) {
-        case 'accepted': {
-          accepted++;
-        
-        break;
-        }
-        case 'skipped': {
-          skipped++;
-        
-        break;
-        }
-        case 'error': {
-          error++;
-        
-        break;
-        }
-        // No default
+          case 'accepted': {
+            accepted++;
+
+            break;
+          }
+          case 'skipped': {
+            skipped++;
+
+            break;
+          }
+          case 'error': {
+            error++;
+
+            break;
+          }
+          // No default
         }
       }
     }

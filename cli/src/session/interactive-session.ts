@@ -150,98 +150,102 @@ export class InteractiveSession implements IInteractiveSession {
       );
 
       switch (transactionStatus) {
-      case null: {
-        // Transaction not found - branch may have been deleted manually
-        console.log(
-          chalk.yellow(
-            `Warning: Transaction branch not found for session ${this.sessionState.session_id.slice(0, 8)}.`
-          )
-        );
-        console.log(
-          chalk.yellow(
-            `Creating new transaction. Previous changes may have been committed or rolled back manually.`
-          )
-        );
+        case null: {
+          // Transaction not found - branch may have been deleted manually
+          console.log(
+            chalk.yellow(
+              `Warning: Transaction branch not found for session ${this.sessionState.session_id.slice(0, 8)}.`
+            )
+          );
+          console.log(
+            chalk.yellow(
+              `Creating new transaction. Previous changes may have been committed or rolled back manually.`
+            )
+          );
 
-        // Create new transaction for this session
-        try {
-          await this.pythonBridge.beginTransaction(
-            this.sessionState.session_id
-          );
-          this.transactionActive = true;
-        } catch (error) {
-          console.warn(
-            chalk.yellow('Warning: Failed to create new transaction:'),
-            chalk.dim(error instanceof Error ? error.message : String(error))
-          );
-          this.transactionActive = false;
+          // Create new transaction for this session
+          try {
+            await this.pythonBridge.beginTransaction(
+              this.sessionState.session_id
+            );
+            this.transactionActive = true;
+          } catch (error) {
+            console.warn(
+              chalk.yellow('Warning: Failed to create new transaction:'),
+              chalk.dim(error instanceof Error ? error.message : String(error))
+            );
+            this.transactionActive = false;
+          }
+
+          break;
         }
-      
-      break;
-      }
-      case 'in_progress': {
-        // Transaction still active - resume it
-        this.transactionActive = true;
-        console.log(
-          chalk.dim(
-            `Transaction status: ${chalk.green('in-progress')} - resuming existing transaction`
-          )
-        );
-      
-      break;
-      }
-      case 'committed': {
-        // Transaction was committed - create new transaction as continuation
-        console.log(
-          chalk.yellow(
-            `Session ${this.sessionState.session_id.slice(0, 8)} was previously committed.`
-          )
-        );
-        console.log(chalk.yellow(`Creating new transaction (continuation).\n`));
-
-        // Generate new transaction ID for continuation
-        const newSessionId = uuidv4();
-        const oldSessionId = this.sessionState.session_id;
-
-        try {
-          await this.pythonBridge.beginTransaction(newSessionId);
+        case 'in_progress': {
+          // Transaction still active - resume it
           this.transactionActive = true;
-          this.sessionId = newSessionId;
-
-          // Update session state with new transaction ID
-          this.sessionState.session_id = newSessionId;
-          this.sessionState.previous_session_id = oldSessionId;
-
-          // Save updated session state
-          await SessionStateManager.saveSessionState(
-            this.sessionState,
-            'improve'
+          console.log(
+            chalk.dim(
+              `Transaction status: ${chalk.green('in-progress')} - resuming existing transaction`
+            )
           );
-        } catch (error) {
-          console.warn(
-            chalk.yellow('Warning: Failed to create continuation transaction:'),
-            chalk.dim(error instanceof Error ? error.message : String(error))
-          );
-          this.transactionActive = false;
+
+          break;
         }
-      
-      break;
-      }
-      case 'rolled_back': {
-        // Transaction was rolled back - cannot resume
-        throw new Error(
-          `Cannot resume session ${this.sessionState.session_id.slice(0, 8)}: transaction has been rolled back.\n` +
-            `Use 'docimp improve --new' to start a fresh session.`
-        );
-      }
-      case 'partial_rollback': {
-        // Transaction has partial rollback - cannot resume
-        throw new Error(
-          `Cannot resume session ${this.sessionState.session_id.slice(0, 8)}: transaction has partial rollback.\n` +
-            `Use 'docimp improve --new' to start a fresh session.`
-        );
-      }
-      // No default
+        case 'committed': {
+          // Transaction was committed - create new transaction as continuation
+          console.log(
+            chalk.yellow(
+              `Session ${this.sessionState.session_id.slice(0, 8)} was previously committed.`
+            )
+          );
+          console.log(
+            chalk.yellow(`Creating new transaction (continuation).\n`)
+          );
+
+          // Generate new transaction ID for continuation
+          const newSessionId = uuidv4();
+          const oldSessionId = this.sessionState.session_id;
+
+          try {
+            await this.pythonBridge.beginTransaction(newSessionId);
+            this.transactionActive = true;
+            this.sessionId = newSessionId;
+
+            // Update session state with new transaction ID
+            this.sessionState.session_id = newSessionId;
+            this.sessionState.previous_session_id = oldSessionId;
+
+            // Save updated session state
+            await SessionStateManager.saveSessionState(
+              this.sessionState,
+              'improve'
+            );
+          } catch (error) {
+            console.warn(
+              chalk.yellow(
+                'Warning: Failed to create continuation transaction:'
+              ),
+              chalk.dim(error instanceof Error ? error.message : String(error))
+            );
+            this.transactionActive = false;
+          }
+
+          break;
+        }
+        case 'rolled_back': {
+          // Transaction was rolled back - cannot resume
+          throw new Error(
+            `Cannot resume session ${this.sessionState.session_id.slice(0, 8)}: transaction has been rolled back.\n` +
+              `Use 'docimp improve --new' to start a fresh session.`
+          );
+        }
+        case 'partial_rollback': {
+          // Transaction has partial rollback - cannot resume
+          throw new Error(
+            `Cannot resume session ${this.sessionState.session_id.slice(0, 8)}: transaction has partial rollback.\n` +
+              `Use 'docimp improve --new' to start a fresh session.`
+          );
+        }
+        // No default
       }
     } else {
       this.sessionId = uuidv4();
