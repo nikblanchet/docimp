@@ -266,8 +266,9 @@ describe('Cross-Workflow Resume Integration', () => {
 
       // Create audit session
       const auditSnapshot = await FileTracker.createSnapshot([auditFile]);
+      const auditSessionId = randomUUID();
       const auditState: AuditSessionState = {
-        session_id: 'concurrent-audit',
+        session_id: auditSessionId,
         started_at: new Date().toISOString(),
         current_index: 0,
         total_items: 1,
@@ -279,9 +280,10 @@ describe('Cross-Workflow Resume Integration', () => {
 
       // Create improve session
       const improveSnapshot = await FileTracker.createSnapshot([improveFile]);
+      const improveSessionId = randomUUID();
       const improveState: ImproveSessionState = {
-        session_id: 'concurrent-improve',
-        transaction_id: 'txn-concurrent',
+        session_id: improveSessionId,
+        transaction_id: randomUUID(),
         started_at: new Date().toISOString(),
         current_index: 0,
         plan_items: [],
@@ -304,8 +306,8 @@ describe('Cross-Workflow Resume Integration', () => {
 
       expect(auditSessions).toHaveLength(1);
       expect(improveSessions).toHaveLength(1);
-      expect(auditSessions[0]?.session_id).toBe('concurrent-audit');
-      expect(improveSessions[0]?.session_id).toBe('concurrent-improve');
+      expect(auditSessions[0]?.session_id).toBe(auditSessionId);
+      expect(improveSessions[0]?.session_id).toBe(improveSessionId);
 
       // Verify no interference between sessions
       expect(auditSessions[0]?.file_snapshot[auditFile]).toBeDefined();
@@ -322,8 +324,10 @@ describe('Cross-Workflow Resume Integration', () => {
       const snapshot = await FileTracker.createSnapshot([testFile]);
 
       // Create multiple audit sessions
-      const sessions = ['cleanup-001', 'cleanup-002', 'cleanup-003'];
-      for (const sessionId of sessions) {
+      const sessionIds: string[] = [];
+      for (let i = 0; i < 3; i++) {
+        const sessionId = randomUUID();
+        sessionIds.push(sessionId);
         const state: AuditSessionState = {
           session_id: sessionId,
           started_at: new Date().toISOString(),
@@ -343,27 +347,27 @@ describe('Cross-Workflow Resume Integration', () => {
       expect(allSessions.length).toBeGreaterThanOrEqual(3);
 
       // Delete one session
-      await SessionStateManager.deleteSessionState('cleanup-001', 'audit');
+      await SessionStateManager.deleteSessionState(sessionIds[0]!, 'audit');
 
       // Verify deletion
       allSessions =
         await SessionStateManager.listSessions<AuditSessionState>('audit');
       const deletedSession = allSessions.find(
-        (s) => s.session_id === 'cleanup-001'
+        (s) => s.session_id === sessionIds[0]
       );
       expect(deletedSession).toBeUndefined();
 
       // Delete remaining sessions
-      await SessionStateManager.deleteSessionState('cleanup-002', 'audit');
-      await SessionStateManager.deleteSessionState('cleanup-003', 'audit');
+      await SessionStateManager.deleteSessionState(sessionIds[1]!, 'audit');
+      await SessionStateManager.deleteSessionState(sessionIds[2]!, 'audit');
 
       // Verify all deleted
       allSessions =
         await SessionStateManager.listSessions<AuditSessionState>('audit');
-      const cleanupSessions = allSessions.filter((s) =>
-        s.session_id.startsWith('cleanup-')
+      const deletedSessionIds = sessionIds.filter((id) =>
+        allSessions.some((s) => s.session_id === id)
       );
-      expect(cleanupSessions).toHaveLength(0);
+      expect(deletedSessionIds).toHaveLength(0);
     });
   });
 
@@ -384,14 +388,15 @@ describe('Cross-Workflow Resume Integration', () => {
 
     it('should handle missing required fields', async () => {
       // Create session file with missing fields
+      const invalidSessionId = randomUUID();
       const invalidFile = path.join(
         tempDir,
-        '.docimp/session-reports/audit-session-invalid.json'
+        `.docimp/session-reports/audit-session-${invalidSessionId}.json`
       );
       await fs.writeFile(
         invalidFile,
         JSON.stringify({
-          session_id: 'invalid',
+          session_id: invalidSessionId,
           started_at: new Date().toISOString(),
           // Missing required fields: current_index, total_items, etc.
         })
@@ -399,7 +404,7 @@ describe('Cross-Workflow Resume Integration', () => {
 
       // Attempt to load invalid session (Zod validation should fail)
       await expect(
-        SessionStateManager.loadSessionState('invalid', 'audit')
+        SessionStateManager.loadSessionState(invalidSessionId, 'audit')
       ).rejects.toThrow();
     });
 
@@ -409,8 +414,9 @@ describe('Cross-Workflow Resume Integration', () => {
       await fs.writeFile(testFile, 'pass\n');
       const snapshot = await FileTracker.createSnapshot([testFile]);
 
+      const validSessionId = randomUUID();
       const validState: AuditSessionState = {
-        session_id: 'valid-after-corrupt',
+        session_id: validSessionId,
         started_at: new Date().toISOString(),
         current_index: 0,
         total_items: 1,
@@ -421,15 +427,16 @@ describe('Cross-Workflow Resume Integration', () => {
       };
 
       // Create corrupted session
+      const corruptedSessionId = randomUUID();
       const corruptedFile = path.join(
         tempDir,
-        '.docimp/session-reports/audit-session-corrupted-test.json'
+        `.docimp/session-reports/audit-session-${corruptedSessionId}.json`
       );
       await fs.writeFile(corruptedFile, 'corrupted');
 
       // Verify corrupted load fails
       await expect(
-        SessionStateManager.loadSessionState('corrupted-test', 'audit')
+        SessionStateManager.loadSessionState(corruptedSessionId, 'audit')
       ).rejects.toThrow();
 
       // Save valid session after encountering corruption
@@ -438,10 +445,10 @@ describe('Cross-Workflow Resume Integration', () => {
       // Verify valid session can be loaded
       const loaded =
         await SessionStateManager.loadSessionState<AuditSessionState>(
-          'valid-after-corrupt',
+          validSessionId,
           'audit'
         );
-      expect(loaded.session_id).toBe('valid-after-corrupt');
+      expect(loaded.session_id).toBe(validSessionId);
     });
   });
 
@@ -452,8 +459,9 @@ describe('Cross-Workflow Resume Integration', () => {
       await fs.writeFile(testFile, 'pass\n');
       const snapshot = await FileTracker.createSnapshot([testFile]);
 
+      const futureSessionId = randomUUID();
       const futureState = {
-        session_id: 'future-schema',
+        session_id: futureSessionId,
         started_at: new Date().toISOString(),
         current_index: 0,
         total_items: 1,
@@ -468,18 +476,18 @@ describe('Cross-Workflow Resume Integration', () => {
 
       const futureFile = path.join(
         tempDir,
-        '.docimp/session-reports/audit-session-future-schema.json'
+        `.docimp/session-reports/audit-session-${futureSessionId}.json`
       );
       await fs.writeFile(futureFile, JSON.stringify(futureState, null, 2));
 
       // Load with current schema (should ignore extra fields via Zod passthrough)
       const loaded =
         await SessionStateManager.loadSessionState<AuditSessionState>(
-          'future-schema',
+          futureSessionId,
           'audit'
         );
 
-      expect(loaded.session_id).toBe('future-schema');
+      expect(loaded.session_id).toBe(futureSessionId);
       expect(loaded.current_index).toBe(0);
       // Extra fields should be ignored but not cause errors
     });
@@ -489,8 +497,9 @@ describe('Cross-Workflow Resume Integration', () => {
       const testFile = path.join(tempDir, 'test.py');
       await fs.writeFile(testFile, 'pass\n');
 
+      const oldSessionId = randomUUID();
       const oldState = {
-        session_id: 'old-schema',
+        session_id: oldSessionId,
         started_at: new Date().toISOString(),
         current_index: 0,
         total_items: 1,
@@ -509,18 +518,18 @@ describe('Cross-Workflow Resume Integration', () => {
 
       const oldFile = path.join(
         tempDir,
-        '.docimp/session-reports/audit-session-old-schema.json'
+        `.docimp/session-reports/audit-session-${oldSessionId}.json`
       );
       await fs.writeFile(oldFile, JSON.stringify(oldState, null, 2));
 
       // Load old schema (should work with current schema)
       const loaded =
         await SessionStateManager.loadSessionState<AuditSessionState>(
-          'old-schema',
+          oldSessionId,
           'audit'
         );
 
-      expect(loaded.session_id).toBe('old-schema');
+      expect(loaded.session_id).toBe(oldSessionId);
       expect(loaded.file_snapshot[testFile]).toBeDefined();
     });
   });
@@ -559,8 +568,9 @@ describe('Cross-Workflow Resume Integration', () => {
         };
       }
 
+      const perfSessionId = randomUUID();
       const largeState: AuditSessionState = {
-        session_id: 'performance-test',
+        session_id: perfSessionId,
         started_at: new Date().toISOString(),
         current_index: 500,
         total_items: 1000,
@@ -588,7 +598,7 @@ describe('Cross-Workflow Resume Integration', () => {
       const loadStart = Date.now();
       const loaded =
         await SessionStateManager.loadSessionState<AuditSessionState>(
-          'performance-test',
+          perfSessionId,
           'audit'
         );
       const loadDuration = Date.now() - loadStart;
