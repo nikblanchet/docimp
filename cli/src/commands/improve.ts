@@ -872,6 +872,10 @@ export async function improveCore(
  * @param options.nonInteractive - Run in non-interactive mode
  * @param options.verbose - Enable verbose output
  * @param options.listStyles - List available style guides and exit
+ * @param options.resume - Resume an incomplete session (show selection list)
+ * @param options.resumeFile - Resume specific session ID (skip selection)
+ * @param options.new - Force new session (bypass auto-detection)
+ * @param options.clearSession - Delete all incomplete sessions and exit
  * @param bridge - Python bridge instance (dependency injection)
  * @param display - Display instance (dependency injection)
  * @param configLoader - Config loader instance (dependency injection)
