@@ -6,6 +6,8 @@
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { AuditSessionStateSchema } from '../types/audit-session-state.js';
+import { ImproveSessionStateSchema } from '../types/improve-session-state.js';
 import { StateManager } from './state-manager.js';
 
 export interface SessionState {
@@ -99,7 +101,16 @@ export const SessionStateManager = {
 
     try {
       const fileContent = await fs.readFile(filePath, 'utf8');
-      return JSON.parse(fileContent) as SessionState;
+      const parsedData = JSON.parse(fileContent);
+
+      // Validate with appropriate Zod schema
+      const schema =
+        sessionType === 'audit'
+          ? AuditSessionStateSchema
+          : ImproveSessionStateSchema;
+      const validatedState = schema.parse(parsedData);
+
+      return validatedState as SessionState;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         throw new Error(

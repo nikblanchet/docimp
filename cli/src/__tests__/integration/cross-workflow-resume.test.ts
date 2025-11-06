@@ -1,11 +1,12 @@
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import os from 'node:os';
+import { randomUUID } from 'node:crypto';
 import { SessionStateManager } from '../../utils/session-state-manager';
 import { FileTracker } from '../../utils/file-tracker';
-import type { AuditSessionState } from '../../types/AuditSessionState';
-import type { ImproveSessionState } from '../../types/ImproveSessionState';
-import type { CodeItem } from '../../types/AnalysisResult';
+import type { AuditSessionState } from '../../types/audit-session-state';
+import type { ImproveSessionState } from '../../types/improve-session-state';
+import type { CodeItem } from '../../types/analysis';
 
 describe('Cross-Workflow Resume Integration', () => {
   let tempDir: string;
@@ -59,8 +60,9 @@ describe('Cross-Workflow Resume Integration', () => {
 
       // Step 1: Start audit session
       const snapshot = await FileTracker.createSnapshot([testFile]);
+      const sessionId = randomUUID();
       const auditState: AuditSessionState = {
-        session_id: 'test-audit-001',
+        session_id: sessionId,
         started_at: new Date().toISOString(),
         current_index: 0,
         total_items: 1,
@@ -83,7 +85,7 @@ describe('Cross-Workflow Resume Integration', () => {
       // Step 3: Resume audit session
       const resumedState =
         await SessionStateManager.loadSessionState<AuditSessionState>(
-          'test-audit-001',
+          sessionId,
           'audit'
         );
       expect(resumedState.partial_ratings[testFile]?.['calculate_score']).toBe(
@@ -142,9 +144,10 @@ describe('Cross-Workflow Resume Integration', () => {
 
       // Create improve session
       const snapshot = await FileTracker.createSnapshot([testFile]);
+      const sessionId = randomUUID();
       const improveState: ImproveSessionState = {
-        session_id: 'test-improve-001',
-        transaction_id: 'txn-001',
+        session_id: sessionId,
+        transaction_id: randomUUID(),
         started_at: new Date().toISOString(),
         current_index: 0,
         plan_items: [
@@ -186,7 +189,7 @@ describe('Cross-Workflow Resume Integration', () => {
       // Step 2: Resume session
       const resumed1 =
         await SessionStateManager.loadSessionState<ImproveSessionState>(
-          'test-improve-001',
+          sessionId,
           'improve'
         );
       expect(resumed1.progress.accepted).toBe(1);
@@ -200,7 +203,7 @@ describe('Cross-Workflow Resume Integration', () => {
       // Step 4: Resume again
       const resumed2 =
         await SessionStateManager.loadSessionState<ImproveSessionState>(
-          'test-improve-001',
+          sessionId,
           'improve'
         );
       expect(resumed2.progress.accepted).toBe(0);
@@ -219,8 +222,9 @@ describe('Cross-Workflow Resume Integration', () => {
 
       // Create audit session with file snapshot
       const auditSnapshot = await FileTracker.createSnapshot([testFile]);
+      const sessionId = randomUUID();
       const auditState: AuditSessionState = {
-        session_id: 'test-audit-002',
+        session_id: sessionId,
         started_at: new Date().toISOString(),
         current_index: 0,
         total_items: 1,
