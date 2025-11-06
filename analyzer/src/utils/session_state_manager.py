@@ -58,7 +58,7 @@ class SessionStateManager:
 
             return session_id
 
-        except (OSError, json.JSONEncodeError) as error:
+        except (OSError, TypeError, ValueError) as error:
             # Clean up temp file if it exists
             if tmp_path.exists():
                 tmp_path.unlink(missing_ok=True)
