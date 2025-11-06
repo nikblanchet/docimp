@@ -4,6 +4,7 @@
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import {
   SessionStateManager,
   type SessionState,
@@ -45,8 +46,9 @@ describe('SessionStateManager', () => {
 
   describe('saveSessionState', () => {
     test('should save audit session state with atomic write', async () => {
+      const sessionId = randomUUID();
       const state: SessionState = {
-        session_id: 'test-session-123',
+        session_id: sessionId,
         started_at: new Date().toISOString(),
         current_index: 5,
         total_items: 23,
@@ -60,12 +62,12 @@ describe('SessionStateManager', () => {
         'audit'
       );
 
-      expect(resultId).toBe('test-session-123');
+      expect(resultId).toBe(sessionId);
 
       // Verify file was created
       const expectedPath = path.join(
         tempDir,
-        'audit-session-test-session-123.json'
+        `audit-session-${sessionId}.json`
       );
       const exists = await fs
         .access(expectedPath)
@@ -85,9 +87,10 @@ describe('SessionStateManager', () => {
     });
 
     test('should save improve session state', async () => {
+      const sessionId = randomUUID();
       const state: SessionState = {
-        session_id: 'test-session-456',
-        transaction_id: 'trans-789',
+        session_id: sessionId,
+        transaction_id: randomUUID(),
         started_at: new Date().toISOString(),
         current_index: 2,
         plan_items: [{ name: 'func1' }, { name: 'func2' }],
@@ -99,12 +102,12 @@ describe('SessionStateManager', () => {
         'improve'
       );
 
-      expect(resultId).toBe('test-session-456');
+      expect(resultId).toBe(sessionId);
 
       // Verify file created
       const expectedPath = path.join(
         tempDir,
-        'improve-session-test-session-456.json'
+        `improve-session-${sessionId}.json`
       );
       const exists = await fs
         .access(expectedPath)
@@ -115,7 +118,7 @@ describe('SessionStateManager', () => {
 
     test('should throw error for invalid session type', async () => {
       const state: SessionState = {
-        session_id: 'test-session',
+        session_id: randomUUID(),
         data: 'test',
       };
 
@@ -137,8 +140,9 @@ describe('SessionStateManager', () => {
 
   describe('loadSessionState', () => {
     test('should load session state from JSON file', async () => {
+      const sessionId = randomUUID();
       const state: SessionState = {
-        session_id: 'test-load-123',
+        session_id: sessionId,
         started_at: new Date().toISOString(),
         current_index: 10,
       };
@@ -148,7 +152,7 @@ describe('SessionStateManager', () => {
 
       // Load state
       const loaded = await SessionStateManager.loadSessionState(
-        'test-load-123',
+        sessionId,
         'audit'
       );
 
@@ -176,17 +180,17 @@ describe('SessionStateManager', () => {
       // Create sessions with different timestamps
       const sessions = [
         {
-          session_id: 'session-1',
+          session_id: randomUUID(),
           started_at: '2025-11-05T10:00:00',
           data: 'session1',
         },
         {
-          session_id: 'session-2',
+          session_id: randomUUID(),
           started_at: '2025-11-05T11:00:00',
           data: 'session2',
         },
         {
-          session_id: 'session-3',
+          session_id: randomUUID(),
           started_at: '2025-11-05T12:00:00',
           data: 'session3',
         },
@@ -215,14 +219,15 @@ describe('SessionStateManager', () => {
 
   describe('deleteSessionState', () => {
     test('should delete session state file', async () => {
+      const sessionId = randomUUID();
       const state: SessionState = {
-        session_id: 'test-delete',
+        session_id: sessionId,
         data: 'test',
       };
 
       // Save state
       await SessionStateManager.saveSessionState(state, 'audit');
-      const filePath = path.join(tempDir, 'audit-session-test-delete.json');
+      const filePath = path.join(tempDir, `audit-session-${sessionId}.json`);
       let exists = await fs
         .access(filePath)
         .then(() => true)
@@ -230,7 +235,7 @@ describe('SessionStateManager', () => {
       expect(exists).toBe(true);
 
       // Delete state
-      await SessionStateManager.deleteSessionState('test-delete', 'audit');
+      await SessionStateManager.deleteSessionState(sessionId, 'audit');
 
       // Verify file deleted
       exists = await fs
@@ -251,15 +256,17 @@ describe('SessionStateManager', () => {
   describe('getLatestSession', () => {
     test('should get the most recent session', async () => {
       // Create sessions with different timestamps
+      const sessionId1 = randomUUID();
       const session1: SessionState = {
-        session_id: 'session-old',
+        session_id: sessionId1,
         started_at: '2025-11-05T10:00:00',
         data: 'old',
       };
       await SessionStateManager.saveSessionState(session1, 'audit');
 
+      const sessionId2 = randomUUID();
       const session2: SessionState = {
-        session_id: 'session-new',
+        session_id: sessionId2,
         started_at: '2025-11-05T12:00:00',
         data: 'new',
       };
@@ -269,7 +276,7 @@ describe('SessionStateManager', () => {
       const latest = await SessionStateManager.getLatestSession('audit');
 
       expect(latest).not.toBeNull();
-      expect(latest?.session_id).toBe('session-new');
+      expect(latest?.session_id).toBe(sessionId2);
       expect(latest?.data).toBe('new');
     });
 
