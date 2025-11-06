@@ -31,6 +31,7 @@ export class StateManager {
   private static readonly STATE_DIR_NAME = '.docimp';
   private static readonly SESSION_REPORTS_DIR = 'session-reports';
   private static readonly HISTORY_DIR = 'history';
+  private static readonly GIT_STATE_DIR = 'state';
 
   private static readonly AUDIT_FILE = 'audit.json';
   private static readonly PLAN_FILE = 'plan.json';
@@ -196,5 +197,18 @@ export class StateManager {
       this.getSessionReportsDir(basePath),
       `improve-session-${sessionId}.json`
     );
+  }
+
+  /**
+   * Get the absolute path to the .docimp/state directory.
+   *
+   * This directory contains the side-car git repository used for
+   * transaction tracking and rollback capability.
+   *
+   * @param basePath - Base directory to resolve from. If not provided, uses current working directory.
+   * @returns Absolute path to .docimp/state/ directory.
+   */
+  static getGitStateDir(basePath?: string): string {
+    return path.join(this.getStateDir(basePath), this.GIT_STATE_DIR);
   }
 }

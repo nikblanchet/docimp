@@ -5,12 +5,17 @@
  * the session state directory (.docimp/session-reports/).
  */
 
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import prompts from 'prompts';
 import { EXIT_CODE, type ExitCode } from '../constants/exit-codes.js';
 import type { ImproveSessionState } from '../types/improve-session-state.js';
 import { SessionStateManager } from '../utils/session-state-manager.js';
+import { StateManager } from '../utils/state-manager.js';
+
+const execPromise = promisify(exec);
 
 /**
  * Format elapsed time in human-readable format.
@@ -88,6 +93,51 @@ function countProcessedItems(session: ImproveSessionState): {
 }
 
 /**
+ * Check transaction status for an improve session.
+ *
+ * Queries the side-car git repository to determine if the transaction branch
+ * exists and whether it has been squash-merged to main.
+ *
+ * @param transactionId - UUID of the transaction (same as session_id)
+ * @returns Transaction status: 'Active', 'Committed', 'Rolled Back', or 'Unknown'
+ */
+async function checkTransactionStatus(transactionId: string): Promise<string> {
+  try {
+    const gitDirectory = StateManager.getGitStateDir();
+    const branchName = `docimp/session-${transactionId}`;
+
+    // Check if transaction branch exists
+    const { stdout: branchListOutput } = await execPromise(
+      `git --git-dir="${gitDirectory}/.git" --work-tree=. branch --list "${branchName}"`,
+      { cwd: process.cwd() }
+    );
+
+    if (!branchListOutput.trim()) {
+      // Branch doesn't exist - transaction may have been rolled back or never started
+      return chalk.gray('Unknown');
+    }
+
+    // Branch exists - check if it's been squash-merged to main
+    // Look for squash commit message in main branch
+    const { stdout: logOutput } = await execPromise(
+      `git --git-dir="${gitDirectory}/.git" --work-tree=. log main --grep="docimp session ${transactionId}" --oneline`,
+      { cwd: process.cwd() }
+    );
+
+    if (logOutput.trim()) {
+      // Squash commit found - transaction has been committed
+      return chalk.green('Committed');
+    }
+
+    // Branch exists but no squash commit - transaction is still active
+    return chalk.yellow('Active');
+  } catch {
+    // Git command failed - side-car repo may not exist yet
+    return chalk.gray('N/A');
+  }
+}
+
+/**
  * Core list-improve-sessions logic (extracted for testability).
  *
  * Lists all improve sessions with details in a formatted table.
@@ -101,21 +151,24 @@ export async function listImproveSessionsCore(): Promise<void> {
     return;
   }
 
-  // Create table with session details
+  // Create table with session details including transaction information
   const table = new Table({
     head: [
       chalk.bold('Session ID'),
+      chalk.bold('Transaction ID'),
       chalk.bold('Started'),
       chalk.bold('Completed'),
-      chalk.bold('Accepted/Skipped/Errors'),
+      chalk.bold('Acc/Skip/Err'),
       chalk.bold('Status'),
+      chalk.bold('Txn Status'),
     ],
-    colWidths: [15, 15, 15, 25, 15],
+    colWidths: [15, 15, 15, 15, 15, 13, 13],
   });
 
   for (const session of sessions) {
     const improveSession = session as ImproveSessionState;
     const sessionId = improveSession.session_id.slice(0, 12);
+    const transactionId = improveSession.transaction_id.slice(0, 12);
     const started = formatElapsedTime(improveSession.started_at);
     const completed = improveSession.completed_at
       ? formatElapsedTime(improveSession.completed_at)
@@ -125,12 +178,25 @@ export async function listImproveSessionsCore(): Promise<void> {
     const counts = countProcessedItems(improveSession);
     const itemsProcessed = `${counts.accepted}/${counts.skipped}/${counts.error}`;
 
-    // Color-code status
+    // Color-code session status
     const status = improveSession.completed_at
       ? chalk.green('completed')
       : chalk.yellow('in-progress');
 
-    table.push([sessionId, started, completed, itemsProcessed, status]);
+    // Check transaction status
+    const transactionStatus = await checkTransactionStatus(
+      improveSession.transaction_id
+    );
+
+    table.push([
+      sessionId,
+      transactionId,
+      started,
+      completed,
+      itemsProcessed,
+      status,
+      transactionStatus,
+    ]);
   }
 
   console.log(table.toString());
