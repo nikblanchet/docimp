@@ -62,7 +62,12 @@ export const FileTracker = {
           checksum,
           size,
         };
-      } catch {
+      } catch (error) {
+        // Log permission errors but continue with other files
+        const nodeError = error as NodeJS.ErrnoException;
+        if (nodeError.code === 'EACCES' || nodeError.code === 'EPERM') {
+          console.warn(`Warning: Permission denied when reading ${filepath}`);
+        }
         // Skip files we can't read (permission errors, non-existent files, etc.)
         continue;
       }
@@ -104,8 +109,13 @@ export const FileTracker = {
           changedFiles.push(filepath);
         }
       } catch (error) {
+        const nodeError = error as NodeJS.ErrnoException;
         // File deleted or can't read - consider it changed
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        if (nodeError.code === 'ENOENT') {
+          changedFiles.push(filepath);
+        } else if (nodeError.code === 'EACCES' || nodeError.code === 'EPERM') {
+          // Log permission errors
+          console.warn(`Warning: Permission denied when reading ${filepath}`);
           changedFiles.push(filepath);
         } else {
           // Can't read file for other reasons - consider it changed

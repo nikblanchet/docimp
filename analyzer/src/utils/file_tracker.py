@@ -4,9 +4,12 @@ Provides checksum and timestamp-based file modification detection for session re
 """
 
 import hashlib
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -92,8 +95,12 @@ class FileTracker:
                     size=size,
                 )
 
-            except (OSError, PermissionError):
-                # Skip files we can't read
+            except PermissionError:
+                # Log permission errors but continue with other files
+                logger.warning(f"Permission denied when reading {filepath}")
+                continue
+            except OSError:
+                # Skip other OS errors (e.g., file is a directory)
                 continue
 
         return snapshots
@@ -137,8 +144,12 @@ class FileTracker:
                 if new_checksum != old_snapshot.checksum:
                     changed_files.append(filepath)
 
-            except (OSError, PermissionError):
-                # Can't read file - consider it changed
+            except PermissionError:
+                # Log permission errors
+                logger.warning(f"Permission denied when reading {filepath}")
+                changed_files.append(filepath)
+            except OSError:
+                # Can't read file for other reasons - consider it changed
                 changed_files.append(filepath)
 
         return changed_files
