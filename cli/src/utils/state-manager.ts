@@ -211,4 +211,51 @@ export class StateManager {
   static getGitStateDir(basePath?: string): string {
     return path.join(this.getStateDir(basePath), this.GIT_STATE_DIR);
   }
+
+  /**
+   * List all session state files of a given type.
+   *
+   * @param sessionType - Type of session: 'audit' or 'improve'
+   * @param basePath - Base directory to resolve from. If not provided, uses current working directory.
+   * @returns Array of absolute paths to session files, sorted by modification time (newest first).
+   */
+  static listSessionFiles(
+    sessionType: 'audit' | 'improve',
+    basePath?: string
+  ): string[] {
+    const reportsDirectory = this.getSessionReportsDir(basePath);
+
+    if (!existsSync(reportsDirectory)) {
+      return [];
+    }
+
+    const prefix = `${sessionType}-session-`;
+    const suffix = '.json';
+
+    const files = readdirSync(reportsDirectory)
+      .filter((file) => file.startsWith(prefix) && file.endsWith(suffix))
+      .map((file) => path.join(reportsDirectory, file));
+
+    // Sort by modification time, newest first
+    return files.toSorted((a, b) => {
+      const statA = statSync(a);
+      const statB = statSync(b);
+      return statB.mtimeMs - statA.mtimeMs;
+    });
+  }
+
+  /**
+   * Get the absolute path to the most recent session state file.
+   *
+   * @param sessionType - Type of session: 'audit' or 'improve'
+   * @param basePath - Base directory to resolve from. If not provided, uses current working directory.
+   * @returns Absolute path to latest session file, or null if no sessions exist.
+   */
+  static getLatestSessionFile(
+    sessionType: 'audit' | 'improve',
+    basePath?: string
+  ): string | null {
+    const files = this.listSessionFiles(sessionType, basePath);
+    return files.length > 0 ? files[0] : null;
+  }
 }
