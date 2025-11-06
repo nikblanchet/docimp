@@ -58,22 +58,22 @@ class SessionStateManager:
 
             return session_id
 
-        except Exception:
+        except (OSError, json.JSONEncodeError) as error:
             # Clean up temp file if it exists
             if tmp_path.exists():
-                tmp_path.unlink()
-            raise
+                tmp_path.unlink(missing_ok=True)
+            raise error
 
     @staticmethod
     def load_session_state(session_id: str, session_type: str) -> dict[str, Any]:
-        """Load session state from JSON file.
+        """Load session state from JSON file with migration support.
 
         Args:
             session_id: Session ID (UUID string)
             session_type: Type of session ('audit' or 'improve')
 
         Returns:
-            dict: Session state
+            dict: Session state (with schema_version added if missing)
 
         Raises:
             ValueError: If session_type is invalid
@@ -90,13 +90,27 @@ class SessionStateManager:
         file_path = session_reports_dir / filename
 
         if not file_path.exists():
+            command_name = session_type
             raise FileNotFoundError(
-                f"Session file not found: {filename}. "
-                f"Session may not exist or was deleted."
+                f"Session file not found: {filename}.\n"
+                f"Use 'docimp list-{command_name}-sessions' to see available sessions "
+                f"or start a new session with --new."
             )
 
         with file_path.open(encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+
+        # Migration logic: Handle older session files without schema_version
+        version = data.get("schema_version", "1.0")
+        if version == "1.0" and "schema_version" not in data:
+            # Current version - ensure schema_version field exists
+            data["schema_version"] = "1.0"
+        elif version == "2.0":
+            # Future migrations would go here:
+            #     data = _migrate_v2_to_v3(data)
+            pass
+
+        return data
 
     @staticmethod
     def list_sessions(session_type: str) -> list[dict[str, Any]]:

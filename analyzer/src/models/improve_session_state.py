@@ -17,6 +17,7 @@ class ImproveSessionState:
 
     Attributes:
         session_id: Unique identifier for the improve session (UUID string)
+        schema_version: Version string for migration support (default '1.0')
         transaction_id: Git transaction ID linking to side-car repository branch
         started_at: ISO 8601 timestamp when session began
         current_index: Current position in plan_items array (0-based)
@@ -32,14 +33,24 @@ class ImproveSessionState:
     """
 
     session_id: str
-    transaction_id: str
-    started_at: str
-    current_index: int
-    total_items: int
-    partial_improvements: dict[str, dict[str, dict[str, Any]]]
-    file_snapshot: dict[str, FileSnapshot]
-    config: dict[str, Any]
+    schema_version: str = '1.0'
+    transaction_id: str = ''
+    started_at: str = ''
+    current_index: int = 0
+    total_items: int = 0
+    partial_improvements: dict[str, dict[str, dict[str, Any]]] = None  # type: ignore[assignment]
+    file_snapshot: dict[str, FileSnapshot] = None  # type: ignore[assignment]
+    config: dict[str, Any] = None  # type: ignore[assignment]
     completed_at: str | None = None
+
+    def __post_init__(self) -> None:
+        """Initialize mutable default values."""
+        if self.partial_improvements is None:
+            self.partial_improvements = {}
+        if self.file_snapshot is None:
+            self.file_snapshot = {}
+        if self.config is None:
+            self.config = {}
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict.
@@ -49,6 +60,7 @@ class ImproveSessionState:
         """
         return {
             "session_id": self.session_id,
+            "schema_version": self.schema_version,
             "transaction_id": self.transaction_id,
             "started_at": self.started_at,
             "current_index": self.current_index,
@@ -79,6 +91,8 @@ class ImproveSessionState:
 
         return cls(
             session_id=data["session_id"],
+            # Default for old sessions without schema_version
+            schema_version=data.get("schema_version", "1.0"),
             transaction_id=data["transaction_id"],
             started_at=data["started_at"],
             current_index=data["current_index"],

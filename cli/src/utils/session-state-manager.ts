@@ -23,11 +23,13 @@ export const SessionStateManager = {
    * Save session state to JSON file with atomic write.
    *
    * Uses temp file + rename pattern to prevent corruption on crash or interrupt.
+   * Validates state against schema before saving to catch errors early.
    *
    * @param state - Session state object (must include 'session_id' field)
    * @param sessionType - Type of session ('audit' or 'improve')
    * @returns Session ID
    * @throws {Error} If sessionType is invalid or state missing session_id
+   * @throws {z.ZodError} If state fails schema validation
    */
   async saveSessionState(
     state: SessionState,
@@ -43,6 +45,13 @@ export const SessionStateManager = {
     if (!sessionId) {
       throw new Error("Session state must include 'session_id' field");
     }
+
+    // Validate state against schema before saving (defensive programming)
+    const schema =
+      sessionType === 'audit'
+        ? AuditSessionStateSchema
+        : ImproveSessionStateSchema;
+    schema.parse(state); // Throws ZodError if invalid
 
     // Ensure session reports directory exists
     StateManager.ensureStateDir();
@@ -76,7 +85,7 @@ export const SessionStateManager = {
   },
 
   /**
-   * Load session state from JSON file.
+   * Load session state from JSON file with schema validation and migration support.
    *
    * @param sessionId - Session ID (UUID string)
    * @param sessionType - Type of session ('audit' or 'improve')
@@ -84,6 +93,7 @@ export const SessionStateManager = {
    * @throws {Error} If sessionType is invalid
    * @throws {Error} If session file doesn't exist (ENOENT)
    * @throws {SyntaxError} If file contains invalid JSON
+   * @throws {z.ZodError} If state fails schema validation after migration
    */
   async loadSessionState(
     sessionId: string,
@@ -101,9 +111,19 @@ export const SessionStateManager = {
 
     try {
       const fileContent = await fs.readFile(filePath, 'utf8');
-      const parsedData = JSON.parse(fileContent);
+      let parsedData = JSON.parse(fileContent);
 
-      // Validate with appropriate Zod schema
+      // Migration logic: Handle older session files without schema_version
+      const version = parsedData.schema_version || '1.0';
+      if (version === '1.0' && !parsedData.schema_version) {
+        // Current version - ensure schema_version field exists for files saved before versioning
+        parsedData.schema_version = '1.0';
+      } else if (version === '2.0') {
+        // Future migrations would go here:
+        //   parsedData = migrateV2ToV3(parsedData);
+      }
+
+      // Validate with appropriate Zod schema after migration
       const schema =
         sessionType === 'audit'
           ? AuditSessionStateSchema
@@ -113,8 +133,11 @@ export const SessionStateManager = {
       return validatedState as SessionState;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        const commandName = sessionType === 'audit' ? 'audit' : 'improve';
         throw new Error(
-          `Session file not found: ${filename}. Session may not exist or was deleted.`
+          `Session file not found: ${filename}.\n` +
+            `Use 'docimp list-${commandName}-sessions' to see available sessions ` +
+            `or start a new session with --new.`
         );
       }
       throw error;

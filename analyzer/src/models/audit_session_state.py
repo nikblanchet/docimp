@@ -17,6 +17,7 @@ class AuditSessionState:
 
     Attributes:
         session_id: Unique identifier for the audit session (UUID string)
+        schema_version: Version string for migration support (default '1.0')
         started_at: ISO 8601 timestamp when session began
         current_index: Current position in items array (0-based)
         total_items: Total number of items to audit
@@ -28,13 +29,23 @@ class AuditSessionState:
     """
 
     session_id: str
-    started_at: str
-    current_index: int
-    total_items: int
-    partial_ratings: dict[str, dict[str, int | None]]
-    file_snapshot: dict[str, FileSnapshot]
-    config: dict[str, Any]
+    schema_version: str = '1.0'
+    started_at: str = ''
+    current_index: int = 0
+    total_items: int = 0
+    partial_ratings: dict[str, dict[str, int | None]] = None  # type: ignore[assignment]
+    file_snapshot: dict[str, FileSnapshot] = None  # type: ignore[assignment]
+    config: dict[str, Any] = None  # type: ignore[assignment]
     completed_at: str | None = None
+
+    def __post_init__(self) -> None:
+        """Initialize mutable default values."""
+        if self.partial_ratings is None:
+            self.partial_ratings = {}
+        if self.file_snapshot is None:
+            self.file_snapshot = {}
+        if self.config is None:
+            self.config = {}
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict.
@@ -44,6 +55,7 @@ class AuditSessionState:
         """
         return {
             "session_id": self.session_id,
+            "schema_version": self.schema_version,
             "started_at": self.started_at,
             "current_index": self.current_index,
             "total_items": self.total_items,
@@ -73,6 +85,8 @@ class AuditSessionState:
 
         return cls(
             session_id=data["session_id"],
+            # Default for old sessions without schema_version
+            schema_version=data.get("schema_version", "1.0"),
             started_at=data["started_at"],
             current_index=data["current_index"],
             total_items=data["total_items"],

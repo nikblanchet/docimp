@@ -48,6 +48,7 @@ export type ImproveConfig = z.infer<typeof ImproveConfigSchema>;
 export const ImproveSessionStateSchema = z
   .object({
     session_id: z.string().uuid(),
+    schema_version: z.string().default('1.0'), // Schema version for migration support
     transaction_id: z.string().uuid(), // Links to git transaction branch
     started_at: z.string().datetime(), // ISO 8601 timestamp
     current_index: z.number().int().nonnegative(),
@@ -64,13 +65,14 @@ export const ImproveSessionStateSchema = z
     completed_at: z.string().datetime().nullable(), // ISO 8601 timestamp or null if in-progress
     previous_session_id: z.string().uuid().optional(), // Links to previous session if this is a continuation
   })
-  .passthrough();
+  .passthrough(); // Keep .passthrough() for forward compatibility - allows loading sessions from newer versions
 
 /**
  * TypeScript type inferred from ImproveSessionStateSchema.
  *
  * Represents the complete state of an improve session including:
  * - session_id: Unique identifier (UUID)
+ * - schema_version: Version string for migration support (default '1.0')
  * - transaction_id: Git transaction ID for documentation changes
  * - started_at: ISO 8601 timestamp when session began
  * - current_index: Current position in plan_items array (0-based)

@@ -48,6 +48,7 @@ export type AuditConfig = z.infer<typeof AuditConfigSchema>;
 export const AuditSessionStateSchema = z
   .object({
     session_id: z.string().uuid(),
+    schema_version: z.string().default('1.0'), // Schema version for migration support
     started_at: z.string().datetime(), // ISO 8601 timestamp
     current_index: z.number().int().nonnegative(),
     total_items: z.number().int().positive(),
@@ -62,13 +63,14 @@ export const AuditSessionStateSchema = z
     config: AuditConfigSchema,
     completed_at: z.string().datetime().nullable(), // ISO 8601 timestamp or null if in-progress
   })
-  .passthrough();
+  .passthrough(); // Keep .passthrough() for forward compatibility - allows loading sessions from newer versions
 
 /**
  * TypeScript type inferred from AuditSessionStateSchema.
  *
  * Represents the complete state of an audit session including:
  * - session_id: Unique identifier (UUID)
+ * - schema_version: Version string for migration support (default '1.0')
  * - started_at: ISO 8601 timestamp when session began
  * - current_index: Current position in items array (0-based)
  * - total_items: Total number of items to audit
