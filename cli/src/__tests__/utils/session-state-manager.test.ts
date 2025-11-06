@@ -257,7 +257,14 @@ describe('SessionStateManager', () => {
       const sessionId = randomUUID();
       const state: SessionState = {
         session_id: sessionId,
-        data: 'test',
+        schema_version: '1.0',
+        started_at: new Date().toISOString(),
+        current_index: 0,
+        total_items: 1,
+        partial_ratings: {},
+        file_snapshot: {},
+        config: { showCodeMode: 'complete', maxLines: 20 },
+        completed_at: null,
       };
 
       // Save state
@@ -294,16 +301,28 @@ describe('SessionStateManager', () => {
       const sessionId1 = randomUUID();
       const session1: SessionState = {
         session_id: sessionId1,
-        started_at: '2025-11-05T10:00:00',
-        data: 'old',
+        schema_version: '1.0',
+        started_at: '2025-11-05T10:00:00Z',
+        current_index: 0,
+        total_items: 1,
+        partial_ratings: {},
+        file_snapshot: {},
+        config: { showCodeMode: 'complete', maxLines: 20 },
+        completed_at: null,
       };
       await SessionStateManager.saveSessionState(session1, 'audit');
 
       const sessionId2 = randomUUID();
       const session2: SessionState = {
         session_id: sessionId2,
-        started_at: '2025-11-05T12:00:00',
-        data: 'new',
+        schema_version: '1.0',
+        started_at: '2025-11-05T12:00:00Z',
+        current_index: 0,
+        total_items: 1,
+        partial_ratings: {},
+        file_snapshot: {},
+        config: { showCodeMode: 'complete', maxLines: 20 },
+        completed_at: null,
       };
       await SessionStateManager.saveSessionState(session2, 'audit');
 
@@ -312,7 +331,6 @@ describe('SessionStateManager', () => {
 
       expect(latest).not.toBeNull();
       expect(latest?.session_id).toBe(sessionId2);
-      expect(latest?.data).toBe('new');
     });
 
     test('should return null when no sessions exist', async () => {

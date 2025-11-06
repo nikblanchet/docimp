@@ -1577,7 +1577,7 @@ describe('InteractiveSession', () => {
       // Mock listSessions to return rolled_back status
       mockPythonBridge.listSessions = jest.fn().mockResolvedValue([
         {
-          session_id: 'test-session-123',
+          session_id: testSessionId,
           started_at: mockResumeState.started_at,
           completed_at: null,
           change_count: 1,
@@ -1594,7 +1594,7 @@ describe('InteractiveSession', () => {
       // Mock listSessions to return partial_rollback status
       mockPythonBridge.listSessions = jest.fn().mockResolvedValue([
         {
-          session_id: 'test-session-123',
+          session_id: testSessionId,
           started_at: mockResumeState.started_at,
           completed_at: null,
           change_count: 1,
@@ -1617,7 +1617,7 @@ describe('InteractiveSession', () => {
 
       // Should call beginTransaction with original session ID (recreate)
       expect(mockPythonBridge.beginTransaction).toHaveBeenCalledWith(
-        'test-session-123'
+        testSessionId
       );
     });
 
@@ -1633,7 +1633,7 @@ describe('InteractiveSession', () => {
 
       // Should create new transaction despite failure
       expect(mockPythonBridge.beginTransaction).toHaveBeenCalledWith(
-        'test-session-123'
+        testSessionId
       );
     });
   });
