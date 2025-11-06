@@ -427,6 +427,49 @@ Use cases:
 
 **Session file location**: `.docimp/session-reports/audit-session-{uuid}.json`
 
+### Improve Session Management
+
+DocImp allows you to manage improve sessions for long-running documentation improvement workflows
+that may be interrupted or span multiple work sessions.
+
+**List improve sessions**:
+
+```bash
+# List all improve sessions (shows session ID, transaction info, progress, status)
+docimp list-improve-sessions
+```
+
+Output includes:
+- Session ID (shortened to 12 characters)
+- Transaction ID (shortened to 12 characters)
+- Started timestamp (relative, e.g., "2h ago")
+- Completed timestamp (or "N/A" if in-progress)
+- Progress: Accepted/Skipped/Errors (e.g., "3/2/0")
+- Session Status: "completed" (green) or "in-progress" (yellow)
+- Transaction Status: "Active", "Committed", or "N/A"
+
+**Delete improve sessions**:
+
+```bash
+# Delete a specific session
+docimp delete-improve-session <session-id>
+
+# Delete all improve sessions
+docimp delete-improve-session --all
+
+# Skip confirmation prompt
+docimp delete-improve-session <session-id> --force
+docimp delete-improve-session --all --force
+```
+
+Use cases:
+- Clean up incomplete sessions before starting fresh
+- Remove old completed sessions
+- Batch delete with `--all` flag
+- Script deletion with `--force` flag (skips confirmation)
+
+**Session file location**: `.docimp/session-reports/improve-session-{uuid}.json`
+
 ---
 
 ## Workflows
