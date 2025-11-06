@@ -98,7 +98,7 @@ def test_save_session_state_missing_id(temp_state_dir):
 
 
 def test_load_session_state(temp_state_dir):
-    """Test loading session state from JSON file."""
+    """Test loading session state from JSON file with migration support."""
     session_id = str(uuid.uuid4())
     state = {
         "session_id": session_id,
@@ -106,13 +106,17 @@ def test_load_session_state(temp_state_dir):
         "current_index": 10,
     }
 
-    # Save state
+    # Save state (without schema_version to simulate old session file)
     SessionStateManager.save_session_state(state, "audit")
 
     # Load state
     loaded = SessionStateManager.load_session_state(session_id, "audit")
 
-    assert loaded == state
+    # Migration should add schema_version field
+    assert loaded["session_id"] == state["session_id"]
+    assert loaded["started_at"] == state["started_at"]
+    assert loaded["current_index"] == state["current_index"]
+    assert loaded["schema_version"] == "1.0"
 
 
 def test_load_session_state_not_found(temp_state_dir):
