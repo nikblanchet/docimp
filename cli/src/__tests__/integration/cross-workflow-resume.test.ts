@@ -150,39 +150,22 @@ describe('Cross-Workflow Resume Integration', () => {
         transaction_id: randomUUID(),
         started_at: new Date().toISOString(),
         current_index: 0,
-        plan_items: [
-          {
-            name: 'add',
-            type: 'function',
-            filepath: testFile,
-            line_number: 1,
-            end_line: 1,
-            language: 'typescript',
-            complexity: 1,
-            impact_score: 5,
-            has_docs: false,
-            parameters: ['a', 'b'],
-            return_type: 'number',
-            docstring: null,
-            export_type: 'internal',
-            module_system: 'esm',
-            audit_rating: null,
-          },
-        ],
-        user_preferences: {
+        total_items: 1,
+        partial_improvements: {},
+        file_snapshot: snapshot,
+        config: {
           styleGuides: { typescript: 'tsdoc-typedoc' },
           tone: 'concise',
         },
-        progress: { accepted: 0, skipped: 0, errors: 0 },
-        file_snapshot: snapshot,
-        config: {},
         completed_at: null,
       };
 
       await SessionStateManager.saveSessionState(improveState, 'improve');
 
       // Step 1: Accept one change
-      improveState.progress.accepted = 1;
+      improveState.partial_improvements[testFile] = {
+        add: { status: 'accepted', timestamp: new Date().toISOString() },
+      };
       improveState.current_index = 1;
       await SessionStateManager.saveSessionState(improveState, 'improve');
 
@@ -192,11 +175,13 @@ describe('Cross-Workflow Resume Integration', () => {
           sessionId,
           'improve'
         );
-      expect(resumed1.progress.accepted).toBe(1);
+      expect(resumed1.partial_improvements[testFile]?.['add']?.status).toBe(
+        'accepted'
+      );
       expect(resumed1.current_index).toBe(1);
 
-      // Step 3: Simulate undo (decrement accepted)
-      resumed1.progress.accepted = 0;
+      // Step 3: Simulate undo (revert improvements)
+      resumed1.partial_improvements = {};
       resumed1.current_index = 0;
       await SessionStateManager.saveSessionState(resumed1, 'improve');
 
@@ -206,12 +191,12 @@ describe('Cross-Workflow Resume Integration', () => {
           sessionId,
           'improve'
         );
-      expect(resumed2.progress.accepted).toBe(0);
+      expect(Object.keys(resumed2.partial_improvements)).toHaveLength(0);
       expect(resumed2.current_index).toBe(0);
 
       // Verify state consistency
-      expect(resumed2.user_preferences.tone).toBe('concise');
-      expect(resumed2.plan_items).toHaveLength(1);
+      expect(resumed2.config.tone).toBe('concise');
+      expect(resumed2.total_items).toBe(1);
     });
   });
 
@@ -286,11 +271,10 @@ describe('Cross-Workflow Resume Integration', () => {
         transaction_id: randomUUID(),
         started_at: new Date().toISOString(),
         current_index: 0,
-        plan_items: [],
-        user_preferences: { styleGuides: {}, tone: 'concise' },
-        progress: { accepted: 0, skipped: 0, errors: 0 },
+        total_items: 1,
+        partial_improvements: {},
         file_snapshot: improveSnapshot,
-        config: {},
+        config: { styleGuides: {}, tone: 'concise' },
         completed_at: null,
       };
 

@@ -145,6 +145,11 @@ describe('SessionStateManager', () => {
         session_id: sessionId,
         started_at: new Date().toISOString(),
         current_index: 10,
+        total_items: 20,
+        partial_ratings: {},
+        file_snapshot: {},
+        config: { showCodeMode: 'complete', maxLines: 20 },
+        completed_at: null,
       };
 
       // Save state
