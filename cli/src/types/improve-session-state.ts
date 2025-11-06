@@ -62,6 +62,7 @@ export const ImproveSessionStateSchema = z
     file_snapshot: z.record(z.string(), FileSnapshotSchema), // filepath -> FileSnapshot
     config: ImproveConfigSchema,
     completed_at: z.string().datetime().nullable(), // ISO 8601 timestamp or null if in-progress
+    previous_session_id: z.string().uuid().optional(), // Links to previous session if this is a continuation
   })
   .passthrough();
 

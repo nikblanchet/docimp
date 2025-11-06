@@ -8,6 +8,7 @@ import { InteractiveSession } from '../../session/interactive-session.js';
 import { PythonBridge } from '../../python-bridge/python-bridge.js';
 import { PluginManager } from '../../plugins/plugin-manager.js';
 import { EditorLauncher } from '../../editor/editor-launcher.js';
+import { SessionStateManager } from '../../utils/session-state-manager.js';
 import prompts from 'prompts';
 import type { PlanItem } from '../../types/analysis.js';
 import type { IConfig } from '../../config/i-config.js';
@@ -1460,6 +1461,173 @@ describe('InteractiveSession', () => {
       // Verify final state
       expect(mockPythonBridge.commitTransaction).toHaveBeenCalledTimes(1);
       // Net result: 2 changes committed (item 1, item 3; item 2 was undone)
+    });
+  });
+
+  describe('Transaction Resume (Session 6b)', () => {
+    let resumeSession: InteractiveSession;
+    let mockResumeState: any;
+
+    beforeEach(() => {
+      // Create mock resume state
+      mockResumeState = {
+        session_id: 'test-session-123',
+        transaction_id: 'test-session-123',
+        started_at: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
+        current_index: 1, // Resuming from second item
+        total_items: 3,
+        partial_improvements: {
+          '/test/file.py': {
+            testFunction: {
+              status: 'accepted',
+              timestamp: new Date().toISOString(),
+              suggestion: '/** First item accepted */',
+            },
+            secondFunction: {}, // Empty dict = not yet processed
+            thirdFunction: {},
+          },
+        },
+        file_snapshot: {},
+        config: { styleGuides: { python: 'google' }, tone: 'concise' },
+        completed_at: null,
+      };
+
+      // Create session with resume state
+      resumeSession = new InteractiveSession({
+        config: mockConfig,
+        pythonBridge: mockPythonBridge,
+        pluginManager: mockPluginManager,
+        editorLauncher: mockEditorLauncher,
+        styleGuides: { python: 'google' },
+        tone: 'concise',
+        basePath: '/test',
+        resumeSessionState: mockResumeState,
+      });
+
+      // Mock transaction methods
+      mockPythonBridge.beginTransaction = jest
+        .fn()
+        .mockResolvedValue(undefined);
+      mockPythonBridge.recordWrite = jest.fn().mockResolvedValue(undefined);
+      mockPythonBridge.commitTransaction = jest
+        .fn()
+        .mockResolvedValue(undefined);
+    });
+
+    it('should resume in-progress transaction', async () => {
+      // Mock listSessions to return in-progress status
+      mockPythonBridge.listSessions = jest.fn().mockResolvedValue([
+        {
+          session_id: 'test-session-123',
+          started_at: mockResumeState.started_at,
+          completed_at: null,
+          change_count: 1,
+          status: 'in_progress',
+        },
+      ]);
+
+      mockPrompts.mockResolvedValueOnce({ action: 'quit' });
+
+      await resumeSession.run([mockPlanItem]);
+
+      // Should NOT call beginTransaction (resuming existing)
+      expect(mockPythonBridge.beginTransaction).not.toHaveBeenCalled();
+
+      // Should call listSessions to check status
+      expect(mockPythonBridge.listSessions).toHaveBeenCalled();
+    });
+
+    it('should create new transaction for committed session (continuation)', async () => {
+      // Mock listSessions to return committed status
+      mockPythonBridge.listSessions = jest.fn().mockResolvedValue([
+        {
+          session_id: 'test-session-123',
+          started_at: mockResumeState.started_at,
+          completed_at: new Date().toISOString(),
+          change_count: 1,
+          status: 'committed',
+        },
+      ]);
+
+      // Mock SessionStateManager.saveSessionState
+      const mockSaveSessionState = jest.fn().mockResolvedValue(undefined);
+      (SessionStateManager as any).saveSessionState = mockSaveSessionState;
+
+      mockPrompts.mockResolvedValueOnce({ action: 'quit' });
+
+      await resumeSession.run([mockPlanItem]);
+
+      // Should call beginTransaction with NEW session ID (continuation)
+      expect(mockPythonBridge.beginTransaction).toHaveBeenCalledWith(
+        expect.not.stringMatching('test-session-123')
+      );
+
+      // Should save updated session state with new session ID and previous_session_id
+      expect(mockSaveSessionState).toHaveBeenCalled();
+    });
+
+    it('should throw error for rolled-back session', async () => {
+      // Mock listSessions to return rolled_back status
+      mockPythonBridge.listSessions = jest.fn().mockResolvedValue([
+        {
+          session_id: 'test-session-123',
+          started_at: mockResumeState.started_at,
+          completed_at: null,
+          change_count: 1,
+          status: 'rolled_back',
+        },
+      ]);
+
+      await expect(resumeSession.run([mockPlanItem])).rejects.toThrow(
+        /Cannot resume session.*rolled back/
+      );
+    });
+
+    it('should throw error for partial-rollback session', async () => {
+      // Mock listSessions to return partial_rollback status
+      mockPythonBridge.listSessions = jest.fn().mockResolvedValue([
+        {
+          session_id: 'test-session-123',
+          started_at: mockResumeState.started_at,
+          completed_at: null,
+          change_count: 1,
+          status: 'partial_rollback',
+        },
+      ]);
+
+      await expect(resumeSession.run([mockPlanItem])).rejects.toThrow(
+        /Cannot resume session.*partial rollback/
+      );
+    });
+
+    it('should create new transaction for missing transaction branch', async () => {
+      // Mock listSessions to return empty (transaction not found)
+      mockPythonBridge.listSessions = jest.fn().mockResolvedValue([]);
+
+      mockPrompts.mockResolvedValueOnce({ action: 'quit' });
+
+      await resumeSession.run([mockPlanItem]);
+
+      // Should call beginTransaction with original session ID (recreate)
+      expect(mockPythonBridge.beginTransaction).toHaveBeenCalledWith(
+        'test-session-123'
+      );
+    });
+
+    it('should handle listSessions failure gracefully', async () => {
+      // Mock listSessions to throw error
+      mockPythonBridge.listSessions = jest
+        .fn()
+        .mockRejectedValue(new Error('Git not available'));
+
+      mockPrompts.mockResolvedValueOnce({ action: 'quit' });
+
+      await resumeSession.run([mockPlanItem]);
+
+      // Should create new transaction despite failure
+      expect(mockPythonBridge.beginTransaction).toHaveBeenCalledWith(
+        'test-session-123'
+      );
     });
   });
 });
