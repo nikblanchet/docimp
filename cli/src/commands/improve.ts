@@ -200,17 +200,18 @@ async function handleClearSessions(display: IDisplay): Promise<void> {
 /**
  * Load and validate a resume session.
  *
- * @param sessionIdOrFile - Session ID or file path to resume
+ * @param sessionId - Session ID (UUID string) to resume
  * @param display - Display instance for messaging
  * @returns Validated improve session state
+ * @throws {Error} If session file not found or invalid
  */
 async function loadResumeImproveSession(
-  sessionIdOrFile: string,
+  sessionId: string,
   display: IDisplay
 ): Promise<ImproveSessionState> {
   // Load session state
   const sessionState = await SessionStateManager.loadSessionState(
-    sessionIdOrFile,
+    sessionId,
     'improve'
   );
 
@@ -232,9 +233,9 @@ async function loadResumeImproveSession(
   const remaining = validated.total_items - processed;
 
   // Show concise banner
-  const sessionId = validated.session_id.slice(0, 8);
+  const shortSessionId = validated.session_id.slice(0, 8);
   display.showMessage(
-    `Resuming session ${sessionId} (${processed} processed, ${remaining} remaining)`
+    `Resuming session ${shortSessionId} (${processed} processed, ${remaining} remaining)`
   );
 
   return validated;

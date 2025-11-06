@@ -292,17 +292,18 @@ async function handleClearSessions(display: IDisplay): Promise<void> {
 /**
  * Load and validate a resume session.
  *
- * @param sessionIdOrFile - Session ID or file path to resume
+ * @param sessionId - Session ID (UUID string) to resume
  * @param display - Display instance for messaging
  * @returns Validated audit session state
+ * @throws {Error} If session file not found or invalid
  */
 async function loadResumeSession(
-  sessionIdOrFile: string,
+  sessionId: string,
   display: IDisplay
 ): Promise<AuditSessionState> {
   // Load session state
   const sessionState = await SessionStateManager.loadSessionState(
-    sessionIdOrFile,
+    sessionId,
     'audit'
   );
 
@@ -310,9 +311,9 @@ async function loadResumeSession(
   const validated = AuditSessionStateSchema.parse(sessionState);
 
   // Show concise banner
-  const sessionId = validated.session_id.slice(0, 8);
+  const shortSessionId = validated.session_id.slice(0, 8);
   const progress = `${validated.current_index}/${validated.total_items} rated`;
-  display.showMessage(`Resuming session ${sessionId} (${progress})`);
+  display.showMessage(`Resuming session ${shortSessionId} (${progress})`);
 
   return validated;
 }
