@@ -271,11 +271,23 @@ describe('InteractiveSession', () => {
         .mockResolvedValueOnce({ action: 'skip' })
         .mockResolvedValueOnce({ action: 'skip' });
 
+      // First session instance
       await session.run([mockPlanItem]);
       const firstCallSessionId =
         mockPythonBridge.beginTransaction.mock.calls[0][0];
 
-      await session.run([mockPlanItem]);
+      // Create a new session instance for second run (not resuming)
+      const secondSession = new InteractiveSession({
+        config: mockConfig,
+        pythonBridge: mockPythonBridge,
+        pluginManager: mockPluginManager,
+        editorLauncher: mockEditorLauncher,
+        styleGuides: { python: 'google' },
+        tone: 'concise',
+        basePath: '/test',
+      });
+
+      await secondSession.run([mockPlanItem]);
       const secondCallSessionId =
         mockPythonBridge.beginTransaction.mock.calls[1][0];
 

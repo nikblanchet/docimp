@@ -15,6 +15,10 @@ import {
   listAuditSessionsCommand,
 } from './commands/audit-sessions.js';
 import { auditCommand } from './commands/audit.js';
+import {
+  deleteImproveSessionCommand,
+  listImproveSessionsCommand,
+} from './commands/improve-sessions.js';
 import { improveCommand } from './commands/improve.js';
 import { listChangesCommand } from './commands/list-changes.js';
 import { listSessionsCommand } from './commands/list-sessions.js';
@@ -199,6 +203,10 @@ program
   )
   .option('--list-styles', 'List all available style guides and tones')
   .option('--verbose', 'Enable verbose output')
+  .option('--resume', 'Resume an incomplete session (show list)')
+  .option('--resume-file <sessionId>', 'Resume specific session ID')
+  .option('--new', 'Force new session (bypass auto-detection)')
+  .option('--clear-session', 'Delete all incomplete sessions and exit')
   .action(async (path, options) => {
     try {
       // Instantiate dependencies
@@ -353,6 +361,46 @@ program
   .action(async (sessionId, options) => {
     try {
       const exitCode = await deleteAuditSessionCommand(sessionId, options);
+      if (exitCode !== EXIT_CODE.SUCCESS) {
+        process.exit(exitCode);
+      }
+    } catch (error) {
+      const errorDisplay = new TerminalDisplay();
+      errorDisplay.showError(
+        `Unexpected error: ${error instanceof Error ? error.message : String(error)}`
+      );
+      process.exit(EXIT_CODE.ERROR);
+    }
+  });
+
+// List-improve-sessions command (improve session management)
+program
+  .command('list-improve-sessions')
+  .description('List all improve sessions')
+  .action(async () => {
+    try {
+      const exitCode = await listImproveSessionsCommand();
+      if (exitCode !== EXIT_CODE.SUCCESS) {
+        process.exit(exitCode);
+      }
+    } catch (error) {
+      const errorDisplay = new TerminalDisplay();
+      errorDisplay.showError(
+        `Unexpected error: ${error instanceof Error ? error.message : String(error)}`
+      );
+      process.exit(EXIT_CODE.ERROR);
+    }
+  });
+
+// Delete-improve-session command (improve session management)
+program
+  .command('delete-improve-session [session-id]')
+  .description('Delete improve session(s)')
+  .option('--all', 'Delete all improve sessions')
+  .option('--force', 'Skip confirmation prompt')
+  .action(async (sessionId, options) => {
+    try {
+      const exitCode = await deleteImproveSessionCommand(sessionId, options);
       if (exitCode !== EXIT_CODE.SUCCESS) {
         process.exit(exitCode);
       }
