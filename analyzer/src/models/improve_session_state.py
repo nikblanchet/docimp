@@ -33,9 +33,9 @@ class ImproveSessionState:
     """
 
     session_id: str
-    schema_version: str = '1.0'
-    transaction_id: str = ''
-    started_at: str = ''
+    schema_version: str = "1.0"
+    transaction_id: str = ""
+    started_at: str = ""
     current_index: int = 0
     total_items: int = 0
     partial_improvements: dict[str, dict[str, dict[str, Any]]] = None  # type: ignore[assignment]

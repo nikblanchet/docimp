@@ -29,8 +29,8 @@ class AuditSessionState:
     """
 
     session_id: str
-    schema_version: str = '1.0'
-    started_at: str = ''
+    schema_version: str = "1.0"
+    started_at: str = ""
     current_index: int = 0
     total_items: int = 0
     partial_ratings: dict[str, dict[str, int | None]] = None  # type: ignore[assignment]
