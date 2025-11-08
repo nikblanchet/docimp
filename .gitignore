@@ -58,6 +58,10 @@ docs/patterns
 # State directory (working files, session reports, history)
 .docimp/
 
+# direnv
+.direnv/
+.envrc.local
+
 # NOTE on credential patterns (*.key, *.pem, credentials.json, etc.):
 # We intentionally do NOT include these patterns. Adding them to .gitignore
 # creates false security - they don't prevent "git add -f" and give developers
