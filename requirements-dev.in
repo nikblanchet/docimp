@@ -1,5 +1,5 @@
-# Include production dependencies
--c requirements.lock
+# Include production dependencies (-r includes them, -c would only constrain versions)
+-r requirements.in
 
 # Development tools
 pytest>=7.4.0
