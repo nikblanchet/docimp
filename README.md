@@ -1202,15 +1202,15 @@ uv run pytest -v
 # TypeScript setup
 cd ../cli
 npm install
-npm test
+uv run npm test
 npm run build
 
 # Run linters
-ruff check .  # Python
+uv run ruff check .  # Python
 npm run lint  # TypeScript/JavaScript
 
 # Run formatters
-ruff format .  # Python (auto-fix)
+uv run ruff format .  # Python (auto-fix)
 npm run format  # TypeScript/JavaScript (auto-fix)
 
 # Check formatting without auto-fix
@@ -1247,10 +1247,10 @@ pytest -v --cov=src
 
 # TypeScript tests
 cd cli
-npm test
+uv run npm test
 
 # Integration tests
-npm run test:integration
+uv run npm run test:integration
 ```
 
 ### Known Test Coverage Limitations
