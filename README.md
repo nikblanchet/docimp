@@ -106,8 +106,10 @@ DocImp treats JavaScript as a **first-class language**, not just "TypeScript tha
 git clone https://github.com/nikblanchet/docimp.git
 cd docimp
 
-# Install Python dependencies
-pip install -r requirements.txt
+# Install Python dependencies with uv
+uv venv
+uv pip sync requirements-dev.lock
+uv pip install -e .
 
 # Install TypeScript CLI
 cd cli
@@ -181,8 +183,10 @@ Future versions will include Dulwich (Apache 2.0 license) as a pure-Python fallb
 git clone https://github.com/nikblanchet/docimp.git
 cd docimp
 
-# Install Python dependencies
-pip install -r requirements.txt
+# Install Python dependencies with uv
+uv venv
+uv pip sync requirements-dev.lock
+uv pip install -e .
 
 # Install TypeScript CLI
 cd cli
@@ -1167,11 +1171,12 @@ Contributions welcome! See `CONTRIBUTING.md` for guidelines.
 git clone https://github.com/nikblanchet/docimp.git
 cd docimp
 
-# Python setup
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
+# Python setup with uv
+uv venv
+uv pip sync requirements-dev.lock
+uv pip install -e .
 cd analyzer
-pytest -v
+uv run pytest -v
 
 # TypeScript setup
 cd ../cli
