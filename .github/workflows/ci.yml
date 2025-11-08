@@ -53,24 +53,16 @@ jobs:
           npm run build
 
       - name: Lint with ruff
-        run: |
-          cd analyzer
-          uv run ruff check .
+        run: uv run ruff check analyzer/
 
       - name: Check Python formatting
-        run: |
-          cd analyzer
-          uv run ruff format --check .
+        run: uv run ruff format --check analyzer/
 
       - name: Type check with mypy
-        run: |
-          cd analyzer
-          uv run mypy src --ignore-missing-imports
+        run: uv run mypy analyzer/src --ignore-missing-imports
 
       - name: Run tests
-        run: |
-          cd analyzer
-          uv run pytest -v --cov=src --cov-report=term
+        run: uv run pytest analyzer/tests/ -v --cov=analyzer/src --cov-report=term
 
   typescript-tests:
     name: TypeScript Tests
@@ -136,12 +128,12 @@ jobs:
       - name: Run tests
         run: |
           cd cli
-          npm test
+          source ../.venv/bin/activate && npm test
 
       - name: Run integration tests
         run: |
           cd cli
-          npm run test:integration
+          source ../.venv/bin/activate && npm run test:integration
 
   integration-test:
     name: Integration Test (Python + TypeScript)
