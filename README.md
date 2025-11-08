@@ -101,6 +101,15 @@ DocImp treats JavaScript as a **first-class language**, not just "TypeScript tha
 
 ## Quick Start
 
+**Prerequisites**: Install [uv](https://github.com/astral-sh/uv) first:
+```bash
+# macOS (Homebrew)
+brew install uv
+
+# Or use the official installer (Linux/macOS)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
 ```bash
 # Clone and install from source
 git clone https://github.com/nikblanchet/docimp.git
@@ -177,6 +186,18 @@ rollback features (graceful degradation). See the
 Future versions will include Dulwich (Apache 2.0 license) as a pure-Python fallback.
 
 ### Install from Source
+
+**Prerequisites**: Install [uv](https://github.com/astral-sh/uv):
+```bash
+# macOS (Homebrew)
+brew install uv
+
+# Linux/macOS (official installer)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows (PowerShell)
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
 
 ```bash
 # Clone repository

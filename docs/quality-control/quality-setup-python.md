@@ -11,6 +11,35 @@ This guide shows how to set up comprehensive quality control for Python projects
 
 **Target**: Python 3.13+ (works with 3.9+, adjust `target-version`)
 
+## Prerequisites
+
+### Installing uv
+
+**macOS** (Homebrew):
+```bash
+brew install uv
+```
+
+**Linux/macOS** (official installer):
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+**Windows** (PowerShell):
+```powershell
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+**With pip** (all platforms):
+```bash
+pip install uv
+```
+
+**Verify installation**:
+```bash
+uv --version
+```
+
 ## Why Ruff?
 
 Ruff is a modern, Rust-based tool that combines 10+ Python tools into one:
