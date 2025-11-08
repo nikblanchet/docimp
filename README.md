@@ -1310,8 +1310,8 @@ for full details.
   [Sublime Text](https://www.sublimetext.com/) for regex work
 - **Font**: [Fira Code Nerd Font](https://github.com/Trzcin/Fira-Code-Nerd) with
   ligatures enabled
-- **Environment Management**: [Conda](https://docs.conda.io/) (primary) with
-  [pip](https://pip.pypa.io/) for package installation
+- **Environment Management**: [uv](https://github.com/astral-sh/uv) (primary) with
+  [direnv](https://direnv.net/) for automatic environment activation
 - **Git Workflow**: [GitHub CLI](https://cli.github.com/) (installed via
   [Homebrew](https://brew.sh/)) for pull requests and merges
 - **Version Control**: [Git](https://git-scm.com/)
