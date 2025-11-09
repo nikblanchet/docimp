@@ -19,6 +19,7 @@ import type {
   SessionSummary,
   TransactionEntry,
   RollbackResult,
+  WorkflowStatusResult,
 } from '../types/analysis.js';
 import type {
   IPythonBridge,
@@ -36,6 +37,7 @@ import {
   TransactionEntrySchema,
   RollbackResultSchema,
   GenericSuccessSchema,
+  WorkflowStatusResultSchema,
   formatValidationError,
 } from './schemas.js';
 
@@ -1139,5 +1141,30 @@ export class PythonBridge implements IPythonBridge {
         `Failed to commit transaction: ${result.error || 'Unknown error'}`
       );
     }
+  }
+
+  /**
+   * Get workflow state status including command execution history, staleness warnings,
+   * and actionable suggestions.
+   *
+   * Returns:
+   * - Command states (analyze, audit, plan, improve) with timestamps and counts
+   * - Staleness warnings when data is outdated
+   * - Actionable suggestions for next workflow steps
+   * - File modification count since last analyze
+   *
+   * @returns Promise resolving to workflow status result
+   * @throws Error if workflow state file is corrupted or Python process fails
+   */
+  async status(): Promise<WorkflowStatusResult> {
+    const arguments_ = ['-m', 'analyzer', 'status', '--format', 'json'];
+
+    const result = await this.executePython<WorkflowStatusResult>(
+      arguments_,
+      false,
+      WorkflowStatusResultSchema
+    );
+
+    return result;
   }
 }
