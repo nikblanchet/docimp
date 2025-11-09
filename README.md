@@ -141,6 +141,23 @@ docimp analyze ./src
 # │  • JavaScript:   20.0% (3/15) ⚠️         │
 # └──────────────────────────────────────────┘
 
+# Advanced Analysis Options
+
+# Incremental analysis (faster for large codebases)
+# Only re-analyzes files modified since last run
+docimp analyze ./src --incremental
+
+# Apply previous audit ratings to analysis items
+# Useful for regenerating impact scores with quality data
+docimp analyze ./src --apply-audit
+
+# Control auto-clean behavior
+docimp analyze ./src --preserve-audit  # Keep audit.json (default prompts)
+docimp analyze ./src --force-clean     # Skip prompt, always clean
+
+# Combine flags
+docimp analyze ./src --incremental --apply-audit --preserve-audit
+
 # Generate improvement plan
 docimp plan ./src
 
