@@ -265,11 +265,11 @@ fi
 
 # Run analyze (should clear old files)
 echo ""
-echo "Running: docimp analyze . (should auto-clean)"
+echo "Running: docimp analyze . --force-clean (should auto-clean)"
 if [ -n "$CI" ]; then
-  node "$GITHUB_WORKSPACE/cli/dist/index.js" analyze .
+  node "$GITHUB_WORKSPACE/cli/dist/index.js" analyze . --force-clean
 else
-  docimp analyze .
+  docimp analyze . --force-clean
 fi
 
 if [ ! -f .docimp/session-reports/audit.json ]; then
