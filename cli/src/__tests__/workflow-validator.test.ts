@@ -48,7 +48,7 @@ describe('WorkflowValidator', () => {
       const result = await WorkflowValidator.validateAuditPrerequisites();
 
       expect(result.valid).toBe(false);
-      expect(result.error).toContain('Analysis results not found');
+      expect(result.error).toContain('analysis results not found');
       expect(result.suggestion).toContain('docimp analyze');
     });
 
@@ -93,7 +93,7 @@ describe('WorkflowValidator', () => {
       const result = await WorkflowValidator.validatePlanPrerequisites();
 
       expect(result.valid).toBe(false);
-      expect(result.error).toContain('Analysis results not found');
+      expect(result.error).toContain('analysis results not found');
       expect(result.suggestion).toContain('docimp analyze');
     });
 
@@ -128,7 +128,7 @@ describe('WorkflowValidator', () => {
       const result = await WorkflowValidator.validateImprovePrerequisites();
 
       expect(result.valid).toBe(false);
-      expect(result.error).toContain('Plan file not found');
+      expect(result.error).toContain('plan file not found');
       expect(result.suggestion).toContain('docimp plan');
     });
 
@@ -157,7 +157,7 @@ describe('WorkflowValidator', () => {
       const result = await WorkflowValidator.validateImprovePrerequisites();
 
       expect(result.valid).toBe(false);
-      expect(result.error).toContain('Plan is stale');
+      expect(result.error).toContain('plan is stale');
       expect(result.suggestion).toContain('Re-run');
     });
 

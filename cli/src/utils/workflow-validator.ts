@@ -39,8 +39,15 @@ export const WorkflowValidator = {
     } catch {
       return {
         valid: false,
-        error: `Analysis results not found: ${analyzeFile}`,
-        suggestion: `Run 'docimp analyze <path>' first to generate analysis results.`,
+        error: `Cannot run audit: analysis results not found at ${analyzeFile}`,
+        suggestion:
+          `Workflow step 1 is missing.\n` +
+          `Run 'docimp analyze <path>' first to generate analysis results.\n\n` +
+          `Recommended workflow:\n` +
+          `  Step 1: docimp analyze <path>   (missing)\n` +
+          `  Step 2: docimp audit <path>     (current command)\n` +
+          `  Step 3: docimp plan <path>\n` +
+          `  Step 4: docimp improve <path>`,
       };
     }
 
@@ -49,7 +56,7 @@ export const WorkflowValidator = {
     if (!workflowState.last_analyze) {
       return {
         valid: false,
-        error: 'Analysis results exist but workflow state is missing.',
+        error: `Cannot run audit: analysis results exist but workflow state is missing.`,
         suggestion: `Re-run 'docimp analyze <path>' to update workflow state.`,
       };
     }
@@ -77,8 +84,13 @@ export const WorkflowValidator = {
     } catch {
       return {
         valid: false,
-        error: `Analysis results not found: ${analyzeFile}`,
-        suggestion: `Run 'docimp analyze <path>' first to generate analysis results.`,
+        error: `Cannot run plan: analysis results not found at ${analyzeFile}`,
+        suggestion:
+          `Workflow step 1 is missing.\n` +
+          `Run 'docimp analyze <path>' first to generate analysis results.\n\n` +
+          `Recommended workflow:\n` +
+          `  Step 1: docimp analyze <path>   (missing)\n` +
+          `  Step 2: docimp plan <path>      (current command)`,
       };
     }
 
@@ -106,8 +118,15 @@ export const WorkflowValidator = {
     } catch {
       return {
         valid: false,
-        error: `Plan file not found: ${planFile}`,
-        suggestion: `Run 'docimp plan <path>' first to generate an improvement plan.`,
+        error: `Cannot run improve: plan file not found at ${planFile}`,
+        suggestion:
+          `Workflow step 3 is missing.\n` +
+          `Run 'docimp plan <path>' first to generate an improvement plan.\n\n` +
+          `Recommended workflow:\n` +
+          `  Step 1: docimp analyze <path>\n` +
+          `  Step 2: docimp audit <path>     (optional)\n` +
+          `  Step 3: docimp plan <path>      (missing)\n` +
+          `  Step 4: docimp improve <path>   (current command)`,
       };
     }
 
@@ -121,7 +140,7 @@ export const WorkflowValidator = {
         return {
           valid: false,
           error:
-            'Plan is stale (analysis has been re-run since plan was generated).',
+            'Cannot run improve: plan is stale (analysis re-run since plan was generated).',
           suggestion: `Re-run 'docimp plan <path>' to update the plan with latest analysis.`,
         };
       }
