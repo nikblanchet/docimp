@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 class CommandState:
     """Represents the state of a single workflow command execution."""
 
-    timestamp: str  # ISO 8601 format
+    timestamp: str  # ISO 8601 timestamp
     item_count: int
     file_checksums: dict[str, str]  # filepath -> SHA256 checksum
 
