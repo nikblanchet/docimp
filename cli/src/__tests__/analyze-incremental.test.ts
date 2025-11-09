@@ -108,6 +108,21 @@ describe('incremental analysis', () => {
 
     // Change working directory to temp dir for StateManager
     process.chdir(tempDir);
+
+    // Create workflow state file (analyze command doesn't need analyze-latest.json)
+    const fs = require('fs');
+    fs.mkdirSync(join(tempDir, '.docimp'), { recursive: true });
+    fs.writeFileSync(
+      join(tempDir, '.docimp/workflow-state.json'),
+      JSON.stringify({
+        schema_version: '1.0',
+        last_analyze: null,
+        last_audit: null,
+        last_plan: null,
+        last_improve: null,
+      }),
+      'utf8'
+    );
   });
 
   afterEach(() => {

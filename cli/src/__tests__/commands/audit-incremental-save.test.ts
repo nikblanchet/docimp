@@ -77,12 +77,49 @@ describe('Audit Incremental Save Integration', () => {
     jest.clearAllMocks();
 
     // Mock StateManager to use temp directory (after clear)
+    const tempStateDir = path.dirname(tempSessionReportsDir);
     jest
       .spyOn(StateManager, 'getSessionReportsDir')
       .mockReturnValue(tempSessionReportsDir);
     jest
       .spyOn(StateManager, 'getAuditFile')
       .mockReturnValue(path.join(tempSessionReportsDir, 'audit.json'));
+    jest
+      .spyOn(StateManager, 'getAnalyzeFile')
+      .mockReturnValue(path.join(tempSessionReportsDir, 'analyze-latest.json'));
+    jest.spyOn(StateManager, 'getStateDir').mockReturnValue(tempStateDir);
+    jest
+      .spyOn(StateManager, 'getWorkflowStateFile')
+      .mockReturnValue(path.join(tempStateDir, 'workflow-state.json'));
+
+    // Create required workflow state files for WorkflowValidator
+    await fs.writeFile(
+      path.join(tempSessionReportsDir, 'analyze-latest.json'),
+      JSON.stringify({
+        items: [],
+        coverage_percent: 0,
+        total_items: 0,
+        documented_items: 0,
+        by_language: {},
+      }),
+      'utf8'
+    );
+
+    await fs.writeFile(
+      path.join(tempStateDir, 'workflow-state.json'),
+      JSON.stringify({
+        schema_version: '1.0',
+        last_analyze: {
+          timestamp: new Date().toISOString(),
+          item_count: 0,
+          file_checksums: {},
+        },
+        last_audit: null,
+        last_plan: null,
+        last_improve: null,
+      }),
+      'utf8'
+    );
 
     // Mock SessionStateManager to return empty sessions (for auto-detection)
     (SessionStateManager.listSessions as jest.Mock).mockResolvedValue([]);
@@ -116,9 +153,10 @@ describe('Audit Incremental Save Integration', () => {
   });
 
   afterEach(async () => {
-    // Clean up temp directory
+    // Clean up temp directory and parent (which contains workflow-state.json)
     try {
-      await fs.rm(tempSessionReportsDir, { recursive: true, force: true });
+      const tempStateDir = path.dirname(tempSessionReportsDir);
+      await fs.rm(tempStateDir, { recursive: true, force: true });
     } catch {
       // Ignore cleanup errors
     }

@@ -316,7 +316,10 @@ describe('WorkflowStateManager', () => {
     });
 
     it('should throw error for other file system errors', async () => {
-      const error = new Error('Permission denied');
+      const error: NodeJS.ErrnoException = Object.assign(
+        new Error('Permission denied'),
+        { code: 'EACCES' }
+      );
       mockFs.unlink.mockRejectedValue(error);
 
       await expect(WorkflowStateManager.clearWorkflowState()).rejects.toThrow(
