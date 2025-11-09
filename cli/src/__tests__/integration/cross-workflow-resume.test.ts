@@ -9,22 +9,27 @@ import type { ImproveSessionState } from '../../types/improve-session-state';
 import type { CodeItem } from '../../types/analysis';
 
 describe('Cross-Workflow Resume Integration', () => {
-  let tempDir: string;
+  let tempRoot: string;
   let originalCwd: string;
 
   beforeEach(async () => {
     originalCwd = process.cwd();
-    tempDir = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'docimp-cross-workflow-')
+    tempRoot = path.join(
+      os.tmpdir(),
+      `docimp-test-${Date.now()}-${Math.random().toString(36).slice(2)}`
     );
+    const tempDir = tempRoot;
+    const docimpDir = path.join(tempDir, '.docimp');
+    const sessionReportsDir = path.join(docimpDir, 'session-reports');
+
     process.chdir(tempDir);
 
     // Create .docimp/session-reports directory
-    await fs.mkdir('.docimp/session-reports', { recursive: true });
+    await fs.mkdir(sessionReportsDir, { recursive: true });
 
     // Create required workflow state files for WorkflowValidator
     await fs.writeFile(
-      '.docimp/session-reports/analyze-latest.json',
+      path.join(sessionReportsDir, 'analyze-latest.json'),
       JSON.stringify({
         items: [],
         coverage_percent: 0,
@@ -36,7 +41,7 @@ describe('Cross-Workflow Resume Integration', () => {
     );
 
     await fs.writeFile(
-      '.docimp/workflow-state.json',
+      path.join(docimpDir, 'workflow-state.json'),
       JSON.stringify({
         schema_version: '1.0',
         last_analyze: {
@@ -54,7 +59,7 @@ describe('Cross-Workflow Resume Integration', () => {
 
   afterEach(async () => {
     process.chdir(originalCwd);
-    await fs.rm(tempDir, { recursive: true, force: true });
+    await fs.rm(tempRoot, { recursive: true, force: true });
   });
 
   describe('1. Audit → Resume → Complete → Use in Plan', () => {

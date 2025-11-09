@@ -65,33 +65,32 @@ const mockConfigLoader: IConfigLoader = {
 
 describe('Audit Resume Flag Tests', () => {
   let tempSessionReportsDir: string;
+  let tempRoot: string;
 
   beforeEach(async () => {
     // Create temp directory for session reports
-    tempSessionReportsDir = path.join(
+    tempRoot = path.join(
       '/tmp',
-      `test-resume-flags-${Date.now()}`
+      `docimp-test-${Date.now()}-${Math.random().toString(36).slice(2)}`
     );
+    const docimpDir = path.join(tempRoot, '.docimp');
+    tempSessionReportsDir = path.join(docimpDir, 'session-reports');
     await fs.mkdir(tempSessionReportsDir, { recursive: true });
 
     // Reset mocks
     jest.clearAllMocks();
 
     // Mock StateManager to use temp directory
-    const tempStateDir = path.dirname(tempSessionReportsDir);
+    jest.spyOn(StateManager, 'getStateDir').mockReturnValue(docimpDir);
     jest
       .spyOn(StateManager, 'getSessionReportsDir')
       .mockReturnValue(tempSessionReportsDir);
     jest
-      .spyOn(StateManager, 'getAuditFile')
-      .mockReturnValue(path.join(tempSessionReportsDir, 'audit.json'));
-    jest
       .spyOn(StateManager, 'getAnalyzeFile')
       .mockReturnValue(path.join(tempSessionReportsDir, 'analyze-latest.json'));
-    jest.spyOn(StateManager, 'getStateDir').mockReturnValue(tempStateDir);
     jest
-      .spyOn(StateManager, 'getWorkflowStateFile')
-      .mockReturnValue(path.join(tempStateDir, 'workflow-state.json'));
+      .spyOn(StateManager, 'getAuditFile')
+      .mockReturnValue(path.join(docimpDir, 'audit.json'));
 
     // Create required workflow state files for WorkflowValidator
     await fs.writeFile(
@@ -107,7 +106,7 @@ describe('Audit Resume Flag Tests', () => {
     );
 
     await fs.writeFile(
-      path.join(tempStateDir, 'workflow-state.json'),
+      path.join(docimpDir, 'workflow-state.json'),
       JSON.stringify({
         schema_version: '1.0',
         last_analyze: {
@@ -155,8 +154,7 @@ describe('Audit Resume Flag Tests', () => {
   afterEach(async () => {
     // Clean up temp directory and parent (which contains workflow-state.json)
     try {
-      const tempStateDir = path.dirname(tempSessionReportsDir);
-      await fs.rm(tempStateDir, { recursive: true, force: true });
+      await fs.rm(tempRoot, { recursive: true, force: true });
     } catch {
       // Ignore cleanup errors
     }
