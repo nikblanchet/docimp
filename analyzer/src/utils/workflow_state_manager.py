@@ -81,7 +81,7 @@ class WorkflowStateManager:
                     # Unsupported version - provide helpful error
                     schema_version = data.get("schema_version")
                     msg = (
-                        f"Unsupported workflow state schema version: {schema_version}.\n"
+                        f"Unsupported schema version: {schema_version}.\n"
                         f"Current version is 1.0.\n"
                         f"To fix this, delete {file_path} and re-run 'docimp analyze' "
                         f"to regenerate workflow state."

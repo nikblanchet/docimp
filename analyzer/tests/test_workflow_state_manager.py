@@ -174,9 +174,7 @@ class TestWorkflowStateManager:
                 "src.utils.workflow_state_manager.StateManager.get_state_dir",
                 return_value=mock_state_dir,
             ),
-            pytest.raises(
-                ValueError, match="Unsupported workflow state schema version"
-            ),
+            pytest.raises(ValueError, match="Unsupported schema version"),
         ):
             WorkflowStateManager.load_workflow_state()
 
