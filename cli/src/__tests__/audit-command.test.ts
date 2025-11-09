@@ -917,7 +917,9 @@ describe('audit stale detection warnings', () => {
     // Mock WorkflowValidator to return true for isAnalyzeStale
     jest.doMock('../utils/workflow-validator.js', () => ({
       WorkflowValidator: {
-        validateAuditPrerequisites: jest.fn().mockResolvedValue({ valid: true }),
+        validateAuditPrerequisites: jest
+          .fn()
+          .mockResolvedValue({ valid: true }),
         isAnalyzeStale: jest.fn().mockResolvedValue(true),
       },
     }));
@@ -941,7 +943,9 @@ describe('audit stale detection warnings', () => {
     // Mock WorkflowValidator to return false for isAnalyzeStale
     jest.doMock('../utils/workflow-validator.js', () => ({
       WorkflowValidator: {
-        validateAuditPrerequisites: jest.fn().mockResolvedValue({ valid: true }),
+        validateAuditPrerequisites: jest
+          .fn()
+          .mockResolvedValue({ valid: true }),
         isAnalyzeStale: jest.fn().mockResolvedValue(false),
       },
     }));

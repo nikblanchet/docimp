@@ -169,7 +169,9 @@ describe('plan command path validation', () => {
       // Mock WorkflowValidator to return true for isAuditStale
       jest.doMock('../utils/workflow-validator.js', () => ({
         WorkflowValidator: {
-          validatePlanPrerequisites: jest.fn().mockResolvedValue({ valid: true }),
+          validatePlanPrerequisites: jest
+            .fn()
+            .mockResolvedValue({ valid: true }),
           isAuditStale: jest.fn().mockResolvedValue(true),
         },
       }));
@@ -193,7 +195,9 @@ describe('plan command path validation', () => {
       // Mock WorkflowValidator to return false for isAuditStale
       jest.doMock('../utils/workflow-validator.js', () => ({
         WorkflowValidator: {
-          validatePlanPrerequisites: jest.fn().mockResolvedValue({ valid: true }),
+          validatePlanPrerequisites: jest
+            .fn()
+            .mockResolvedValue({ valid: true }),
           isAuditStale: jest.fn().mockResolvedValue(false),
         },
       }));
@@ -204,7 +208,8 @@ describe('plan command path validation', () => {
       await freshPlanCore(tempDir, {}, mockBridge, mockDisplay);
 
       // Verify no warning was displayed
-      const showMessageCalls = (mockDisplay.showMessage as jest.Mock).mock.calls;
+      const showMessageCalls = (mockDisplay.showMessage as jest.Mock).mock
+        .calls;
       const staleWarnings = showMessageCalls.filter((call) =>
         call[0].includes('Analysis has been re-run since audit')
       );

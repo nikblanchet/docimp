@@ -10,7 +10,9 @@ jest.mock('../utils/workflow-state-manager');
 
 const mockFs = fs as jest.Mocked<typeof fs>;
 const mockStateManager = StateManager as jest.Mocked<typeof StateManager>;
-const mockWorkflowStateManager = WorkflowStateManager as jest.Mocked<typeof WorkflowStateManager>;
+const mockWorkflowStateManager = WorkflowStateManager as jest.Mocked<
+  typeof WorkflowStateManager
+>;
 
 describe('WorkflowValidator', () => {
   const testAnalyzeFile = '/test/.docimp/session-reports/analyze-latest.json';
@@ -232,7 +234,10 @@ describe('WorkflowValidator', () => {
     it('should return false if no files have been modified', async () => {
       const fileContent = 'unchanged content';
       const crypto = await import('crypto');
-      const checksum = crypto.createHash('sha256').update(fileContent).digest('hex');
+      const checksum = crypto
+        .createHash('sha256')
+        .update(fileContent)
+        .digest('hex');
 
       mockWorkflowStateManager.loadWorkflowState.mockResolvedValue({
         schema_version: '1.0',

@@ -540,7 +540,7 @@ export async function improveCore(
   if (planStale) {
     display.showMessage(
       '\nWarning: Plan is stale (analysis has been re-run). ' +
-      'Consider regenerating plan with "docimp plan" for latest priorities.\n'
+        'Consider regenerating plan with "docimp plan" for latest priorities.\n'
     );
   }
 

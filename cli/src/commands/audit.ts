@@ -569,7 +569,7 @@ export async function auditCore(
   if (isStale) {
     display.showMessage(
       '\nWarning: Source files have changed since last analysis. ' +
-      'Consider re-running "docimp analyze" for accurate results.\n'
+        'Consider re-running "docimp analyze" for accurate results.\n'
     );
   }
 

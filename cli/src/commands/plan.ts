@@ -56,7 +56,7 @@ export async function planCore(
   if (auditStale) {
     display.showMessage(
       '\nWarning: Analysis has been re-run since audit. ' +
-      'Audit ratings may be incomplete or stale.\n'
+        'Audit ratings may be incomplete or stale.\n'
     );
   }
 

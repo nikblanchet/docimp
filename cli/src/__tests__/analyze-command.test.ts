@@ -237,7 +237,8 @@ describe('analyze command auto-clean', () => {
       expect(mockBridge.analyze).toHaveBeenCalled();
 
       // Verify no prompt was shown (display.showMessage should not contain "Audit ratings file exists")
-      const showMessageCalls = (mockDisplay.showMessage as jest.Mock).mock.calls;
+      const showMessageCalls = (mockDisplay.showMessage as jest.Mock).mock
+        .calls;
       const promptMessages = showMessageCalls.filter((call) =>
         call[0].includes('Audit ratings file exists')
       );
@@ -352,7 +353,8 @@ describe('analyze command auto-clean', () => {
       expect(mockBridge.analyze).toHaveBeenCalled();
 
       // Verify no prompt was shown
-      const showMessageCalls = (mockDisplay.showMessage as jest.Mock).mock.calls;
+      const showMessageCalls = (mockDisplay.showMessage as jest.Mock).mock
+        .calls;
       const promptMessages = showMessageCalls.filter((call) =>
         call[0].includes('Audit ratings file exists')
       );

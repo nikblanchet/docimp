@@ -1,7 +1,12 @@
 import * as fs from 'fs/promises';
 import * as nodePath from 'path';
 import { WorkflowStateManager } from '../utils/workflow-state-manager.js';
-import { WorkflowState, CommandState, createEmptyWorkflowState, createCommandState } from '../types/workflow-state.js';
+import {
+  WorkflowState,
+  CommandState,
+  createEmptyWorkflowState,
+  createCommandState,
+} from '../types/workflow-state.js';
 import { StateManager } from '../utils/state-manager.js';
 
 // Mock the file system
@@ -13,7 +18,10 @@ const mockStateManager = StateManager as jest.Mocked<typeof StateManager>;
 
 describe('WorkflowStateManager', () => {
   const testStateDir = '/test/.docimp';
-  const testWorkflowStateFile = nodePath.join(testStateDir, 'workflow-state.json');
+  const testWorkflowStateFile = nodePath.join(
+    testStateDir,
+    'workflow-state.json'
+  );
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -100,7 +108,10 @@ describe('WorkflowStateManager', () => {
       const loaded = await WorkflowStateManager.loadWorkflowState();
 
       expect(loaded).toEqual(state);
-      expect(mockFs.readFile).toHaveBeenCalledWith(testWorkflowStateFile, 'utf8');
+      expect(mockFs.readFile).toHaveBeenCalledWith(
+        testWorkflowStateFile,
+        'utf8'
+      );
     });
 
     it('should return empty state if file does not exist', async () => {
@@ -174,7 +185,9 @@ describe('WorkflowStateManager', () => {
       expect(mockFs.readFile).toHaveBeenCalled();
       expect(mockFs.writeFile).toHaveBeenCalled();
 
-      const savedData = JSON.parse((mockFs.writeFile as jest.Mock).mock.calls[0][1]);
+      const savedData = JSON.parse(
+        (mockFs.writeFile as jest.Mock).mock.calls[0][1]
+      );
       expect(savedData.last_analyze).toEqual(commandState);
     });
 
@@ -186,7 +199,9 @@ describe('WorkflowStateManager', () => {
 
       await WorkflowStateManager.updateCommandState('audit', commandState);
 
-      const savedData = JSON.parse((mockFs.writeFile as jest.Mock).mock.calls[0][1]);
+      const savedData = JSON.parse(
+        (mockFs.writeFile as jest.Mock).mock.calls[0][1]
+      );
       expect(savedData.last_audit).toEqual(commandState);
     });
 
@@ -198,7 +213,9 @@ describe('WorkflowStateManager', () => {
 
       await WorkflowStateManager.updateCommandState('plan', commandState);
 
-      const savedData = JSON.parse((mockFs.writeFile as jest.Mock).mock.calls[0][1]);
+      const savedData = JSON.parse(
+        (mockFs.writeFile as jest.Mock).mock.calls[0][1]
+      );
       expect(savedData.last_plan).toEqual(commandState);
     });
 
@@ -210,7 +227,9 @@ describe('WorkflowStateManager', () => {
 
       await WorkflowStateManager.updateCommandState('improve', commandState);
 
-      const savedData = JSON.parse((mockFs.writeFile as jest.Mock).mock.calls[0][1]);
+      const savedData = JSON.parse(
+        (mockFs.writeFile as jest.Mock).mock.calls[0][1]
+      );
       expect(savedData.last_improve).toEqual(commandState);
     });
 
@@ -228,7 +247,9 @@ describe('WorkflowStateManager', () => {
       const newPlanState = createCommandState(5, { 'c.js': 'zzz' });
       await WorkflowStateManager.updateCommandState('plan', newPlanState);
 
-      const savedData = JSON.parse((mockFs.writeFile as jest.Mock).mock.calls[0][1]);
+      const savedData = JSON.parse(
+        (mockFs.writeFile as jest.Mock).mock.calls[0][1]
+      );
 
       // Original states should be preserved
       expect(savedData.last_analyze).toEqual(existingState.last_analyze);
@@ -289,7 +310,9 @@ describe('WorkflowStateManager', () => {
       error.code = 'ENOENT';
       mockFs.unlink.mockRejectedValue(error);
 
-      await expect(WorkflowStateManager.clearWorkflowState()).resolves.not.toThrow();
+      await expect(
+        WorkflowStateManager.clearWorkflowState()
+      ).resolves.not.toThrow();
     });
 
     it('should throw error for other file system errors', async () => {
@@ -329,7 +352,9 @@ describe('WorkflowStateManager', () => {
 
       expect(state.item_count).toBe(10);
       expect(state.file_checksums).toEqual({ 'file.ts': 'abc' });
-      expect(state.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+      expect(state.timestamp).toMatch(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
+      );
       expect(state.timestamp >= beforeTime).toBe(true);
       expect(state.timestamp <= afterTime).toBe(true);
     });
