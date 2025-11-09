@@ -93,6 +93,7 @@ jobs:
         run: |
           uv venv
           uv pip sync requirements.lock
+          uv pip install -e .
 
       - name: Install dependencies
         run: |
