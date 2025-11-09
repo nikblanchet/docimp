@@ -5,18 +5,22 @@
  * the Python analyzer via subprocess.
  */
 
-import { existsSync } from 'node:fs';
-import { writeFileSync } from 'node:fs';
+import { existsSync , writeFileSync, readFileSync } from 'node:fs';
 import prompts from 'prompts';
 import type { IConfigLoader } from '../config/i-config-loader.js';
 import { EXIT_CODE, type ExitCode } from '../constants/exit-codes.js';
 import type { IDisplay } from '../display/i-display.js';
 import type { IPythonBridge } from '../python-bridge/i-python-bridge.js';
+import type {
+  AuditRatings,
+  AnalysisResult,
+  LanguageMetrics,
+} from '../types/analysis.js';
+import { createCommandState } from '../types/workflow-state.js';
+import { FileTracker, type FileSnapshot } from '../utils/file-tracker.js';
 import { PathValidator } from '../utils/path-validator.js';
 import { StateManager } from '../utils/state-manager.js';
 import { WorkflowStateManager } from '../utils/workflow-state-manager.js';
-import { FileTracker } from '../utils/file-tracker.js';
-import { createCommandState } from '../types/workflow-state.js';
 
 /**
  * Handle incremental analysis: only re-analyze changed files
@@ -24,17 +28,19 @@ import { createCommandState } from '../types/workflow-state.js';
  * @param absolutePath - Absolute path to analyze
  * @param config - Configuration object
  * @param options - Command options
+ * @param options.verbose - Enable verbose output
+ * @param options.strict - Fail immediately on parse errors
  * @param bridge - Python bridge instance
  * @param display - Display instance
  * @returns Analysis result with merged items
  */
 async function handleIncrementalAnalysis(
   absolutePath: string,
-  config: any,
+  config: unknown,
   options: { verbose?: boolean; strict?: boolean },
   bridge: IPythonBridge,
   display: IDisplay
-): Promise<any> {
+): Promise<AnalysisResult> {
   // Load previous analysis results
   const analyzeFile = StateManager.getAnalyzeFile();
   if (!existsSync(analyzeFile)) {
@@ -59,7 +65,9 @@ async function handleIncrementalAnalysis(
 
   // Load previous results and workflow state
   const previousResult = JSON.parse(
-    await import('node:fs/promises').then(fs => fs.readFile(analyzeFile, 'utf8'))
+    await import('node:fs/promises').then((fs) =>
+      fs.readFile(analyzeFile, 'utf8')
+    )
   );
   const workflowState = await WorkflowStateManager.loadWorkflowState();
 
@@ -85,7 +93,7 @@ async function handleIncrementalAnalysis(
 
   // Detect changed files
   // Reconstruct snapshot from checksums (FileTracker expects FileSnapshot objects)
-  const snapshot: Record<string, any> = {};
+  const snapshot: Record<string, FileSnapshot> = {};
   for (const [filepath, checksum] of Object.entries(
     workflowState.last_analyze.file_checksums
   )) {
@@ -101,7 +109,9 @@ async function handleIncrementalAnalysis(
 
   if (changedFiles.length === 0) {
     if (options.verbose) {
-      display.showMessage('No files changed. Reusing previous analysis results.');
+      display.showMessage(
+        'No files changed. Reusing previous analysis results.'
+      );
     }
     return previousResult;
   }
@@ -120,7 +130,7 @@ async function handleIncrementalAnalysis(
   try {
     // Analyze each changed file individually
     const changedResults = await Promise.all(
-      changedFiles.map(async filepath => {
+      changedFiles.map(async (filepath) => {
         return await bridge.analyze({
           path: filepath,
           config,
@@ -134,20 +144,27 @@ async function handleIncrementalAnalysis(
 
     // Merge results: remove old items from changed files, add new items
     const unchangedItems = previousResult.items.filter(
-      (item: any) => !changedFiles.includes(item.filepath)
+      (item) => !changedFiles.includes(item.filepath)
     );
 
-    const changedItems = changedResults.flatMap(result => result.items);
+    const changedItems = changedResults.flatMap((result) => result.items);
 
     const mergedItems = [...unchangedItems, ...changedItems];
 
     // Recalculate coverage statistics
-    const documentedItems = mergedItems.filter((item: any) => item.has_docs).length;
+    const documentedItems = mergedItems.filter((item) => item.has_docs).length;
     const totalItems = mergedItems.length;
-    const coveragePercent = totalItems > 0 ? (documentedItems / totalItems) * 100 : 0;
+    const coveragePercent =
+      totalItems > 0 ? (documentedItems / totalItems) * 100 : 0;
 
     // Recalculate by_language statistics
-    const byLanguage: any = {};
+    const byLanguage: Record<
+      string,
+      Pick<
+        LanguageMetrics,
+        'total_items' | 'documented_items' | 'coverage_percent'
+      >
+    > = {};
     for (const item of mergedItems) {
       if (!byLanguage[item.language]) {
         byLanguage[item.language] = {
@@ -174,7 +191,7 @@ async function handleIncrementalAnalysis(
     // Merge parse failures
     const unchangedFailures = previousResult.parse_failures || [];
     const changedFailures = changedResults.flatMap(
-      result => result.parse_failures || []
+      (result) => result.parse_failures || []
     );
     const mergedFailures = [...unchangedFailures, ...changedFailures];
 
@@ -199,9 +216,66 @@ async function handleIncrementalAnalysis(
 }
 
 /**
+ * Apply audit ratings from audit.json to analysis items.
+ *
+ * @param result - Analysis result containing items
+ * @param display - Display instance for showing messages
+ * @param verbose - Whether to show verbose messages
+ * @returns Modified result with audit ratings applied
+ */
+function applyAuditRatings(
+  result: AnalysisResult,
+  display: IDisplay,
+  verbose: boolean
+): AnalysisResult {
+  // Load audit.json if it exists
+  const auditFile = StateManager.getAuditFile();
+  if (!existsSync(auditFile)) {
+    if (verbose) {
+      display.showMessage('No audit.json found. Skipping rating application.');
+    }
+    return result;
+  }
+
+  try {
+    const auditData = JSON.parse(
+      readFileSync(auditFile, 'utf8')
+    ) as AuditRatings;
+
+    let appliedCount = 0;
+
+    // Apply ratings to items by matching filepath and name
+    for (const item of result.items) {
+      const fileRatings = auditData.ratings[item.filepath];
+      if (fileRatings && fileRatings[item.name] !== undefined) {
+        item.audit_rating = fileRatings[item.name];
+        appliedCount++;
+      }
+    }
+
+    if (verbose) {
+      display.showMessage(
+        `Applied audit ratings to ${appliedCount} item(s) from ${auditFile}`
+      );
+    }
+
+    return result;
+  } catch (error) {
+    // If audit file is corrupted, show warning but continue
+    display.showWarning(
+      `Failed to load audit ratings from ${auditFile}: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+    return result;
+  }
+}
+
+/**
  * Smart auto-clean handler: prompts user before deleting audit.json
  *
  * @param options - Command options
+ * @param options.keepOldReports - Preserve existing audit and plan files
+ * @param options.preserveAudit - Preserve audit.json file only
+ * @param options.forceClean - Force clean without prompting
  * @param display - Display instance for showing messages
  * @returns true if should clean, false if should preserve
  */
@@ -261,6 +335,7 @@ async function handleSmartAutoClean(
  * @param options.forceClean - Force clean without prompting
  * @param options.incremental - Only re-analyze changed files
  * @param options.strict - Fail immediately on first parse error
+ * @param options.applyAudit - Apply existing audit ratings to analyzed items
  * @param bridge - Python bridge instance (dependency injection)
  * @param display - Display instance (dependency injection)
  * @param configLoader - Config loader instance (dependency injection)
@@ -276,6 +351,7 @@ export async function analyzeCore(
     forceClean?: boolean;
     incremental?: boolean;
     strict?: boolean;
+    applyAudit?: boolean;
   },
   bridge: IPythonBridge,
   display: IDisplay,
@@ -290,10 +366,7 @@ export async function analyzeCore(
   StateManager.ensureStateDir();
 
   // Smart auto-clean: check if audit.json exists and prompt user
-  const shouldClean = await handleSmartAutoClean(
-    options,
-    display
-  );
+  const shouldClean = await handleSmartAutoClean(options, display);
 
   if (shouldClean) {
     const filesRemoved = StateManager.clearSessionReports();
@@ -350,6 +423,11 @@ export async function analyzeCore(
     }
   }
 
+  // Apply audit ratings if requested
+  if (options.applyAudit) {
+    result = applyAuditRatings(result, display, options.verbose ?? false);
+  }
+
   // Save and display results (common path for both full and incremental)
   // Save analysis result to state directory
   const analyzeFile = StateManager.getAnalyzeFile();
@@ -360,7 +438,7 @@ export async function analyzeCore(
   }
 
   // Update workflow state with file checksums
-  const filepaths = result.items.map((item: any) => item.filepath);
+  const filepaths = result.items.map((item) => item.filepath);
   const snapshot = await FileTracker.createSnapshot(filepaths);
 
   // Extract checksums from snapshot (WorkflowState expects Record<string, string>)
@@ -391,6 +469,7 @@ export async function analyzeCore(
  * @param options.forceClean - Force clean without prompting
  * @param options.incremental - Only re-analyze changed files
  * @param options.strict - Fail immediately on first parse error
+ * @param options.applyAudit - Apply existing audit ratings to analyzed items
  * @param bridge - Python bridge instance (dependency injection)
  * @param display - Display instance (dependency injection)
  * @param configLoader - Config loader instance (dependency injection)
@@ -407,6 +486,7 @@ export async function analyzeCommand(
     forceClean?: boolean;
     incremental?: boolean;
     strict?: boolean;
+    applyAudit?: boolean;
   },
   bridge: IPythonBridge,
   display: IDisplay,

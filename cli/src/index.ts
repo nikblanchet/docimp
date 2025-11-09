@@ -49,6 +49,10 @@ program
   .option('--config <path>', 'Path to configuration file')
   .option('--verbose', 'Enable verbose output')
   .option('--keep-old-reports', 'Preserve existing audit and plan files')
+  .option('--preserve-audit', 'Preserve audit.json file only')
+  .option('--force-clean', 'Force clean session reports without prompting')
+  .option('--incremental', 'Only re-analyze changed files')
+  .option('--apply-audit', 'Apply existing audit ratings to analyzed items')
   .option(
     '--strict',
     'Fail immediately on first parse error (for CI/CD and debugging)'
