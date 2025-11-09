@@ -1,5 +1,5 @@
 # DocImp Development Dependencies
-# Install with: pip install -r requirements-dev.txt (or conda install --file requirements-dev.txt)
+# Install with: uv pip sync requirements-dev.lock
 
 # Testing
 pytest>=8.0.0

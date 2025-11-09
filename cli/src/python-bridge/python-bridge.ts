@@ -104,13 +104,24 @@ function findAnalyzerDirectory(): string {
 
 /**
  * Detect available Python executable.
- * Checks GitHub Actions pythonLocation first, then DOCIMP_PYTHON_PATH,
- * then tries python3, python, and py.
+ * Checks for uv first (for dependency isolation), then GitHub Actions pythonLocation,
+ * then DOCIMP_PYTHON_PATH, then tries python3, python, and py.
  *
- * @returns Path to Python executable
+ * @returns Path to Python executable or 'uv' (indicating uv run wrapper should be used)
  */
 function detectPythonExecutable(): string {
-  // GitHub Actions sets pythonLocation env var (e.g., /opt/hostedtoolcache/Python/3.13.8/x64)
+  // 1. Check if uv is available - use uv run for dependency isolation
+  // This ensures Python subprocesses use the correct venv and dependencies
+  try {
+    const uvCheck = spawnSync('uv', ['--version'], { timeout: 2000 });
+    if (uvCheck.status === 0) {
+      return 'uv'; // Will be used as: spawn('uv', ['run', 'python', '-m', ...])
+    }
+  } catch {
+    // uv not found, continue to other methods
+  }
+
+  // 2. GitHub Actions sets pythonLocation env var (e.g., /opt/hostedtoolcache/Python/3.13.8/x64)
   const pythonLocation = process.env.pythonLocation;
   if (pythonLocation) {
     // Try both python3 and python in the bin directory
@@ -130,12 +141,13 @@ function detectPythonExecutable(): string {
     }
   }
 
-  // Check for explicit path from environment (for CI)
+  // 3. Check for explicit path from environment (for CI)
   const environmentPath = process.env.DOCIMP_PYTHON_PATH;
   if (environmentPath) {
     return environmentPath;
   }
 
+  // 4. Try common Python executables
   const candidates = ['python3', 'python', 'py'];
 
   for (const candidate of candidates) {
@@ -382,9 +394,29 @@ export class PythonBridge implements IPythonBridge {
       arguments_.push('--audit-file', absoluteAuditFile);
     }
 
-    const childProcess = spawn(this.pythonPath, arguments_, {
+    // Handle uv wrapper: spawn('uv', ['run', 'python', ...args]) instead of spawn('python', args)
+    let executable: string;
+    let spawnArguments: string[];
+
+    if (this.pythonPath === 'uv') {
+      executable = 'uv';
+      // Use --project flag to point to project root (parent of analyzer/ directory)
+      // This ensures uv finds pyproject.toml even when cwd is analyzer/
+      spawnArguments = ['run', '--project', '..', 'python', ...arguments_];
+    } else {
+      executable = this.pythonPath;
+      spawnArguments = arguments_;
+    }
+
+    // Clean up environment for uv run: remove VIRTUAL_ENV to avoid conflicts
+    const environment = { ...process.env };
+    if (this.pythonPath === 'uv') {
+      delete environment.VIRTUAL_ENV;
+    }
+
+    const childProcess = spawn(executable, spawnArguments, {
       cwd: this.analyzerModule,
-      env: { ...process.env },
+      env: environment,
     });
 
     // Setup timeout handling
@@ -530,9 +562,29 @@ export class PythonBridge implements IPythonBridge {
   async apply(data: ApplyData): Promise<void> {
     const arguments_ = ['-m', 'src.main', 'apply'];
 
-    const childProcess = spawn(this.pythonPath, arguments_, {
+    // Handle uv wrapper: spawn('uv', ['run', 'python', ...args]) instead of spawn('python', args)
+    let executable: string;
+    let spawnArguments: string[];
+
+    if (this.pythonPath === 'uv') {
+      executable = 'uv';
+      // Use --project flag to point to project root (parent of analyzer/ directory)
+      // This ensures uv finds pyproject.toml even when cwd is analyzer/
+      spawnArguments = ['run', '--project', '..', 'python', ...arguments_];
+    } else {
+      executable = this.pythonPath;
+      spawnArguments = arguments_;
+    }
+
+    // Clean up environment for uv run: remove VIRTUAL_ENV to avoid conflicts
+    const environment = { ...process.env };
+    if (this.pythonPath === 'uv') {
+      delete environment.VIRTUAL_ENV;
+    }
+
+    const childProcess = spawn(executable, spawnArguments, {
       cwd: this.analyzerModule,
-      env: { ...process.env },
+      env: environment,
     });
 
     // Setup timeout handling
@@ -653,9 +705,29 @@ export class PythonBridge implements IPythonBridge {
     verbose: boolean = false,
     timeoutMs?: number
   ): Promise<string> {
-    const childProcess = spawn(this.pythonPath, arguments_, {
+    // Handle uv wrapper: spawn('uv', ['run', 'python', ...args]) instead of spawn('python', args)
+    let executable: string;
+    let spawnArguments: string[];
+
+    if (this.pythonPath === 'uv') {
+      executable = 'uv';
+      // Use --project flag to point to project root (parent of analyzer/ directory)
+      // This ensures uv finds pyproject.toml even when cwd is analyzer/
+      spawnArguments = ['run', '--project', '..', 'python', ...arguments_];
+    } else {
+      executable = this.pythonPath;
+      spawnArguments = arguments_;
+    }
+
+    // Clean up environment for uv run: remove VIRTUAL_ENV to avoid conflicts
+    const environment = { ...process.env };
+    if (this.pythonPath === 'uv') {
+      delete environment.VIRTUAL_ENV;
+    }
+
+    const childProcess = spawn(executable, spawnArguments, {
       cwd: this.analyzerModule,
-      env: { ...process.env },
+      env: environment,
     });
 
     // Extract command name for timeout error messages
@@ -740,9 +812,29 @@ export class PythonBridge implements IPythonBridge {
     schema?: z.ZodType<T>,
     timeoutMs?: number
   ): Promise<T> {
-    const childProcess = spawn(this.pythonPath, arguments_, {
+    // Handle uv wrapper: spawn('uv', ['run', 'python', ...args]) instead of spawn('python', args)
+    let executable: string;
+    let spawnArguments: string[];
+
+    if (this.pythonPath === 'uv') {
+      executable = 'uv';
+      // Use --project flag to point to project root (parent of analyzer/ directory)
+      // This ensures uv finds pyproject.toml even when cwd is analyzer/
+      spawnArguments = ['run', '--project', '..', 'python', ...arguments_];
+    } else {
+      executable = this.pythonPath;
+      spawnArguments = arguments_;
+    }
+
+    // Clean up environment for uv run: remove VIRTUAL_ENV to avoid conflicts
+    const environment = { ...process.env };
+    if (this.pythonPath === 'uv') {
+      delete environment.VIRTUAL_ENV;
+    }
+
+    const childProcess = spawn(executable, spawnArguments, {
       cwd: this.analyzerModule,
-      env: { ...process.env },
+      env: environment,
     });
 
     // Extract command name for timeout error messages
