@@ -14,6 +14,7 @@ import type { IDisplay } from '../../display/i-display.js';
 import { defaultConfig } from '../../config/i-config.js';
 import { InteractiveSession } from '../../session/interactive-session.js';
 import { readFileSync } from 'fs';
+import * as fsPromises from 'node:fs/promises';
 import prompts from 'prompts';
 
 // Mock dependencies
@@ -31,6 +32,10 @@ jest.mock('fs', () => {
     mkdirSync: jest.fn(),
   };
 });
+jest.mock('node:fs/promises', () => ({
+  access: jest.fn(),
+  readFile: jest.fn(),
+}));
 jest.mock('prompts');
 jest.mock('chalk', () => ({
   default: {
@@ -65,6 +70,12 @@ jest.mock('../../display/terminal-display.js');
 
 const mockReadFileSync = readFileSync as jest.MockedFunction<
   typeof readFileSync
+>;
+const mockFsAccess = fsPromises.access as jest.MockedFunction<
+  typeof fsPromises.access
+>;
+const mockFsReadFile = fsPromises.readFile as jest.MockedFunction<
+  typeof fsPromises.readFile
 >;
 const mockPrompts = prompts as jest.MockedFunction<typeof prompts>;
 const MockInteractiveSession = InteractiveSession as jest.MockedClass<
@@ -164,65 +175,78 @@ describe('improve command', () => {
     fs.readdirSync.mockImplementation(() => ['file.ts']); // Not empty
     fs.accessSync.mockImplementation(() => {}); // Allow read access
 
-    // Mock file reading - return different content based on file path
-    mockReadFileSync.mockImplementation((path: any) => {
-      const pathStr = String(path);
-
-      // Return workflow-state.json content
-      if (pathStr.includes('workflow-state.json')) {
-        return JSON.stringify({
-          schema_version: '1.0',
-          last_analyze: {
-            timestamp: new Date().toISOString(),
-            item_count: 1,
-            file_checksums: {},
-          },
-          last_audit: null,
-          last_plan: {
-            timestamp: new Date().toISOString(),
-            item_count: 1,
-            file_checksums: {},
-          },
-          last_improve: null,
-        });
-      }
-
-      // Return plan.json content
-      if (pathStr.includes('plan.json')) {
-        return JSON.stringify({
-          items: [
-            {
-              name: 'testFunc',
-              type: 'function',
-              filepath: 'test.js',
-              line_number: 10,
-              language: 'javascript',
-              complexity: 5,
-              impact_score: 75,
-              reason: 'High complexity',
-              export_type: 'named',
-              module_system: 'esm',
-              parameters: [],
-              has_docs: false,
-              docstring: null,
-              audit_rating: null,
-            },
-          ],
-        });
-      }
-
-      // Default: return empty object
-      return JSON.stringify({});
+    // Mock file reading - return workflow state by default, tests will override with mockReturnValueOnce for specific files
+    const defaultWorkflowState = JSON.stringify({
+      schema_version: '1.0',
+      last_analyze: {
+        timestamp: new Date().toISOString(),
+        item_count: 1,
+        file_checksums: {},
+      },
+      last_audit: null,
+      last_plan: {
+        timestamp: new Date().toISOString(),
+        item_count: 1,
+        file_checksums: {},
+      },
+      last_improve: null,
     });
 
-    // Mock user prompts - use mockImplementation to provide fresh values for each call
-    mockPrompts.mockImplementation((promptConfig: any) => {
-      if (promptConfig.name === 'styleGuide') {
-        return Promise.resolve({ styleGuide: 'jsdoc-vanilla' });
-      } else if (promptConfig.name === 'tone') {
-        return Promise.resolve({ tone: 'concise' });
+    const defaultPlan = JSON.stringify({
+      items: [
+        {
+          name: 'testFunc',
+          type: 'function',
+          filepath: 'test.js',
+          line_number: 10,
+          language: 'javascript',
+          complexity: 5,
+          impact_score: 75,
+          reason: 'High complexity',
+          export_type: 'named',
+          module_system: 'esm',
+          parameters: [],
+          has_docs: false,
+          docstring: null,
+          audit_rating: null,
+        },
+      ],
+    });
+
+    // Use mockImplementation to handle different file paths
+    mockReadFileSync.mockImplementation((path: any) => {
+      const pathStr = String(path);
+      if (pathStr.includes('plan.json')) {
+        return defaultPlan;
       }
-      return Promise.resolve({});
+      return defaultWorkflowState;
+    });
+
+    // Mock fs/promises for WorkflowValidator
+    mockFsAccess.mockImplementation(async (path: any) => {
+      const pathStr = String(path);
+      // Allow access to .docimp files
+      if (
+        pathStr.includes('plan.json') ||
+        pathStr.includes('workflow-state.json') ||
+        pathStr.includes('analyze-latest.json')
+      ) {
+        return Promise.resolve();
+      }
+      return Promise.reject(new Error('ENOENT: no such file or directory'));
+    });
+
+    mockFsReadFile.mockImplementation(async (path: any) => {
+      const pathStr = String(path);
+      // Return the same content as mockReadFileSync for consistency
+      return Promise.resolve(mockReadFileSync(path) as string);
+    });
+
+    // Mock user prompts - tests will override with mockResolvedValueOnce as needed
+    // Default to returning valid responses to avoid cancellation errors
+    mockPrompts.mockResolvedValue({
+      styleGuide: 'jsdoc-vanilla',
+      tone: 'concise',
     });
   });
 
@@ -493,44 +517,64 @@ describe('improve command', () => {
     });
 
     it('should continue if all languages are supported', async () => {
-      mockReadFileSync.mockReturnValueOnce(
-        JSON.stringify({
-          items: [
-            {
-              name: 'pyFunc',
-              type: 'function',
-              filepath: 'test.py',
-              line_number: 10,
-              language: 'python',
-              complexity: 5,
-              impact_score: 75,
-              reason: 'reason',
-              export_type: 'named',
-              module_system: 'unknown',
-              parameters: [],
-              has_docs: false,
-              docstring: null,
-              audit_rating: null,
-            },
-            {
-              name: 'tsFunc',
-              type: 'function',
-              filepath: 'test.ts',
-              line_number: 10,
-              language: 'typescript',
-              complexity: 5,
-              impact_score: 75,
-              reason: 'reason',
-              export_type: 'named',
-              module_system: 'esm',
-              parameters: [],
-              has_docs: false,
-              docstring: null,
-              audit_rating: null,
-            },
-          ],
-        })
-      );
+      // Workflow validator reads workflow-state.json multiple times, then plan.json
+      const workflowState = JSON.stringify({
+        schema_version: '1.0',
+        last_analyze: {
+          timestamp: new Date().toISOString(),
+          item_count: 2,
+          file_checksums: {},
+        },
+        last_audit: null,
+        last_plan: {
+          timestamp: new Date().toISOString(),
+          item_count: 2,
+          file_checksums: {},
+        },
+        last_improve: null,
+      });
+
+      mockReadFileSync
+        .mockReturnValueOnce(workflowState) // validateImprovePrerequisites
+        .mockReturnValueOnce(
+          JSON.stringify({
+            items: [
+              {
+                name: 'pyFunc',
+                type: 'function',
+                filepath: 'test.py',
+                line_number: 10,
+                language: 'python',
+                complexity: 5,
+                impact_score: 75,
+                reason: 'reason',
+                export_type: 'named',
+                module_system: 'unknown',
+                parameters: [],
+                has_docs: false,
+                docstring: null,
+                audit_rating: null,
+              },
+              {
+                name: 'tsFunc',
+                type: 'function',
+                filepath: 'test.ts',
+                line_number: 10,
+                language: 'typescript',
+                complexity: 5,
+                impact_score: 75,
+                reason: 'reason',
+                export_type: 'named',
+                module_system: 'esm',
+                parameters: [],
+                has_docs: false,
+                docstring: null,
+                audit_rating: null,
+              },
+            ],
+          })
+        )
+        .mockReturnValueOnce(workflowState); // isPlanStale
 
       mockPrompts
         .mockResolvedValueOnce({ styleGuide: 'google' }) // Python style
