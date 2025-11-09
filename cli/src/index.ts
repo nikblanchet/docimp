@@ -25,6 +25,7 @@ import { listSessionsCommand } from './commands/list-sessions.js';
 import { planCommand } from './commands/plan.js';
 import { rollbackChangeCommand } from './commands/rollback-change.js';
 import { rollbackSessionCommand } from './commands/rollback-session.js';
+import { statusCommand } from './commands/status.js';
 import { ConfigLoader } from './config/config-loader.js';
 import { EXIT_CODE } from './constants/exit-codes.js';
 import { TerminalDisplay } from './display/terminal-display.js';
@@ -255,6 +256,28 @@ program
       const bridge = new PythonBridge();
 
       const exitCode = await listSessionsCommand(bridge, display);
+      if (exitCode !== EXIT_CODE.SUCCESS) {
+        process.exit(exitCode);
+      }
+    } catch (error) {
+      const errorDisplay = new TerminalDisplay();
+      errorDisplay.showError(
+        `Unexpected error: ${error instanceof Error ? error.message : String(error)}`
+      );
+      process.exit(EXIT_CODE.ERROR);
+    }
+  });
+
+// Status command (workflow state visualization)
+program
+  .command('status')
+  .description('Display workflow state and suggestions')
+  .action(async () => {
+    try {
+      const display = new TerminalDisplay();
+      const bridge = new PythonBridge();
+
+      const exitCode = await statusCommand(bridge, display);
       if (exitCode !== EXIT_CODE.SUCCESS) {
         process.exit(exitCode);
       }
