@@ -20,22 +20,22 @@ class CommandState:
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
         return {
-            'timestamp': self.timestamp,
-            'item_count': self.item_count,
-            'file_checksums': self.file_checksums,
+            "timestamp": self.timestamp,
+            "item_count": self.item_count,
+            "file_checksums": self.file_checksums,
         }
 
     @staticmethod
-    def from_dict(data: dict) -> 'CommandState':
+    def from_dict(data: dict) -> "CommandState":
         """Create CommandState from dictionary."""
         return CommandState(
-            timestamp=data['timestamp'],
-            item_count=data['item_count'],
-            file_checksums=data['file_checksums'],
+            timestamp=data["timestamp"],
+            item_count=data["item_count"],
+            file_checksums=data["file_checksums"],
         )
 
     @staticmethod
-    def create(item_count: int, file_checksums: dict[str, str]) -> 'CommandState':
+    def create(item_count: int, file_checksums: dict[str, str]) -> "CommandState":
         """Create a new CommandState with current timestamp."""
         return CommandState(
             timestamp=datetime.now(UTC).isoformat(),
@@ -65,37 +65,37 @@ class WorkflowState:
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
         return {
-            'schema_version': self.schema_version,
-            'last_analyze': self.last_analyze.to_dict() if self.last_analyze else None,
-            'last_audit': self.last_audit.to_dict() if self.last_audit else None,
-            'last_plan': self.last_plan.to_dict() if self.last_plan else None,
-            'last_improve': self.last_improve.to_dict() if self.last_improve else None,
+            "schema_version": self.schema_version,
+            "last_analyze": self.last_analyze.to_dict() if self.last_analyze else None,
+            "last_audit": self.last_audit.to_dict() if self.last_audit else None,
+            "last_plan": self.last_plan.to_dict() if self.last_plan else None,
+            "last_improve": self.last_improve.to_dict() if self.last_improve else None,
         }
 
     @staticmethod
-    def from_dict(data: dict) -> 'WorkflowState':
+    def from_dict(data: dict) -> "WorkflowState":
         """Create WorkflowState from dictionary."""
         return WorkflowState(
-            schema_version=data['schema_version'],
-            last_analyze=CommandState.from_dict(data['last_analyze'])
-            if data.get('last_analyze')
+            schema_version=data["schema_version"],
+            last_analyze=CommandState.from_dict(data["last_analyze"])
+            if data.get("last_analyze")
             else None,
-            last_audit=CommandState.from_dict(data['last_audit'])
-            if data.get('last_audit')
+            last_audit=CommandState.from_dict(data["last_audit"])
+            if data.get("last_audit")
             else None,
-            last_plan=CommandState.from_dict(data['last_plan'])
-            if data.get('last_plan')
+            last_plan=CommandState.from_dict(data["last_plan"])
+            if data.get("last_plan")
             else None,
-            last_improve=CommandState.from_dict(data['last_improve'])
-            if data.get('last_improve')
+            last_improve=CommandState.from_dict(data["last_improve"])
+            if data.get("last_improve")
             else None,
         )
 
     @staticmethod
-    def create_empty() -> 'WorkflowState':
+    def create_empty() -> "WorkflowState":
         """Create an empty workflow state."""
         return WorkflowState(
-            schema_version='1.0',
+            schema_version="1.0",
             last_analyze=None,
             last_audit=None,
             last_plan=None,

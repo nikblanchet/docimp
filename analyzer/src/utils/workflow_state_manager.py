@@ -22,7 +22,7 @@ class WorkflowStateManager:
     @staticmethod
     def _get_workflow_state_file() -> Path:
         """Get the path to the workflow state file."""
-        return StateManager.get_state_dir() / 'workflow-state.json'
+        return StateManager.get_state_dir() / "workflow-state.json"
 
     @staticmethod
     def save_workflow_state(state: WorkflowState) -> None:
@@ -36,7 +36,7 @@ class WorkflowStateManager:
             IOError: If file write fails
         """
         file_path = WorkflowStateManager._get_workflow_state_file()
-        temp_path = file_path.with_suffix('.json.tmp')
+        temp_path = file_path.with_suffix(".json.tmp")
 
         # Ensure state directory exists
         StateManager.ensure_state_dir()
@@ -45,7 +45,7 @@ class WorkflowStateManager:
         data = state.to_dict()
 
         # Write to temp file first
-        with temp_path.open('w', encoding='utf-8') as f:
+        with temp_path.open("w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
         # Atomic rename
@@ -69,23 +69,21 @@ class WorkflowStateManager:
             return WorkflowState.create_empty()
 
         try:
-            with file_path.open(encoding='utf-8') as f:
+            with file_path.open(encoding="utf-8") as f:
                 data = json.load(f)
 
             # Validate schema version
-            if data.get('schema_version') != '1.0':
-                schema_version = data.get('schema_version')
+            if data.get("schema_version") != "1.0":
+                schema_version = data.get("schema_version")
                 msg = f"Unsupported workflow state schema version: {schema_version}"
                 raise ValueError(msg)
 
             return WorkflowState.from_dict(data)
         except (json.JSONDecodeError, KeyError) as e:
-            raise ValueError(f'Failed to load workflow state: {e}') from e
+            raise ValueError(f"Failed to load workflow state: {e}") from e
 
     @staticmethod
-    def update_command_state(
-        command: str, command_state: CommandState
-    ) -> None:
+    def update_command_state(command: str, command_state: CommandState) -> None:
         """
         Update the state for a specific command.
 
@@ -96,7 +94,7 @@ class WorkflowStateManager:
         Raises:
             ValueError: If command name is invalid
         """
-        valid_commands = {'analyze', 'audit', 'plan', 'improve'}
+        valid_commands = {"analyze", "audit", "plan", "improve"}
         if command not in valid_commands:
             raise ValueError(
                 f"Invalid command: {command}. Must be one of {valid_commands}"
@@ -105,13 +103,13 @@ class WorkflowStateManager:
         state = WorkflowStateManager.load_workflow_state()
 
         # Update the specific command state
-        if command == 'analyze':
+        if command == "analyze":
             state.last_analyze = command_state
-        elif command == 'audit':
+        elif command == "audit":
             state.last_audit = command_state
-        elif command == 'plan':
+        elif command == "plan":
             state.last_plan = command_state
-        elif command == 'improve':
+        elif command == "improve":
             state.last_improve = command_state
 
         WorkflowStateManager.save_workflow_state(state)
@@ -130,7 +128,7 @@ class WorkflowStateManager:
         Raises:
             ValueError: If command name is invalid
         """
-        valid_commands = {'analyze', 'audit', 'plan', 'improve'}
+        valid_commands = {"analyze", "audit", "plan", "improve"}
         if command not in valid_commands:
             raise ValueError(
                 f"Invalid command: {command}. Must be one of {valid_commands}"
@@ -139,10 +137,10 @@ class WorkflowStateManager:
         state = WorkflowStateManager.load_workflow_state()
 
         command_map = {
-            'analyze': state.last_analyze,
-            'audit': state.last_audit,
-            'plan': state.last_plan,
-            'improve': state.last_improve,
+            "analyze": state.last_analyze,
+            "audit": state.last_audit,
+            "plan": state.last_plan,
+            "improve": state.last_improve,
         }
 
         return command_map.get(command)
