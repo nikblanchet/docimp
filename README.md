@@ -681,7 +681,6 @@ DocImp stores session data in `.docimp/` (similar to `.git/`):
 **Auto-clean behavior**: `docimp analyze` clears old session reports by default
 
 - Prevents stale audit/plan data
-- Use `--keep-old-reports` flag to preserve existing reports
 
 **Transaction tracking**: The `.docimp/state/` directory contains a side-car Git
 repository used for rollback functionality. This repository operates independently from

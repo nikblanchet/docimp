@@ -278,22 +278,6 @@ else
     print_failure "Auto-clean: Old audit file was NOT cleared"
 fi
 
-# Test --keep-old-reports flag
-echo '{"ratings": {}}' > .docimp/session-reports/audit.json
-echo ""
-echo "Running: docimp analyze . --keep-old-reports"
-if [ -n "$CI" ]; then
-  node "$GITHUB_WORKSPACE/cli/dist/index.js" analyze . --keep-old-reports
-else
-  docimp analyze . --keep-old-reports
-fi
-
-if [ -f .docimp/session-reports/audit.json ]; then
-    print_success "--keep-old-reports: Old audit file preserved"
-else
-    print_failure "--keep-old-reports: Old audit file was NOT preserved"
-fi
-
 #
 # STATE DIRECTORY STRUCTURE
 #

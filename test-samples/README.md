@@ -142,12 +142,6 @@ test -f .docimp/session-reports/audit.json && echo "✓ Old audit created"
 docimp analyze .
 test ! -f .docimp/session-reports/audit.json && echo "✓ Old audit cleared"
 test -f .docimp/session-reports/analyze-latest.json && echo "✓ New analysis saved"
-
-# Test --keep-old-reports
-docimp audit .
-# (quit early)
-docimp analyze . --keep-old-reports
-test -f .docimp/session-reports/audit.json && echo "✓ Old audit preserved"
 ```
 
 ### From Task 3: Audit Ratings in Plan Workflow
@@ -220,7 +214,6 @@ The script validates:
   - Checks plan item count is approximately correct (~27 items)
   - Verifies at least 9 items have audit ratings
 - Auto-clean prevents stale data
-- --keep-old-reports flag works
 
 ### How Workflow B Automation Works
 
