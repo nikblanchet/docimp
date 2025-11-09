@@ -6,7 +6,6 @@
  */
 
 import { existsSync, writeFileSync, readFileSync } from 'node:fs';
-import prompts from 'prompts';
 import type { IConfigLoader } from '../config/i-config-loader.js';
 import type { IConfig } from '../config/i-config.js';
 import { EXIT_CODE, type ExitCode } from '../constants/exit-codes.js';
@@ -278,13 +277,16 @@ function applyAuditRatings(
 }
 
 /**
- * Smart auto-clean handler: prompts user before deleting audit.json
+ * Smart auto-clean handler: determines whether to clean session reports.
+ *
+ * Default behavior (no flags): Auto-clean to prevent stale data.
+ * Override with --keep-old-reports or --preserve-audit to preserve files.
  *
  * @param options - Command options
  * @param options.keepOldReports - Preserve existing audit and plan files
  * @param options.preserveAudit - Preserve audit.json file only
- * @param options.forceClean - Force clean without prompting
- * @param display - Display instance for showing messages
+ * @param options.forceClean - Force clean without prompting (same as default)
+ * @param display - Display instance for showing messages (unused, kept for compatibility)
  * @returns true if should clean, false if should preserve
  */
 async function handleSmartAutoClean(
@@ -293,41 +295,15 @@ async function handleSmartAutoClean(
     preserveAudit?: boolean;
     forceClean?: boolean;
   },
-  display: IDisplay
+  _display: IDisplay
 ): Promise<boolean> {
-  // Check for explicit flags first (highest priority)
-  if (options.forceClean) {
-    return true; // Clean without prompting
-  }
-
+  // Preserve if explicit flags are set
   if (options.keepOldReports || options.preserveAudit) {
-    return false; // Preserve without prompting
+    return false;
   }
 
-  // Check if audit.json exists
-  const auditFile = StateManager.getAuditFile();
-  if (!existsSync(auditFile)) {
-    return true; // No audit file, safe to clean
-  }
-
-  // Audit file exists - prompt user
-  display.showMessage(
-    '\nAudit ratings file exists. Re-running analyze will delete these ratings.'
-  );
-
-  const response = await prompts({
-    type: 'confirm',
-    name: 'shouldDelete',
-    message: 'Delete audit ratings and continue?',
-    initial: false,
-  });
-
-  // Handle user cancellation (Ctrl+C or ESC)
-  if (response.shouldDelete === undefined) {
-    throw new Error('Operation cancelled by user');
-  }
-
-  return response.shouldDelete;
+  // Default behavior: auto-clean to prevent stale data
+  return true;
 }
 
 /**
