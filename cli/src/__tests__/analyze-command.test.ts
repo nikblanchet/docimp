@@ -51,6 +51,12 @@ jest.mock('cli-table3', () => {
   };
 });
 
+// Mock prompts module for interactive testing
+let mockPromptsResponse: any = { shouldDelete: true };
+jest.mock('prompts', () => {
+  return jest.fn(() => Promise.resolve(mockPromptsResponse));
+});
+
 describe('analyze command auto-clean', () => {
   let tempDir: string;
   let mockBridge: IPythonBridge;
@@ -194,10 +200,9 @@ describe('analyze command auto-clean', () => {
   });
 
   describe('auto-clean behavior', () => {
-    it('clears session reports by default', async () => {
-      // Setup: Create state directory with old reports
+    it('clears session reports by default when audit.json does not exist', async () => {
+      // Setup: Create state directory with plan.json but NO audit.json
       const sessionDir = join(tempDir, '.docimp', 'session-reports');
-      const auditFile = join(sessionDir, 'audit.json');
       const planFile = join(sessionDir, 'plan.json');
 
       // Create directories
@@ -210,15 +215,13 @@ describe('analyze command auto-clean', () => {
       fs.mkdirSync(sessionDir, { recursive: true });
       fs.mkdirSync(historyDir, { recursive: true });
 
-      // Create old report files
-      writeFileSync(auditFile, '{"ratings": {}}');
+      // Create plan file (but not audit.json)
       writeFileSync(planFile, '{"items": []}');
 
-      // Verify files exist before
-      expect(existsSync(auditFile)).toBe(true);
+      // Verify plan exists before
       expect(existsSync(planFile)).toBe(true);
 
-      // Run analyze without --keep-old-reports
+      // Run analyze without flags - should clean without prompting
       await analyzeCore(
         tempDir,
         { format: 'json', verbose: false },
@@ -227,12 +230,18 @@ describe('analyze command auto-clean', () => {
         mockConfigLoader
       );
 
-      // Verify files were cleared
-      expect(existsSync(auditFile)).toBe(false);
+      // Verify plan was cleared
       expect(existsSync(planFile)).toBe(false);
 
       // Verify analyze was called
       expect(mockBridge.analyze).toHaveBeenCalled();
+
+      // Verify no prompt was shown (display.showMessage should not contain "Audit ratings file exists")
+      const showMessageCalls = (mockDisplay.showMessage as jest.Mock).mock.calls;
+      const promptMessages = showMessageCalls.filter((call) =>
+        call[0].includes('Audit ratings file exists')
+      );
+      expect(promptMessages).toHaveLength(0);
     });
 
     it('preserves session reports with --keep-old-reports flag', async () => {
@@ -281,7 +290,76 @@ describe('analyze command auto-clean', () => {
       expect(mockBridge.analyze).toHaveBeenCalled();
     });
 
-    it('displays message when clearing reports', async () => {
+    it('preserves session reports with --preserve-audit flag', async () => {
+      // Setup: Create state directory with old reports
+      const sessionDir = join(tempDir, '.docimp', 'session-reports');
+      const auditFile = join(sessionDir, 'audit.json');
+      const planFile = join(sessionDir, 'plan.json');
+
+      const fs = require('fs');
+      fs.mkdirSync(join(tempDir, '.docimp'), { recursive: true });
+      fs.mkdirSync(sessionDir, { recursive: true });
+      fs.mkdirSync(join(tempDir, '.docimp', 'history'), { recursive: true });
+
+      writeFileSync(auditFile, '{"ratings": {"test": "data"}}');
+      writeFileSync(planFile, '{"items": [{"name": "test"}]}');
+
+      // Run analyze with --preserve-audit (new flag)
+      await analyzeCore(
+        tempDir,
+        { format: 'json', verbose: false, preserveAudit: true },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader
+      );
+
+      // Verify files were preserved
+      expect(existsSync(auditFile)).toBe(true);
+      expect(existsSync(planFile)).toBe(true);
+
+      // Verify analyze was called
+      expect(mockBridge.analyze).toHaveBeenCalled();
+    });
+
+    it('forces clean without prompting with --force-clean flag', async () => {
+      // Setup: Create state directory with audit.json
+      const sessionDir = join(tempDir, '.docimp', 'session-reports');
+      const auditFile = join(sessionDir, 'audit.json');
+      const planFile = join(sessionDir, 'plan.json');
+
+      const fs = require('fs');
+      fs.mkdirSync(join(tempDir, '.docimp'), { recursive: true });
+      fs.mkdirSync(sessionDir, { recursive: true });
+      fs.mkdirSync(join(tempDir, '.docimp', 'history'), { recursive: true });
+
+      writeFileSync(auditFile, '{"ratings": {}}');
+      writeFileSync(planFile, '{"items": []}');
+
+      // Run analyze with --force-clean
+      await analyzeCore(
+        tempDir,
+        { format: 'json', verbose: false, forceClean: true },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader
+      );
+
+      // Verify files were cleared
+      expect(existsSync(auditFile)).toBe(false);
+      expect(existsSync(planFile)).toBe(false);
+
+      // Verify analyze was called
+      expect(mockBridge.analyze).toHaveBeenCalled();
+
+      // Verify no prompt was shown
+      const showMessageCalls = (mockDisplay.showMessage as jest.Mock).mock.calls;
+      const promptMessages = showMessageCalls.filter((call) =>
+        call[0].includes('Audit ratings file exists')
+      );
+      expect(promptMessages).toHaveLength(0);
+    });
+
+    it('displays message when clearing reports in verbose mode', async () => {
       // Setup: Create state directory with old reports
       const sessionDir = join(tempDir, '.docimp', 'session-reports');
       const auditFile = join(sessionDir, 'audit.json');
@@ -293,10 +371,10 @@ describe('analyze command auto-clean', () => {
 
       writeFileSync(auditFile, '{"ratings": {}}');
 
-      // Run analyze
+      // Run analyze with verbose and force-clean to avoid prompt
       await analyzeCore(
         tempDir,
-        { format: 'json', verbose: false },
+        { format: 'json', verbose: true, forceClean: true },
         mockBridge,
         mockDisplay,
         mockConfigLoader
@@ -329,6 +407,251 @@ describe('analyze command auto-clean', () => {
       expect(mockDisplay.showMessage).toHaveBeenCalledWith(
         'Keeping previous session reports'
       );
+    });
+  });
+
+  describe('smart auto-clean prompting', () => {
+    beforeEach(() => {
+      // Reset prompts mock before each test
+      const prompts = require('prompts');
+      (prompts as jest.Mock).mockClear();
+      mockPromptsResponse = { shouldDelete: true };
+    });
+
+    it('prompts user when audit.json exists and no flags provided', async () => {
+      // Setup: Create audit.json
+      const sessionDir = join(tempDir, '.docimp', 'session-reports');
+      const auditFile = join(sessionDir, 'audit.json');
+
+      const fs = require('fs');
+      fs.mkdirSync(join(tempDir, '.docimp'), { recursive: true });
+      fs.mkdirSync(sessionDir, { recursive: true });
+      fs.mkdirSync(join(tempDir, '.docimp', 'history'), { recursive: true });
+
+      writeFileSync(auditFile, '{"ratings": {}}');
+
+      // User confirms deletion
+      mockPromptsResponse = { shouldDelete: true };
+
+      // Run analyze without flags
+      await analyzeCore(
+        tempDir,
+        { format: 'json', verbose: false },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader
+      );
+
+      // Verify prompt was shown
+      const prompts = require('prompts');
+      expect(prompts).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'confirm',
+          name: 'shouldDelete',
+          message: 'Delete audit ratings and continue?',
+          initial: false,
+        })
+      );
+
+      // Verify audit.json was deleted
+      expect(existsSync(auditFile)).toBe(false);
+
+      // Verify analyze was called
+      expect(mockBridge.analyze).toHaveBeenCalled();
+    });
+
+    it('preserves audit.json when user rejects deletion', async () => {
+      // Setup: Create audit.json
+      const sessionDir = join(tempDir, '.docimp', 'session-reports');
+      const auditFile = join(sessionDir, 'audit.json');
+
+      const fs = require('fs');
+      fs.mkdirSync(join(tempDir, '.docimp'), { recursive: true });
+      fs.mkdirSync(sessionDir, { recursive: true });
+      fs.mkdirSync(join(tempDir, '.docimp', 'history'), { recursive: true });
+
+      writeFileSync(auditFile, '{"ratings": {"test": "data"}}');
+
+      // User rejects deletion
+      mockPromptsResponse = { shouldDelete: false };
+
+      // Run analyze without flags
+      await analyzeCore(
+        tempDir,
+        { format: 'json', verbose: false },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader
+      );
+
+      // Verify prompt was shown
+      const prompts = require('prompts');
+      expect(prompts).toHaveBeenCalled();
+
+      // Verify audit.json was preserved
+      expect(existsSync(auditFile)).toBe(true);
+      const content = JSON.parse(readFileSync(auditFile, 'utf8'));
+      expect(content.ratings.test).toBe('data');
+
+      // Verify analyze was called
+      expect(mockBridge.analyze).toHaveBeenCalled();
+    });
+
+    it('throws error when user cancels prompt', async () => {
+      // Setup: Create audit.json
+      const sessionDir = join(tempDir, '.docimp', 'session-reports');
+      const auditFile = join(sessionDir, 'audit.json');
+
+      const fs = require('fs');
+      fs.mkdirSync(join(tempDir, '.docimp'), { recursive: true });
+      fs.mkdirSync(sessionDir, { recursive: true });
+      fs.mkdirSync(join(tempDir, '.docimp', 'history'), { recursive: true });
+
+      writeFileSync(auditFile, '{"ratings": {}}');
+
+      // User cancels (Ctrl+C or ESC) - prompts returns undefined
+      mockPromptsResponse = { shouldDelete: undefined };
+
+      // Run analyze and expect error
+      await expect(
+        analyzeCore(
+          tempDir,
+          { format: 'json', verbose: false },
+          mockBridge,
+          mockDisplay,
+          mockConfigLoader
+        )
+      ).rejects.toThrow('Operation cancelled by user');
+
+      // Verify prompt was shown
+      const prompts = require('prompts');
+      expect(prompts).toHaveBeenCalled();
+
+      // Verify audit.json was preserved (not deleted)
+      expect(existsSync(auditFile)).toBe(true);
+
+      // Verify analyze was NOT called
+      expect(mockBridge.analyze).not.toHaveBeenCalled();
+    });
+
+    it('displays warning message before prompting', async () => {
+      // Setup: Create audit.json
+      const sessionDir = join(tempDir, '.docimp', 'session-reports');
+      const auditFile = join(sessionDir, 'audit.json');
+
+      const fs = require('fs');
+      fs.mkdirSync(join(tempDir, '.docimp'), { recursive: true });
+      fs.mkdirSync(sessionDir, { recursive: true });
+      fs.mkdirSync(join(tempDir, '.docimp', 'history'), { recursive: true });
+
+      writeFileSync(auditFile, '{"ratings": {}}');
+
+      // User confirms deletion
+      mockPromptsResponse = { shouldDelete: true };
+
+      // Run analyze
+      await analyzeCore(
+        tempDir,
+        { format: 'json', verbose: false },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader
+      );
+
+      // Verify warning message was displayed before prompt
+      expect(mockDisplay.showMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Audit ratings file exists')
+      );
+      expect(mockDisplay.showMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Re-running analyze will delete these ratings')
+      );
+    });
+
+    it('bypasses prompt when --force-clean is provided', async () => {
+      // Setup: Create audit.json
+      const sessionDir = join(tempDir, '.docimp', 'session-reports');
+      const auditFile = join(sessionDir, 'audit.json');
+
+      const fs = require('fs');
+      fs.mkdirSync(join(tempDir, '.docimp'), { recursive: true });
+      fs.mkdirSync(sessionDir, { recursive: true });
+      fs.mkdirSync(join(tempDir, '.docimp', 'history'), { recursive: true });
+
+      writeFileSync(auditFile, '{"ratings": {}}');
+
+      // Run analyze with --force-clean
+      await analyzeCore(
+        tempDir,
+        { format: 'json', verbose: false, forceClean: true },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader
+      );
+
+      // Verify prompt was NOT shown
+      const prompts = require('prompts');
+      expect(prompts).not.toHaveBeenCalled();
+
+      // Verify audit.json was deleted
+      expect(existsSync(auditFile)).toBe(false);
+    });
+
+    it('bypasses prompt when --preserve-audit is provided', async () => {
+      // Setup: Create audit.json
+      const sessionDir = join(tempDir, '.docimp', 'session-reports');
+      const auditFile = join(sessionDir, 'audit.json');
+
+      const fs = require('fs');
+      fs.mkdirSync(join(tempDir, '.docimp'), { recursive: true });
+      fs.mkdirSync(sessionDir, { recursive: true });
+      fs.mkdirSync(join(tempDir, '.docimp', 'history'), { recursive: true });
+
+      writeFileSync(auditFile, '{"ratings": {}}');
+
+      // Run analyze with --preserve-audit
+      await analyzeCore(
+        tempDir,
+        { format: 'json', verbose: false, preserveAudit: true },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader
+      );
+
+      // Verify prompt was NOT shown
+      const prompts = require('prompts');
+      expect(prompts).not.toHaveBeenCalled();
+
+      // Verify audit.json was preserved
+      expect(existsSync(auditFile)).toBe(true);
+    });
+
+    it('bypasses prompt when --keep-old-reports is provided', async () => {
+      // Setup: Create audit.json
+      const sessionDir = join(tempDir, '.docimp', 'session-reports');
+      const auditFile = join(sessionDir, 'audit.json');
+
+      const fs = require('fs');
+      fs.mkdirSync(join(tempDir, '.docimp'), { recursive: true });
+      fs.mkdirSync(sessionDir, { recursive: true });
+      fs.mkdirSync(join(tempDir, '.docimp', 'history'), { recursive: true });
+
+      writeFileSync(auditFile, '{"ratings": {}}');
+
+      // Run analyze with --keep-old-reports
+      await analyzeCore(
+        tempDir,
+        { format: 'json', verbose: false, keepOldReports: true },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader
+      );
+
+      // Verify prompt was NOT shown
+      const prompts = require('prompts');
+      expect(prompts).not.toHaveBeenCalled();
+
+      // Verify audit.json was preserved
+      expect(existsSync(auditFile)).toBe(true);
     });
   });
 
