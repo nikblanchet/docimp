@@ -10,6 +10,7 @@ import type { CodeItem } from '../../types/analysis';
 
 describe('Cross-Workflow Resume Integration', () => {
   let tempRoot: string;
+  let tempDir: string;
   let originalCwd: string;
 
   beforeEach(async () => {
@@ -18,14 +19,14 @@ describe('Cross-Workflow Resume Integration', () => {
       os.tmpdir(),
       `docimp-test-${Date.now()}-${Math.random().toString(36).slice(2)}`
     );
-    const tempDir = tempRoot;
+    tempDir = tempRoot;
     const docimpDir = path.join(tempDir, '.docimp');
     const sessionReportsDir = path.join(docimpDir, 'session-reports');
 
-    process.chdir(tempDir);
-
-    // Create .docimp/session-reports directory
+    // Create .docimp/session-reports directory first
     await fs.mkdir(sessionReportsDir, { recursive: true });
+
+    process.chdir(tempDir);
 
     // Create required workflow state files for WorkflowValidator
     await fs.writeFile(
