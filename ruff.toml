@@ -1,0 +1,12 @@
+# Root-level ruff configuration
+# Excludes intentionally malformed test fixtures
+
+exclude = [
+    "test-samples/malformed",
+    "test-samples/mixed-valid-invalid",
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".pytest_cache",
+    "node_modules",
+]

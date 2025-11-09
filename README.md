@@ -101,13 +101,24 @@ DocImp treats JavaScript as a **first-class language**, not just "TypeScript tha
 
 ## Quick Start
 
+**Prerequisites**: Install [uv](https://github.com/astral-sh/uv) first:
+```bash
+# macOS (Homebrew)
+brew install uv
+
+# Or use the official installer (Linux/macOS)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
 ```bash
 # Clone and install from source
 git clone https://github.com/nikblanchet/docimp.git
 cd docimp
 
-# Install Python dependencies
-pip install -r requirements.txt
+# Install Python dependencies with uv
+uv venv
+uv pip sync requirements-dev.lock
+uv pip install -e .
 
 # Install TypeScript CLI
 cd cli
@@ -176,13 +187,27 @@ Future versions will include Dulwich (Apache 2.0 license) as a pure-Python fallb
 
 ### Install from Source
 
+**Prerequisites**: Install [uv](https://github.com/astral-sh/uv):
+```bash
+# macOS (Homebrew)
+brew install uv
+
+# Linux/macOS (official installer)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows (PowerShell)
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
 ```bash
 # Clone repository
 git clone https://github.com/nikblanchet/docimp.git
 cd docimp
 
-# Install Python dependencies
-pip install -r requirements.txt
+# Install Python dependencies with uv
+uv venv
+uv pip sync requirements-dev.lock
+uv pip install -e .
 
 # Install TypeScript CLI
 cd cli
@@ -1167,24 +1192,25 @@ Contributions welcome! See `CONTRIBUTING.md` for guidelines.
 git clone https://github.com/nikblanchet/docimp.git
 cd docimp
 
-# Python setup
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
+# Python setup with uv
+uv venv
+uv pip sync requirements-dev.lock
+uv pip install -e .
 cd analyzer
-pytest -v
+uv run pytest -v
 
 # TypeScript setup
 cd ../cli
 npm install
-npm test
+uv run npm test
 npm run build
 
 # Run linters
-ruff check .  # Python
+uv run ruff check .  # Python
 npm run lint  # TypeScript/JavaScript
 
 # Run formatters
-ruff format .  # Python (auto-fix)
+uv run ruff format .  # Python (auto-fix)
 npm run format  # TypeScript/JavaScript (auto-fix)
 
 # Check formatting without auto-fix
@@ -1221,10 +1247,10 @@ pytest -v --cov=src
 
 # TypeScript tests
 cd cli
-npm test
+uv run npm test
 
 # Integration tests
-npm run test:integration
+uv run npm run test:integration
 ```
 
 ### Known Test Coverage Limitations
@@ -1310,8 +1336,8 @@ for full details.
   [Sublime Text](https://www.sublimetext.com/) for regex work
 - **Font**: [Fira Code Nerd Font](https://github.com/Trzcin/Fira-Code-Nerd) with
   ligatures enabled
-- **Environment Management**: [Conda](https://docs.conda.io/) (primary) with
-  [pip](https://pip.pypa.io/) for package installation
+- **Environment Management**: [uv](https://github.com/astral-sh/uv) (primary) with
+  [direnv](https://direnv.net/) for automatic environment activation
 - **Git Workflow**: [GitHub CLI](https://cli.github.com/) (installed via
   [Homebrew](https://brew.sh/)) for pull requests and merges
 - **Version Control**: [Git](https://git-scm.com/)
