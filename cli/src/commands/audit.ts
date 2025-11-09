@@ -26,6 +26,7 @@ import { FileTracker } from '../utils/file-tracker.js';
 import { PathValidator } from '../utils/path-validator.js';
 import { SessionStateManager } from '../utils/session-state-manager.js';
 import { StateManager } from '../utils/state-manager.js';
+import { WorkflowValidator } from '../utils/workflow-validator.js';
 
 /**
  * Calculate audit summary statistics from ratings.
@@ -542,6 +543,7 @@ export async function auditCore(
     resumeFile?: string;
     new?: boolean;
     clearSession?: boolean;
+    skipValidation?: boolean;
   },
   bridge: IPythonBridge,
   display: IDisplay,
@@ -551,6 +553,25 @@ export async function auditCore(
   const absolutePath = PathValidator.validatePathExists(path);
   PathValidator.validatePathReadable(absolutePath);
   PathValidator.warnIfEmpty(absolutePath);
+
+  // Validate workflow prerequisites
+  const validationResult = await WorkflowValidator.validateAuditPrerequisites(
+    options.skipValidation ?? false
+  );
+  if (!validationResult.valid) {
+    throw new Error(
+      `${validationResult.error}\n${validationResult.suggestion}`
+    );
+  }
+
+  // Check for stale analysis data
+  const isStale = await WorkflowValidator.isAnalyzeStale();
+  if (isStale) {
+    display.showMessage(
+      '\nWarning: Source files have changed since last analysis. ' +
+      'Consider re-running "docimp analyze" for accurate results.\n'
+    );
+  }
 
   // Load configuration
   const config = await configLoader.load(options.config);

@@ -5,13 +5,248 @@
  * the Python analyzer via subprocess.
  */
 
+import { existsSync } from 'node:fs';
 import { writeFileSync } from 'node:fs';
+import prompts from 'prompts';
 import type { IConfigLoader } from '../config/i-config-loader.js';
 import { EXIT_CODE, type ExitCode } from '../constants/exit-codes.js';
 import type { IDisplay } from '../display/i-display.js';
 import type { IPythonBridge } from '../python-bridge/i-python-bridge.js';
 import { PathValidator } from '../utils/path-validator.js';
 import { StateManager } from '../utils/state-manager.js';
+import { WorkflowStateManager } from '../utils/workflow-state-manager.js';
+import { FileTracker } from '../utils/file-tracker.js';
+import { createCommandState } from '../types/workflow-state.js';
+
+/**
+ * Handle incremental analysis: only re-analyze changed files
+ *
+ * @param absolutePath - Absolute path to analyze
+ * @param config - Configuration object
+ * @param options - Command options
+ * @param bridge - Python bridge instance
+ * @param display - Display instance
+ * @returns Analysis result with merged items
+ */
+async function handleIncrementalAnalysis(
+  absolutePath: string,
+  config: any,
+  options: { verbose?: boolean; strict?: boolean },
+  bridge: IPythonBridge,
+  display: IDisplay
+): Promise<any> {
+  // Load previous analysis results
+  const analyzeFile = StateManager.getAnalyzeFile();
+  if (!existsSync(analyzeFile)) {
+    display.showMessage(
+      'No previous analysis found. Running full analysis instead.'
+    );
+    const stopSpinner = display.startSpinner('Analyzing codebase...');
+    try {
+      const result = await bridge.analyze({
+        path: absolutePath,
+        config,
+        verbose: options.verbose,
+        strict: options.strict,
+      });
+      stopSpinner();
+      return result;
+    } catch (error) {
+      stopSpinner();
+      throw error;
+    }
+  }
+
+  // Load previous results and workflow state
+  const previousResult = JSON.parse(
+    await import('node:fs/promises').then(fs => fs.readFile(analyzeFile, 'utf8'))
+  );
+  const workflowState = await WorkflowStateManager.loadWorkflowState();
+
+  if (!workflowState.last_analyze) {
+    display.showMessage(
+      'Workflow state missing. Running full analysis instead.'
+    );
+    const stopSpinner = display.startSpinner('Analyzing codebase...');
+    try {
+      const result = await bridge.analyze({
+        path: absolutePath,
+        config,
+        verbose: options.verbose,
+        strict: options.strict,
+      });
+      stopSpinner();
+      return result;
+    } catch (error) {
+      stopSpinner();
+      throw error;
+    }
+  }
+
+  // Detect changed files
+  // Reconstruct snapshot from checksums (FileTracker expects FileSnapshot objects)
+  const snapshot: Record<string, any> = {};
+  for (const [filepath, checksum] of Object.entries(
+    workflowState.last_analyze.file_checksums
+  )) {
+    snapshot[filepath] = {
+      filepath,
+      checksum,
+      timestamp: 0, // Not needed for change detection
+      size: 0, // Not needed for change detection
+    };
+  }
+
+  const changedFiles = await FileTracker.detectChanges(snapshot);
+
+  if (changedFiles.length === 0) {
+    if (options.verbose) {
+      display.showMessage('No files changed. Reusing previous analysis results.');
+    }
+    return previousResult;
+  }
+
+  if (options.verbose) {
+    display.showMessage(
+      `Found ${changedFiles.length} changed file(s). Re-analyzing...`
+    );
+  }
+
+  // Run analysis only on changed files
+  const stopSpinner = display.startSpinner(
+    `Analyzing ${changedFiles.length} changed file(s)...`
+  );
+
+  try {
+    // Analyze each changed file individually
+    const changedResults = await Promise.all(
+      changedFiles.map(async filepath => {
+        return await bridge.analyze({
+          path: filepath,
+          config,
+          verbose: false,
+          strict: options.strict,
+        });
+      })
+    );
+
+    stopSpinner();
+
+    // Merge results: remove old items from changed files, add new items
+    const unchangedItems = previousResult.items.filter(
+      (item: any) => !changedFiles.includes(item.filepath)
+    );
+
+    const changedItems = changedResults.flatMap(result => result.items);
+
+    const mergedItems = [...unchangedItems, ...changedItems];
+
+    // Recalculate coverage statistics
+    const documentedItems = mergedItems.filter((item: any) => item.has_docs).length;
+    const totalItems = mergedItems.length;
+    const coveragePercent = totalItems > 0 ? (documentedItems / totalItems) * 100 : 0;
+
+    // Recalculate by_language statistics
+    const byLanguage: any = {};
+    for (const item of mergedItems) {
+      if (!byLanguage[item.language]) {
+        byLanguage[item.language] = {
+          total_items: 0,
+          documented_items: 0,
+          coverage_percent: 0,
+        };
+      }
+      byLanguage[item.language].total_items++;
+      if (item.has_docs) {
+        byLanguage[item.language].documented_items++;
+      }
+    }
+
+    // Calculate coverage percentages for each language
+    for (const lang of Object.keys(byLanguage)) {
+      const langData = byLanguage[lang];
+      langData.coverage_percent =
+        langData.total_items > 0
+          ? (langData.documented_items / langData.total_items) * 100
+          : 0;
+    }
+
+    // Merge parse failures
+    const unchangedFailures = previousResult.parse_failures || [];
+    const changedFailures = changedResults.flatMap(
+      result => result.parse_failures || []
+    );
+    const mergedFailures = [...unchangedFailures, ...changedFailures];
+
+    if (options.verbose) {
+      display.showMessage(
+        `Merged ${unchangedItems.length} unchanged + ${changedItems.length} changed = ${mergedItems.length} total items`
+      );
+    }
+
+    return {
+      items: mergedItems,
+      coverage_percent: coveragePercent,
+      total_items: totalItems,
+      documented_items: documentedItems,
+      by_language: byLanguage,
+      parse_failures: mergedFailures,
+    };
+  } catch (error) {
+    stopSpinner();
+    throw error;
+  }
+}
+
+/**
+ * Smart auto-clean handler: prompts user before deleting audit.json
+ *
+ * @param options - Command options
+ * @param display - Display instance for showing messages
+ * @returns true if should clean, false if should preserve
+ */
+async function handleSmartAutoClean(
+  options: {
+    keepOldReports?: boolean;
+    preserveAudit?: boolean;
+    forceClean?: boolean;
+  },
+  display: IDisplay
+): Promise<boolean> {
+  // Check for explicit flags first (highest priority)
+  if (options.forceClean) {
+    return true; // Clean without prompting
+  }
+
+  if (options.keepOldReports || options.preserveAudit) {
+    return false; // Preserve without prompting
+  }
+
+  // Check if audit.json exists
+  const auditFile = StateManager.getAuditFile();
+  if (!existsSync(auditFile)) {
+    return true; // No audit file, safe to clean
+  }
+
+  // Audit file exists - prompt user
+  display.showMessage(
+    '\nAudit ratings file exists. Re-running analyze will delete these ratings.'
+  );
+
+  const response = await prompts({
+    type: 'confirm',
+    name: 'shouldDelete',
+    message: 'Delete audit ratings and continue?',
+    initial: false,
+  });
+
+  // Handle user cancellation (Ctrl+C or ESC)
+  if (response.shouldDelete === undefined) {
+    throw new Error('Operation cancelled by user');
+  }
+
+  return response.shouldDelete;
+}
 
 /**
  * Core analyze logic (extracted for testability).
@@ -21,7 +256,10 @@ import { StateManager } from '../utils/state-manager.js';
  * @param options.format - Output format (json or summary)
  * @param options.config - Path to configuration file
  * @param options.verbose - Enable verbose output
- * @param options.keepOldReports - Preserve existing audit and plan files
+ * @param options.keepOldReports - Preserve existing audit and plan files (deprecated, use preserveAudit)
+ * @param options.preserveAudit - Preserve audit.json file only
+ * @param options.forceClean - Force clean without prompting
+ * @param options.incremental - Only re-analyze changed files
  * @param options.strict - Fail immediately on first parse error
  * @param bridge - Python bridge instance (dependency injection)
  * @param display - Display instance (dependency injection)
@@ -34,6 +272,9 @@ export async function analyzeCore(
     config?: string;
     verbose?: boolean;
     keepOldReports?: boolean;
+    preserveAudit?: boolean;
+    forceClean?: boolean;
+    incremental?: boolean;
     strict?: boolean;
   },
   bridge: IPythonBridge,
@@ -48,16 +289,19 @@ export async function analyzeCore(
   // Ensure state directory exists
   StateManager.ensureStateDir();
 
-  // Clear session reports unless --keep-old-reports flag is set
-  if (options.keepOldReports) {
-    if (options.verbose) {
-      display.showMessage('Keeping previous session reports');
-    }
-  } else {
+  // Smart auto-clean: check if audit.json exists and prompt user
+  const shouldClean = await handleSmartAutoClean(
+    options,
+    display
+  );
+
+  if (shouldClean) {
     const filesRemoved = StateManager.clearSessionReports();
-    if (filesRemoved > 0) {
+    if (filesRemoved > 0 && options.verbose) {
       display.showMessage(`Cleared ${filesRemoved} previous session report(s)`);
     }
+  } else if (options.verbose) {
+    display.showMessage('Keeping previous session reports');
   }
 
   // Load configuration
@@ -73,38 +317,64 @@ export async function analyzeCore(
     });
   }
 
-  // Run analysis via Python subprocess
-  if (options.verbose) {
-    display.showMessage(`Analyzing: ${absolutePath}`);
-  }
-
-  const stopSpinner = display.startSpinner('Analyzing codebase...');
-
-  try {
-    const result = await bridge.analyze({
-      path: absolutePath,
+  // Handle incremental analysis if requested
+  let result;
+  if (options.incremental) {
+    result = await handleIncrementalAnalysis(
+      absolutePath,
       config,
-      verbose: options.verbose,
-      strict: options.strict,
-    });
-
-    stopSpinner();
-
-    // Save analysis result to state directory
-    const analyzeFile = StateManager.getAnalyzeFile();
-    writeFileSync(analyzeFile, JSON.stringify(result, null, 2), 'utf8');
-
+      options,
+      bridge,
+      display
+    );
+  } else {
+    // Run full analysis via Python subprocess
     if (options.verbose) {
-      display.showMessage(`Analysis saved to: ${analyzeFile}`);
+      display.showMessage(`Analyzing: ${absolutePath}`);
     }
 
-    // Display results using the display service
-    const format = (options.format || 'summary') as 'summary' | 'json';
-    display.showAnalysisResult(result, format);
-  } catch (error) {
-    stopSpinner();
-    throw error;
+    const stopSpinner = display.startSpinner('Analyzing codebase...');
+
+    try {
+      result = await bridge.analyze({
+        path: absolutePath,
+        config,
+        verbose: options.verbose,
+        strict: options.strict,
+      });
+
+      stopSpinner();
+    } catch (error) {
+      stopSpinner();
+      throw error;
+    }
   }
+
+  // Save and display results (common path for both full and incremental)
+  // Save analysis result to state directory
+  const analyzeFile = StateManager.getAnalyzeFile();
+  writeFileSync(analyzeFile, JSON.stringify(result, null, 2), 'utf8');
+
+  if (options.verbose) {
+    display.showMessage(`Analysis saved to: ${analyzeFile}`);
+  }
+
+  // Update workflow state with file checksums
+  const filepaths = result.items.map((item: any) => item.filepath);
+  const snapshot = await FileTracker.createSnapshot(filepaths);
+
+  // Extract checksums from snapshot (WorkflowState expects Record<string, string>)
+  const fileChecksums: Record<string, string> = {};
+  for (const [filepath, fileSnapshot] of Object.entries(snapshot)) {
+    fileChecksums[filepath] = fileSnapshot.checksum;
+  }
+
+  const commandState = createCommandState(result.total_items, fileChecksums);
+  await WorkflowStateManager.updateCommandState('analyze', commandState);
+
+  // Display results using the display service
+  const format = (options.format || 'summary') as 'summary' | 'json';
+  display.showAnalysisResult(result, format);
 }
 
 /**
@@ -116,7 +386,10 @@ export async function analyzeCore(
  * @param options.format - Output format (json or summary)
  * @param options.config - Path to configuration file
  * @param options.verbose - Enable verbose output
- * @param options.keepOldReports - Preserve existing audit and plan files
+ * @param options.keepOldReports - Preserve existing audit and plan files (deprecated, use preserveAudit)
+ * @param options.preserveAudit - Preserve audit.json file only
+ * @param options.forceClean - Force clean without prompting
+ * @param options.incremental - Only re-analyze changed files
  * @param options.strict - Fail immediately on first parse error
  * @param bridge - Python bridge instance (dependency injection)
  * @param display - Display instance (dependency injection)
@@ -130,6 +403,9 @@ export async function analyzeCommand(
     config?: string;
     verbose?: boolean;
     keepOldReports?: boolean;
+    preserveAudit?: boolean;
+    forceClean?: boolean;
+    incremental?: boolean;
     strict?: boolean;
   },
   bridge: IPythonBridge,

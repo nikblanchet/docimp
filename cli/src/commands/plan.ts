@@ -10,6 +10,7 @@ import type { IDisplay } from '../display/i-display.js';
 import type { IPythonBridge } from '../python-bridge/i-python-bridge.js';
 import { PathValidator } from '../utils/path-validator.js';
 import { StateManager } from '../utils/state-manager.js';
+import { WorkflowValidator } from '../utils/workflow-validator.js';
 
 /**
  * Core plan logic (extracted for testability).
@@ -30,6 +31,7 @@ export async function planCore(
     planFile?: string;
     qualityThreshold?: number;
     verbose?: boolean;
+    skipValidation?: boolean;
   },
   bridge: IPythonBridge,
   display: IDisplay
@@ -38,6 +40,25 @@ export async function planCore(
   const absolutePath = PathValidator.validatePathExists(path);
   PathValidator.validatePathReadable(absolutePath);
   PathValidator.warnIfEmpty(absolutePath);
+
+  // Validate workflow prerequisites
+  const validationResult = await WorkflowValidator.validatePlanPrerequisites(
+    options.skipValidation ?? false
+  );
+  if (!validationResult.valid) {
+    throw new Error(
+      `${validationResult.error}\n${validationResult.suggestion}`
+    );
+  }
+
+  // Check for stale audit data
+  const auditStale = await WorkflowValidator.isAuditStale();
+  if (auditStale) {
+    display.showMessage(
+      '\nWarning: Analysis has been re-run since audit. ' +
+      'Audit ratings may be incomplete or stale.\n'
+    );
+  }
 
   // Use StateManager defaults if not provided
   const auditFile = options.auditFile ?? StateManager.getAuditFile();
