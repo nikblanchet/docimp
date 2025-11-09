@@ -257,11 +257,7 @@ describe('Audit Resume Workflow and Error Handling', () => {
     expect(mockBridge.applyAudit).toHaveBeenCalled();
   });
 
-  // TODO: Fix test - session deletion logic needs refinement
-  // Currently fails: session is deleted on quit when it should be preserved
-  // Expected: saveSessionState called, deleteSessionState NOT called
-  // Actual: deleteSessionState is called
-  it.skip('should preserve session when user quits early', async () => {
+  it('should preserve session when user quits early', async () => {
     // Mock: session with multiple unrated items
     const existingSession: AuditSessionState = {
       session_id: '550e8400-e29b-41d4-a716-446655440100',
@@ -406,9 +402,7 @@ describe('Audit Resume Workflow and Error Handling', () => {
     expect(ratingCalls).toHaveLength(1);
   });
 
-  // TODO: Fix test - completion message not displayed correctly
-  // Fails: expected display.showSuccess with "All items from session already rated"
-  it.skip('should handle resume when all items already rated', async () => {
+  it('should handle resume when all items already rated', async () => {
     // Mock: session with all items rated
     const existingSession: AuditSessionState = {
       session_id: '550e8400-e29b-41d4-a716-446655440120',
@@ -436,6 +430,34 @@ describe('Audit Resume Workflow and Error Handling', () => {
       existingSession
     );
 
+    // Mock: bridge returns items matching session state
+    (mockBridge.audit as jest.Mock).mockResolvedValueOnce({
+      items: [
+        {
+          name: 'func1',
+          type: 'function',
+          filepath: '/test/file.ts',
+          line_number: 10,
+          end_line: 20,
+          language: 'typescript',
+          complexity: 5,
+          docstring: 'First function',
+          audit_rating: null, // Not yet in audit file (session not complete)
+        },
+        {
+          name: 'func2',
+          type: 'function',
+          filepath: '/test/file.ts',
+          line_number: 30,
+          end_line: 40,
+          language: 'typescript',
+          complexity: 3,
+          docstring: 'Second function',
+          audit_rating: null,
+        },
+      ],
+    });
+
     // Mock: no file changes
     (FileTracker.detectChanges as jest.Mock).mockResolvedValue([]);
 
@@ -462,9 +484,7 @@ describe('Audit Resume Workflow and Error Handling', () => {
     expect(SessionStateManager.deleteSessionState).toHaveBeenCalled();
   });
 
-  // TODO: Fix test - rating preservation logic needs verification
-  // Fails: ratings object doesn't match expected structure after resume
-  it.skip('should preserve existing ratings when resuming', async () => {
+  it('should preserve existing ratings when resuming', async () => {
     // Mock: session with existing ratings
     const existingSession: AuditSessionState = {
       session_id: '550e8400-e29b-41d4-a716-446655440130',
@@ -512,8 +532,8 @@ describe('Audit Resume Workflow and Error Handling', () => {
 
     // Verify existing rating was preserved
     const applyCall = (mockBridge.applyAudit as jest.Mock).mock.calls[0];
-    const ratings = applyCall[0];
-    expect(ratings).toEqual({
+    const ratingsArg = applyCall[0];
+    expect(ratingsArg.ratings).toEqual({
       '/test/file.ts': {
         func1: 3, // Preserved
         testFunction: 4, // New
@@ -521,10 +541,7 @@ describe('Audit Resume Workflow and Error Handling', () => {
     });
   });
 
-  // TODO: Fix test - file change merging needs mock adjustment
-  // Fails: expected >= 2 rating prompts, received 1 (mock setup issue)
-  // Note: This functionality IS tested in audit-resume-flags.test.ts
-  it.skip('should merge new items from changed files during resume', async () => {
+  it('should merge new items from changed files during resume', async () => {
     // Mock: session with 1 item
     const existingSession: AuditSessionState = {
       session_id: '550e8400-e29b-41d4-a716-446655440140',
@@ -563,32 +580,57 @@ describe('Audit Resume Workflow and Error Handling', () => {
       '/test/file.ts',
     ]);
 
-    // Mock: re-analysis returns NEW item added
-    (mockBridge.audit as jest.Mock).mockResolvedValueOnce({
-      items: [
-        {
-          name: 'testFunction',
-          type: 'function',
-          filepath: '/test/file.ts',
-          line_number: 10,
-          end_line: 20,
-          language: 'typescript',
-          complexity: 5,
-          docstring: 'Updated',
-          audit_rating: null,
-        },
-        {
-          name: 'newFunction', // NEW item
-          type: 'function',
-          filepath: '/test/file.ts',
-          line_number: 30,
-          end_line: 40,
-          language: 'typescript',
-          complexity: 3,
-          docstring: 'New',
-          audit_rating: null,
-        },
-      ],
+    // Mock: bridge.audit is called twice (initial + re-analysis)
+    // First call: initial audit (returns session items)
+    // Second call: re-analysis of changed file (returns updated items with new item)
+    let auditCallCount = 0;
+    (mockBridge.audit as jest.Mock).mockImplementation(() => {
+      auditCallCount++;
+      if (auditCallCount === 1) {
+        // First call: return original session item
+        return Promise.resolve({
+          items: [
+            {
+              name: 'testFunction',
+              type: 'function',
+              filepath: '/test/file.ts',
+              line_number: 10,
+              end_line: 20,
+              language: 'typescript',
+              complexity: 5,
+              docstring: 'Original',
+              audit_rating: null,
+            },
+          ],
+        });
+      }
+      // Second call (file invalidation): return updated items with NEW item
+      return Promise.resolve({
+        items: [
+          {
+            name: 'testFunction',
+            type: 'function',
+            filepath: '/test/file.ts',
+            line_number: 10,
+            end_line: 20,
+            language: 'typescript',
+            complexity: 5,
+            docstring: 'Updated',
+            audit_rating: null,
+          },
+          {
+            name: 'newFunction', // NEW item
+            type: 'function',
+            filepath: '/test/file.ts',
+            line_number: 30,
+            end_line: 40,
+            language: 'typescript',
+            complexity: 3,
+            docstring: 'New',
+            audit_rating: null,
+          },
+        ],
+      });
     });
 
     // Mock: user rates both items

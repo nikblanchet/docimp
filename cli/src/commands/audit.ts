@@ -405,16 +405,18 @@ async function handleFileInvalidation(
     newSnapshot
   );
 
-  // Clear ratings for changed items (user must re-rate)
+  // Update partial_ratings for changed files:
+  // - Remove old items that no longer exist
+  // - Add new items from re-analysis
+  // - Set all ratings to null (user must re-rate)
   for (const filepath of changedFiles) {
-    if (sessionState.partial_ratings[filepath]) {
-      // Set all ratings to null for this file
-      for (const itemName of Object.keys(
-        sessionState.partial_ratings[filepath]
-      )) {
-        sessionState.partial_ratings[filepath][itemName] = null;
-      }
-    }
+    // Get all items for this file from re-analysis
+    const fileItems = changedItems.filter((item) => item.filepath === filepath);
+
+    // Replace ratings for this file with new items (all null)
+    sessionState.partial_ratings[filepath] = Object.fromEntries(
+      fileItems.map((item) => [item.name, null])
+    );
   }
 
   return { items: updatedItems, sessionState };
@@ -602,7 +604,16 @@ export async function auditCore(
       items = filterUnratedItems(items, sessionState.partial_ratings);
 
       if (items.length === 0) {
-        display.showMessage('\nAll items already rated. Session complete.');
+        display.showMessage(
+          '\nAll items from session already rated. Session complete.'
+        );
+
+        // Save all ratings from session to audit file
+        const finalRatings: AuditRatings = {
+          ratings: sessionState.partial_ratings,
+        };
+        await bridge.applyAudit(finalRatings, auditFile);
+
         // Mark session complete and delete
         sessionState.completed_at = new Date().toISOString();
         await SessionStateManager.saveSessionState(sessionState, 'audit');
@@ -665,6 +676,9 @@ export async function auditCore(
 
   // Initialize ratings structure
   const ratings: AuditRatings = { ratings: {} };
+
+  // Track whether user quit early
+  let userQuitEarly = false;
 
   // Interactive rating loop
   let audited = 0;
@@ -793,6 +807,7 @@ export async function auditCore(
       if (response.rating === undefined) {
         display.showMessage('\n\nAudit interrupted by user.');
         userRating = 'QUIT'; // Signal to quit
+        userQuitEarly = true; // Mark that user quit before completing all items
         break;
       }
 
@@ -823,6 +838,7 @@ export async function auditCore(
       if (normalized === 'Q') {
         display.showMessage('\n\nAudit stopped by user.');
         userRating = 'QUIT'; // Signal to quit
+        userQuitEarly = true; // Mark that user quit before completing all items
         break;
       }
 
@@ -887,15 +903,24 @@ export async function auditCore(
     const savingSpinner = display.startSpinner('Saving audit ratings...');
 
     try {
+      // Merge all ratings from session state (includes previous runs + current run)
+      // This ensures we save the complete set of ratings, not just new ones from this run
+      ratings.ratings = sessionState.partial_ratings;
       await bridge.applyAudit(ratings, auditFile);
 
-      // Mark session as complete and delete (auto-delete completed sessions)
-      sessionState.completed_at = new Date().toISOString();
-      await SessionStateManager.saveSessionState(sessionState, 'audit');
-      await SessionStateManager.deleteSessionState(
-        sessionState.session_id,
-        'audit'
-      );
+      // Check if user completed all items or quit early
+      if (userQuitEarly) {
+        // User quit early - preserve session for resume (leave completed_at null)
+        await SessionStateManager.saveSessionState(sessionState, 'audit');
+      } else {
+        // Mark session as complete and delete (auto-delete completed sessions)
+        sessionState.completed_at = new Date().toISOString();
+        await SessionStateManager.saveSessionState(sessionState, 'audit');
+        await SessionStateManager.deleteSessionState(
+          sessionState.session_id,
+          'audit'
+        );
+      }
 
       savingSpinner();
 
