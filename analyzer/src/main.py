@@ -634,7 +634,7 @@ def cmd_status(args: argparse.Namespace) -> int:
     """
     try:
         # Load workflow state
-        from datetime import UTC, datetime
+        from datetime import datetime
 
         state = WorkflowStateManager.load_workflow_state()
 
@@ -662,21 +662,21 @@ def cmd_status(args: argparse.Namespace) -> int:
 
         # Detect file modifications since last analyze
         import hashlib
-        import os
 
         file_mods = 0
         if state.last_analyze:
             for filepath, checksum in state.last_analyze.file_checksums.items():
                 try:
                     # Calculate current checksum
-                    if os.path.exists(filepath):
-                        with open(filepath, "rb") as f:
+                    filepath_obj = Path(filepath)
+                    if filepath_obj.exists():
+                        with filepath_obj.open("rb") as f:
                             current_checksum = hashlib.sha256(f.read()).hexdigest()
                         if current_checksum != checksum:
                             file_mods += 1
                     else:
                         file_mods += 1  # File deleted
-                except (IOError, OSError):
+                except OSError:
                     pass  # Skip inaccessible files
 
         # Build command states
