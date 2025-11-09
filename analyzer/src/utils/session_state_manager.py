@@ -56,7 +56,7 @@ class SessionStateManager:
             # Atomic rename
             tmp_path.rename(target_path)
 
-            return session_id
+            return str(session_id)  # Explicit cast for mypy
 
         except (OSError, TypeError, ValueError) as error:
             # Clean up temp file if it exists
@@ -98,7 +98,7 @@ class SessionStateManager:
             )
 
         with file_path.open(encoding="utf-8") as f:
-            data = json.load(f)
+            data: dict[str, Any] = json.load(f)  # Explicit type annotation for mypy
 
         # Migration logic: Handle older session files without schema_version
         version = data.get("schema_version", "1.0")
