@@ -4,7 +4,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import type { CodeItem } from '../types/analysis';
+import type { CodeItem } from '../types/analysis.js';
 
 /**
  * Options for setupDocimpDir function.
