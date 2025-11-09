@@ -345,3 +345,40 @@ export interface RollbackResult {
   /** Path to the file that was modified (undefined for multiple changes) */
   filepath?: string;
 }
+
+/**
+ * Command status in workflow state.
+ */
+export interface CommandStatus {
+  /** Command name */
+  command: string;
+
+  /** Execution status */
+  status: 'run' | 'not_run';
+
+  /** ISO 8601 timestamp of last execution */
+  timestamp?: string;
+
+  /** Number of items processed */
+  item_count?: number;
+
+  /** Number of files analyzed */
+  file_count?: number;
+}
+
+/**
+ * Result of workflow status command.
+ */
+export interface WorkflowStatusResult {
+  /** Status of each workflow command */
+  commands: CommandStatus[];
+
+  /** Staleness warnings */
+  staleness_warnings: string[];
+
+  /** Actionable suggestions for next steps */
+  suggestions: string[];
+
+  /** Number of files modified since last analyze */
+  file_modifications: number;
+}

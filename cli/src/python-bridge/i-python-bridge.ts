@@ -15,6 +15,7 @@ import type {
   SessionSummary,
   TransactionEntry,
   RollbackResult,
+  WorkflowStatusResult,
 } from '../types/analysis.js';
 
 /**
@@ -270,4 +271,19 @@ export interface IPythonBridge {
    * @throws Error if no active transaction or merge fails
    */
   commitTransaction(sessionId: string): Promise<void>;
+
+  /**
+   * Get workflow state status including command execution history, staleness warnings,
+   * and actionable suggestions.
+   *
+   * Returns:
+   * - Command states (analyze, audit, plan, improve) with timestamps and counts
+   * - Staleness warnings when data is outdated
+   * - Actionable suggestions for next workflow steps
+   * - File modification count since last analyze
+   *
+   * @returns Promise resolving to workflow status result
+   * @throws Error if workflow state file is corrupted or Python process fails
+   */
+  status(): Promise<WorkflowStatusResult>;
 }
