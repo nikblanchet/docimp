@@ -54,7 +54,7 @@ class WorkflowStateManager:
     @staticmethod
     def load_workflow_state() -> WorkflowState:
         """
-        Load workflow state from disk with validation.
+        Load workflow state from disk with schema validation and migration support.
         Returns empty state if file doesn't exist.
 
         Returns:
@@ -72,11 +72,21 @@ class WorkflowStateManager:
             with file_path.open(encoding="utf-8") as f:
                 data = json.load(f)
 
-            # Validate schema version
+            # Check schema version and migrate if needed
             if data.get("schema_version") != "1.0":
-                schema_version = data.get("schema_version")
-                msg = f"Unsupported workflow state schema version: {schema_version}"
-                raise ValueError(msg)
+                if data.get("schema_version") is None:
+                    # Legacy file without schema_version - migrate to v1.0
+                    data["schema_version"] = "1.0"
+                else:
+                    # Unsupported version - provide helpful error
+                    schema_version = data.get("schema_version")
+                    msg = (
+                        f"Unsupported workflow state schema version: {schema_version}.\n"
+                        f"Current version is 1.0.\n"
+                        f"To fix this, delete {file_path} and re-run 'docimp analyze' "
+                        f"to regenerate workflow state."
+                    )
+                    raise ValueError(msg)
 
             return WorkflowState.from_dict(data)
         except (json.JSONDecodeError, KeyError) as e:
