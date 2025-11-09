@@ -84,53 +84,6 @@ class TestAnalyzeAutoClean:
                 # Restore original working directory
                 os.chdir(original_cwd)
 
-    def test_analyze_preserves_reports_with_flag(self):
-        """Test that analyze preserves reports with --keep-old-reports flag."""
-        with TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir)
-            original_cwd = Path.cwd()
-
-            try:
-                # Change to temp directory so StateManager uses it as base
-                os.chdir(temp_path)
-
-                # Setup: Create a simple Python file to analyze
-                test_file = temp_path / "test.py"
-                test_file.write_text("def foo():\n    pass\n")
-
-                # Setup: Create state directory with old files
-                StateManager.ensure_state_dir()
-                audit_file = StateManager.get_audit_file()
-                plan_file = StateManager.get_plan_file()
-
-                audit_file.write_text('{"ratings": {"preserved": "audit"}}')
-                plan_file.write_text('{"items": [{"name": "preserved"}]}')
-
-                # Verify files exist before
-                assert audit_file.exists()
-                assert plan_file.exists()
-
-                # Run analyze with --keep-old-reports
-                result = main(
-                    ["analyze", ".", "--format", "json", "--keep-old-reports"]
-                )
-
-                # Should succeed
-                assert result == 0
-
-                # Verify files were preserved
-                assert audit_file.exists()
-                assert plan_file.exists()
-
-                # Verify content is unchanged
-                audit_content = json.loads(audit_file.read_text())
-                plan_content = json.loads(plan_file.read_text())
-                assert audit_content["ratings"]["preserved"] == "audit"
-                assert plan_content["items"][0]["name"] == "preserved"
-            finally:
-                # Restore original working directory
-                os.chdir(original_cwd)
-
     def test_analyze_saves_result_to_analyze_latest(self):
         """Test that analyze saves result to analyze-latest.json."""
         with TemporaryDirectory() as temp_dir:

@@ -162,17 +162,13 @@ def cmd_analyze(args: argparse.Namespace, parsers: dict, scorer: ImpactScorer) -
         analyze_file = StateManager.get_analyze_file()
         StateManager.validate_write_permission(analyze_file)
 
-        # Clear session reports unless --keep-old-reports flag is set
-        if args.keep_old_reports:
-            if args.verbose:
-                print("Keeping previous session reports", file=sys.stderr)
-        else:
-            files_removed = StateManager.clear_session_reports()
-            if files_removed > 0:
-                print(
-                    f"Cleared {files_removed} previous session report(s)",
-                    file=sys.stderr,
-                )
+        # Clear session reports (default behavior to prevent stale data)
+        files_removed = StateManager.clear_session_reports()
+        if files_removed > 0 and args.verbose:
+            print(
+                f"Cleared {files_removed} previous session report(s)",
+                file=sys.stderr,
+            )
 
         # Create analyzer with injected dependencies
         analyzer = create_analyzer(parsers, scorer)
@@ -1331,11 +1327,6 @@ def main(argv: list | None = None) -> int:
         choices=["json", "summary"],
         default="summary",
         help="Output format (default: summary)",
-    )
-    analyze_parser.add_argument(
-        "--keep-old-reports",
-        action="store_true",
-        help="Preserve existing audit and plan files",
     )
     analyze_parser.add_argument(
         "--verbose", action="store_true", help="Enable verbose output"
