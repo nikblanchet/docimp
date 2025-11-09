@@ -357,6 +357,46 @@ docimp plan ./src
 - Categorized by priority (High/Medium/Low)
 - Coverage improvement projection
 
+### Status
+
+View workflow state and get actionable suggestions for next steps.
+
+```bash
+docimp status
+```
+
+**Status display shows**:
+
+- **Command execution history**: Which commands have been run (analyze, audit, plan, improve)
+- **Timestamps**: When each command was last executed (e.g., "2h ago", "30m ago")
+- **Item counts**: Number of items processed by each command
+- **Staleness warnings**: Alerts when data is outdated (e.g., "audit is stale - analyze re-run since audit")
+- **File modifications**: Count of files changed since last analyze
+- **Actionable suggestions**: Recommended next steps (e.g., "Run 'docimp audit' to rate documentation quality")
+
+**Example output**:
+
+```
+Workflow State (.docimp/workflow-state.json)
+
+Command    Status   Last Run    Items
+─────────────────────────────────────
+✓ analyze  run      2h ago      23 items
+✗ audit    not run  —           —
+✗ plan     not run  —           —
+✗ improve  not run  —           —
+
+Suggestions:
+  → Run 'docimp audit <path>' to rate documentation quality
+```
+
+**Use cases**:
+
+- Quick workflow state check before starting work
+- Understand what commands have been run and when
+- Get reminders about stale data that needs refreshing
+- See suggested next actions in the workflow
+
 ### Improve
 
 Interactive documentation improvement workflow.
