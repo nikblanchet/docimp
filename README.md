@@ -678,9 +678,32 @@ DocImp stores session data in `.docimp/` (similar to `.git/`):
 └── history/                # Future: audit history
 ```
 
-**Auto-clean behavior**: `docimp analyze` clears old session reports by default
+**Smart Auto-Clean**: `docimp analyze` manages session reports to prevent stale data
 
-- Prevents stale audit/plan data
+By default, when you run `docimp analyze`, DocImp will:
+1. Check if `audit.json` exists (contains audit ratings)
+2. If it exists, **prompt you** before deleting
+3. Show a warning about losing ratings
+4. Wait for your confirmation (Y/n)
+
+**Override flags**:
+- `--preserve-audit`: Keep audit.json, clean only plan.json (no prompt)
+- `--force-clean`: Skip prompt and always clean all files
+- No flags: Interactive prompt when audit.json exists
+
+**Examples**:
+```bash
+# Default: prompts if audit.json exists
+docimp analyze ./src
+
+# Preserve audit ratings, clean plan only
+docimp analyze ./src --preserve-audit
+
+# Force clean without prompt
+docimp analyze ./src --force-clean
+```
+
+**Why prompting?** Audit ratings represent manual review work. The prompt prevents accidentally losing this data when re-running analysis.
 
 **Transaction tracking**: The `.docimp/state/` directory contains a side-car Git
 repository used for rollback functionality. This repository operates independently from

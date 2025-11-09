@@ -6,6 +6,7 @@
  */
 
 import { existsSync, writeFileSync, readFileSync } from 'node:fs';
+import prompts from 'prompts';
 import type { IConfigLoader } from '../config/i-config-loader.js';
 import type { IConfig } from '../config/i-config.js';
 import { EXIT_CODE, type ExitCode } from '../constants/exit-codes.js';
@@ -279,25 +280,58 @@ function applyAuditRatings(
 /**
  * Smart auto-clean handler: determines whether to clean session reports.
  *
- * Default behavior (no flags): Auto-clean to prevent stale data.
- * Override with --preserve-audit to preserve files.
+ * Default behavior (no flags): Prompts user when audit.json exists.
+ * Override with --preserve-audit to preserve audit.json.
+ * Override with --force-clean to skip prompt and always clean.
  *
  * @param options - Command options
  * @param options.preserveAudit - Preserve audit.json file only
- * @param options.forceClean - Force clean without prompting (same as default)
+ * @param options.forceClean - Force clean without prompting (bypasses default prompt)
+ * @param display - Display instance for showing warning messages
  * @returns true if should clean, false if should preserve
+ * @throws Error if user cancels the operation (Ctrl+C)
  */
-async function handleSmartAutoClean(options: {
-  preserveAudit?: boolean;
-  forceClean?: boolean;
-}): Promise<boolean> {
+async function handleSmartAutoClean(
+  options: {
+    preserveAudit?: boolean;
+    forceClean?: boolean;
+  },
+  display: IDisplay
+): Promise<boolean> {
   // Preserve if explicit flag is set
   if (options.preserveAudit) {
     return false;
   }
 
-  // Default behavior: auto-clean to prevent stale data
-  return true;
+  // Force clean if explicit flag is set (skip prompt)
+  if (options.forceClean) {
+    return true;
+  }
+
+  // Check if audit.json exists
+  const auditFile = StateManager.getAuditFile();
+  if (!existsSync(auditFile)) {
+    return true; // No audit file, safe to clean
+  }
+
+  // Show warning messages
+  display.showMessage('Audit ratings file exists at ' + auditFile);
+  display.showMessage('Re-running analyze will delete these ratings.');
+
+  // Prompt user for confirmation
+  const response = await prompts({
+    type: 'confirm',
+    name: 'shouldDelete',
+    message: 'Delete audit ratings and continue?',
+    initial: false,
+  });
+
+  // Handle user cancellation (Ctrl+C or ESC)
+  if (response.shouldDelete === undefined) {
+    throw new Error('Operation cancelled by user');
+  }
+
+  return response.shouldDelete;
 }
 
 /**
@@ -342,7 +376,7 @@ export async function analyzeCore(
   StateManager.ensureStateDir();
 
   // Smart auto-clean: check if audit.json exists and prompt user
-  const shouldClean = await handleSmartAutoClean(options);
+  const shouldClean = await handleSmartAutoClean(options, display);
 
   if (shouldClean) {
     const filesRemoved = StateManager.clearSessionReports();
