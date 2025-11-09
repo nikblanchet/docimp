@@ -257,9 +257,10 @@ describe('Audit Resume Workflow and Error Handling', () => {
     expect(mockBridge.applyAudit).toHaveBeenCalled();
   });
 
-  // Note: Skipping quit-early test - complex interaction with session lifecycle
-  // This behavior is better tested in manual/E2E tests where we can observe
-  // the full interaction flow. The core resume functionality is tested elsewhere.
+  // TODO: Fix test - session deletion logic needs refinement
+  // Currently fails: session is deleted on quit when it should be preserved
+  // Expected: saveSessionState called, deleteSessionState NOT called
+  // Actual: deleteSessionState is called
   it.skip('should preserve session when user quits early', async () => {
     // Mock: session with multiple unrated items
     const existingSession: AuditSessionState = {
@@ -405,7 +406,8 @@ describe('Audit Resume Workflow and Error Handling', () => {
     expect(ratingCalls).toHaveLength(1);
   });
 
-  // Note: Skipping - requires complex session completion logic
+  // TODO: Fix test - completion message not displayed correctly
+  // Fails: expected display.showSuccess with "All items from session already rated"
   it.skip('should handle resume when all items already rated', async () => {
     // Mock: session with all items rated
     const existingSession: AuditSessionState = {
@@ -460,7 +462,8 @@ describe('Audit Resume Workflow and Error Handling', () => {
     expect(SessionStateManager.deleteSessionState).toHaveBeenCalled();
   });
 
-  // Note: Skipping - mocking partial ratings is complex
+  // TODO: Fix test - rating preservation logic needs verification
+  // Fails: ratings object doesn't match expected structure after resume
   it.skip('should preserve existing ratings when resuming', async () => {
     // Mock: session with existing ratings
     const existingSession: AuditSessionState = {
@@ -518,7 +521,9 @@ describe('Audit Resume Workflow and Error Handling', () => {
     });
   });
 
-  // Note: Skipping - file change merging is tested in audit-resume-flags.test.ts
+  // TODO: Fix test - file change merging needs mock adjustment
+  // Fails: expected >= 2 rating prompts, received 1 (mock setup issue)
+  // Note: This functionality IS tested in audit-resume-flags.test.ts
   it.skip('should merge new items from changed files during resume', async () => {
     // Mock: session with 1 item
     const existingSession: AuditSessionState = {
