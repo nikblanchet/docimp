@@ -14,6 +14,7 @@ import type {
   SessionSummary,
   TransactionEntry,
   RollbackResult,
+  WorkflowStatusResult,
 } from '../types/analysis.js';
 
 /**
@@ -169,4 +170,21 @@ export interface IDisplay {
    * @param result - Rollback result to display
    */
   showRollbackResult(result: RollbackResult): void;
+
+  /**
+   * Display workflow state status.
+   *
+   * Shows the state of all workflow commands (analyze, audit, plan, improve)
+   * including execution timestamps, item counts, staleness warnings, and
+   * actionable suggestions for next steps.
+   *
+   * Uses colorful output:
+   * - Green checkmark for completed commands
+   * - Red X for commands not yet run
+   * - Yellow warnings for stale data
+   * - Cyan suggestions for recommended next actions
+   *
+   * @param status - Workflow status result from Python backend
+   */
+  showWorkflowStatus(status: WorkflowStatusResult): void;
 }
