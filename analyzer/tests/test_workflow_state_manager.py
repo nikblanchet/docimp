@@ -116,28 +116,32 @@ class TestWorkflowStateManager:
             assert data['last_improve'] is None
             assert data['last_analyze']['item_count'] == 10
 
-    def test_load_workflow_state_from_file(self, mock_state_dir, sample_workflow_state):
+    def test_load_workflow_state_from_file(
+        self, mock_state_dir, sample_workflow_state
+    ):
         """Test loading workflow state from existing file."""
-        with patch(
-            'src.utils.workflow_state_manager.StateManager.get_state_dir',
-            return_value=mock_state_dir,
-        ):
-            with patch(
+        with (
+            patch(
+                'src.utils.workflow_state_manager.StateManager.get_state_dir',
+                return_value=mock_state_dir,
+            ),
+            patch(
                 'src.utils.workflow_state_manager.StateManager.ensure_state_dir'
-            ):
-                # Save first
-                WorkflowStateManager.save_workflow_state(sample_workflow_state)
+            ),
+        ):
+            # Save first
+            WorkflowStateManager.save_workflow_state(sample_workflow_state)
 
-                # Then load
-                loaded = WorkflowStateManager.load_workflow_state()
+            # Then load
+            loaded = WorkflowStateManager.load_workflow_state()
 
-                assert loaded.schema_version == '1.0'
-                assert loaded.last_analyze is not None
-                assert loaded.last_analyze.item_count == 10
-                assert loaded.last_analyze.file_checksums == {
-                    'file.py': 'abc123',
-                    'file2.py': 'def456',
-                }
+            assert loaded.schema_version == '1.0'
+            assert loaded.last_analyze is not None
+            assert loaded.last_analyze.item_count == 10
+            assert loaded.last_analyze.file_checksums == {
+                'file.py': 'abc123',
+                'file2.py': 'def456',
+            }
 
     def test_load_workflow_state_returns_empty_if_not_exists(self, mock_state_dir):
         """Test that load returns empty state if file doesn't exist."""
@@ -158,12 +162,14 @@ class TestWorkflowStateManager:
         workflow_file = mock_state_dir / 'workflow-state.json'
         workflow_file.write_text('{ invalid json', encoding='utf-8')
 
-        with patch(
-            'src.utils.workflow_state_manager.StateManager.get_state_dir',
-            return_value=mock_state_dir,
+        with (
+            patch(
+                'src.utils.workflow_state_manager.StateManager.get_state_dir',
+                return_value=mock_state_dir,
+            ),
+            pytest.raises(ValueError, match='Failed to load workflow state'),
         ):
-            with pytest.raises(ValueError, match='Failed to load workflow state'):
-                WorkflowStateManager.load_workflow_state()
+            WorkflowStateManager.load_workflow_state()
 
     def test_load_workflow_state_invalid_schema_version(self, mock_state_dir):
         """Test that load raises error for unsupported schema version."""
@@ -171,101 +177,123 @@ class TestWorkflowStateManager:
         workflow_file = mock_state_dir / 'workflow-state.json'
         workflow_file.write_text(json.dumps(invalid_state), encoding='utf-8')
 
-        with patch(
-            'src.utils.workflow_state_manager.StateManager.get_state_dir',
-            return_value=mock_state_dir,
+        with (
+            patch(
+                'src.utils.workflow_state_manager.StateManager.get_state_dir',
+                return_value=mock_state_dir,
+            ),
+            pytest.raises(
+                ValueError, match='Unsupported workflow state schema version'
+            ),
         ):
-            with pytest.raises(ValueError, match='Unsupported workflow state schema version'):
-                WorkflowStateManager.load_workflow_state()
+            WorkflowStateManager.load_workflow_state()
 
-    def test_update_command_state_analyze(self, mock_state_dir, sample_command_state):
+    def test_update_command_state_analyze(
+        self, mock_state_dir, sample_command_state
+    ):
         """Test updating analyze command state."""
-        with patch(
-            'src.utils.workflow_state_manager.StateManager.get_state_dir',
-            return_value=mock_state_dir,
-        ):
-            with patch(
+        with (
+            patch(
+                'src.utils.workflow_state_manager.StateManager.get_state_dir',
+                return_value=mock_state_dir,
+            ),
+            patch(
                 'src.utils.workflow_state_manager.StateManager.ensure_state_dir'
-            ):
-                WorkflowStateManager.update_command_state('analyze', sample_command_state)
+            ),
+        ):
+            WorkflowStateManager.update_command_state(
+                'analyze', sample_command_state
+            )
 
-                loaded = WorkflowStateManager.load_workflow_state()
-                assert loaded.last_analyze is not None
-                assert loaded.last_analyze.item_count == 10
+            loaded = WorkflowStateManager.load_workflow_state()
+            assert loaded.last_analyze is not None
+            assert loaded.last_analyze.item_count == 10
 
     def test_update_command_state_audit(self, mock_state_dir, sample_command_state):
         """Test updating audit command state."""
-        with patch(
-            'src.utils.workflow_state_manager.StateManager.get_state_dir',
-            return_value=mock_state_dir,
-        ):
-            with patch(
+        with (
+            patch(
+                'src.utils.workflow_state_manager.StateManager.get_state_dir',
+                return_value=mock_state_dir,
+            ),
+            patch(
                 'src.utils.workflow_state_manager.StateManager.ensure_state_dir'
-            ):
-                WorkflowStateManager.update_command_state('audit', sample_command_state)
+            ),
+        ):
+            WorkflowStateManager.update_command_state('audit', sample_command_state)
 
-                loaded = WorkflowStateManager.load_workflow_state()
-                assert loaded.last_audit is not None
-                assert loaded.last_audit.item_count == 10
+            loaded = WorkflowStateManager.load_workflow_state()
+            assert loaded.last_audit is not None
+            assert loaded.last_audit.item_count == 10
 
     def test_update_command_state_plan(self, mock_state_dir, sample_command_state):
         """Test updating plan command state."""
-        with patch(
-            'src.utils.workflow_state_manager.StateManager.get_state_dir',
-            return_value=mock_state_dir,
-        ):
-            with patch(
+        with (
+            patch(
+                'src.utils.workflow_state_manager.StateManager.get_state_dir',
+                return_value=mock_state_dir,
+            ),
+            patch(
                 'src.utils.workflow_state_manager.StateManager.ensure_state_dir'
-            ):
-                WorkflowStateManager.update_command_state('plan', sample_command_state)
+            ),
+        ):
+            WorkflowStateManager.update_command_state('plan', sample_command_state)
 
-                loaded = WorkflowStateManager.load_workflow_state()
-                assert loaded.last_plan is not None
-                assert loaded.last_plan.item_count == 10
+            loaded = WorkflowStateManager.load_workflow_state()
+            assert loaded.last_plan is not None
+            assert loaded.last_plan.item_count == 10
 
-    def test_update_command_state_improve(self, mock_state_dir, sample_command_state):
+    def test_update_command_state_improve(
+        self, mock_state_dir, sample_command_state
+    ):
         """Test updating improve command state."""
-        with patch(
-            'src.utils.workflow_state_manager.StateManager.get_state_dir',
-            return_value=mock_state_dir,
-        ):
-            with patch(
+        with (
+            patch(
+                'src.utils.workflow_state_manager.StateManager.get_state_dir',
+                return_value=mock_state_dir,
+            ),
+            patch(
                 'src.utils.workflow_state_manager.StateManager.ensure_state_dir'
-            ):
-                WorkflowStateManager.update_command_state('improve', sample_command_state)
+            ),
+        ):
+            WorkflowStateManager.update_command_state(
+                'improve', sample_command_state
+            )
 
-                loaded = WorkflowStateManager.load_workflow_state()
-                assert loaded.last_improve is not None
-                assert loaded.last_improve.item_count == 10
+            loaded = WorkflowStateManager.load_workflow_state()
+            assert loaded.last_improve is not None
+            assert loaded.last_improve.item_count == 10
 
     def test_update_command_state_preserves_others(
         self, mock_state_dir, sample_command_state
     ):
         """Test that updating one command preserves other command states."""
-        with patch(
-            'src.utils.workflow_state_manager.StateManager.get_state_dir',
-            return_value=mock_state_dir,
-        ):
-            with patch(
+        with (
+            patch(
+                'src.utils.workflow_state_manager.StateManager.get_state_dir',
+                return_value=mock_state_dir,
+            ),
+            patch(
                 'src.utils.workflow_state_manager.StateManager.ensure_state_dir'
-            ):
-                # Set analyze and audit states
-                analyze_state = CommandState.create(10, {'a.py': 'xxx'})
-                audit_state = CommandState.create(8, {'b.py': 'yyy'})
+            ),
+        ):
+            # Set analyze and audit states
+            analyze_state = CommandState.create(10, {'a.py': 'xxx'})
+            audit_state = CommandState.create(8, {'b.py': 'yyy'})
 
-                WorkflowStateManager.update_command_state('analyze', analyze_state)
-                WorkflowStateManager.update_command_state('audit', audit_state)
+            WorkflowStateManager.update_command_state('analyze', analyze_state)
+            WorkflowStateManager.update_command_state('audit', audit_state)
 
-                # Update plan state
-                plan_state = CommandState.create(5, {'c.py': 'zzz'})
-                WorkflowStateManager.update_command_state('plan', plan_state)
+            # Update plan state
+            plan_state = CommandState.create(5, {'c.py': 'zzz'})
+            WorkflowStateManager.update_command_state('plan', plan_state)
 
-                # All states should be preserved
-                loaded = WorkflowStateManager.load_workflow_state()
-                assert loaded.last_analyze.item_count == 10
-                assert loaded.last_audit.item_count == 8
-                assert loaded.last_plan.item_count == 5
-                assert loaded.last_improve is None
+            # All states should be preserved
+            loaded = WorkflowStateManager.load_workflow_state()
+            assert loaded.last_analyze.item_count == 10
+            assert loaded.last_audit.item_count == 8
+            assert loaded.last_plan.item_count == 5
+            assert loaded.last_improve is None
 
     def test_update_command_state_invalid_command(self, sample_command_state):
         """Test that invalid command name raises ValueError."""
@@ -274,18 +302,22 @@ class TestWorkflowStateManager:
 
     def test_get_command_state_analyze(self, mock_state_dir, sample_command_state):
         """Test getting analyze command state."""
-        with patch(
-            'src.utils.workflow_state_manager.StateManager.get_state_dir',
-            return_value=mock_state_dir,
-        ):
-            with patch(
+        with (
+            patch(
+                'src.utils.workflow_state_manager.StateManager.get_state_dir',
+                return_value=mock_state_dir,
+            ),
+            patch(
                 'src.utils.workflow_state_manager.StateManager.ensure_state_dir'
-            ):
-                WorkflowStateManager.update_command_state('analyze', sample_command_state)
+            ),
+        ):
+            WorkflowStateManager.update_command_state(
+                'analyze', sample_command_state
+            )
 
-                result = WorkflowStateManager.get_command_state('analyze')
-                assert result is not None
-                assert result.item_count == 10
+            result = WorkflowStateManager.get_command_state('analyze')
+            assert result is not None
+            assert result.item_count == 10
 
     def test_get_command_state_returns_none_if_not_set(self, mock_state_dir):
         """Test that get returns None if command state not set."""
@@ -303,20 +335,22 @@ class TestWorkflowStateManager:
 
     def test_clear_workflow_state(self, mock_state_dir, sample_workflow_state):
         """Test clearing workflow state file."""
-        with patch(
-            'src.utils.workflow_state_manager.StateManager.get_state_dir',
-            return_value=mock_state_dir,
-        ):
-            with patch(
+        with (
+            patch(
+                'src.utils.workflow_state_manager.StateManager.get_state_dir',
+                return_value=mock_state_dir,
+            ),
+            patch(
                 'src.utils.workflow_state_manager.StateManager.ensure_state_dir'
-            ):
-                # Save state first
-                WorkflowStateManager.save_workflow_state(sample_workflow_state)
-                assert WorkflowStateManager.exists()
+            ),
+        ):
+            # Save state first
+            WorkflowStateManager.save_workflow_state(sample_workflow_state)
+            assert WorkflowStateManager.exists()
 
-                # Clear state
-                WorkflowStateManager.clear_workflow_state()
-                assert not WorkflowStateManager.exists()
+            # Clear state
+            WorkflowStateManager.clear_workflow_state()
+            assert not WorkflowStateManager.exists()
 
     def test_clear_workflow_state_no_error_if_not_exists(self, mock_state_dir):
         """Test that clear doesn't error if file doesn't exist."""
@@ -328,17 +362,21 @@ class TestWorkflowStateManager:
             WorkflowStateManager.clear_workflow_state()
             assert not WorkflowStateManager.exists()
 
-    def test_exists_returns_true_if_file_exists(self, mock_state_dir, sample_workflow_state):
+    def test_exists_returns_true_if_file_exists(
+        self, mock_state_dir, sample_workflow_state
+    ):
         """Test that exists returns True if workflow state file exists."""
-        with patch(
-            'src.utils.workflow_state_manager.StateManager.get_state_dir',
-            return_value=mock_state_dir,
-        ):
-            with patch(
+        with (
+            patch(
+                'src.utils.workflow_state_manager.StateManager.get_state_dir',
+                return_value=mock_state_dir,
+            ),
+            patch(
                 'src.utils.workflow_state_manager.StateManager.ensure_state_dir'
-            ):
-                WorkflowStateManager.save_workflow_state(sample_workflow_state)
-                assert WorkflowStateManager.exists()
+            ),
+        ):
+            WorkflowStateManager.save_workflow_state(sample_workflow_state)
+            assert WorkflowStateManager.exists()
 
     def test_exists_returns_false_if_file_not_exists(self, mock_state_dir):
         """Test that exists returns False if workflow state file doesn't exist."""
