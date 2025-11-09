@@ -1185,7 +1185,7 @@ Metadata:
             ["show", entry_id], self.base_path, timeout_config=self.timeout_config
         )
 
-        return result.stdout
+        return str(result.stdout)
 
     def find_orphaned_backups(self, max_age_days: int | None = None) -> list[Path]:
         """Find backup files (.bak) without corresponding transaction entries.

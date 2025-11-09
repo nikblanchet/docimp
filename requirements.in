@@ -1,0 +1,5 @@
+# DocImp Core Dependencies
+anthropic>=0.72.0,<1.0.0
+pydantic>=2.12.3,<3.0.0
+pydantic-core>=2.41.4,<3.0.0
+typing-extensions>=4.9.0

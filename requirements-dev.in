@@ -1,0 +1,8 @@
+# Include production dependencies (-r includes them, -c would only constrain versions)
+-r requirements.in
+
+# Development tools
+pytest>=7.4.0
+pytest-cov>=4.1.0
+ruff>=0.1.0
+mypy>=1.7.0
