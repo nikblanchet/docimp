@@ -1,6 +1,11 @@
-import * as fs from 'fs/promises';
-import * as nodePath from 'path';
-import { WorkflowState, WorkflowStateSchema, CommandState, createEmptyWorkflowState } from '../types/workflow-state.js';
+import * as fs from 'node:fs/promises';
+import path from 'node:path';
+import {
+  WorkflowState,
+  WorkflowStateSchema,
+  CommandState,
+  createEmptyWorkflowState,
+} from '../types/workflow-state.js';
 import { StateManager } from './state-manager.js';
 
 /**
@@ -14,7 +19,7 @@ export class WorkflowStateManager {
    * Get the path to the workflow state file
    */
   private static getWorkflowStateFile(): string {
-    return nodePath.join(StateManager.getStateDir(), 'workflow-state.json');
+    return path.join(StateManager.getStateDir(), 'workflow-state.json');
   }
 
   /**
@@ -22,7 +27,7 @@ export class WorkflowStateManager {
    */
   static async saveWorkflowState(state: WorkflowState): Promise<void> {
     const filePath = this.getWorkflowStateFile();
-    const tempPath = `${filePath}.tmp`;
+    const temporaryPath = `${filePath}.tmp`;
 
     // Ensure state directory exists
     StateManager.ensureStateDir();
@@ -31,10 +36,14 @@ export class WorkflowStateManager {
     const validated = WorkflowStateSchema.parse(state);
 
     // Write to temp file first
-    await fs.writeFile(tempPath, JSON.stringify(validated, null, 2), 'utf8');
+    await fs.writeFile(
+      temporaryPath,
+      JSON.stringify(validated, null, 2),
+      'utf8'
+    );
 
     // Atomic rename
-    await fs.rename(tempPath, filePath);
+    await fs.rename(temporaryPath, filePath);
   }
 
   /**
@@ -50,12 +59,17 @@ export class WorkflowStateManager {
 
       // Validate against schema
       return WorkflowStateSchema.parse(data);
-    } catch (error: any) {
-      if (error.code === 'ENOENT') {
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        error.code === 'ENOENT'
+      ) {
         // File doesn't exist - return empty state
         return createEmptyWorkflowState();
       }
-      throw new Error(`Failed to load workflow state: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to load workflow state: ${message}`);
     }
   }
 
@@ -70,18 +84,22 @@ export class WorkflowStateManager {
 
     // Update the specific command state
     switch (command) {
-      case 'analyze':
+      case 'analyze': {
         state.last_analyze = commandState;
         break;
-      case 'audit':
+      }
+      case 'audit': {
         state.last_audit = commandState;
         break;
-      case 'plan':
+      }
+      case 'plan': {
         state.last_plan = commandState;
         break;
-      case 'improve':
+      }
+      case 'improve': {
         state.last_improve = commandState;
         break;
+      }
     }
 
     await this.saveWorkflowState(state);
@@ -96,14 +114,18 @@ export class WorkflowStateManager {
     const state = await this.loadWorkflowState();
 
     switch (command) {
-      case 'analyze':
+      case 'analyze': {
         return state.last_analyze;
-      case 'audit':
+      }
+      case 'audit': {
         return state.last_audit;
-      case 'plan':
+      }
+      case 'plan': {
         return state.last_plan;
-      case 'improve':
+      }
+      case 'improve': {
         return state.last_improve;
+      }
     }
   }
 
@@ -115,8 +137,12 @@ export class WorkflowStateManager {
 
     try {
       await fs.unlink(filePath);
-    } catch (error: any) {
-      if (error.code !== 'ENOENT') {
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        error.code !== 'ENOENT'
+      ) {
         throw error;
       }
       // File doesn't exist - nothing to do

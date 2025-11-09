@@ -5,9 +5,10 @@
  * the Python analyzer via subprocess.
  */
 
-import { existsSync , writeFileSync, readFileSync } from 'node:fs';
+import { existsSync, writeFileSync, readFileSync } from 'node:fs';
 import prompts from 'prompts';
 import type { IConfigLoader } from '../config/i-config-loader.js';
+import type { IConfig } from '../config/i-config.js';
 import { EXIT_CODE, type ExitCode } from '../constants/exit-codes.js';
 import type { IDisplay } from '../display/i-display.js';
 import type { IPythonBridge } from '../python-bridge/i-python-bridge.js';
@@ -36,7 +37,7 @@ import { WorkflowStateManager } from '../utils/workflow-state-manager.js';
  */
 async function handleIncrementalAnalysis(
   absolutePath: string,
-  config: unknown,
+  config: IConfig,
   options: { verbose?: boolean; strict?: boolean },
   bridge: IPythonBridge,
   display: IDisplay
@@ -68,7 +69,7 @@ async function handleIncrementalAnalysis(
     await import('node:fs/promises').then((fs) =>
       fs.readFile(analyzeFile, 'utf8')
     )
-  );
+  ) as AnalysisResult;
   const workflowState = await WorkflowStateManager.loadWorkflowState();
 
   if (!workflowState.last_analyze) {
@@ -158,19 +159,16 @@ async function handleIncrementalAnalysis(
       totalItems > 0 ? (documentedItems / totalItems) * 100 : 0;
 
     // Recalculate by_language statistics
-    const byLanguage: Record<
-      string,
-      Pick<
-        LanguageMetrics,
-        'total_items' | 'documented_items' | 'coverage_percent'
-      >
-    > = {};
+    const byLanguage: Record<string, LanguageMetrics> = {};
     for (const item of mergedItems) {
       if (!byLanguage[item.language]) {
         byLanguage[item.language] = {
+          language: item.language,
           total_items: 0,
           documented_items: 0,
           coverage_percent: 0,
+          avg_complexity: 0,
+          avg_impact_score: 0,
         };
       }
       byLanguage[item.language].total_items++;
@@ -179,13 +177,23 @@ async function handleIncrementalAnalysis(
       }
     }
 
-    // Calculate coverage percentages for each language
+    // Calculate coverage percentages and averages for each language
     for (const lang of Object.keys(byLanguage)) {
       const langData = byLanguage[lang];
+      const langItems = mergedItems.filter((item) => item.language === lang);
+
       langData.coverage_percent =
         langData.total_items > 0
           ? (langData.documented_items / langData.total_items) * 100
           : 0;
+
+      langData.avg_complexity =
+        langItems.reduce((sum, item) => sum + item.complexity, 0) /
+        langItems.length;
+
+      langData.avg_impact_score =
+        langItems.reduce((sum, item) => sum + item.impact_score, 0) /
+        langItems.length;
     }
 
     // Merge parse failures
