@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * Main entry point for the DocImp CLI.
  *
@@ -5,8 +6,7 @@
  * auditing, planning, and improving documentation coverage.
  */
 
-/* eslint-disable unicorn/no-process-exit, n/no-process-exit */
-// This is a CLI entry point - process.exit() is appropriate here
+// This is a CLI entry point - process.exit() is appropriate here (configured in eslint.config.mjs)
 
 import { Command } from 'commander';
 import { analyzeCommand } from './commands/analyze.js';

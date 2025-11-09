@@ -22,28 +22,44 @@ export default [
   {
     rules: {
       // Unicorn: Only downgrade truly problematic rules per Issue #354
-      'unicorn/no-array-reduce': 'warn',  // Reduce is sometimes clearest
-      'unicorn/prefer-top-level-await': 'warn',  // Not always possible
-      'unicorn/no-null': 'off',  // External APIs like prompts use null
-      'unicorn/prevent-abbreviations': ['error', {
-        replacements: {
-          i: false,  // "i" in i-config.ts means "interface" not "index"
-        }
-      }],
+      'unicorn/no-array-reduce': 'warn', // Reduce is sometimes clearest
+      'unicorn/prefer-top-level-await': 'warn', // Not always possible
+      'unicorn/no-null': 'off', // External APIs like prompts use null
+      'unicorn/prevent-abbreviations': [
+        'error',
+        {
+          replacements: {
+            i: false, // "i" in i-config.ts means "interface" not "index"
+          },
+        },
+      ],
 
       // Node: Target Node 24+
-      'n/no-unsupported-features/node-builtins': ['error', {
-        version: '>=24.0.0'
-      }],
+      'n/no-unsupported-features/node-builtins': [
+        'error',
+        {
+          version: '>=24.0.0',
+        },
+      ],
 
       // Import: Consistent ordering
-      'import/order': ['error', {
-        groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
-        'newlines-between': 'never',
-        alphabetize: { order: 'asc', caseInsensitive: true }
-      }],
-      'import/no-unresolved': 'off',  // TypeScript handles this
-    }
+      'import/order': [
+        'error',
+        {
+          groups: [
+            'builtin',
+            'external',
+            'internal',
+            'parent',
+            'sibling',
+            'index',
+          ],
+          'newlines-between': 'never',
+          alphabetize: { order: 'asc', caseInsensitive: true },
+        },
+      ],
+      'import/no-unresolved': 'off', // TypeScript handles this
+    },
   },
 
   {
@@ -101,18 +117,18 @@ export default [
       // JSDoc rules (relaxed for TypeScript since it has its own type system)
       'jsdoc/check-alignment': 'warn',
       'jsdoc/check-indentation': 'warn',
-      'jsdoc/check-param-names': 'warn',  // Warn instead of error for object properties
+      'jsdoc/check-param-names': 'warn', // Warn instead of error for object properties
       'jsdoc/check-tag-names': 'error',
-      'jsdoc/check-types': 'off',  // TypeScript handles this
+      'jsdoc/check-types': 'off', // TypeScript handles this
       'jsdoc/require-description': 'warn',
-      'jsdoc/require-param': 'off',  // Too strict for nested object properties
+      'jsdoc/require-param': 'off', // Too strict for nested object properties
       'jsdoc/require-param-description': 'warn',
       'jsdoc/require-param-name': 'error',
-      'jsdoc/require-param-type': 'off',  // TypeScript provides types
+      'jsdoc/require-param-type': 'off', // TypeScript provides types
       'jsdoc/require-returns': 'warn',
       'jsdoc/require-returns-description': 'warn',
-      'jsdoc/require-returns-type': 'off',  // TypeScript provides types
-      'jsdoc/valid-types': 'off',  // TypeScript handles this
+      'jsdoc/require-returns-type': 'off', // TypeScript provides types
+      'jsdoc/valid-types': 'off', // TypeScript handles this
     },
   },
   {
@@ -143,7 +159,24 @@ export default [
     },
   },
   {
-    ignores: ['dist/**', 'node_modules/**', 'coverage/**', '**/*.test.ts', '**/__tests__/**', '**/__mocks__/**'],
+    // CLI entry point needs shebang for npm link
+    files: ['src/index.ts'],
+    rules: {
+      'n/hashbang': 'off', // This file IS a bin entry point (package.json "bin")
+      'unicorn/no-process-exit': 'off', // CLI entry point needs process.exit
+      'n/no-process-exit': 'off',
+    },
+  },
+  {
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      'coverage/**',
+      '**/*.test.ts',
+      '**/__tests__/**',
+      '**/__mocks__/**',
+      'eslint.config.mjs',
+    ],
   },
   // Prettier config must be last to disable conflicting rules
   prettierConfig,
