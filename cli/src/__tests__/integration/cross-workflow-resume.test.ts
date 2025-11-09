@@ -21,6 +21,35 @@ describe('Cross-Workflow Resume Integration', () => {
 
     // Create .docimp/session-reports directory
     await fs.mkdir('.docimp/session-reports', { recursive: true });
+
+    // Create required workflow state files for WorkflowValidator
+    await fs.writeFile(
+      '.docimp/session-reports/analyze-latest.json',
+      JSON.stringify({
+        items: [],
+        coverage_percent: 0,
+        total_items: 0,
+        documented_items: 0,
+        by_language: {},
+      }),
+      'utf8'
+    );
+
+    await fs.writeFile(
+      '.docimp/workflow-state.json',
+      JSON.stringify({
+        schema_version: '1.0',
+        last_analyze: {
+          timestamp: new Date().toISOString(),
+          item_count: 0,
+          file_checksums: {},
+        },
+        last_audit: null,
+        last_plan: null,
+        last_improve: null,
+      }),
+      'utf8'
+    );
   });
 
   afterEach(async () => {

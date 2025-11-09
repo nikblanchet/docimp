@@ -83,6 +83,36 @@ describe('plan command path validation', () => {
 
     // Change working directory to temp dir for StateManager
     process.chdir(tempDir);
+
+    // Create required workflow state files for WorkflowValidator
+    const fs = require('fs');
+    fs.mkdirSync(join(tempDir, '.docimp/session-reports'), { recursive: true });
+    fs.writeFileSync(
+      join(tempDir, '.docimp/session-reports/analyze-latest.json'),
+      JSON.stringify({
+        items: [],
+        coverage_percent: 0,
+        total_items: 0,
+        documented_items: 0,
+        by_language: {},
+      }),
+      'utf8'
+    );
+    fs.writeFileSync(
+      join(tempDir, '.docimp/workflow-state.json'),
+      JSON.stringify({
+        schema_version: '1.0',
+        last_analyze: {
+          timestamp: new Date().toISOString(),
+          item_count: 0,
+          file_checksums: {},
+        },
+        last_audit: null,
+        last_plan: null,
+        last_improve: null,
+      }),
+      'utf8'
+    );
   });
 
   afterEach(() => {
