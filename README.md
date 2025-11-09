@@ -297,6 +297,35 @@ Complexity: 8
 [C] Full code  [S] Skip  [Q] Quit
 ```
 
+#### Resuming Interrupted Audit Sessions
+
+DocImp automatically saves your progress after each rating. If your audit is interrupted, you can easily resume where you left off.
+
+```bash
+# Auto-detection: Prompts to resume if session exists
+docimp audit ./src
+
+# Explicit resume of latest session
+docimp audit ./src --resume
+
+# Explicit resume of specific session
+docimp audit ./src --resume abc12345
+
+# Start fresh session (bypass auto-detection)
+docimp audit ./src --new
+
+# Clear latest session and exit
+docimp audit --clear-session
+```
+
+**Smart File Invalidation**: When resuming, DocImp automatically detects if source files have been modified since the session started. Modified files are re-analyzed, and you'll see a warning with the count of changed files. Your previous ratings for unchanged files are preserved.
+
+**Session State**: Each session saves:
+- Current position in the audit queue
+- All ratings completed so far (1-4 or skipped)
+- File snapshots for modification detection
+- Display configuration (showCode mode, maxLines)
+
 ### Plan
 
 Generate prioritized improvement plan.
@@ -343,6 +372,41 @@ docimp improve ./src
 - JSDoc types are incorrect or missing
 - Style guide violations (preferred tags, punctuation)
 - Missing examples for public APIs
+
+#### Resuming Interrupted Improve Sessions
+
+DocImp automatically saves session progress after each action (accept, skip, undo). You can pause and resume improve sessions at any time.
+
+```bash
+# Auto-detection: Prompts to resume if session exists
+docimp improve ./src
+
+# Explicit resume of latest session
+docimp improve ./src --resume
+
+# Explicit resume of specific session
+docimp improve ./src --resume abc12345
+
+# Start fresh session (bypass auto-detection)
+docimp improve ./src --new
+
+# Clear latest session and exit
+docimp improve --clear-session
+```
+
+**Transaction Integration**: Resume sessions continue using the existing git transaction branch, preserving full rollback capability. If resuming a committed session, DocImp creates a new transaction branch and links it to the previous session.
+
+**Smart File Invalidation**: Modified files are automatically re-analyzed when resuming. Impact scores and complexity metrics are updated based on current code state.
+
+**Preference Restoration**: Your original style guide and tone preferences are restored from the session state, so you don't need to re-enter them.
+
+**Session State**: Each session saves:
+- Current position in the plan queue
+- Progress metrics (accepted/skipped/errors)
+- Transaction ID for rollback integration
+- User preferences (style guides, tone)
+- File snapshots for modification detection
+- Complete plan with item metadata
 
 ### Rollback & Undo
 
@@ -408,6 +472,92 @@ When conflicts occur, DocImp displays:
 
 **No Git installed?** DocImp gracefully degrades - improve workflow runs normally, but
 rollback commands are unavailable.
+
+---
+
+### Audit Session Management
+
+DocImp allows you to manage audit sessions for long-running audits that may be interrupted
+or span multiple work sessions.
+
+**List audit sessions**:
+
+```bash
+# List all audit sessions (shows session ID, progress, status)
+docimp list-audit-sessions
+```
+
+Output includes:
+- Session ID (shortened to 12 characters)
+- Started timestamp (relative, e.g., "2h ago")
+- Completed timestamp (or "N/A" if in-progress)
+- Items rated (e.g., "5/23" means 5 of 23 items rated)
+- Status: "completed" (green) or "in-progress" (yellow)
+
+**Delete audit sessions**:
+
+```bash
+# Delete a specific session
+docimp delete-audit-session <session-id>
+
+# Delete all audit sessions
+docimp delete-audit-session --all
+
+# Skip confirmation prompt
+docimp delete-audit-session <session-id> --force
+docimp delete-audit-session --all --force
+```
+
+Use cases:
+- Clean up incomplete sessions before starting fresh
+- Remove old completed sessions
+- Batch delete with `--all` flag
+- Script deletion with `--force` flag (skips confirmation)
+
+**Session file location**: `.docimp/session-reports/audit-session-{uuid}.json`
+
+### Improve Session Management
+
+DocImp allows you to manage improve sessions for long-running documentation improvement workflows
+that may be interrupted or span multiple work sessions.
+
+**List improve sessions**:
+
+```bash
+# List all improve sessions (shows session ID, transaction info, progress, status)
+docimp list-improve-sessions
+```
+
+Output includes:
+- Session ID (shortened to 12 characters)
+- Transaction ID (shortened to 12 characters)
+- Started timestamp (relative, e.g., "2h ago")
+- Completed timestamp (or "N/A" if in-progress)
+- Progress: Accepted/Skipped/Errors (e.g., "3/2/0")
+- Session Status: "completed" (green) or "in-progress" (yellow)
+- Transaction Status: "Active", "Committed", or "N/A"
+
+**Delete improve sessions**:
+
+```bash
+# Delete a specific session
+docimp delete-improve-session <session-id>
+
+# Delete all improve sessions
+docimp delete-improve-session --all
+
+# Skip confirmation prompt
+docimp delete-improve-session <session-id> --force
+docimp delete-improve-session --all --force
+```
+
+Use cases:
+- Clean up incomplete sessions before starting fresh
+- Remove old completed sessions
+- Batch delete with `--all` flag
+- Script deletion with `--force` flag (skips confirmation)
+
+**Session file location**: `.docimp/session-reports/improve-session-{uuid}.json`
 
 ---
 

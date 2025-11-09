@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * Main entry point for the DocImp CLI.
  *
@@ -5,12 +6,19 @@
  * auditing, planning, and improving documentation coverage.
  */
 
-/* eslint-disable unicorn/no-process-exit, n/no-process-exit */
-// This is a CLI entry point - process.exit() is appropriate here
+// This is a CLI entry point - process.exit() is appropriate here (configured in eslint.config.mjs)
 
 import { Command } from 'commander';
 import { analyzeCommand } from './commands/analyze.js';
+import {
+  deleteAuditSessionCommand,
+  listAuditSessionsCommand,
+} from './commands/audit-sessions.js';
 import { auditCommand } from './commands/audit.js';
+import {
+  deleteImproveSessionCommand,
+  listImproveSessionsCommand,
+} from './commands/improve-sessions.js';
 import { improveCommand } from './commands/improve.js';
 import { listChangesCommand } from './commands/list-changes.js';
 import { listSessionsCommand } from './commands/list-sessions.js';
@@ -87,6 +95,13 @@ program
   )
   .option('--config <path>', 'Path to configuration file')
   .option('--verbose', 'Enable verbose output')
+  .option('--resume', 'Resume an incomplete audit session')
+  .option(
+    '--resume-file <file>',
+    'Resume specific session file (skips selection list)'
+  )
+  .option('--new', 'Force new session (ignore existing sessions)')
+  .option('--clear-session', 'Delete all incomplete sessions and exit')
   .action(async (path, options) => {
     try {
       // Instantiate dependencies
@@ -188,6 +203,10 @@ program
   )
   .option('--list-styles', 'List all available style guides and tones')
   .option('--verbose', 'Enable verbose output')
+  .option('--resume', 'Resume an incomplete session (show list)')
+  .option('--resume-file <sessionId>', 'Resume specific session ID')
+  .option('--new', 'Force new session (bypass auto-detection)')
+  .option('--clear-session', 'Delete all incomplete sessions and exit')
   .action(async (path, options) => {
     try {
       // Instantiate dependencies
@@ -302,6 +321,86 @@ program
       const bridge = new PythonBridge();
 
       const exitCode = await rollbackChangeCommand(entryId, bridge, display);
+      if (exitCode !== EXIT_CODE.SUCCESS) {
+        process.exit(exitCode);
+      }
+    } catch (error) {
+      const errorDisplay = new TerminalDisplay();
+      errorDisplay.showError(
+        `Unexpected error: ${error instanceof Error ? error.message : String(error)}`
+      );
+      process.exit(EXIT_CODE.ERROR);
+    }
+  });
+
+// List-audit-sessions command (audit session management)
+program
+  .command('list-audit-sessions')
+  .description('List all audit sessions')
+  .action(async () => {
+    try {
+      const exitCode = await listAuditSessionsCommand();
+      if (exitCode !== EXIT_CODE.SUCCESS) {
+        process.exit(exitCode);
+      }
+    } catch (error) {
+      const errorDisplay = new TerminalDisplay();
+      errorDisplay.showError(
+        `Unexpected error: ${error instanceof Error ? error.message : String(error)}`
+      );
+      process.exit(EXIT_CODE.ERROR);
+    }
+  });
+
+// Delete-audit-session command (audit session management)
+program
+  .command('delete-audit-session [session-id]')
+  .description('Delete audit session(s)')
+  .option('--all', 'Delete all audit sessions')
+  .option('--force', 'Skip confirmation prompt')
+  .action(async (sessionId, options) => {
+    try {
+      const exitCode = await deleteAuditSessionCommand(sessionId, options);
+      if (exitCode !== EXIT_CODE.SUCCESS) {
+        process.exit(exitCode);
+      }
+    } catch (error) {
+      const errorDisplay = new TerminalDisplay();
+      errorDisplay.showError(
+        `Unexpected error: ${error instanceof Error ? error.message : String(error)}`
+      );
+      process.exit(EXIT_CODE.ERROR);
+    }
+  });
+
+// List-improve-sessions command (improve session management)
+program
+  .command('list-improve-sessions')
+  .description('List all improve sessions')
+  .action(async () => {
+    try {
+      const exitCode = await listImproveSessionsCommand();
+      if (exitCode !== EXIT_CODE.SUCCESS) {
+        process.exit(exitCode);
+      }
+    } catch (error) {
+      const errorDisplay = new TerminalDisplay();
+      errorDisplay.showError(
+        `Unexpected error: ${error instanceof Error ? error.message : String(error)}`
+      );
+      process.exit(EXIT_CODE.ERROR);
+    }
+  });
+
+// Delete-improve-session command (improve session management)
+program
+  .command('delete-improve-session [session-id]')
+  .description('Delete improve session(s)')
+  .option('--all', 'Delete all improve sessions')
+  .option('--force', 'Skip confirmation prompt')
+  .action(async (sessionId, options) => {
+    try {
+      const exitCode = await deleteImproveSessionCommand(sessionId, options);
       if (exitCode !== EXIT_CODE.SUCCESS) {
         process.exit(exitCode);
       }

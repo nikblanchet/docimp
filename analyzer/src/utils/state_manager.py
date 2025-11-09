@@ -319,3 +319,90 @@ class StateManager:
         if base_path is None:
             base_path = Path.cwd()
         return GitHelper.init_sidecar_repo(base_path)
+
+    @classmethod
+    def get_audit_session_file(
+        cls, session_id: str, base_path: Path | None = None
+    ) -> Path:
+        """Get the absolute path to an audit session state file.
+
+        Args:
+            session_id: UUID of the audit session
+            base_path: Base directory to resolve from. If None, uses current
+                working directory.
+
+        Returns:
+            Absolute path to .docimp/session-reports/audit-session-{session_id}.json.
+        """
+        return (
+            cls.get_session_reports_dir(base_path) / f"audit-session-{session_id}.json"
+        )
+
+    @classmethod
+    def get_improve_session_file(
+        cls, session_id: str, base_path: Path | None = None
+    ) -> Path:
+        """Get the absolute path to an improve session state file.
+
+        Args:
+            session_id: UUID of the improve session
+            base_path: Base directory to resolve from. If None, uses current
+                working directory.
+
+        Returns:
+            Absolute path to .docimp/session-reports/improve-session-{session_id}.json.
+        """
+        return (
+            cls.get_session_reports_dir(base_path)
+            / f"improve-session-{session_id}.json"
+        )
+
+    @classmethod
+    def list_session_files(
+        cls, session_type: str, base_path: Path | None = None
+    ) -> list[Path]:
+        """List all session state files of a given type.
+
+        Args:
+            session_type: Type of session: 'audit' or 'improve'
+            base_path: Base directory to resolve from. If None, uses current
+                working directory.
+
+        Returns:
+            List of absolute paths to session files, sorted by modification time
+            (newest first).
+        """
+        reports_dir = cls.get_session_reports_dir(base_path)
+
+        if not reports_dir.exists():
+            return []
+
+        prefix = f"{session_type}-session-"
+        suffix = ".json"
+
+        # Find all matching session files
+        files = [
+            f
+            for f in reports_dir.iterdir()
+            if f.is_file() and f.name.startswith(prefix) and f.name.endswith(suffix)
+        ]
+
+        # Sort by modification time, newest first
+        return sorted(files, key=lambda f: f.stat().st_mtime, reverse=True)
+
+    @classmethod
+    def get_latest_session_file(
+        cls, session_type: str, base_path: Path | None = None
+    ) -> Path | None:
+        """Get the absolute path to the most recent session state file.
+
+        Args:
+            session_type: Type of session: 'audit' or 'improve'
+            base_path: Base directory to resolve from. If None, uses current
+                working directory.
+
+        Returns:
+            Absolute path to latest session file, or None if no sessions exist.
+        """
+        files = cls.list_session_files(session_type, base_path)
+        return files[0] if files else None
