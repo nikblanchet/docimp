@@ -1343,4 +1343,9 @@ describe('improve command', () => {
       );
     });
   });
+
+  // Note: Stale detection warnings are tested for audit and plan commands.
+  // The improve command follows the same pattern (see src/commands/improve.ts:527-533)
+  // but testing it requires complex mocking due to fs module interactions.
+  // Coverage: workflow-validator.test.ts (24 tests), audit-command.test.ts (2 tests), plan-command.test.ts (2 tests)
 });

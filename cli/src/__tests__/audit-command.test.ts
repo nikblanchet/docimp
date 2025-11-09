@@ -869,3 +869,93 @@ describe('auditCore - code display modes', () => {
     expect(promptCall.validate('C')).not.toBe(true);
   });
 });
+
+describe('audit stale detection warnings', () => {
+  let mockPythonBridge: IPythonBridge;
+  let mockDisplay: IDisplay;
+  let configLoader: IConfigLoader;
+  const mockPrompts = prompts as unknown as jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    mockPythonBridge = {
+      analyze: jest.fn(),
+      audit: jest.fn().mockResolvedValue({
+        items: [],
+        coverage_percent: 0,
+        total_items: 0,
+        documented_items: 0,
+        by_language: {},
+      }),
+      plan: jest.fn(),
+      suggest: jest.fn(),
+      apply: jest.fn(),
+    } as unknown as IPythonBridge;
+
+    mockDisplay = {
+      showMessage: jest.fn(),
+      showError: jest.fn(),
+      showWarning: jest.fn(),
+      showConfig: jest.fn(),
+      showAnalysisResult: jest.fn(),
+      showAuditSummary: jest.fn(),
+      startSpinner: jest.fn().mockReturnValue(() => {}),
+      showCode: jest.fn(),
+      showSignature: jest.fn(),
+      showCodeBlock: jest.fn(),
+    } as unknown as IDisplay;
+
+    configLoader = {
+      load: jest.fn().mockResolvedValue(defaultConfig),
+    };
+
+    mockPrompts.mockResolvedValue({ rating: '4' });
+  });
+
+  it('displays warning when source files changed since analysis', async () => {
+    // Mock WorkflowValidator to return true for isAnalyzeStale
+    jest.doMock('../utils/workflow-validator.js', () => ({
+      WorkflowValidator: {
+        validateAuditPrerequisites: jest.fn().mockResolvedValue({ valid: true }),
+        isAnalyzeStale: jest.fn().mockResolvedValue(true),
+      },
+    }));
+
+    // Re-import auditCore to get mocked WorkflowValidator
+    jest.resetModules();
+    const { auditCore: freshAuditCore } = await import('../commands/audit.js');
+
+    await freshAuditCore('.', {}, mockPythonBridge, mockDisplay, configLoader);
+
+    // Verify warning was displayed
+    expect(mockDisplay.showMessage).toHaveBeenCalledWith(
+      expect.stringContaining('Source files have changed since last analysis')
+    );
+    expect(mockDisplay.showMessage).toHaveBeenCalledWith(
+      expect.stringContaining('docimp analyze')
+    );
+  });
+
+  it('does not display warning when analysis is current', async () => {
+    // Mock WorkflowValidator to return false for isAnalyzeStale
+    jest.doMock('../utils/workflow-validator.js', () => ({
+      WorkflowValidator: {
+        validateAuditPrerequisites: jest.fn().mockResolvedValue({ valid: true }),
+        isAnalyzeStale: jest.fn().mockResolvedValue(false),
+      },
+    }));
+
+    jest.resetModules();
+    const { auditCore: freshAuditCore } = await import('../commands/audit.js');
+
+    await freshAuditCore('.', {}, mockPythonBridge, mockDisplay, configLoader);
+
+    // Verify no warning was displayed
+    const showMessageCalls = (mockDisplay.showMessage as jest.Mock).mock.calls;
+    const staleWarnings = showMessageCalls.filter((call) =>
+      call[0].includes('Source files have changed')
+    );
+    expect(staleWarnings).toHaveLength(0);
+  });
+});
