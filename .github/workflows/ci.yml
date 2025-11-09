@@ -62,8 +62,6 @@ jobs:
   typescript-tests:
     name: TypeScript Tests
     runs-on: ubuntu-latest
-    env:
-      UV_SYSTEM_PYTHON: 1
     strategy:
       matrix:
         node-version: ['24']
@@ -91,7 +89,8 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          uv pip install -r requirements.lock
+          uv venv
+          uv pip sync requirements.lock
           uv pip install -e .
 
       - name: Install dependencies
@@ -138,8 +137,6 @@ jobs:
   integration-test:
     name: Integration Test (Python + TypeScript)
     runs-on: ubuntu-latest
-    env:
-      UV_SYSTEM_PYTHON: 1
     needs: [python-tests, typescript-tests]
 
     steps:
@@ -165,7 +162,8 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          uv pip install -r requirements.lock
+          uv venv
+          uv pip sync requirements.lock
           uv pip install -e .
 
       - name: Install Node dependencies and build
@@ -239,8 +237,6 @@ jobs:
   workflow-validation:
     name: Workflow Validation (Test Samples)
     runs-on: ubuntu-latest
-    env:
-      UV_SYSTEM_PYTHON: 1
     needs: [python-tests, typescript-tests]
 
     steps:
@@ -269,7 +265,8 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          uv pip install -r requirements.lock
+          uv venv
+          uv pip sync requirements.lock
           uv pip install -e .
 
       - name: Install Node dependencies and build
