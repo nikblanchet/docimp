@@ -6,11 +6,9 @@ which tracks the execution state of analyze, audit, plan, and improve commands.
 """
 
 import json
-import os
 from pathlib import Path
-from typing import Optional
 
-from ..models.workflow_state import WorkflowState, CommandState
+from ..models.workflow_state import CommandState, WorkflowState
 from .state_manager import StateManager
 
 
@@ -47,11 +45,11 @@ class WorkflowStateManager:
         data = state.to_dict()
 
         # Write to temp file first
-        with open(temp_path, 'w', encoding='utf-8') as f:
+        with temp_path.open('w', encoding='utf-8') as f:
             json.dump(data, f, indent=2)
 
         # Atomic rename
-        os.replace(temp_path, file_path)
+        temp_path.replace(file_path)
 
     @staticmethod
     def load_workflow_state() -> WorkflowState:
@@ -71,14 +69,14 @@ class WorkflowStateManager:
             return WorkflowState.create_empty()
 
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with file_path.open(encoding='utf-8') as f:
                 data = json.load(f)
 
             # Validate schema version
             if data.get('schema_version') != '1.0':
-                raise ValueError(
-                    f"Unsupported workflow state schema version: {data.get('schema_version')}"
-                )
+                schema_version = data.get('schema_version')
+                msg = f"Unsupported workflow state schema version: {schema_version}"
+                raise ValueError(msg)
 
             return WorkflowState.from_dict(data)
         except (json.JSONDecodeError, KeyError) as e:
@@ -119,7 +117,7 @@ class WorkflowStateManager:
         WorkflowStateManager.save_workflow_state(state)
 
     @staticmethod
-    def get_command_state(command: str) -> Optional[CommandState]:
+    def get_command_state(command: str) -> CommandState | None:
         """
         Get the state for a specific command.
 
@@ -140,16 +138,14 @@ class WorkflowStateManager:
 
         state = WorkflowStateManager.load_workflow_state()
 
-        if command == 'analyze':
-            return state.last_analyze
-        elif command == 'audit':
-            return state.last_audit
-        elif command == 'plan':
-            return state.last_plan
-        elif command == 'improve':
-            return state.last_improve
+        command_map = {
+            'analyze': state.last_analyze,
+            'audit': state.last_audit,
+            'plan': state.last_plan,
+            'improve': state.last_improve,
+        }
 
-        return None
+        return command_map.get(command)
 
     @staticmethod
     def clear_workflow_state() -> None:

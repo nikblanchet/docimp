@@ -6,8 +6,7 @@ workflow validation, stale detection, and incremental re-analysis.
 """
 
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Dict, Optional
+from datetime import UTC, datetime
 
 
 @dataclass
@@ -16,7 +15,7 @@ class CommandState:
 
     timestamp: str  # ISO 8601 format
     item_count: int
-    file_checksums: Dict[str, str]  # filepath -> SHA256 checksum
+    file_checksums: dict[str, str]  # filepath -> SHA256 checksum
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
@@ -36,10 +35,10 @@ class CommandState:
         )
 
     @staticmethod
-    def create(item_count: int, file_checksums: Dict[str, str]) -> 'CommandState':
+    def create(item_count: int, file_checksums: dict[str, str]) -> 'CommandState':
         """Create a new CommandState with current timestamp."""
         return CommandState(
-            timestamp=datetime.utcnow().isoformat() + 'Z',
+            timestamp=datetime.now(UTC).isoformat(),
             item_count=item_count,
             file_checksums=file_checksums,
         )
@@ -58,10 +57,10 @@ class WorkflowState:
     """
 
     schema_version: str
-    last_analyze: Optional[CommandState]
-    last_audit: Optional[CommandState]
-    last_plan: Optional[CommandState]
-    last_improve: Optional[CommandState]
+    last_analyze: CommandState | None
+    last_audit: CommandState | None
+    last_plan: CommandState | None
+    last_improve: CommandState | None
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""

@@ -5,17 +5,16 @@ Tests atomic read/write operations, state updates, and error handling.
 """
 
 import json
-import os
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import patch
 
 import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.models.workflow_state import WorkflowState, CommandState
+from src.models.workflow_state import CommandState, WorkflowState
 from src.utils.workflow_state_manager import WorkflowStateManager
 
 
@@ -52,60 +51,70 @@ def sample_workflow_state(sample_command_state):
 class TestWorkflowStateManager:
     """Test suite for WorkflowStateManager."""
 
-    def test_save_workflow_state_atomic_write(self, mock_state_dir, sample_workflow_state):
+    def test_save_workflow_state_atomic_write(
+        self, mock_state_dir, sample_workflow_state
+    ):
         """Test that save uses atomic write pattern (temp + rename)."""
-        with patch(
-            'src.utils.workflow_state_manager.StateManager.get_state_dir',
-            return_value=mock_state_dir,
-        ):
-            with patch(
+        with (
+            patch(
+                'src.utils.workflow_state_manager.StateManager.get_state_dir',
+                return_value=mock_state_dir,
+            ),
+            patch(
                 'src.utils.workflow_state_manager.StateManager.ensure_state_dir'
-            ):
-                WorkflowStateManager.save_workflow_state(sample_workflow_state)
+            ),
+        ):
+            WorkflowStateManager.save_workflow_state(sample_workflow_state)
 
-                # Check that final file exists
-                workflow_file = mock_state_dir / 'workflow-state.json'
-                assert workflow_file.exists()
+            # Check that final file exists
+            workflow_file = mock_state_dir / 'workflow-state.json'
+            assert workflow_file.exists()
 
-                # Temp file should not exist after atomic rename
-                temp_file = mock_state_dir / 'workflow-state.json.tmp'
-                assert not temp_file.exists()
+            # Temp file should not exist after atomic rename
+            temp_file = mock_state_dir / 'workflow-state.json.tmp'
+            assert not temp_file.exists()
 
-    def test_save_workflow_state_creates_directory(self, mock_state_dir, sample_workflow_state):
+    def test_save_workflow_state_creates_directory(
+        self, mock_state_dir, sample_workflow_state
+    ):
         """Test that save ensures state directory exists."""
-        with patch(
-            'src.utils.workflow_state_manager.StateManager.get_state_dir',
-            return_value=mock_state_dir,
-        ):
-            with patch(
+        with (
+            patch(
+                'src.utils.workflow_state_manager.StateManager.get_state_dir',
+                return_value=mock_state_dir,
+            ),
+            patch(
                 'src.utils.workflow_state_manager.StateManager.ensure_state_dir'
-            ) as mock_ensure:
-                WorkflowStateManager.save_workflow_state(sample_workflow_state)
-                mock_ensure.assert_called_once()
+            ) as mock_ensure,
+        ):
+            WorkflowStateManager.save_workflow_state(sample_workflow_state)
+            mock_ensure.assert_called_once()
 
     def test_save_workflow_state_serializes_correctly(
         self, mock_state_dir, sample_workflow_state
     ):
         """Test that state is serialized to JSON with proper formatting."""
-        with patch(
-            'src.utils.workflow_state_manager.StateManager.get_state_dir',
-            return_value=mock_state_dir,
-        ):
-            with patch(
+        with (
+            patch(
+                'src.utils.workflow_state_manager.StateManager.get_state_dir',
+                return_value=mock_state_dir,
+            ),
+            patch(
                 'src.utils.workflow_state_manager.StateManager.ensure_state_dir'
-            ):
-                WorkflowStateManager.save_workflow_state(sample_workflow_state)
+            ),
+        ):
+            WorkflowStateManager.save_workflow_state(sample_workflow_state)
 
-                workflow_file = mock_state_dir / 'workflow-state.json'
-                with open(workflow_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
+            workflow_file = mock_state_dir / 'workflow-state.json'
+            with workflow_file.open(encoding='utf-8') as f:
+                data = json.load(f)
 
-                assert data['schema_version'] == '1.0'
-                assert data['last_analyze'] is not None
-                assert data['last_audit'] is None
-                assert data['last_plan'] is None
-                assert data['last_improve'] is None
-                assert data['last_analyze']['item_count'] == 10
+            assert data['schema_version'] == '1.0'
+            assert data['last_analyze'] is not None
+            assert data['last_audit'] is None
+            assert data['last_plan'] is None
+            assert data['last_improve'] is None
+            assert data['last_analyze']['item_count'] == 10
 
     def test_load_workflow_state_from_file(self, mock_state_dir, sample_workflow_state):
         """Test loading workflow state from existing file."""
