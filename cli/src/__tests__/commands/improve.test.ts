@@ -162,29 +162,56 @@ describe('improve command', () => {
     fs.readdirSync.mockImplementation(() => ['file.ts']); // Not empty
     fs.accessSync.mockImplementation(() => {}); // Allow read access
 
-    // Mock plan file
-    mockReadFileSync.mockReturnValue(
-      JSON.stringify({
-        items: [
-          {
-            name: 'testFunc',
-            type: 'function',
-            filepath: 'test.js',
-            line_number: 10,
-            language: 'javascript',
-            complexity: 5,
-            impact_score: 75,
-            reason: 'High complexity',
-            export_type: 'named',
-            module_system: 'esm',
-            parameters: [],
-            has_docs: false,
-            docstring: null,
-            audit_rating: null,
+    // Mock file reading - return different content based on file path
+    mockReadFileSync.mockImplementation((path: any) => {
+      const pathStr = String(path);
+
+      // Return workflow-state.json content
+      if (pathStr.includes('workflow-state.json')) {
+        return JSON.stringify({
+          schema_version: '1.0',
+          last_analyze: {
+            timestamp: new Date().toISOString(),
+            item_count: 1,
+            file_checksums: {},
           },
-        ],
-      })
-    );
+          last_audit: null,
+          last_plan: {
+            timestamp: new Date().toISOString(),
+            item_count: 1,
+            file_checksums: {},
+          },
+          last_improve: null,
+        });
+      }
+
+      // Return plan.json content
+      if (pathStr.includes('plan.json')) {
+        return JSON.stringify({
+          items: [
+            {
+              name: 'testFunc',
+              type: 'function',
+              filepath: 'test.js',
+              line_number: 10,
+              language: 'javascript',
+              complexity: 5,
+              impact_score: 75,
+              reason: 'High complexity',
+              export_type: 'named',
+              module_system: 'esm',
+              parameters: [],
+              has_docs: false,
+              docstring: null,
+              audit_rating: null,
+            },
+          ],
+        });
+      }
+
+      // Default: return empty object
+      return JSON.stringify({});
+    });
 
     // Mock user prompts - use mockImplementation to provide fresh values for each call
     mockPrompts.mockImplementation((promptConfig: any) => {
