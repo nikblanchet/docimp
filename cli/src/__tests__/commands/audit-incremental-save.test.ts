@@ -224,10 +224,11 @@ describe('Audit Incremental Save Integration', () => {
       f.startsWith('audit-session-')
     )[0];
 
-    // Debug: Log what files we found
     if (!sessionFile) {
-      console.log('Session files found:', sessionFiles);
-      throw new Error(`No session file found in ${tempSessionReportsDir}`);
+      throw new Error(
+        `No session file found in ${tempSessionReportsDir}. ` +
+          `Found ${sessionFiles.length} file(s) total.`
+      );
     }
 
     const sessionPath = path.join(tempSessionReportsDir, sessionFile);
