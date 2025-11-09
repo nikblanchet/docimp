@@ -406,7 +406,28 @@ describe('improve command', () => {
     });
 
     it('should handle empty plan file', async () => {
-      mockReadFileSync.mockReturnValueOnce(JSON.stringify({ items: [] }));
+      const workflowState = JSON.stringify({
+        schema_version: '1.0',
+        last_analyze: {
+          timestamp: new Date().toISOString(),
+          item_count: 0,
+          file_checksums: {},
+        },
+        last_audit: null,
+        last_plan: {
+          timestamp: new Date().toISOString(),
+          item_count: 0,
+          file_checksums: {},
+        },
+        last_improve: null,
+      });
+
+      // WorkflowValidator uses fs/promises (async), plan loading uses readFileSync
+      mockFsReadFile
+        .mockResolvedValueOnce(workflowState) // validateImprovePrerequisites
+        .mockResolvedValueOnce(workflowState); // isPlanStale
+
+      mockReadFileSync.mockReturnValueOnce(JSON.stringify({ items: [] })); // Load plan.json
 
       await improveCore(
         './test',
@@ -534,47 +555,49 @@ describe('improve command', () => {
         last_improve: null,
       });
 
-      mockReadFileSync
-        .mockReturnValueOnce(workflowState) // validateImprovePrerequisites
-        .mockReturnValueOnce(
-          JSON.stringify({
-            items: [
-              {
-                name: 'pyFunc',
-                type: 'function',
-                filepath: 'test.py',
-                line_number: 10,
-                language: 'python',
-                complexity: 5,
-                impact_score: 75,
-                reason: 'reason',
-                export_type: 'named',
-                module_system: 'unknown',
-                parameters: [],
-                has_docs: false,
-                docstring: null,
-                audit_rating: null,
-              },
-              {
-                name: 'tsFunc',
-                type: 'function',
-                filepath: 'test.ts',
-                line_number: 10,
-                language: 'typescript',
-                complexity: 5,
-                impact_score: 75,
-                reason: 'reason',
-                export_type: 'named',
-                module_system: 'esm',
-                parameters: [],
-                has_docs: false,
-                docstring: null,
-                audit_rating: null,
-              },
-            ],
-          })
-        )
-        .mockReturnValueOnce(workflowState); // isPlanStale
+      // WorkflowValidator uses fs/promises (async), plan loading uses readFileSync
+      mockFsReadFile
+        .mockResolvedValueOnce(workflowState) // validateImprovePrerequisites
+        .mockResolvedValueOnce(workflowState); // isPlanStale
+
+      mockReadFileSync.mockReturnValueOnce(
+        JSON.stringify({
+          items: [
+            {
+              name: 'pyFunc',
+              type: 'function',
+              filepath: 'test.py',
+              line_number: 10,
+              language: 'python',
+              complexity: 5,
+              impact_score: 75,
+              reason: 'reason',
+              export_type: 'named',
+              module_system: 'unknown',
+              parameters: [],
+              has_docs: false,
+              docstring: null,
+              audit_rating: null,
+            },
+            {
+              name: 'tsFunc',
+              type: 'function',
+              filepath: 'test.ts',
+              line_number: 10,
+              language: 'typescript',
+              complexity: 5,
+              impact_score: 75,
+              reason: 'reason',
+              export_type: 'named',
+              module_system: 'esm',
+              parameters: [],
+              has_docs: false,
+              docstring: null,
+              audit_rating: null,
+            },
+          ],
+        })
+      ); // Load plan.json
 
       mockPrompts
         .mockResolvedValueOnce({ styleGuide: 'google' }) // Python style
@@ -792,9 +815,31 @@ describe('improve command', () => {
           audit_rating: null,
         },
       ];
+
+      const workflowState = JSON.stringify({
+        schema_version: '1.0',
+        last_analyze: {
+          timestamp: new Date().toISOString(),
+          item_count: 2,
+          file_checksums: {},
+        },
+        last_audit: null,
+        last_plan: {
+          timestamp: new Date().toISOString(),
+          item_count: 2,
+          file_checksums: {},
+        },
+        last_improve: null,
+      });
+
+      // WorkflowValidator uses fs/promises (async), plan loading uses readFileSync
+      mockFsReadFile
+        .mockResolvedValueOnce(workflowState) // validateImprovePrerequisites
+        .mockResolvedValueOnce(workflowState); // isPlanStale
+
       mockReadFileSync.mockReturnValueOnce(
         JSON.stringify({ items: planItems })
-      );
+      ); // Load plan.json
 
       await improveCore(
         './test',
@@ -845,6 +890,27 @@ describe('improve command', () => {
 
   describe('CLI style guide flags', () => {
     it('should use CLI flag and skip prompt when --python-style provided', async () => {
+      const workflowState = JSON.stringify({
+        schema_version: '1.0',
+        last_analyze: {
+          timestamp: new Date().toISOString(),
+          item_count: 1,
+          file_checksums: {},
+        },
+        last_audit: null,
+        last_plan: {
+          timestamp: new Date().toISOString(),
+          item_count: 1,
+          file_checksums: {},
+        },
+        last_improve: null,
+      });
+
+      // WorkflowValidator uses fs/promises (async), plan loading uses readFileSync
+      mockFsReadFile
+        .mockResolvedValueOnce(workflowState) // validateImprovePrerequisites
+        .mockResolvedValueOnce(workflowState); // isPlanStale
+
       mockReadFileSync.mockReturnValueOnce(
         JSON.stringify({
           items: [
@@ -866,7 +932,7 @@ describe('improve command', () => {
             },
           ],
         })
-      );
+      ); // Load plan.json
 
       mockPrompts.mockResolvedValueOnce({ tone: 'concise' });
 
@@ -895,6 +961,27 @@ describe('improve command', () => {
     });
 
     it('should use multiple CLI flags and skip all prompts except tone', async () => {
+      const workflowState = JSON.stringify({
+        schema_version: '1.0',
+        last_analyze: {
+          timestamp: new Date().toISOString(),
+          item_count: 2,
+          file_checksums: {},
+        },
+        last_audit: null,
+        last_plan: {
+          timestamp: new Date().toISOString(),
+          item_count: 2,
+          file_checksums: {},
+        },
+        last_improve: null,
+      });
+
+      // WorkflowValidator uses fs/promises (async), plan loading uses readFileSync
+      mockFsReadFile
+        .mockResolvedValueOnce(workflowState) // validateImprovePrerequisites
+        .mockResolvedValueOnce(workflowState); // isPlanStale
+
       mockReadFileSync.mockReturnValueOnce(
         JSON.stringify({
           items: [
@@ -932,7 +1019,7 @@ describe('improve command', () => {
             },
           ],
         })
-      );
+      ); // Load plan.json
 
       mockPrompts.mockResolvedValueOnce({ tone: 'detailed' });
 
@@ -1111,6 +1198,27 @@ describe('improve command', () => {
     });
 
     it('should succeed in non-interactive mode with CLI flag for missing config', async () => {
+      const workflowState = JSON.stringify({
+        schema_version: '1.0',
+        last_analyze: {
+          timestamp: new Date().toISOString(),
+          item_count: 1,
+          file_checksums: {},
+        },
+        last_audit: null,
+        last_plan: {
+          timestamp: new Date().toISOString(),
+          item_count: 1,
+          file_checksums: {},
+        },
+        last_improve: null,
+      });
+
+      // WorkflowValidator uses fs/promises (async), plan loading uses readFileSync
+      mockFsReadFile
+        .mockResolvedValueOnce(workflowState) // validateImprovePrerequisites
+        .mockResolvedValueOnce(workflowState); // isPlanStale
+
       mockReadFileSync.mockReturnValueOnce(
         JSON.stringify({
           items: [
@@ -1132,7 +1240,7 @@ describe('improve command', () => {
             },
           ],
         })
-      );
+      ); // Load plan.json
 
       // Config missing python, but CLI flag provides it
       mockConfigLoader.load.mockResolvedValueOnce({
@@ -1191,6 +1299,27 @@ describe('improve command', () => {
 
   describe('mixed interactive and CLI flags', () => {
     it('should skip prompt for language with CLI flag, prompt for others', async () => {
+      const workflowState = JSON.stringify({
+        schema_version: '1.0',
+        last_analyze: {
+          timestamp: new Date().toISOString(),
+          item_count: 2,
+          file_checksums: {},
+        },
+        last_audit: null,
+        last_plan: {
+          timestamp: new Date().toISOString(),
+          item_count: 2,
+          file_checksums: {},
+        },
+        last_improve: null,
+      });
+
+      // WorkflowValidator uses fs/promises (async), plan loading uses readFileSync
+      mockFsReadFile
+        .mockResolvedValueOnce(workflowState) // validateImprovePrerequisites
+        .mockResolvedValueOnce(workflowState); // isPlanStale
+
       mockReadFileSync.mockReturnValueOnce(
         JSON.stringify({
           items: [
@@ -1228,7 +1357,7 @@ describe('improve command', () => {
             },
           ],
         })
-      );
+      ); // Load plan.json
 
       mockPrompts
         .mockResolvedValueOnce({ styleGuide: 'jsdoc-vanilla' }) // JavaScript prompt
