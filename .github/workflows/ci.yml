@@ -23,7 +23,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install uv
-        run: pip install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.9.8"
+          enable-cache: true
 
       - name: Set up Node.js 24
         uses: actions/setup-node@v4
@@ -32,19 +35,8 @@ jobs:
           cache: 'npm'
           cache-dependency-path: cli/package-lock.json
 
-      - name: Cache uv packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('requirements-dev.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
-
       - name: Install Python dependencies
-        run: |
-          uv venv
-          uv pip sync requirements-dev.lock
-          uv pip install -e .
+        run: uv sync --frozen
 
       - name: Install Node dependencies and build CLI
         run: |
@@ -80,7 +72,10 @@ jobs:
           python-version: '3.13'
 
       - name: Install uv
-        run: pip install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.9.8"
+          enable-cache: true
 
       - name: Set up Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
@@ -90,10 +85,7 @@ jobs:
           cache-dependency-path: cli/package-lock.json
 
       - name: Install Python dependencies
-        run: |
-          uv venv
-          uv pip sync requirements.lock
-          uv pip install -e .
+        run: uv sync --frozen
 
       - name: Install dependencies
         run: |
@@ -129,12 +121,12 @@ jobs:
       - name: Run tests
         run: |
           cd cli
-          source ../.venv/bin/activate && npm test
+          uv run npm test
 
       - name: Run integration tests
         run: |
           cd cli
-          source ../.venv/bin/activate && npm run test:integration
+          uv run npm run test:integration
 
   integration-test:
     name: Integration Test (Python + TypeScript)
@@ -150,7 +142,10 @@ jobs:
           python-version: '3.13'
 
       - name: Install uv
-        run: pip install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.9.8"
+          enable-cache: true
 
       - name: Set up Node.js 24
         uses: actions/setup-node@v4
@@ -160,9 +155,7 @@ jobs:
           cache-dependency-path: cli/package-lock.json
 
       - name: Install Python dependencies
-        run: |
-          uv venv
-          uv pip sync requirements.lock
+        run: uv sync --frozen
 
       - name: Install Node dependencies and build
         run: |
@@ -175,7 +168,7 @@ jobs:
           DOCIMP_ANALYZER_PATH: ${{ github.workspace }}/analyzer
         run: |
           cd cli
-          node dist/index.js analyze ../examples --format json > /dev/null
+          uv run node dist/index.js analyze ../examples --format json > /dev/null
           echo "✓ End-to-end analysis completed successfully"
 
   module-system-matrix:
@@ -191,7 +184,10 @@ jobs:
           python-version: '3.13'
 
       - name: Install uv
-        run: pip install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.9.8"
+          enable-cache: true
 
       - name: Set up Node.js 24
         uses: actions/setup-node@v4
@@ -202,14 +198,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv venv
-          uv pip sync requirements.lock
+          uv sync --frozen
           cd cli && npm ci && npm run build && cd ..
 
       - name: Test ESM JavaScript parsing
         run: |
           cd analyzer
-          python -c "
+          uv run python -c "
           from src.parsers.typescript_parser import TypeScriptParser
           parser = TypeScriptParser()
           items = parser.parse_file('../examples/test_javascript_patterns.js')
@@ -220,7 +215,7 @@ jobs:
       - name: Test CommonJS parsing
         run: |
           cd analyzer
-          python -c "
+          uv run python -c "
           from src.parsers.typescript_parser import TypeScriptParser
           parser = TypeScriptParser()
           items = parser.parse_file('../examples/test_commonjs.cjs')
@@ -242,7 +237,10 @@ jobs:
           python-version: '3.13'
 
       - name: Install uv
-        run: pip install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.9.8"
+          enable-cache: true
 
       - name: Set up Node.js 24
         uses: actions/setup-node@v4
@@ -255,9 +253,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Install Python dependencies
-        run: |
-          uv venv
-          uv pip sync requirements.lock
+        run: uv sync --frozen
 
       - name: Install Node dependencies and build
         run: |
@@ -270,4 +266,4 @@ jobs:
           DOCIMP_ANALYZER_PATH: ${{ github.workspace }}/analyzer
         run: |
           chmod +x test-samples/test-workflows.sh
-          ./test-samples/test-workflows.sh
+          uv run ./test-samples/test-workflows.sh
