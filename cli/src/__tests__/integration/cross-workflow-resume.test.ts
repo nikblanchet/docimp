@@ -59,7 +59,11 @@ describe('Cross-Workflow Resume Integration', () => {
   });
 
   afterEach(async () => {
-    process.chdir(originalCwd);
+    try {
+      process.chdir(originalCwd);
+    } catch {
+      // Ignore chdir errors if directory no longer exists
+    }
     await fs.rm(tempRoot, { recursive: true, force: true });
   });
 
