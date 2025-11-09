@@ -68,6 +68,26 @@ describe('analyze command auto-clean', () => {
     // Create a temporary directory for each test
     tempDir = mkdtempSync(join(tmpdir(), 'docimp-analyze-test-'));
 
+    // Create .docimp directory structure
+    const docimpDir = join(tempDir, '.docimp');
+    if (!existsSync(docimpDir)) {
+      require('fs').mkdirSync(docimpDir, { recursive: true });
+    }
+
+    // Create minimal workflow-state.json to prevent errors
+    const workflowState = {
+      schema_version: '1.0',
+      last_analyze: null,
+      last_audit: null,
+      last_plan: null,
+      last_improve: null,
+    };
+    writeFileSync(
+      join(docimpDir, 'workflow-state.json'),
+      JSON.stringify(workflowState, null, 2),
+      'utf8'
+    );
+
     // Mock analysis result
     mockResult = {
       items: [],
