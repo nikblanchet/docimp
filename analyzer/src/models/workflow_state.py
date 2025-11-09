@@ -38,7 +38,7 @@ class CommandState:
     def create(item_count: int, file_checksums: dict[str, str]) -> "CommandState":
         """Create a new CommandState with current timestamp."""
         return CommandState(
-            timestamp=datetime.now(UTC).isoformat(),
+            timestamp=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             item_count=item_count,
             file_checksums=file_checksums,
         )

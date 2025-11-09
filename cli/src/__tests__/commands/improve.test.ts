@@ -144,12 +144,14 @@ describe('improve command', () => {
     // Mock fs for path validation
     const fs = require('fs');
     fs.existsSync.mockImplementation((path: string) => {
-      // Allow './test' path and .docimp paths to exist for tests
+      // Allow './test' path, .docimp paths, and specific state files to exist
       const pathStr = String(path);
       if (
         pathStr.includes('./test') ||
         pathStr.includes('.docimp') ||
-        pathStr.includes('/test')
+        pathStr.includes('/test') ||
+        pathStr.includes('plan.json') ||
+        pathStr.includes('workflow-state.json')
       ) {
         return true;
       }
