@@ -48,7 +48,6 @@ program
   .option('--format <format>', 'Output format (json or summary)', 'summary')
   .option('--config <path>', 'Path to configuration file')
   .option('--verbose', 'Enable verbose output')
-  .option('--keep-old-reports', 'Preserve existing audit and plan files')
   .option('--preserve-audit', 'Preserve audit.json file only')
   .option('--force-clean', 'Force clean session reports without prompting')
   .option('--incremental', 'Only re-analyze changed files')

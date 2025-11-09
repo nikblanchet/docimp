@@ -280,25 +280,19 @@ function applyAuditRatings(
  * Smart auto-clean handler: determines whether to clean session reports.
  *
  * Default behavior (no flags): Auto-clean to prevent stale data.
- * Override with --keep-old-reports or --preserve-audit to preserve files.
+ * Override with --preserve-audit to preserve files.
  *
  * @param options - Command options
- * @param options.keepOldReports - Preserve existing audit and plan files
  * @param options.preserveAudit - Preserve audit.json file only
  * @param options.forceClean - Force clean without prompting (same as default)
- * @param display - Display instance for showing messages (unused, kept for compatibility)
  * @returns true if should clean, false if should preserve
  */
-async function handleSmartAutoClean(
-  options: {
-    keepOldReports?: boolean;
-    preserveAudit?: boolean;
-    forceClean?: boolean;
-  },
-  _display: IDisplay
-): Promise<boolean> {
-  // Preserve if explicit flags are set
-  if (options.keepOldReports || options.preserveAudit) {
+async function handleSmartAutoClean(options: {
+  preserveAudit?: boolean;
+  forceClean?: boolean;
+}): Promise<boolean> {
+  // Preserve if explicit flag is set
+  if (options.preserveAudit) {
     return false;
   }
 
@@ -314,7 +308,6 @@ async function handleSmartAutoClean(
  * @param options.format - Output format (json or summary)
  * @param options.config - Path to configuration file
  * @param options.verbose - Enable verbose output
- * @param options.keepOldReports - Preserve existing audit and plan files (deprecated, use preserveAudit)
  * @param options.preserveAudit - Preserve audit.json file only
  * @param options.forceClean - Force clean without prompting
  * @param options.incremental - Only re-analyze changed files
@@ -330,7 +323,6 @@ export async function analyzeCore(
     format?: string;
     config?: string;
     verbose?: boolean;
-    keepOldReports?: boolean;
     preserveAudit?: boolean;
     forceClean?: boolean;
     incremental?: boolean;
@@ -350,7 +342,7 @@ export async function analyzeCore(
   StateManager.ensureStateDir();
 
   // Smart auto-clean: check if audit.json exists and prompt user
-  const shouldClean = await handleSmartAutoClean(options, display);
+  const shouldClean = await handleSmartAutoClean(options);
 
   if (shouldClean) {
     const filesRemoved = StateManager.clearSessionReports();
@@ -448,7 +440,6 @@ export async function analyzeCore(
  * @param options.format - Output format (json or summary)
  * @param options.config - Path to configuration file
  * @param options.verbose - Enable verbose output
- * @param options.keepOldReports - Preserve existing audit and plan files (deprecated, use preserveAudit)
  * @param options.preserveAudit - Preserve audit.json file only
  * @param options.forceClean - Force clean without prompting
  * @param options.incremental - Only re-analyze changed files
@@ -465,7 +456,6 @@ export async function analyzeCommand(
     format?: string;
     config?: string;
     verbose?: boolean;
-    keepOldReports?: boolean;
     preserveAudit?: boolean;
     forceClean?: boolean;
     incremental?: boolean;

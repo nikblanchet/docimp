@@ -259,52 +259,6 @@ describe('analyze command auto-clean', () => {
       expect(promptMessages).toHaveLength(0);
     });
 
-    it('preserves session reports with --keep-old-reports flag', async () => {
-      // Setup: Create state directory with old reports
-      const sessionDir = join(tempDir, '.docimp', 'session-reports');
-      const auditFile = join(sessionDir, 'audit.json');
-      const planFile = join(sessionDir, 'plan.json');
-
-      // Create directories
-      const stateDir = join(tempDir, '.docimp');
-      const historyDir = join(tempDir, '.docimp', 'history');
-
-      const fs = require('fs');
-      fs.mkdirSync(stateDir, { recursive: true });
-      fs.mkdirSync(sessionDir, { recursive: true });
-      fs.mkdirSync(historyDir, { recursive: true });
-
-      // Create old report files
-      writeFileSync(auditFile, '{"ratings": {"test": "data"}}');
-      writeFileSync(planFile, '{"items": [{"name": "test"}]}');
-
-      // Verify files exist before
-      expect(existsSync(auditFile)).toBe(true);
-      expect(existsSync(planFile)).toBe(true);
-
-      // Run analyze with --keep-old-reports
-      await analyzeCore(
-        tempDir,
-        { format: 'json', verbose: false, keepOldReports: true },
-        mockBridge,
-        mockDisplay,
-        mockConfigLoader
-      );
-
-      // Verify files were preserved
-      expect(existsSync(auditFile)).toBe(true);
-      expect(existsSync(planFile)).toBe(true);
-
-      // Verify content is unchanged
-      const auditContent = JSON.parse(readFileSync(auditFile, 'utf8'));
-      const planContent = JSON.parse(readFileSync(planFile, 'utf8'));
-      expect(auditContent.ratings.test).toBe('data');
-      expect(planContent.items[0].name).toBe('test');
-
-      // Verify analyze was called
-      expect(mockBridge.analyze).toHaveBeenCalled();
-    });
-
     it('preserves session reports with --preserve-audit flag', async () => {
       // Setup: Create state directory with old reports
       const sessionDir = join(tempDir, '.docimp', 'session-reports');
@@ -401,29 +355,6 @@ describe('analyze command auto-clean', () => {
         expect.stringContaining('Cleared')
       );
     });
-
-    it('displays message when keeping reports in verbose mode', async () => {
-      // Setup: Create state directory
-      const fs = require('fs');
-      fs.mkdirSync(join(tempDir, '.docimp', 'session-reports'), {
-        recursive: true,
-      });
-      fs.mkdirSync(join(tempDir, '.docimp', 'history'), { recursive: true });
-
-      // Run analyze with --keep-old-reports and --verbose
-      await analyzeCore(
-        tempDir,
-        { format: 'json', verbose: true, keepOldReports: true },
-        mockBridge,
-        mockDisplay,
-        mockConfigLoader
-      );
-
-      // Verify message was displayed
-      expect(mockDisplay.showMessage).toHaveBeenCalledWith(
-        'Keeping previous session reports'
-      );
-    });
   });
 
   describe('smart auto-clean behavior', () => {
@@ -499,31 +430,6 @@ describe('analyze command auto-clean', () => {
       await analyzeCore(
         tempDir,
         { format: 'json', verbose: false, preserveAudit: true },
-        mockBridge,
-        mockDisplay,
-        mockConfigLoader
-      );
-
-      // Verify audit.json was preserved
-      expect(existsSync(auditFile)).toBe(true);
-    });
-
-    it('preserves audit.json when --keep-old-reports is provided', async () => {
-      // Setup: Create audit.json
-      const sessionDir = join(tempDir, '.docimp', 'session-reports');
-      const auditFile = join(sessionDir, 'audit.json');
-
-      const fs = require('fs');
-      fs.mkdirSync(join(tempDir, '.docimp'), { recursive: true });
-      fs.mkdirSync(sessionDir, { recursive: true });
-      fs.mkdirSync(join(tempDir, '.docimp', 'history'), { recursive: true });
-
-      writeFileSync(auditFile, '{"ratings": {}}');
-
-      // Run analyze with --keep-old-reports
-      await analyzeCore(
-        tempDir,
-        { format: 'json', verbose: false, keepOldReports: true },
         mockBridge,
         mockDisplay,
         mockConfigLoader
