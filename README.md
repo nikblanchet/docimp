@@ -141,6 +141,23 @@ docimp analyze ./src
 # │  • JavaScript:   20.0% (3/15) ⚠️         │
 # └──────────────────────────────────────────┘
 
+# Advanced Analysis Options
+
+# Incremental analysis (faster for large codebases)
+# Only re-analyzes files modified since last run
+docimp analyze ./src --incremental
+
+# Apply previous audit ratings to analysis items
+# Useful for regenerating impact scores with quality data
+docimp analyze ./src --apply-audit
+
+# Control auto-clean behavior
+docimp analyze ./src --preserve-audit  # Keep audit.json (default prompts)
+docimp analyze ./src --force-clean     # Skip prompt, always clean
+
+# Combine flags
+docimp analyze ./src --incremental --apply-audit --preserve-audit
+
 # Generate improvement plan
 docimp plan ./src
 
@@ -678,10 +695,32 @@ DocImp stores session data in `.docimp/` (similar to `.git/`):
 └── history/                # Future: audit history
 ```
 
-**Auto-clean behavior**: `docimp analyze` clears old session reports by default
+**Smart Auto-Clean**: `docimp analyze` manages session reports to prevent stale data
 
-- Prevents stale audit/plan data
-- Use `--keep-old-reports` flag to preserve existing reports
+By default, when you run `docimp analyze`, DocImp will:
+1. Check if `audit.json` exists (contains audit ratings)
+2. If it exists, **prompt you** before deleting
+3. Show a warning about losing ratings
+4. Wait for your confirmation (Y/n)
+
+**Override flags**:
+- `--preserve-audit`: Keep audit.json, clean only plan.json (no prompt)
+- `--force-clean`: Skip prompt and always clean all files
+- No flags: Interactive prompt when audit.json exists
+
+**Examples**:
+```bash
+# Default: prompts if audit.json exists
+docimp analyze ./src
+
+# Preserve audit ratings, clean plan only
+docimp analyze ./src --preserve-audit
+
+# Force clean without prompt
+docimp analyze ./src --force-clean
+```
+
+**Why prompting?** Audit ratings represent manual review work. The prompt prevents accidentally losing this data when re-running analysis.
 
 **Transaction tracking**: The `.docimp/state/` directory contains a side-car Git
 repository used for rollback functionality. This repository operates independently from

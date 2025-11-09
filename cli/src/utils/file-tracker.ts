@@ -85,6 +85,9 @@ export const FileTracker = {
    *
    * Timestamp-only changes (same checksum) are NOT considered modifications.
    *
+   * Note: Missing files and permission errors are both treated as changes
+   * to trigger re-analysis. This matches Python implementation behavior.
+   *
    * @param snapshot - File snapshots from createSnapshot()
    * @returns List of filepaths that have changed
    */
@@ -110,15 +113,16 @@ export const FileTracker = {
         }
       } catch (error) {
         const nodeError = error as NodeJS.ErrnoException;
-        // File deleted or can't read - consider it changed
+        // Handle different error types explicitly (matches Python implementation)
         if (nodeError.code === 'ENOENT') {
+          // File deleted - mark as changed
           changedFiles.push(filepath);
         } else if (nodeError.code === 'EACCES' || nodeError.code === 'EPERM') {
-          // Log permission errors
+          // Permission denied - log warning and mark as changed
           console.warn(`Warning: Permission denied when reading ${filepath}`);
           changedFiles.push(filepath);
         } else {
-          // Can't read file for other reasons - consider it changed
+          // Other errors (OS errors, etc.) - mark as changed
           changedFiles.push(filepath);
         }
       }

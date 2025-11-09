@@ -265,33 +265,17 @@ fi
 
 # Run analyze (should clear old files)
 echo ""
-echo "Running: docimp analyze . (should auto-clean)"
+echo "Running: docimp analyze . --force-clean (should auto-clean)"
 if [ -n "$CI" ]; then
-  node "$GITHUB_WORKSPACE/cli/dist/index.js" analyze .
+  node "$GITHUB_WORKSPACE/cli/dist/index.js" analyze . --force-clean
 else
-  docimp analyze .
+  docimp analyze . --force-clean
 fi
 
 if [ ! -f .docimp/session-reports/audit.json ]; then
     print_success "Auto-clean: Old audit file cleared by analyze"
 else
     print_failure "Auto-clean: Old audit file was NOT cleared"
-fi
-
-# Test --keep-old-reports flag
-echo '{"ratings": {}}' > .docimp/session-reports/audit.json
-echo ""
-echo "Running: docimp analyze . --keep-old-reports"
-if [ -n "$CI" ]; then
-  node "$GITHUB_WORKSPACE/cli/dist/index.js" analyze . --keep-old-reports
-else
-  docimp analyze . --keep-old-reports
-fi
-
-if [ -f .docimp/session-reports/audit.json ]; then
-    print_success "--keep-old-reports: Old audit file preserved"
-else
-    print_failure "--keep-old-reports: Old audit file was NOT preserved"
 fi
 
 #

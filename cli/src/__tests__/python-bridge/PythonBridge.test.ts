@@ -876,16 +876,19 @@ describe('PythonBridge Timeout Handling', () => {
 
 describe('PythonBridge Analyzer Path Resolution', () => {
   let originalEnv: string | undefined;
+  let originalCwd: string;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // Save and clear environment variable
+    // Save original working directory and environment variable
+    originalCwd = process.cwd();
     originalEnv = process.env.DOCIMP_ANALYZER_PATH;
     delete process.env.DOCIMP_ANALYZER_PATH;
   });
 
   afterEach(() => {
-    // Restore environment variable
+    // Restore working directory and environment variable
+    process.chdir(originalCwd);
     if (originalEnv !== undefined) {
       process.env.DOCIMP_ANALYZER_PATH = originalEnv;
     } else {
@@ -895,6 +898,12 @@ describe('PythonBridge Analyzer Path Resolution', () => {
 
   describe('Module-relative path resolution', () => {
     it('should find analyzer directory relative to module location', () => {
+      // Ensure we're in the cli/ directory where tests are expected to run
+      // This handles cases where other tests may have changed cwd to temp directories
+      // __dirname is available in Jest's CommonJS environment (import.meta.url is not)
+      const cliDir = resolve(__dirname, '..', '..', '..');
+      process.chdir(cliDir);
+
       // Test that constructor succeeds without explicit analyzerPath
       // This verifies that the module-relative path resolution works
       const bridge = new PythonBridge('python3');
@@ -911,8 +920,16 @@ describe('PythonBridge Analyzer Path Resolution', () => {
   describe('DOCIMP_ANALYZER_PATH environment variable', () => {
     it('should respect DOCIMP_ANALYZER_PATH when set to valid directory', () => {
       // Set environment variable to the actual analyzer directory
-      // Tests run from cli/ directory, so analyzer is at ../analyzer
-      const actualAnalyzerPath = resolve(process.cwd(), '..', 'analyzer');
+      // Find analyzer directory relative to test file location (not process.cwd())
+      // __dirname is available in Jest's CommonJS environment (import.meta.url is not)
+      const actualAnalyzerPath = resolve(
+        __dirname,
+        '..',
+        '..',
+        '..',
+        '..',
+        'analyzer'
+      );
       process.env.DOCIMP_ANALYZER_PATH = actualAnalyzerPath;
 
       const bridge = new PythonBridge('python3');

@@ -9,23 +9,62 @@ import type { ImproveSessionState } from '../../types/improve-session-state';
 import type { CodeItem } from '../../types/analysis';
 
 describe('Cross-Workflow Resume Integration', () => {
+  let tempRoot: string;
   let tempDir: string;
   let originalCwd: string;
 
   beforeEach(async () => {
     originalCwd = process.cwd();
-    tempDir = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'docimp-cross-workflow-')
+    tempRoot = path.join(
+      os.tmpdir(),
+      `docimp-test-${Date.now()}-${Math.random().toString(36).slice(2)}`
     );
+    tempDir = tempRoot;
+    const docimpDir = path.join(tempDir, '.docimp');
+    const sessionReportsDir = path.join(docimpDir, 'session-reports');
+
+    // Create .docimp/session-reports directory first
+    await fs.mkdir(sessionReportsDir, { recursive: true });
+
     process.chdir(tempDir);
 
-    // Create .docimp/session-reports directory
-    await fs.mkdir('.docimp/session-reports', { recursive: true });
+    // Create required workflow state files for WorkflowValidator
+    await fs.writeFile(
+      path.join(sessionReportsDir, 'analyze-latest.json'),
+      JSON.stringify({
+        items: [],
+        coverage_percent: 0,
+        total_items: 0,
+        documented_items: 0,
+        by_language: {},
+      }),
+      'utf8'
+    );
+
+    await fs.writeFile(
+      path.join(docimpDir, 'workflow-state.json'),
+      JSON.stringify({
+        schema_version: '1.0',
+        last_analyze: {
+          timestamp: new Date().toISOString(),
+          item_count: 0,
+          file_checksums: {},
+        },
+        last_audit: null,
+        last_plan: null,
+        last_improve: null,
+      }),
+      'utf8'
+    );
   });
 
   afterEach(async () => {
-    process.chdir(originalCwd);
-    await fs.rm(tempDir, { recursive: true, force: true });
+    try {
+      process.chdir(originalCwd);
+    } catch {
+      // Ignore chdir errors if directory no longer exists
+    }
+    await fs.rm(tempRoot, { recursive: true, force: true });
   });
 
   describe('1. Audit → Resume → Complete → Use in Plan', () => {

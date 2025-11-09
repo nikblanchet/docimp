@@ -65,25 +65,61 @@ const mockConfigLoader: IConfigLoader = {
 
 describe('Audit Resume Workflow and Error Handling', () => {
   let tempSessionReportsDir: string;
+  let tempRoot: string;
 
   beforeEach(async () => {
     // Create temp directory for session reports
-    tempSessionReportsDir = path.join(
+    tempRoot = path.join(
       '/tmp',
-      `test-resume-workflow-${Date.now()}`
+      `docimp-test-${Date.now()}-${Math.random().toString(36).slice(2)}`
     );
+    const docimpDir = path.join(tempRoot, '.docimp');
+    tempSessionReportsDir = path.join(docimpDir, 'session-reports');
     await fs.mkdir(tempSessionReportsDir, { recursive: true });
 
     // Reset mocks
     jest.clearAllMocks();
 
     // Mock StateManager to use temp directory
+    jest.spyOn(StateManager, 'getStateDir').mockReturnValue(docimpDir);
     jest
       .spyOn(StateManager, 'getSessionReportsDir')
       .mockReturnValue(tempSessionReportsDir);
     jest
+      .spyOn(StateManager, 'getAnalyzeFile')
+      .mockReturnValue(path.join(tempSessionReportsDir, 'analyze-latest.json'));
+    jest
       .spyOn(StateManager, 'getAuditFile')
-      .mockReturnValue(path.join(tempSessionReportsDir, 'audit.json'));
+      .mockReturnValue(path.join(docimpDir, 'audit.json'));
+
+    // Create required workflow state files for WorkflowValidator
+    await fs.writeFile(
+      path.join(tempSessionReportsDir, 'analyze-latest.json'),
+      JSON.stringify({
+        items: [],
+        coverage_percent: 0,
+        total_items: 0,
+        documented_items: 0,
+        by_language: {},
+      }),
+      'utf8'
+    );
+
+    await fs.writeFile(
+      path.join(docimpDir, 'workflow-state.json'),
+      JSON.stringify({
+        schema_version: '1.0',
+        last_analyze: {
+          timestamp: new Date().toISOString(),
+          item_count: 0,
+          file_checksums: {},
+        },
+        last_audit: null,
+        last_plan: null,
+        last_improve: null,
+      }),
+      'utf8'
+    );
 
     // Mock FileTracker
     (FileTracker.createSnapshot as jest.Mock).mockResolvedValue({});
@@ -121,9 +157,9 @@ describe('Audit Resume Workflow and Error Handling', () => {
   });
 
   afterEach(async () => {
-    // Clean up temp directory
+    // Clean up temp directory and parent (which contains workflow-state.json)
     try {
-      await fs.rm(tempSessionReportsDir, { recursive: true, force: true });
+      await fs.rm(tempRoot, { recursive: true, force: true });
     } catch {
       // Ignore cleanup errors
     }

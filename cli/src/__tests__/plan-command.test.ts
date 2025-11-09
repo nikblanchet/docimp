@@ -83,6 +83,36 @@ describe('plan command path validation', () => {
 
     // Change working directory to temp dir for StateManager
     process.chdir(tempDir);
+
+    // Create required workflow state files for WorkflowValidator
+    const fs = require('fs');
+    fs.mkdirSync(join(tempDir, '.docimp/session-reports'), { recursive: true });
+    fs.writeFileSync(
+      join(tempDir, '.docimp/session-reports/analyze-latest.json'),
+      JSON.stringify({
+        items: [],
+        coverage_percent: 0,
+        total_items: 0,
+        documented_items: 0,
+        by_language: {},
+      }),
+      'utf8'
+    );
+    fs.writeFileSync(
+      join(tempDir, '.docimp/workflow-state.json'),
+      JSON.stringify({
+        schema_version: '1.0',
+        last_analyze: {
+          timestamp: new Date().toISOString(),
+          item_count: 0,
+          file_checksums: {},
+        },
+        last_audit: null,
+        last_plan: null,
+        last_improve: null,
+      }),
+      'utf8'
+    );
   });
 
   afterEach(() => {
@@ -148,6 +178,72 @@ describe('plan command path validation', () => {
       } finally {
         consoleWarnSpy.mockRestore();
       }
+    });
+  });
+
+  describe('stale detection warnings', () => {
+    beforeEach(() => {
+      // Setup state directory for WorkflowValidator
+      const fs = require('fs');
+      const stateDir = join(tempDir, '.docimp', 'session-reports');
+      fs.mkdirSync(stateDir, { recursive: true });
+
+      // Create analyze-latest.json (prerequisite for plan)
+      fs.writeFileSync(
+        join(stateDir, 'analyze-latest.json'),
+        JSON.stringify({ items: [], total_items: 0 })
+      );
+    });
+
+    it('displays warning when audit is stale', async () => {
+      // Mock WorkflowValidator to return true for isAuditStale
+      jest.doMock('../utils/workflow-validator.js', () => ({
+        WorkflowValidator: {
+          validatePlanPrerequisites: jest
+            .fn()
+            .mockResolvedValue({ valid: true }),
+          isAuditStale: jest.fn().mockResolvedValue(true),
+        },
+      }));
+
+      // Re-import planCore to get mocked WorkflowValidator
+      jest.resetModules();
+      const { planCore: freshPlanCore } = await import('../commands/plan.js');
+
+      await freshPlanCore(tempDir, {}, mockBridge, mockDisplay);
+
+      // Verify warning was displayed
+      expect(mockDisplay.showMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Analysis has been re-run since audit')
+      );
+      expect(mockDisplay.showMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Audit ratings may be incomplete or stale')
+      );
+    });
+
+    it('does not display warning when audit is current', async () => {
+      // Mock WorkflowValidator to return false for isAuditStale
+      jest.doMock('../utils/workflow-validator.js', () => ({
+        WorkflowValidator: {
+          validatePlanPrerequisites: jest
+            .fn()
+            .mockResolvedValue({ valid: true }),
+          isAuditStale: jest.fn().mockResolvedValue(false),
+        },
+      }));
+
+      jest.resetModules();
+      const { planCore: freshPlanCore } = await import('../commands/plan.js');
+
+      await freshPlanCore(tempDir, {}, mockBridge, mockDisplay);
+
+      // Verify no warning was displayed
+      const showMessageCalls = (mockDisplay.showMessage as jest.Mock).mock
+        .calls;
+      const staleWarnings = showMessageCalls.filter((call) =>
+        call[0].includes('Analysis has been re-run since audit')
+      );
+      expect(staleWarnings).toHaveLength(0);
     });
   });
 });

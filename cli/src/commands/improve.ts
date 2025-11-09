@@ -40,6 +40,7 @@ import { FileTracker } from '../utils/file-tracker.js';
 import { PathValidator } from '../utils/path-validator.js';
 import { SessionStateManager } from '../utils/session-state-manager.js';
 import { StateManager } from '../utils/state-manager.js';
+import { WorkflowValidator } from '../utils/workflow-validator.js';
 
 /**
  * User cancelled the operation.
@@ -475,6 +476,7 @@ export async function improveCore(
     resumeFile?: string;
     new?: boolean;
     clearSession?: boolean;
+    skipValidation?: boolean;
   },
   bridge: IPythonBridge,
   display: IDisplay,
@@ -522,6 +524,25 @@ export async function improveCore(
   const absolutePath = PathValidator.validatePathExists(path);
   PathValidator.validatePathReadable(absolutePath);
   PathValidator.warnIfEmpty(absolutePath);
+
+  // Validate workflow prerequisites
+  const validationResult = await WorkflowValidator.validateImprovePrerequisites(
+    options.skipValidation ?? false
+  );
+  if (!validationResult.valid) {
+    throw new Error(
+      `${validationResult.error}\n${validationResult.suggestion}`
+    );
+  }
+
+  // Check for stale plan (already validated in validateImprovePrerequisites, but show warning)
+  const planStale = await WorkflowValidator.isPlanStale();
+  if (planStale) {
+    display.showMessage(
+      '\nWarning: Plan is stale (analysis has been re-run). ' +
+        'Consider regenerating plan with "docimp plan" for latest priorities.\n'
+    );
+  }
 
   // Load configuration
   const config: IConfig = await configLoader.load(options.config);
