@@ -1,2 +1,7 @@
+#!/usr/bin/env sh
+# Call protection hook to prevent commits on main in main worktree
+GIT_COMMON_DIR=$(git rev-parse --git-common-dir)
+"$GIT_COMMON_DIR/hooks/pre-commit" || exit 1
+
 # Run lint-staged from the cli directory
 cd cli && npx lint-staged

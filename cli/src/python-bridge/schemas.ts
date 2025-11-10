@@ -211,6 +211,33 @@ export const GenericSuccessSchema = z
   .passthrough();
 
 /**
+ * Schema for CommandStatus.
+ * Represents the state of a single workflow command execution.
+ */
+export const CommandStatusSchema = z
+  .object({
+    command: z.string(),
+    status: z.enum(['run', 'not_run']),
+    timestamp: z.string().optional(),
+    item_count: z.number().int().nonnegative().optional(),
+    file_count: z.number().int().nonnegative().optional(),
+  })
+  .passthrough();
+
+/**
+ * Schema for WorkflowStatusResult.
+ * Represents the complete workflow state with warnings and suggestions.
+ */
+export const WorkflowStatusResultSchema = z
+  .object({
+    commands: z.array(CommandStatusSchema),
+    staleness_warnings: z.array(z.string()),
+    suggestions: z.array(z.string()),
+    file_modifications: z.number().int().nonnegative(),
+  })
+  .passthrough();
+
+/**
  * Helper to format Zod validation errors into user-friendly messages.
  *
  * @param error - Zod validation error

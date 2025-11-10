@@ -17,6 +17,7 @@ import type {
   SessionSummary,
   TransactionEntry,
   RollbackResult,
+  WorkflowStatusResult,
 } from '../types/analysis.js';
 import {
   shouldUseCompactMode,
@@ -740,6 +741,103 @@ export class TerminalDisplay implements IDisplay {
         for (const conflict of result.conflicts) {
           console.log(chalk.dim(`  - ${conflict}`));
         }
+      }
+    }
+
+    console.log('');
+  }
+
+  /**
+   * Format elapsed time from ISO timestamp to human-readable format.
+   *
+   * @param isoTimestamp - ISO 8601 timestamp
+   * @returns Human-readable elapsed time (e.g., "2h ago", "5m ago")
+   */
+  private formatElapsedTime(isoTimestamp: string): string {
+    const now = Date.now();
+    const timestamp = new Date(isoTimestamp).getTime();
+    const seconds = Math.floor((now - timestamp) / 1000);
+
+    if (seconds < 60) {
+      return `${seconds}s ago`;
+    }
+
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) {
+      return `${minutes}m ago`;
+    }
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) {
+      return `${hours}h ago`;
+    }
+
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  }
+
+  /**
+   * Display workflow state status.
+   *
+   * Shows the state of all workflow commands (analyze, audit, plan, improve)
+   * with colorful formatting including staleness warnings and actionable suggestions.
+   */
+  public showWorkflowStatus(status: WorkflowStatusResult): void {
+    console.log('');
+    console.log(
+      chalk.bold('Workflow State') + chalk.dim(' (.docimp/workflow-state.json)')
+    );
+    console.log('');
+
+    // Command status table
+    const table = this.createResponsiveTable(
+      [
+        chalk.cyan('Command'),
+        chalk.cyan('Status'),
+        chalk.cyan('Last Run'),
+        chalk.cyan('Items'),
+      ],
+      [15, 12, 25, 15], // Full widths
+      [12, 10, 20, 12] // Compact widths
+    );
+
+    for (const cmd of status.commands) {
+      const statusIcon =
+        cmd.status === 'run' ? chalk.green('✓') : chalk.red('✗');
+      const statusText =
+        cmd.status === 'run' ? chalk.green('run') : chalk.dim('not run');
+
+      const lastRun = cmd.timestamp
+        ? this.formatElapsedTime(cmd.timestamp)
+        : chalk.dim('—');
+
+      const items =
+        cmd.item_count === undefined
+          ? chalk.dim('—')
+          : cmd.file_count === undefined
+            ? `${cmd.item_count} items`
+            : `${cmd.item_count} items, ${cmd.file_count} files`;
+
+      table.push([`${statusIcon} ${cmd.command}`, statusText, lastRun, items]);
+    }
+
+    console.log(table.toString());
+
+    // Staleness warnings
+    if (status.staleness_warnings.length > 0) {
+      console.log('');
+      console.log(chalk.yellow.bold('Staleness Warnings:'));
+      for (const warning of status.staleness_warnings) {
+        console.log(chalk.yellow(`  • ${warning}`));
+      }
+    }
+
+    // Suggestions
+    if (status.suggestions.length > 0) {
+      console.log('');
+      console.log(chalk.cyan.bold('Suggestions:'));
+      for (const suggestion of status.suggestions) {
+        console.log(chalk.cyan(`  → ${suggestion}`));
       }
     }
 

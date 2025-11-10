@@ -19,6 +19,7 @@ from .planning.plan_generator import generate_plan, save_plan
 from .scoring.impact_scorer import ImpactScorer
 from .utils.git_helper import GitHelper, GitTimeoutConfig
 from .utils.state_manager import StateManager
+from .utils.workflow_state_manager import WorkflowStateManager
 from .writer.docstring_writer import DocstringWriter
 from .writer.transaction_manager import TransactionManager
 
@@ -610,6 +611,149 @@ def cmd_list_sessions(args: argparse.Namespace, manager: TransactionManager) -> 
 
         return 0
 
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        if args.verbose:
+            import traceback
+
+            traceback.print_exc(file=sys.stderr)
+        return 1
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    """Handle the status subcommand.
+
+    Displays workflow state including command execution status, staleness warnings,
+    and actionable suggestions.
+
+    Args:
+        args: Parsed command-line arguments.
+
+    Returns:
+        Exit code (0 for success, 1 for error).
+    """
+    try:
+        # Load workflow state
+        from datetime import datetime
+
+        state = WorkflowStateManager.load_workflow_state()
+
+        # Helper to calculate staleness
+        def is_stale(newer_cmd: str | None, older_cmd: str | None) -> tuple[bool, str]:
+            """Check if older_cmd is stale compared to newer_cmd."""
+            newer_state = getattr(state, f"last_{newer_cmd}") if newer_cmd else None
+            older_state = getattr(state, f"last_{older_cmd}") if older_cmd else None
+
+            if not newer_state or not older_state:
+                return False, ""
+
+            newer_time = datetime.fromisoformat(
+                newer_state.timestamp.replace("Z", "+00:00")
+            )
+            older_time = datetime.fromisoformat(
+                older_state.timestamp.replace("Z", "+00:00")
+            )
+
+            if newer_time > older_time:
+                return True, f"{older_cmd} is stale (analyze re-run since {older_cmd})"
+            return False, ""
+
+        # Detect file modifications since last analyze
+        import hashlib
+
+        file_mods = 0
+        if state.last_analyze:
+            for filepath, checksum in state.last_analyze.file_checksums.items():
+                try:
+                    # Calculate current checksum
+                    filepath_obj = Path(filepath)
+                    if filepath_obj.exists():
+                        with filepath_obj.open("rb") as f:
+                            current_checksum = hashlib.sha256(f.read()).hexdigest()
+                        if current_checksum != checksum:
+                            file_mods += 1
+                    else:
+                        file_mods += 1  # File deleted
+                except OSError:
+                    pass  # Skip inaccessible files
+
+        # Build command states
+        commands = []
+        for cmd_name in ["analyze", "audit", "plan", "improve"]:
+            cmd_state = getattr(state, f"last_{cmd_name}")
+            if cmd_state:
+                commands.append(
+                    {
+                        "command": cmd_name,
+                        "status": "run",
+                        "timestamp": cmd_state.timestamp,
+                        "item_count": cmd_state.item_count,
+                        "file_count": len(cmd_state.file_checksums),
+                    }
+                )
+            else:
+                commands.append({"command": cmd_name, "status": "not_run"})
+
+        # Build staleness warnings
+        staleness_warnings = []
+
+        # Check if analyze is stale (files modified)
+        if state.last_analyze and file_mods > 0:
+            staleness_warnings.append(
+                f"analyze is stale ({file_mods} file(s) modified since last run)"
+            )
+
+        # Check if audit is stale (analyze re-run)
+        is_audit_stale, msg = is_stale("analyze", "audit")
+        if is_audit_stale:
+            staleness_warnings.append(msg)
+
+        # Check if plan is stale (analyze or audit re-run)
+        is_plan_stale_analyze, msg = is_stale("analyze", "plan")
+        if is_plan_stale_analyze:
+            staleness_warnings.append(msg)
+
+        is_plan_stale_audit, msg = is_stale("audit", "plan")
+        if is_plan_stale_audit:
+            staleness_warnings.append("plan is stale (audit re-run since plan)")
+
+        # Build suggestions
+        suggestions = []
+        if not state.last_analyze:
+            suggestions.append("Run 'docimp analyze <path>' to analyze your codebase")
+        elif file_mods > 0:
+            suggestions.append("Run 'docimp analyze --incremental' to update analysis")
+        elif not state.last_audit:
+            suggestions.append(
+                "Run 'docimp audit <path>' to rate documentation quality"
+            )
+        elif is_audit_stale:
+            suggestions.append("Run 'docimp audit <path>' to refresh quality ratings")
+        elif not state.last_plan:
+            suggestions.append("Run 'docimp plan <path>' to generate improvement plan")
+        elif is_plan_stale_analyze or is_plan_stale_audit:
+            suggestions.append(
+                "Run 'docimp plan <path>' to regenerate plan with latest data"
+            )
+        elif not state.last_improve:
+            suggestions.append(
+                "Run 'docimp improve <path>' to start improving documentation"
+            )
+
+        # Output format
+        result = {
+            "commands": commands,
+            "staleness_warnings": staleness_warnings,
+            "suggestions": suggestions,
+            "file_modifications": file_mods,
+        }
+
+        print(json.dumps(result, indent=2))
+        return 0
+
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         if args.verbose:
@@ -1475,6 +1619,14 @@ def main(argv: list | None = None) -> int:
         "--verbose", action="store_true", help="Enable verbose output"
     )
 
+    # Status command (display workflow state)
+    status_parser = subparsers.add_parser(
+        "status", help="Display workflow state and suggestions"
+    )
+    status_parser.add_argument(
+        "--verbose", action="store_true", help="Enable verbose output"
+    )
+
     # List-changes command (list changes in a session)
     list_changes_parser = subparsers.add_parser(
         "list-changes", help="List changes in a specific session"
@@ -1739,6 +1891,9 @@ def main(argv: list | None = None) -> int:
         # Create transaction manager for session listing
         manager = TransactionManager()
         return cmd_list_sessions(args, manager)
+    elif args.command == "status":
+        # Display workflow state
+        return cmd_status(args)
     elif args.command == "list-changes":
         # Create transaction manager for change listing
         base_path = Path.cwd()
