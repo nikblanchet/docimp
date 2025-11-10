@@ -1,6 +1,10 @@
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import {
+  applyMigrations,
+  CURRENT_WORKFLOW_STATE_VERSION,
+} from '../types/workflow-state-migrations.js';
+import {
   WorkflowState,
   WorkflowStateSchema,
   CommandState,
@@ -57,23 +61,11 @@ export class WorkflowStateManager {
       const content = await fs.readFile(filePath, 'utf8');
       const data = JSON.parse(content);
 
-      // Check schema version and migrate if needed
-      if (data.schema_version !== '1.0') {
-        if (data.schema_version === undefined) {
-          // Legacy file without schema_version - migrate to v1.0
-          data.schema_version = '1.0';
-        } else {
-          // Unsupported version - provide helpful error
-          throw new Error(
-            `Unsupported workflow state schema version: ${data.schema_version}.\n` +
-              `Current version is 1.0.\n` +
-              `To fix this, delete ${filePath} and re-run 'docimp analyze' to regenerate workflow state.`
-          );
-        }
-      }
+      // Apply migrations if needed (handles legacy files and version upgrades)
+      const migrated = applyMigrations(data, CURRENT_WORKFLOW_STATE_VERSION);
 
       // Validate against schema (Zod will provide detailed validation errors)
-      return WorkflowStateSchema.parse(data);
+      return WorkflowStateSchema.parse(migrated);
     } catch (error: unknown) {
       if (
         error instanceof Error &&
