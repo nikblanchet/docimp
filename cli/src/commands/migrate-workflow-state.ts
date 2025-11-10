@@ -165,6 +165,9 @@ export async function migrateWorkflowStateCore(
 
 /**
  * Execute the migrate-workflow-state command.
+ *
+ * @param options - Migration options
+ * @returns Exit code (0 for success, 1 for error)
  */
 export async function migrateWorkflowStateCommand(
   options: MigrateWorkflowStateOptions

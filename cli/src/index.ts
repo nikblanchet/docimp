@@ -22,6 +22,7 @@ import {
 import { improveCommand } from './commands/improve.js';
 import { listChangesCommand } from './commands/list-changes.js';
 import { listSessionsCommand } from './commands/list-sessions.js';
+import { migrateWorkflowStateCommand } from './commands/migrate-workflow-state.js';
 import { planCommand } from './commands/plan.js';
 import { rollbackChangeCommand } from './commands/rollback-change.js';
 import { rollbackSessionCommand } from './commands/rollback-session.js';
@@ -288,6 +289,32 @@ program
         if (exitCode !== EXIT_CODE.SUCCESS) {
           process.exit(exitCode);
         }
+      }
+    } catch (error) {
+      const errorDisplay = new TerminalDisplay();
+      errorDisplay.showError(
+        `Unexpected error: ${error instanceof Error ? error.message : String(error)}`
+      );
+      process.exit(EXIT_CODE.ERROR);
+    }
+  });
+
+// Migrate-workflow-state command (manual schema migration)
+program
+  .command('migrate-workflow-state')
+  .description('Migrate workflow-state.json to latest schema version')
+  .option('--dry-run', 'Show what would happen without making changes')
+  .option(
+    '--check',
+    'Exit code 1 if migration needed, 0 if current (for CI/CD)'
+  )
+  .option('--version <version>', 'Target schema version (default: latest)')
+  .option('--force', 'Skip confirmation prompt')
+  .action(async (options) => {
+    try {
+      const exitCode = await migrateWorkflowStateCommand(options);
+      if (exitCode !== EXIT_CODE.SUCCESS) {
+        process.exit(exitCode);
       }
     } catch (error) {
       const errorDisplay = new TerminalDisplay();
