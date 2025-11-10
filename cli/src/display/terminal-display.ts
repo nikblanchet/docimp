@@ -814,7 +814,9 @@ export class TerminalDisplay implements IDisplay {
       const items =
         cmd.item_count === undefined
           ? chalk.dim('—')
-          : `${cmd.item_count} items`;
+          : cmd.file_count === undefined
+            ? `${cmd.item_count} items`
+            : `${cmd.item_count} items, ${cmd.file_count} files`;
 
       table.push([`${statusIcon} ${cmd.command}`, statusText, lastRun, items]);
     }
