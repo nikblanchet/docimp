@@ -636,7 +636,19 @@ def cmd_status(args: argparse.Namespace) -> int:
         # Load workflow state
         from datetime import datetime
 
+        from .models.workflow_state_migrations import CURRENT_WORKFLOW_STATE_VERSION
+
         state = WorkflowStateManager.load_workflow_state()
+
+        # Detect schema version (for display)
+        workflow_file = StateManager.get_state_dir() / "workflow-state.json"
+        schema_version = "legacy"
+        migration_available = False
+        if workflow_file.exists():
+            with workflow_file.open(encoding="utf-8") as f:
+                workflow_data = json.load(f)
+                schema_version = workflow_data.get("schema_version", "legacy")
+                migration_available = schema_version != CURRENT_WORKFLOW_STATE_VERSION
 
         # Helper to calculate staleness
         def is_stale(newer_cmd: str | None, older_cmd: str | None) -> tuple[bool, str]:
@@ -742,6 +754,9 @@ def cmd_status(args: argparse.Namespace) -> int:
 
         # Output format
         result = {
+            "schema_version": schema_version,
+            "schema_current": CURRENT_WORKFLOW_STATE_VERSION,
+            "migration_available": migration_available,
             "commands": commands,
             "staleness_warnings": staleness_warnings,
             "suggestions": suggestions,

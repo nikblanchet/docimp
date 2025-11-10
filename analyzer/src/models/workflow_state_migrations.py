@@ -171,6 +171,9 @@ def apply_migrations(
             current = migration_function(current)
 
             # Add migration log entry
+            # Defensive: Ensure migration_log is a list before appending
+            if not isinstance(current.get("migration_log"), list):
+                current["migration_log"] = []
             current["migration_log"].append(
                 {
                     "from": from_ver,

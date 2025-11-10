@@ -140,13 +140,15 @@ export function applyMigrations(
         migration_log?: MigrationLogEntry[];
         [key: string]: unknown;
       };
-      if (currentObject.migration_log) {
-        currentObject.migration_log.push({
-          from,
-          to,
-          timestamp: new Date().toISOString(),
-        });
+      // Defensive: Ensure migration_log is an array before pushing
+      if (!Array.isArray(currentObject.migration_log)) {
+        currentObject.migration_log = [];
       }
+      currentObject.migration_log.push({
+        from,
+        to,
+        timestamp: new Date().toISOString(),
+      });
     } catch (error) {
       throw new Error(
         `Migration failed at step ${migrationKey}: ${error instanceof Error ? error.message : String(error)}\n` +

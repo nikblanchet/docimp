@@ -96,17 +96,23 @@ export async function migrateWorkflowStateCore(
     return;
   }
 
-  // Build migration path (applyMigrations handles "legacy" internally)
+  // Build migration path for display
+  // Note: applyMigrations handles "legacy" internally, this is just for UI
   const displayVersion = currentVersion === 'legacy' ? 'none' : currentVersion;
   let migrationPath: string[];
-  try {
-    migrationPath =
-      currentVersion === 'legacy'
-        ? [`legacy->${targetVersion}`]
-        : buildMigrationPath(currentVersion, targetVersion);
-  } catch {
+
+  if (currentVersion === 'legacy') {
+    // Legacy files are a special case - handled by applyMigrations internally
     migrationPath = [`${displayVersion}->${targetVersion}`];
+  } else {
+    try {
+      migrationPath = buildMigrationPath(currentVersion, targetVersion);
+    } catch {
+      // Fallback for display purposes only
+      migrationPath = [`${displayVersion}->${targetVersion}`];
+    }
   }
+
   console.log(
     chalk.bold('\nMigration path:'),
     chalk.yellow(migrationPath.join(' → '))
