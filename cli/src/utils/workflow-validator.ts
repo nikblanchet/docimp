@@ -24,6 +24,8 @@ export const WorkflowValidator = {
    * Requires:
    * - analyze results must exist
    * - analyze results should be current (not stale)
+   *
+   * @returns Validation result with valid flag and optional error/suggestion
    */
   async validateAuditPrerequisites(
     skipValidation: boolean = false
@@ -69,6 +71,8 @@ export const WorkflowValidator = {
    *
    * Requires:
    * - analyze results must exist
+   *
+   * @returns Validation result with valid flag and optional error/suggestion
    */
   async validatePlanPrerequisites(
     skipValidation: boolean = false
@@ -103,6 +107,8 @@ export const WorkflowValidator = {
    * Requires:
    * - plan must exist
    * - plan should be current (not stale)
+   *
+   * @returns Validation result with valid flag and optional error/suggestion
    */
   async validateImprovePrerequisites(
     skipValidation: boolean = false
@@ -153,6 +159,8 @@ export const WorkflowValidator = {
    * Check if analyze results are stale compared to source files
    *
    * Returns true if any analyzed files have been modified since last analysis
+   *
+   * @returns True if analyze results are stale (files modified since last analysis)
    */
   async isAnalyzeStale(): Promise<boolean> {
     const workflowState = await WorkflowStateManager.loadWorkflowState();
@@ -187,6 +195,8 @@ export const WorkflowValidator = {
 
   /**
    * Check if audit results are stale compared to analyze results
+   *
+   * @returns True if audit results are stale (analyze re-run since audit)
    */
   async isAuditStale(): Promise<boolean> {
     const workflowState = await WorkflowStateManager.loadWorkflowState();
@@ -203,6 +213,8 @@ export const WorkflowValidator = {
 
   /**
    * Check if plan is stale compared to analyze results
+   *
+   * @returns True if plan is stale (analyze re-run since plan)
    */
   async isPlanStale(): Promise<boolean> {
     const workflowState = await WorkflowStateManager.loadWorkflowState();

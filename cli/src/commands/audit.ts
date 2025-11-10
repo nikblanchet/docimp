@@ -529,6 +529,7 @@ async function detectAndPromptResume(
  * @param options.resumeFile - Resume specific session file (skip list)
  * @param options.new - Force new session (bypass detection)
  * @param options.clearSession - Delete all incomplete sessions and exit
+ * @param options.skipValidation - Skip workflow prerequisite validation
  * @param bridge - Python bridge instance (dependency injection)
  * @param display - Display instance (dependency injection)
  * @param configLoader - Config loader instance (dependency injection)

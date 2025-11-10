@@ -21,6 +21,8 @@ import { StateManager } from './state-manager.js';
 export class WorkflowStateManager {
   /**
    * Get the path to the workflow state file
+   *
+   * @returns Path to workflow-state.json
    */
   private static getWorkflowStateFile(): string {
     return path.join(StateManager.getStateDir(), 'workflow-state.json');
@@ -53,6 +55,8 @@ export class WorkflowStateManager {
   /**
    * Load workflow state from disk with schema validation and migration support
    * Returns empty state if file doesn't exist
+   *
+   * @returns Loaded workflow state or empty state if file doesn't exist
    */
   static async loadWorkflowState(): Promise<WorkflowState> {
     const filePath = this.getWorkflowStateFile();
@@ -114,6 +118,8 @@ export class WorkflowStateManager {
 
   /**
    * Get the state for a specific command
+   *
+   * @returns Command state or null if not run yet
    */
   static async getCommandState(
     command: 'analyze' | 'audit' | 'plan' | 'improve'
@@ -158,6 +164,8 @@ export class WorkflowStateManager {
 
   /**
    * Check if workflow state file exists
+   *
+   * @returns True if workflow state file exists
    */
   static async exists(): Promise<boolean> {
     const filePath = this.getWorkflowStateFile();

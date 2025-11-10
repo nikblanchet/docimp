@@ -39,6 +39,8 @@ export type WorkflowState = z.infer<typeof WorkflowStateSchema>;
 
 /**
  * Creates an empty workflow state
+ *
+ * @returns Empty workflow state with schema_version 1.0
  */
 export function createEmptyWorkflowState(): WorkflowState {
   return {
@@ -53,6 +55,8 @@ export function createEmptyWorkflowState(): WorkflowState {
 
 /**
  * Creates a command state for the current execution
+ *
+ * @returns Command state with current timestamp
  */
 export function createCommandState(
   itemCount: number,

@@ -21,6 +21,7 @@ import { WorkflowValidator } from '../utils/workflow-validator.js';
  * @param options.planFile - Path to plan file for saving improvement plan
  * @param options.qualityThreshold - Quality threshold for filtering items
  * @param options.verbose - Enable verbose output
+ * @param options.skipValidation - Skip workflow prerequisite validation
  * @param bridge - Python bridge instance (dependency injection)
  * @param display - Display instance (dependency injection)
  */
