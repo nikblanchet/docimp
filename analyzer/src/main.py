@@ -1624,12 +1624,6 @@ def main(argv: list | None = None) -> int:
         "status", help="Display workflow state and suggestions"
     )
     status_parser.add_argument(
-        "--format",
-        choices=["json", "summary"],
-        default="summary",
-        help="Output format (default: summary)",
-    )
-    status_parser.add_argument(
         "--verbose", action="store_true", help="Enable verbose output"
     )
 
