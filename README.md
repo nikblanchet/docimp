@@ -362,26 +362,30 @@ docimp plan ./src
 View workflow state and get actionable suggestions for next steps.
 
 ```bash
+# Formatted output (default)
 docimp status
+
+# Raw JSON for scripting/automation
+docimp status --json
 ```
 
 **Status display shows**:
 
 - **Command execution history**: Which commands have been run (analyze, audit, plan, improve)
 - **Timestamps**: When each command was last executed (e.g., "2h ago", "30m ago")
-- **Item counts**: Number of items processed by each command
+- **Item and file counts**: Number of items processed and files tracked per command
 - **Staleness warnings**: Alerts when data is outdated (e.g., "audit is stale - analyze re-run since audit")
 - **File modifications**: Count of files changed since last analyze
 - **Actionable suggestions**: Recommended next steps (e.g., "Run 'docimp audit' to rate documentation quality")
 
-**Example output**:
+**Example formatted output**:
 
 ```
 Workflow State (.docimp/workflow-state.json)
 
 Command    Status   Last Run    Items
 ─────────────────────────────────────
-✓ analyze  run      2h ago      23 items
+✓ analyze  run      2h ago      23 items, 5 files
 ✗ audit    not run  —           —
 ✗ plan     not run  —           —
 ✗ improve  not run  —           —
@@ -390,12 +394,25 @@ Suggestions:
   → Run 'docimp audit <path>' to rate documentation quality
 ```
 
+**JSON output** (for automation):
+
+```bash
+docimp status --json | jq '.file_modifications'
+# Output: 3
+
+docimp status --json | jq '.commands[] | select(.command == "analyze") | .item_count'
+# Output: 23
+```
+
 **Use cases**:
 
-- Quick workflow state check before starting work
-- Understand what commands have been run and when
-- Get reminders about stale data that needs refreshing
-- See suggested next actions in the workflow
+- **Interactive**: Quick workflow state check before starting work
+- **Interactive**: Understand what commands have been run and when
+- **Interactive**: Get reminders about stale data that needs refreshing
+- **Interactive**: See suggested next actions in the workflow
+- **Automation**: CI/CD workflows checking for stale data
+- **Automation**: Shell scripts triggering re-analysis when files change
+- **Automation**: Integration with monitoring/alerting systems
 
 ### Improve
 
