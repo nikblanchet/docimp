@@ -93,6 +93,7 @@ describe('WorkflowStateManager', () => {
     it('should load and validate workflow state from file', async () => {
       const state: WorkflowState = {
         schema_version: '1.0',
+        migration_log: [],
         last_analyze: {
           timestamp: '2025-01-01T00:00:00Z',
           item_count: 10,
@@ -376,6 +377,7 @@ describe('WorkflowStateManager', () => {
 
       expect(state).toEqual({
         schema_version: '1.0',
+        migration_log: [],
         last_analyze: null,
         last_audit: null,
         last_plan: null,

@@ -1,6 +1,17 @@
 import { z } from 'zod';
 
 /**
+ * Represents a single migration that was applied to workflow state
+ */
+export const MigrationLogEntrySchema = z.object({
+  from: z.string(), // Source schema version
+  to: z.string(), // Target schema version
+  timestamp: z.string(), // ISO 8601 timestamp when migration was applied
+});
+
+export type MigrationLogEntry = z.infer<typeof MigrationLogEntrySchema>;
+
+/**
  * Represents the timestamp and metadata for a single workflow command execution
  */
 export const CommandStateSchema = z.object({
@@ -17,6 +28,7 @@ export type CommandState = z.infer<typeof CommandStateSchema>;
  */
 export const WorkflowStateSchema = z.object({
   schema_version: z.literal('1.0'),
+  migration_log: z.array(MigrationLogEntrySchema).optional().default([]),
   last_analyze: CommandStateSchema.nullable(),
   last_audit: CommandStateSchema.nullable(),
   last_plan: CommandStateSchema.nullable(),
@@ -31,6 +43,7 @@ export type WorkflowState = z.infer<typeof WorkflowStateSchema>;
 export function createEmptyWorkflowState(): WorkflowState {
   return {
     schema_version: '1.0',
+    migration_log: [],
     last_analyze: null,
     last_audit: null,
     last_plan: null,
