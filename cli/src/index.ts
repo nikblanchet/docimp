@@ -272,14 +272,22 @@ program
 program
   .command('status')
   .description('Display workflow state and suggestions')
-  .action(async () => {
+  .option('--json', 'Output raw JSON for programmatic parsing')
+  .action(async (options) => {
     try {
-      const display = new TerminalDisplay();
       const bridge = new PythonBridge();
 
-      const exitCode = await statusCommand(bridge, display);
-      if (exitCode !== EXIT_CODE.SUCCESS) {
-        process.exit(exitCode);
+      if (options.json) {
+        // Raw JSON output (no display formatting)
+        const result = await bridge.status();
+        console.log(JSON.stringify(result, null, 2));
+      } else {
+        // Formatted display output
+        const display = new TerminalDisplay();
+        const exitCode = await statusCommand(bridge, display);
+        if (exitCode !== EXIT_CODE.SUCCESS) {
+          process.exit(exitCode);
+        }
       }
     } catch (error) {
       const errorDisplay = new TerminalDisplay();
