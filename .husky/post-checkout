@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# Call protection hook to prevent branch checkouts in main worktree
+.git/hooks/post-checkout "$@"

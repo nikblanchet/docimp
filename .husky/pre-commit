@@ -1,2 +1,6 @@
+#!/usr/bin/env sh
+# Call protection hook to prevent commits on main in main worktree
+.git/hooks/pre-commit || exit 1
+
 # Run lint-staged from the cli directory
 cd cli && npx lint-staged
