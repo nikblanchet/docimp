@@ -8,7 +8,6 @@ file modification tracking, and suggestion generation.
 import hashlib
 import json
 import sys
-from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -204,8 +203,7 @@ class TestCmdStatus:
             # Should detect audit staleness
             assert len(result["staleness_warnings"]) >= 1
             assert any(
-                "audit is stale" in warning
-                for warning in result["staleness_warnings"]
+                "audit is stale" in warning for warning in result["staleness_warnings"]
             )
 
             # Should suggest re-running audit
@@ -240,7 +238,8 @@ class TestCmdStatus:
                 "plan is stale" in warning for warning in result["staleness_warnings"]
             )
 
-            # Note: Suggestion prioritizes audit over plan (both are stale in this fixture)
+            # Note: Suggestion prioritizes audit over plan
+            # (both are stale in this fixture)
             # So suggestion will be "refresh audit" not "regenerate plan"
             assert len(result["suggestions"]) >= 1
             assert any("audit" in sug or "plan" in sug for sug in result["suggestions"])
@@ -283,9 +282,7 @@ class TestCmdStatus:
 
             # Should suggest incremental re-analysis
             assert len(result["suggestions"]) >= 1
-            assert any(
-                "--incremental" in sug for sug in result["suggestions"]
-            )
+            assert any("--incremental" in sug for sug in result["suggestions"])
 
     def test_cmd_status_file_deleted(
         self, mock_args, workflow_with_analyze, capsys, tmp_path
