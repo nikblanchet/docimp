@@ -9,6 +9,10 @@ import json
 from pathlib import Path
 
 from ..models.workflow_state import CommandState, WorkflowState
+from ..models.workflow_state_migrations import (
+    CURRENT_WORKFLOW_STATE_VERSION,
+    apply_migrations,
+)
 from .state_manager import StateManager
 
 
@@ -72,23 +76,10 @@ class WorkflowStateManager:
             with file_path.open(encoding="utf-8") as f:
                 data = json.load(f)
 
-            # Check schema version and migrate if needed
-            if data.get("schema_version") != "1.0":
-                if data.get("schema_version") is None:
-                    # Legacy file without schema_version - migrate to v1.0
-                    data["schema_version"] = "1.0"
-                else:
-                    # Unsupported version - provide helpful error
-                    schema_version = data.get("schema_version")
-                    msg = (
-                        f"Unsupported schema version: {schema_version}.\n"
-                        f"Current version is 1.0.\n"
-                        f"To fix this, delete {file_path} and re-run 'docimp analyze' "
-                        f"to regenerate workflow state."
-                    )
-                    raise ValueError(msg)
+            # Apply migrations if needed (handles legacy files and version upgrades)
+            migrated = apply_migrations(data, CURRENT_WORKFLOW_STATE_VERSION)
 
-            return WorkflowState.from_dict(data)
+            return WorkflowState.from_dict(migrated)
         except (json.JSONDecodeError, KeyError) as e:
             raise ValueError(f"Failed to load workflow state: {e}") from e
 

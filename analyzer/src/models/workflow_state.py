@@ -5,7 +5,7 @@ Tracks the state of analyze, audit, plan, and improve commands to enable
 workflow validation, stale detection, and incremental re-analysis.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 
@@ -57,15 +57,17 @@ class WorkflowState:
     """
 
     schema_version: str
-    last_analyze: CommandState | None
-    last_audit: CommandState | None
-    last_plan: CommandState | None
-    last_improve: CommandState | None
+    migration_log: list[dict[str, str]] = field(default_factory=list)
+    last_analyze: CommandState | None = None
+    last_audit: CommandState | None = None
+    last_plan: CommandState | None = None
+    last_improve: CommandState | None = None
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
         return {
             "schema_version": self.schema_version,
+            "migration_log": self.migration_log,
             "last_analyze": self.last_analyze.to_dict() if self.last_analyze else None,
             "last_audit": self.last_audit.to_dict() if self.last_audit else None,
             "last_plan": self.last_plan.to_dict() if self.last_plan else None,
@@ -77,6 +79,7 @@ class WorkflowState:
         """Create WorkflowState from dictionary."""
         return WorkflowState(
             schema_version=data["schema_version"],
+            migration_log=data.get("migration_log", []),
             last_analyze=CommandState.from_dict(data["last_analyze"])
             if data.get("last_analyze")
             else None,
@@ -96,6 +99,7 @@ class WorkflowState:
         """Create an empty workflow state."""
         return WorkflowState(
             schema_version="1.0",
+            migration_log=[],
             last_analyze=None,
             last_audit=None,
             last_plan=None,

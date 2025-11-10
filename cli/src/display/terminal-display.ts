@@ -789,6 +789,27 @@ export class TerminalDisplay implements IDisplay {
     );
     console.log('');
 
+    // Schema version display
+    const displayVersion =
+      status.schema_version === 'legacy' ? 'none' : status.schema_version;
+    if (status.migration_available) {
+      console.log(
+        chalk.yellow(
+          `Schema Version: ${displayVersion} ⚠️  Migration available to ${status.schema_current}`
+        )
+      );
+      console.log(
+        chalk.dim("  Run 'docimp migrate-workflow-state' to upgrade")
+      );
+      console.log('');
+    } else {
+      console.log(
+        chalk.green(`Schema Version: ${status.schema_current}`) +
+          chalk.dim(' (current)')
+      );
+      console.log('');
+    }
+
     // Command status table
     const table = this.createResponsiveTable(
       [

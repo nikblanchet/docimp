@@ -636,7 +636,19 @@ def cmd_status(args: argparse.Namespace) -> int:
         # Load workflow state
         from datetime import datetime
 
+        from .models.workflow_state_migrations import CURRENT_WORKFLOW_STATE_VERSION
+
         state = WorkflowStateManager.load_workflow_state()
+
+        # Detect schema version (for display)
+        workflow_file = StateManager.get_state_dir() / "workflow-state.json"
+        schema_version = "legacy"
+        migration_available = False
+        if workflow_file.exists():
+            with workflow_file.open(encoding="utf-8") as f:
+                workflow_data = json.load(f)
+                schema_version = workflow_data.get("schema_version", "legacy")
+                migration_available = schema_version != CURRENT_WORKFLOW_STATE_VERSION
 
         # Helper to calculate staleness
         def is_stale(newer_cmd: str | None, older_cmd: str | None) -> tuple[bool, str]:
@@ -668,8 +680,10 @@ def cmd_status(args: argparse.Namespace) -> int:
                     # Calculate current checksum
                     filepath_obj = Path(filepath)
                     if filepath_obj.exists():
-                        with filepath_obj.open("rb") as f:
-                            current_checksum = hashlib.sha256(f.read()).hexdigest()
+                        with filepath_obj.open("rb") as file_handle:
+                            current_checksum = hashlib.sha256(
+                                file_handle.read()
+                            ).hexdigest()
                         if current_checksum != checksum:
                             file_mods += 1
                     else:
@@ -742,6 +756,9 @@ def cmd_status(args: argparse.Namespace) -> int:
 
         # Output format
         result = {
+            "schema_version": schema_version,
+            "schema_current": CURRENT_WORKFLOW_STATE_VERSION,
+            "migration_available": migration_available,
             "commands": commands,
             "staleness_warnings": staleness_warnings,
             "suggestions": suggestions,
@@ -760,6 +777,135 @@ def cmd_status(args: argparse.Namespace) -> int:
             import traceback
 
             traceback.print_exc(file=sys.stderr)
+        return 1
+
+
+def cmd_migrate_workflow_state(args: argparse.Namespace) -> int:
+    """Handle the migrate-workflow-state subcommand.
+
+    Manually migrate workflow-state.json with dry-run, check, version selection,
+    and force options.
+
+    Args:
+        args: Parsed command-line arguments with dry_run, check, version, force.
+
+    Returns:
+        Exit code (0 for success, 1 for error).
+    """
+    from .models.workflow_state_migrations import (
+        CURRENT_WORKFLOW_STATE_VERSION,
+        apply_migrations,
+        build_migration_path,
+    )
+
+    try:
+        target_version = args.version or CURRENT_WORKFLOW_STATE_VERSION
+        dry_run = args.dry_run
+        check_mode = args.check
+        force = args.force
+
+        # Get workflow state file path
+        workflow_file = StateManager.get_state_dir() / "workflow-state.json"
+
+        # Check if file exists
+        if not workflow_file.exists():
+            if check_mode:
+                # In check mode, no file means no migration needed
+                print("No workflow state file found. No migration needed.")
+                return 0
+            print("No workflow state file found.", file=sys.stderr)
+            print('Run "docimp analyze" to create workflow-state.json.')
+            return 1
+
+        # Load and parse file
+        with workflow_file.open(encoding="utf-8") as f:
+            data = json.load(f)
+        current_version = data.get("schema_version", "legacy")
+
+        # In check mode, just report status and exit
+        if check_mode:
+            if current_version == target_version:
+                print(
+                    f"Workflow state is at version {target_version}. "
+                    "No migration needed."
+                )
+                return 0
+            print(f"Migration needed: {current_version} → {target_version}")
+            return 1
+
+        # Display current state
+        print("\nWorkflow State Migration\n")
+        print(f"Current schema version: {current_version}")
+        print(f"Target schema version:  {target_version}")
+
+        # Check if migration needed
+        if current_version == target_version:
+            print("\nWorkflow state is already at target version. No migration needed.")
+            return 0
+
+        # Build migration path
+        display_version = "none" if current_version == "legacy" else current_version
+        try:
+            if current_version == "legacy":
+                migration_path = [f"legacy->{target_version}"]
+            else:
+                migration_path = build_migration_path(current_version, target_version)
+        except ValueError:
+            migration_path = [f"{display_version}->{target_version}"]
+
+        print(f"\nMigration path: {' → '.join(migration_path)}")
+
+        # Apply migrations
+        migrated = apply_migrations(data, target_version)
+
+        # Validate result
+        from .models.workflow_state import WorkflowState
+
+        try:
+            WorkflowState.from_dict(migrated)
+            print("Migration validation passed.")
+        except (KeyError, ValueError) as validation_error:
+            print(f"Migration validation failed: {validation_error}", file=sys.stderr)
+            return 1
+
+        if dry_run:
+            print("\nDry run mode - no changes written.")
+            print("\nMigrated data preview:")
+            print(json.dumps(migrated, indent=2))
+            return 0
+
+        # Confirm before writing (unless --force)
+        if not force:
+            print(
+                "\nThis will modify workflow-state.json. "
+                "Create a backup first if needed."
+            )
+            response = input("Proceed with migration? [y/N] ").strip().lower()
+            if response not in ("y", "yes"):
+                print("Migration cancelled.")
+                return 0
+
+        # Write migrated data atomically (temp file + rename)
+        temp_file = workflow_file.with_suffix(".json.tmp")
+        with temp_file.open("w", encoding="utf-8") as f:
+            json.dump(migrated, f, indent=2)
+        temp_file.replace(workflow_file)
+
+        print("\nMigration completed successfully.")
+        print(f"Schema version updated to {target_version}.")
+        return 0
+
+    except ValueError as e:
+        if not check_mode:
+            print(f"Error: {e}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        if not check_mode:
+            print(f"Error: {e}", file=sys.stderr)
+            if args.verbose:
+                import traceback
+
+                traceback.print_exc(file=sys.stderr)
         return 1
 
 
@@ -1627,6 +1773,35 @@ def main(argv: list | None = None) -> int:
         "--verbose", action="store_true", help="Enable verbose output"
     )
 
+    # Migrate-workflow-state command (migrate workflow-state.json)
+    migrate_parser = subparsers.add_parser(
+        "migrate-workflow-state",
+        help="Migrate workflow-state.json to latest schema version",
+    )
+    migrate_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would happen without making changes",
+    )
+    migrate_parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Exit code 1 if migration needed, 0 if current (for CI/CD)",
+    )
+    migrate_parser.add_argument(
+        "--version",
+        type=str,
+        help="Target schema version (default: latest)",
+    )
+    migrate_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Skip confirmation prompt",
+    )
+    migrate_parser.add_argument(
+        "--verbose", action="store_true", help="Enable verbose output"
+    )
+
     # List-changes command (list changes in a session)
     list_changes_parser = subparsers.add_parser(
         "list-changes", help="List changes in a specific session"
@@ -1894,6 +2069,9 @@ def main(argv: list | None = None) -> int:
     elif args.command == "status":
         # Display workflow state
         return cmd_status(args)
+    elif args.command == "migrate-workflow-state":
+        # Migrate workflow state
+        return cmd_migrate_workflow_state(args)
     elif args.command == "list-changes":
         # Create transaction manager for change listing
         base_path = Path.cwd()

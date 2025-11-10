@@ -370,6 +370,15 @@ export interface CommandStatus {
  * Result of workflow status command.
  */
 export interface WorkflowStatusResult {
+  /** Current schema version of workflow-state.json */
+  schema_version: string;
+
+  /** Latest available schema version */
+  schema_current: string;
+
+  /** Whether migration is available (schema_version !== schema_current) */
+  migration_available: boolean;
+
   /** Status of each workflow command */
   commands: CommandStatus[];
 

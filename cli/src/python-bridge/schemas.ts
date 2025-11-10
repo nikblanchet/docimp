@@ -230,6 +230,9 @@ export const CommandStatusSchema = z
  */
 export const WorkflowStatusResultSchema = z
   .object({
+    schema_version: z.string(),
+    schema_current: z.string(),
+    migration_available: z.boolean(),
     commands: z.array(CommandStatusSchema),
     staleness_warnings: z.array(z.string()),
     suggestions: z.array(z.string()),
