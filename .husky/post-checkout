@@ -1,3 +1,4 @@
 #!/usr/bin/env sh
 # Call protection hook to prevent branch checkouts in main worktree
-.git/hooks/post-checkout "$@"
+GIT_COMMON_DIR=$(git rev-parse --git-common-dir)
+"$GIT_COMMON_DIR/hooks/post-checkout" "$@"
