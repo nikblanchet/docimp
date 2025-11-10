@@ -680,8 +680,10 @@ def cmd_status(args: argparse.Namespace) -> int:
                     # Calculate current checksum
                     filepath_obj = Path(filepath)
                     if filepath_obj.exists():
-                        with filepath_obj.open("rb") as f:
-                            current_checksum = hashlib.sha256(f.read()).hexdigest()
+                        with filepath_obj.open("rb") as file_handle:
+                            current_checksum = hashlib.sha256(
+                                file_handle.read()
+                            ).hexdigest()
                         if current_checksum != checksum:
                             file_mods += 1
                     else:
