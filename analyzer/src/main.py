@@ -639,9 +639,7 @@ def cmd_status(args: argparse.Namespace) -> int:
         state = WorkflowStateManager.load_workflow_state()
 
         # Helper to calculate staleness
-        def is_stale(
-            newer_cmd: str | None, older_cmd: str | None
-        ) -> tuple[bool, str]:
+        def is_stale(newer_cmd: str | None, older_cmd: str | None) -> tuple[bool, str]:
             """Check if older_cmd is stale compared to newer_cmd."""
             newer_state = getattr(state, f"last_{newer_cmd}") if newer_cmd else None
             older_state = getattr(state, f"last_{older_cmd}") if older_cmd else None
@@ -724,9 +722,7 @@ def cmd_status(args: argparse.Namespace) -> int:
         if not state.last_analyze:
             suggestions.append("Run 'docimp analyze <path>' to analyze your codebase")
         elif file_mods > 0:
-            suggestions.append(
-                "Run 'docimp analyze --incremental' to update analysis"
-            )
+            suggestions.append("Run 'docimp analyze --incremental' to update analysis")
         elif not state.last_audit:
             suggestions.append(
                 "Run 'docimp audit <path>' to rate documentation quality"
@@ -734,9 +730,7 @@ def cmd_status(args: argparse.Namespace) -> int:
         elif is_audit_stale:
             suggestions.append("Run 'docimp audit <path>' to refresh quality ratings")
         elif not state.last_plan:
-            suggestions.append(
-                "Run 'docimp plan <path>' to generate improvement plan"
-            )
+            suggestions.append("Run 'docimp plan <path>' to generate improvement plan")
         elif is_plan_stale_analyze or is_plan_stale_audit:
             suggestions.append(
                 "Run 'docimp plan <path>' to regenerate plan with latest data"
