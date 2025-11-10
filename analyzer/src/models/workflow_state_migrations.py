@@ -15,6 +15,7 @@ CURRENT_WORKFLOW_STATE_VERSION = "1.0"
 # Type for migration functions
 MigrationFunction = Callable[[dict[str, Any]], dict[str, Any]]
 
+
 # Type for migration log entries
 class MigrationLogEntry:
     """Represents a single migration that was applied."""
