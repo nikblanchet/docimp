@@ -31,6 +31,7 @@ import { WorkflowStateManager } from '../utils/workflow-state-manager.js';
  * @param options - Command options
  * @param options.verbose - Enable verbose output
  * @param options.strict - Fail immediately on parse errors
+ * @param options.dryRun - Preview mode without running analysis
  * @param bridge - Python bridge instance
  * @param display - Display instance
  * @returns Analysis result with merged items
@@ -38,7 +39,7 @@ import { WorkflowStateManager } from '../utils/workflow-state-manager.js';
 async function handleIncrementalAnalysis(
   absolutePath: string,
   config: IConfig,
-  options: { verbose?: boolean; strict?: boolean },
+  options: { verbose?: boolean; strict?: boolean; dryRun?: boolean },
   bridge: IPythonBridge,
   display: IDisplay
 ): Promise<AnalysisResult> {
@@ -107,6 +108,22 @@ async function handleIncrementalAnalysis(
   }
 
   const changedFiles = await FileTracker.detectChanges(snapshot);
+
+  // DRY-RUN MODE: Display preview and return early
+  if (options.dryRun) {
+    // Get unique unchanged files from previous result
+    const unchangedFiles = previousResult.items.map((item) => item.filepath);
+    const unchangedFilesSet = new Set(unchangedFiles);
+
+    display.showIncrementalDryRun({
+      changedFiles,
+      unchangedFiles: [...unchangedFilesSet],
+      previousResult,
+    });
+
+    // Return previous result unchanged (no analysis performed)
+    return previousResult;
+  }
 
   if (changedFiles.length === 0) {
     if (options.verbose) {
@@ -360,6 +377,7 @@ export async function analyzeCore(
     preserveAudit?: boolean;
     forceClean?: boolean;
     incremental?: boolean;
+    dryRun?: boolean;
     strict?: boolean;
     applyAudit?: boolean;
   },
@@ -398,6 +416,14 @@ export async function analyzeCore(
       exclude: config.exclude,
       jsdocStyle: config.jsdocStyle,
     });
+  }
+
+  // Validate dry-run flag usage
+  if (options.dryRun && !options.incremental) {
+    display.showWarning(
+      '--dry-run requires --incremental flag. Ignoring --dry-run and running normal analysis.'
+    );
+    options.dryRun = false; // Clear the flag to run normal analysis
   }
 
   // Handle incremental analysis if requested
@@ -439,26 +465,29 @@ export async function analyzeCore(
   }
 
   // Save and display results (common path for both full and incremental)
-  // Save analysis result to state directory
-  const analyzeFile = StateManager.getAnalyzeFile();
-  writeFileSync(analyzeFile, JSON.stringify(result, null, 2), 'utf8');
+  // Skip saving in dry-run mode
+  if (!options.dryRun) {
+    // Save analysis result to state directory
+    const analyzeFile = StateManager.getAnalyzeFile();
+    writeFileSync(analyzeFile, JSON.stringify(result, null, 2), 'utf8');
 
-  if (options.verbose) {
-    display.showMessage(`Analysis saved to: ${analyzeFile}`);
+    if (options.verbose) {
+      display.showMessage(`Analysis saved to: ${analyzeFile}`);
+    }
+
+    // Update workflow state with file checksums
+    const filepaths = result.items.map((item) => item.filepath);
+    const snapshot = await FileTracker.createSnapshot(filepaths);
+
+    // Extract checksums from snapshot (WorkflowState expects Record<string, string>)
+    const fileChecksums: Record<string, string> = {};
+    for (const [filepath, fileSnapshot] of Object.entries(snapshot)) {
+      fileChecksums[filepath] = fileSnapshot.checksum;
+    }
+
+    const commandState = createCommandState(result.total_items, fileChecksums);
+    await WorkflowStateManager.updateCommandState('analyze', commandState);
   }
-
-  // Update workflow state with file checksums
-  const filepaths = result.items.map((item) => item.filepath);
-  const snapshot = await FileTracker.createSnapshot(filepaths);
-
-  // Extract checksums from snapshot (WorkflowState expects Record<string, string>)
-  const fileChecksums: Record<string, string> = {};
-  for (const [filepath, fileSnapshot] of Object.entries(snapshot)) {
-    fileChecksums[filepath] = fileSnapshot.checksum;
-  }
-
-  const commandState = createCommandState(result.total_items, fileChecksums);
-  await WorkflowStateManager.updateCommandState('analyze', commandState);
 
   // Display results using the display service
   const format = (options.format || 'summary') as 'summary' | 'json';
@@ -493,6 +522,7 @@ export async function analyzeCommand(
     preserveAudit?: boolean;
     forceClean?: boolean;
     incremental?: boolean;
+    dryRun?: boolean;
     strict?: boolean;
     applyAudit?: boolean;
   },

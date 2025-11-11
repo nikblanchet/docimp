@@ -187,4 +187,21 @@ export interface IDisplay {
    * @param status - Workflow status result from Python backend
    */
   showWorkflowStatus(status: WorkflowStatusResult): void;
+
+  /**
+   * Display incremental analysis dry-run preview.
+   *
+   * Shows which files would be re-analyzed, which would be reused,
+   * and estimated time savings without actually running the analysis.
+   *
+   * @param preview - Dry-run preview data
+   * @param preview.changedFiles - List of files that would be re-analyzed
+   * @param preview.unchangedFiles - List of files that would be reused
+   * @param preview.previousResult - Previous analysis result for reference
+   */
+  showIncrementalDryRun(preview: {
+    changedFiles: string[];
+    unchangedFiles: string[];
+    previousResult: AnalysisResult;
+  }): void;
 }

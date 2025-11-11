@@ -53,6 +53,10 @@ program
   .option('--preserve-audit', 'Preserve audit.json file only')
   .option('--force-clean', 'Force clean session reports without prompting')
   .option('--incremental', 'Only re-analyze changed files')
+  .option(
+    '--dry-run',
+    'Preview incremental analysis without running (shows what would be analyzed)'
+  )
   .option('--apply-audit', 'Apply existing audit ratings to analyzed items')
   .option(
     '--strict',
