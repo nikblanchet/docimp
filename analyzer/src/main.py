@@ -13,6 +13,7 @@ from .analysis.analyzer import DocumentationAnalyzer
 from .audit.quality_rater import AuditResult, save_audit_results
 from .claude.claude_client import ClaudeClient
 from .claude.prompt_builder import PromptBuilder
+from .models.workflow_state import CommandState
 from .parsers.python_parser import PythonParser
 from .parsers.typescript_parser import TypeScriptParser
 from .planning.plan_generator import generate_plan, save_plan
@@ -674,9 +675,10 @@ def cmd_status(args: argparse.Namespace) -> int:
             """
             if not newer_state.file_checksums or not older_state.file_checksums:
                 raise ValueError(
-                    "Cannot compare file checksums: file_checksums missing from command state. "
-                    "This may indicate legacy workflow state data. "
-                    "Re-run analysis to update workflow state with checksums."
+                    "Cannot compare file checksums: file_checksums missing "
+                    "from command state. This may indicate legacy workflow "
+                    "state data. Re-run analysis to update workflow state "
+                    "with checksums."
                 )
 
             changed_count = 0
@@ -725,11 +727,13 @@ def cmd_status(args: argparse.Namespace) -> int:
                     return (
                         True,
                         changed_count,
-                        f"{older_cmd} is stale ({changed_count} file(s) modified since {older_cmd})",
+                        f"{older_cmd} is stale "
+                        f"({changed_count} file(s) modified since {older_cmd})",
                     )
                 return False, 0, ""
             except ValueError:
-                # Fallback to timestamp comparison if checksums are missing (legacy data)
+                # Fallback to timestamp comparison if checksums missing
+                # (legacy data)
                 newer_time = datetime.fromisoformat(
                     newer_state.timestamp.replace("Z", "+00:00")
                 )
