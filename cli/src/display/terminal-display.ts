@@ -864,4 +864,71 @@ export class TerminalDisplay implements IDisplay {
 
     console.log('');
   }
+
+  /**
+   * Display incremental analysis dry-run preview.
+   *
+   * Shows which files would be re-analyzed, which would be reused,
+   * and estimated time savings.
+   *
+   * @param preview - Dry-run preview data
+   */
+  public showIncrementalDryRun(preview: {
+    changedFiles: string[];
+    unchangedFiles: string[];
+    previousResult: import('../types/analysis.js').AnalysisResult;
+  }): void {
+    console.log('');
+    console.log(
+      chalk.bold('Incremental Analysis') + chalk.dim(' (dry run mode)')
+    );
+    console.log('');
+
+    // Calculate unique files
+    const unchangedCount = preview.unchangedFiles.length;
+    const totalFiles = unchangedCount + preview.changedFiles.length;
+
+    if (preview.changedFiles.length === 0) {
+      console.log(chalk.green('✓ No files changed since last analysis'));
+      console.log(chalk.dim(`  All ${unchangedCount} file(s) would be reused`));
+    } else {
+      console.log(
+        chalk.yellow(`Would re-analyze ${preview.changedFiles.length} file(s):`)
+      );
+
+      // Show changed files (limit to 10 for readability)
+      const displayFiles = preview.changedFiles.slice(0, 10);
+      for (const file of displayFiles) {
+        console.log(chalk.dim(`  • ${file}`));
+      }
+
+      if (preview.changedFiles.length > 10) {
+        console.log(
+          chalk.dim(`  ... and ${preview.changedFiles.length - 10} more`)
+        );
+      }
+
+      console.log('');
+      console.log(
+        chalk.green(
+          `Would reuse results from ${unchangedCount} unchanged file(s)`
+        )
+      );
+
+      // Show time savings estimate
+      const percentChanged = (preview.changedFiles.length / totalFiles) * 100;
+      const percentReused = 100 - percentChanged;
+      console.log('');
+      console.log(
+        chalk.cyan('Estimated time savings:') +
+          chalk.dim(` ~${percentReused.toFixed(0)}%`)
+      );
+    }
+
+    console.log('');
+    console.log(
+      chalk.dim('Run without --dry-run to perform incremental analysis')
+    );
+    console.log('');
+  }
 }
