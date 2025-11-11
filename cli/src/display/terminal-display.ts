@@ -872,6 +872,9 @@ export class TerminalDisplay implements IDisplay {
    * and estimated time savings.
    *
    * @param preview - Dry-run preview data
+   * @param preview.changedFiles - Files that would be re-analyzed
+   * @param preview.unchangedFiles - Files whose results would be reused
+   * @param preview.previousResult - Previous analysis result
    */
   public showIncrementalDryRun(preview: {
     changedFiles: string[];

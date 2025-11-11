@@ -362,6 +362,7 @@ async function handleSmartAutoClean(
  * @param options.preserveAudit - Preserve audit.json file only
  * @param options.forceClean - Force clean without prompting
  * @param options.incremental - Only re-analyze changed files
+ * @param options.dryRun - Preview incremental analysis without running it
  * @param options.strict - Fail immediately on first parse error
  * @param options.applyAudit - Apply existing audit ratings to analyzed items
  * @param bridge - Python bridge instance (dependency injection)
@@ -506,6 +507,7 @@ export async function analyzeCore(
  * @param options.preserveAudit - Preserve audit.json file only
  * @param options.forceClean - Force clean without prompting
  * @param options.incremental - Only re-analyze changed files
+ * @param options.dryRun - Preview incremental analysis without running it
  * @param options.strict - Fail immediately on first parse error
  * @param options.applyAudit - Apply existing audit ratings to analyzed items
  * @param bridge - Python bridge instance (dependency injection)
