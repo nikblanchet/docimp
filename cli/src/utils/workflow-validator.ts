@@ -1,4 +1,5 @@
 import * as fs from 'node:fs/promises';
+import type { CommandState } from '../types/workflow-state.js';
 import { StateManager } from './state-manager.js';
 import { WorkflowStateManager } from './workflow-state-manager.js';
 
@@ -9,6 +10,76 @@ export interface ValidationResult {
   valid: boolean;
   error?: string;
   suggestion?: string;
+}
+
+/**
+ * Result of comparing file checksums between two command states
+ */
+export interface ChecksumComparisonResult {
+  hasChanges: boolean;
+  changedCount: number;
+}
+
+/**
+ * Result of checking if command results are stale
+ */
+export interface StalenessCheckResult {
+  isStale: boolean;
+  changedCount: number;
+}
+
+/**
+ * Compare file checksums between two command states to detect changes
+ *
+ * Detects three types of changes:
+ * - File modified: Same filepath, different checksum
+ * - File removed: Present in older state, absent in newer state
+ * - File added: Absent in older state, present in newer state
+ *
+ * @param newerState - Command state with more recent analysis results
+ * @param olderState - Command state with older results to compare against
+ * @returns Comparison result with change detection flag and count
+ * @throws Error if file_checksums is missing from either state
+ */
+export function compareFileChecksums(
+  newerState: CommandState,
+  olderState: CommandState
+): ChecksumComparisonResult {
+  if (!newerState.file_checksums || !olderState.file_checksums) {
+    throw new Error(
+      'Cannot compare file checksums: file_checksums missing from command state. ' +
+        'This may indicate legacy workflow state data. ' +
+        'Re-run analysis to update workflow state with checksums.'
+    );
+  }
+
+  let changedCount = 0;
+
+  // Check for modified files (same path, different checksum)
+  for (const [filepath, olderChecksum] of Object.entries(
+    olderState.file_checksums
+  )) {
+    if (filepath in newerState.file_checksums) {
+      if (newerState.file_checksums[filepath] !== olderChecksum) {
+        changedCount++;
+      }
+    } else {
+      // File removed from newer state
+      changedCount++;
+    }
+  }
+
+  // Check for added files (present in newer, absent in older)
+  for (const filepath of Object.keys(newerState.file_checksums)) {
+    if (!(filepath in olderState.file_checksums)) {
+      changedCount++;
+    }
+  }
+
+  return {
+    hasChanges: changedCount > 0,
+    changedCount,
+  };
 }
 
 /**
@@ -196,36 +267,54 @@ export const WorkflowValidator = {
   /**
    * Check if audit results are stale compared to analyze results
    *
-   * @returns True if audit results are stale (analyze re-run since audit)
+   * Uses file-level checksum comparison to detect if any analyzed files
+   * have changed since the audit was performed.
+   *
+   * @returns Staleness check result with isStale flag and changed file count
    */
-  async isAuditStale(): Promise<boolean> {
+  async isAuditStale(): Promise<StalenessCheckResult> {
     const workflowState = await WorkflowStateManager.loadWorkflowState();
 
     if (!workflowState.last_audit || !workflowState.last_analyze) {
-      return false; // Either not run yet
+      return { isStale: false, changedCount: 0 }; // Either not run yet
     }
 
-    const auditTime = new Date(workflowState.last_audit.timestamp);
-    const analyzeTime = new Date(workflowState.last_analyze.timestamp);
+    // Compare file checksums between analyze and audit states
+    const comparison = compareFileChecksums(
+      workflowState.last_analyze,
+      workflowState.last_audit
+    );
 
-    return analyzeTime > auditTime;
+    return {
+      isStale: comparison.hasChanges,
+      changedCount: comparison.changedCount,
+    };
   },
 
   /**
    * Check if plan is stale compared to analyze results
    *
-   * @returns True if plan is stale (analyze re-run since plan)
+   * Uses file-level checksum comparison to detect if any analyzed files
+   * have changed since the plan was generated.
+   *
+   * @returns Staleness check result with isStale flag and changed file count
    */
-  async isPlanStale(): Promise<boolean> {
+  async isPlanStale(): Promise<StalenessCheckResult> {
     const workflowState = await WorkflowStateManager.loadWorkflowState();
 
     if (!workflowState.last_plan || !workflowState.last_analyze) {
-      return false; // Either not run yet
+      return { isStale: false, changedCount: 0 }; // Either not run yet
     }
 
-    const planTime = new Date(workflowState.last_plan.timestamp);
-    const analyzeTime = new Date(workflowState.last_analyze.timestamp);
+    // Compare file checksums between analyze and plan states
+    const comparison = compareFileChecksums(
+      workflowState.last_analyze,
+      workflowState.last_plan
+    );
 
-    return analyzeTime > planTime;
+    return {
+      isStale: comparison.hasChanges,
+      changedCount: comparison.changedCount,
+    };
   },
 };

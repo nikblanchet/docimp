@@ -537,11 +537,12 @@ export async function improveCore(
   }
 
   // Check for stale plan (already validated in validateImprovePrerequisites, but show warning)
-  const planStale = await WorkflowValidator.isPlanStale();
-  if (planStale) {
+  const planStaleCheck = await WorkflowValidator.isPlanStale();
+  if (planStaleCheck.isStale) {
     display.showMessage(
-      '\nWarning: Plan is stale (analysis has been re-run). ' +
-        'Consider regenerating plan with "docimp plan" for latest priorities.\n'
+      `\nWarning: Plan data may be stale (${planStaleCheck.changedCount} file(s) modified since plan).\n` +
+        `Consider re-running 'docimp plan' to regenerate with latest analysis.\n` +
+        `(See Issue #386 for future --verbose flag to show detailed file changes)\n`
     );
   }
 

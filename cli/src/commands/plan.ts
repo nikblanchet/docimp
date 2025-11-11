@@ -53,11 +53,12 @@ export async function planCore(
   }
 
   // Check for stale audit data
-  const auditStale = await WorkflowValidator.isAuditStale();
-  if (auditStale) {
+  const auditStaleCheck = await WorkflowValidator.isAuditStale();
+  if (auditStaleCheck.isStale) {
     display.showMessage(
-      '\nWarning: Analysis has been re-run since audit. ' +
-        'Audit ratings may be incomplete or stale.\n'
+      `\nWarning: Audit data may be stale (${auditStaleCheck.changedCount} file(s) modified since audit).\n` +
+        `Consider re-running 'docimp audit' to refresh ratings.\n` +
+        `(See Issue #386 for future --verbose flag to show detailed file changes)\n`
     );
   }
 
