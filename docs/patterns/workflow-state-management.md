@@ -384,3 +384,376 @@ Validates plan prerequisite and checks for stale plan data.
 - **Error Handling**: `docs/patterns/error-handling.md` - Validation error patterns
 - **CLAUDE.md**: Workflow state architecture section
 - **README.md**: User-facing workflow documentation
+
+---
+
+## Implementation History
+
+This section documents the phased implementation of workflow state management features (Phases 3.6-3.10). For the complete implementation plan and tracking, see `.planning/workflow-state-master-plan.md`.
+
+### Phase 3.6: Enhanced --apply-audit Edge Cases
+
+**Status**: Complete (PR #372)
+
+**Goal**: Ensure `--apply-audit` flag handles all edge cases robustly.
+
+**Implementation**:
+
+Comprehensive error handling for audit rating application:
+
+1. **Empty audit.json**: Skip rating application gracefully, log warning
+2. **Missing files**: Skip ratings for files not in current analysis
+3. **Invalid ratings**: Reject values outside 1-4 range, log warning
+4. **Combined flags**: `--apply-audit --incremental` works correctly
+5. **Overwrite behavior**: New ratings overwrite pre-existing `audit_rating` values
+
+**Code location**: `cli/src/commands/analyze.ts:handleApplyAudit()`
+
+**Test coverage**: 5 comprehensive tests in `analyze-apply-audit.test.ts`:
+
+```typescript
+// Test file: cli/src/__tests__/commands/analyze-apply-audit.test.ts
+test("handles empty audit.json gracefully", ...)
+test("skips ratings for missing files", ...)
+test("rejects invalid rating values", ...)
+test("combines with --incremental flag", ...)
+test("overwrites pre-existing audit_rating", ...)
+```
+
+**Outcome**: `--apply-audit` is production-ready with robust error handling for all edge cases.
+
+### Phase 3.7: Schema Migration Utilities
+
+**Status**: Complete (Issue #375, PR #379)
+
+**Goal**: Support workflow state schema evolution with automatic migration and manual CLI command.
+
+**Command**: `docimp migrate-workflow-state [--dry-run] [--check] [--version X.Y] [--force]`
+
+**Implementation**:
+
+Migration registry pattern mapping version transitions to migration functions:
+
+```typescript
+// TypeScript: cli/src/types/workflow-state-migrations.ts
+export const WORKFLOW_STATE_MIGRATIONS: Record<string, MigrationFn> = {
+  "1.0->1.1": migrate_1_0_to_1_1,
+  "1.1->1.2": migrate_1_1_to_1_2,
+};
+
+function buildMigrationPath(from: string, to: string): string[] {
+  // Constructs sequential migration chain: ["1.0->1.1", "1.1->1.2"]
+}
+
+function applyMigrations(state: WorkflowState, path: string[]): WorkflowState {
+  // Executes migration chain, updates migration_log
+}
+```
+
+Python equivalent in `analyzer/src/models/workflow_state_migrations.py`.
+
+**Auto-migration**: WorkflowStateManager transparently upgrades on load:
+
+```typescript
+// TypeScript: cli/src/utils/workflow-state-manager.ts:load()
+if (state.schema_version !== CURRENT_VERSION) {
+  state = applyMigrations(state, buildMigrationPath(...));
+}
+```
+
+**CLI command**: Manual migration with options:
+
+```bash
+# Check if migration needed (CI/CD mode, exit code 0 or 1)
+docimp migrate-workflow-state --check
+
+# Preview migration without changes
+docimp migrate-workflow-state --dry-run
+
+# Migrate to specific version
+docimp migrate-workflow-state --version 1.1
+
+# Skip confirmation prompt
+docimp migrate-workflow-state --force
+```
+
+**Migration log**: Tracks applied migrations in `workflow-state.json`:
+
+```json
+{
+  "schema_version": "1.1",
+  "migration_log": [
+    {
+      "from_version": "1.0",
+      "to_version": "1.1",
+      "applied_at": "2025-11-10T15:30:00Z",
+      "description": "Add file_checksums to command states"
+    }
+  ]
+}
+```
+
+**Test coverage**: 42 tests (15 TypeScript + 15 Python + 12 command tests)
+
+**Outcome**: Schema migration infrastructure production-ready with transparent auto-migration and manual CLI control.
+
+### Phase 3.8: --dry-run Flag for Incremental Analysis
+
+**Status**: Complete (Issue #376, PR #382)
+
+**Goal**: Preview which files would be re-analyzed in incremental mode without running analysis.
+
+**Flag**: `docimp analyze --incremental --dry-run`
+
+**Implementation**:
+
+Early return in `handleIncrementalAnalysis()` after detecting changed files:
+
+```typescript
+// TypeScript: cli/src/commands/analyze.ts
+async function handleIncrementalAnalysis(
+  options: AnalyzeOptions,
+  display: IDisplay
+): Promise<{ changedFiles: string[]; totalFiles: number } | null> {
+  // ... checksum comparison logic ...
+
+  if (options.dryRun) {
+    display.showIncrementalDryRun(changedFiles, unchangedFiles);
+    return null; // Early return - no analysis performed
+  }
+
+  // ... continue with incremental analysis ...
+}
+```
+
+**Output format** (via `TerminalDisplay.showIncrementalDryRun()`):
+
+```
+Incremental Analysis (dry run mode)
+
+Would re-analyze 3 file(s):
+  • src/analyzer.ts
+  • src/parser.py
+  • cli/commands/analyze.ts
+
+Would reuse results from 97 unchanged file(s)
+
+Estimated time savings: ~97%
+
+Run without --dry-run to perform incremental analysis
+```
+
+**Validation**: Warning shown if `--dry-run` used without `--incremental`:
+
+```typescript
+if (options.dryRun && !options.incremental) {
+  display.warning("--dry-run requires --incremental flag");
+}
+```
+
+**Test coverage**: 8 comprehensive tests in `analyze-incremental-dry-run.test.ts`:
+
+```typescript
+test("shows dry-run preview with changed files", ...)
+test("calculates time savings percentage", ...)
+test("warns when --dry-run used without --incremental", ...)
+test("prevents analysis execution in dry-run mode", ...)
+test("prevents workflow state updates in dry-run mode", ...)
+```
+
+**Outcome**: Dry-run preview production-ready, provides visibility into incremental analysis without execution.
+
+### Phase 3.9: File-Level Checksum Staleness Detection
+
+**Status**: Complete (PR #387)
+
+**Goal**: More precise staleness detection based on per-file checksums, not just command timestamps.
+
+**Problem**: Original timestamp-based staleness detection was coarse-grained (entire command stale if re-run). File-level checksums enable detecting which specific files changed.
+
+**Implementation**:
+
+New `compareFileChecksums()` function in WorkflowValidator:
+
+```typescript
+// TypeScript: cli/src/utils/workflow-validator.ts
+function compareFileChecksums(
+  current: Record<string, string>,
+  previous: Record<string, string>
+): {
+  modified: string[];
+  added: string[];
+  removed: string[];
+} {
+  const modified: string[] = [];
+  const added: string[] = [];
+  const removed: string[] = [];
+
+  // Compare checksums for common files
+  for (const [filepath, checksum] of Object.entries(current)) {
+    if (!(filepath in previous)) {
+      added.push(filepath);
+    } else if (previous[filepath] !== checksum) {
+      modified.push(filepath);
+    }
+  }
+
+  // Find removed files
+  for (const filepath of Object.keys(previous)) {
+    if (!(filepath in current)) {
+      removed.push(filepath);
+    }
+  }
+
+  return { modified, added, removed };
+}
+```
+
+**Enhanced staleness logic**:
+
+```typescript
+// Before (timestamp-based):
+audit stale IF last_analyze.timestamp > last_audit.timestamp
+
+// After (checksum-based):
+audit stale IF ANY file in audit.file_checksums has different checksum in last_analyze.file_checksums
+```
+
+**Updated staleness warnings** (shows file counts):
+
+```
+Staleness Warnings:
+  • analyze is stale (2 files modified since last run)
+  • plan is stale (analyze re-run since plan generated)
+```
+
+**Test coverage**: 43 tests in `workflow-validator.test.ts`:
+
+```typescript
+describe("compareFileChecksums", () => {
+  test("detects modified files", ...)
+  test("detects added files", ...)
+  test("detects removed files", ...)
+  test("handles unchanged files", ...)
+  test("handles empty checksums", ...)
+});
+```
+
+**Benefits**:
+
+1. **File-granular detection**: Know exactly which files changed
+2. **More accurate**: Detects changes even without re-running analyze
+3. **Better UX**: Specific file counts in warnings ("2 files modified")
+4. **Conservative on removal**: File removal triggers staleness (safe default)
+
+**Outcome**: File-level checksum staleness detection production-ready and integrated into workflow validation.
+
+### Phase 3.10: docimp status Command
+
+**Status**: Complete (Issue #374, PR merged to main)
+
+**Goal**: Visualize workflow state at a glance with human-readable output.
+
+**Command**: `docimp status [--json]`
+
+**Implementation**:
+
+Three-layer architecture:
+
+1. **Python handler** (`analyzer/src/main.py:cmd_status`, lines 699-883):
+   - Loads workflow-state.json
+   - Runs validation checks (staleness, dependencies)
+   - Returns structured JSON to stdout
+
+2. **TypeScript bridge** (`cli/src/utils/python-bridge/python-bridge.ts`):
+   - Spawns Python subprocess
+   - Parses JSON response
+   - Returns `WorkflowStatusResult` to command layer
+
+3. **Command layer** (`cli/src/commands/status.ts`):
+   - Handles `--json` flag for raw output
+   - Delegates to `TerminalDisplay.showWorkflowStatus()` for formatted output
+
+**Display logic** (`cli/src/display/terminal-display.ts:showWorkflowStatus()`, lines 785-866):
+
+```typescript
+showWorkflowStatus(result: WorkflowStatusResult): void {
+  // Command status with relative timestamps
+  this.showCommandStatus("analyze", result.last_analyze);
+  this.showCommandStatus("audit", result.last_audit);
+  this.showCommandStatus("plan", result.last_plan);
+  this.showCommandStatus("improve", result.last_improve);
+
+  // Staleness warnings (file-level checksum-based)
+  if (result.staleness_warnings.length > 0) {
+    this.showStalenessWarnings(result.staleness_warnings);
+  }
+
+  // Actionable suggestions
+  if (result.suggestions.length > 0) {
+    this.showSuggestions(result.suggestions);
+  }
+}
+```
+
+**Output example**:
+
+```
+Workflow State (.docimp/workflow-state.json)
+
+analyze:  ✓ Run 2 hours ago (23 items, 5 files)
+audit:    ✓ Run 1 hour ago (18 items rated)
+plan:     ✓ Run 30 minutes ago (12 high-priority items)
+improve:  ✗ Not run yet
+
+Staleness Warnings:
+  • analyze is stale (2 files modified since last run)
+  • plan is stale (analyze re-run since plan generated)
+
+Suggestions:
+  → Run 'docimp analyze --incremental' to update analysis
+  → Run 'docimp plan' to regenerate plan with latest analysis
+```
+
+**JSON output** (`--json` flag):
+
+```json
+{
+  "schema_version": "1.0",
+  "last_analyze": {
+    "timestamp": "2025-11-12T14:30:00Z",
+    "item_count": 23,
+    "file_count": 5
+  },
+  "last_audit": {
+    "timestamp": "2025-11-12T15:30:00Z",
+    "item_count": 18
+  },
+  "staleness_warnings": [
+    {
+      "command": "analyze",
+      "reason": "2 files modified since last run"
+    }
+  ],
+  "suggestions": [
+    "Run 'docimp analyze --incremental' to update analysis"
+  ]
+}
+```
+
+**Test coverage**: 13 comprehensive tests in `status.test.ts`:
+
+```typescript
+test("shows empty workflow state", ...)
+test("shows partial workflow state", ...)
+test("shows full workflow state", ...)
+test("shows staleness warnings", ...)
+test("shows file modification warnings", ...)
+test("outputs JSON with --json flag", ...)
+test("handles missing workflow-state.json", ...)
+test("handles corrupted JSON", ...)
+```
+
+**Integration**: Uses Phase 3.9 file-level checksum staleness detection for accurate warnings.
+
+**Outcome**: Status command production-ready with colorful terminal output, JSON mode, and comprehensive test coverage.
