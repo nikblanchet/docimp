@@ -113,9 +113,9 @@ echo "Created 5 Python files (10 functions total)"
 
 # Test 1: Baseline analysis
 print_header "Test 1: Baseline analysis"
-echo "Running: docimpanalyze ./src"
+echo "Running: docimp analyze ./src"
 START_TIME=$(date +%s%3N)  # Milliseconds
-run_docimpanalyze ./src > /dev/null 2>&1
+docimp analyze ./src > /dev/null 2>&1
 BASELINE_TIME=$(( $(date +%s%3N) - START_TIME ))
 echo "Baseline analysis time: ${BASELINE_TIME}ms"
 
@@ -136,8 +136,8 @@ fi
 
 # Test 2: No changes - incremental should skip analysis
 print_header "Test 2: Incremental analysis with no changes"
-echo "Running: docimpanalyze ./src --incremental"
-OUTPUT=$(docimpanalyze ./src --incremental 2>&1)
+echo "Running: docimp analyze ./src --incremental"
+OUTPUT=$(docimp analyze ./src --incremental 2>&1)
 if echo "$OUTPUT" | grep -q "0 file(s) have changed"; then
     print_success "Detected 0 changed files"
 else
@@ -159,9 +159,9 @@ def function_new():
     return 99
 EOF
 
-echo "Running: docimpanalyze ./src --incremental"
+echo "Running: docimp analyze ./src --incremental"
 START_TIME=$(date +%s%3N)
-OUTPUT=$(docimpanalyze ./src --incremental 2>&1)
+OUTPUT=$(docimp analyze ./src --incremental 2>&1)
 INCREMENTAL_TIME=$(( $(date +%s%3N) - START_TIME ))
 echo "Incremental analysis time: ${INCREMENTAL_TIME}ms"
 
@@ -199,8 +199,8 @@ def function_another():
     return 88
 EOF
 
-echo "Running: docimpanalyze ./src --incremental --dry-run"
-OUTPUT=$(docimpanalyze ./src --incremental --dry-run 2>&1)
+echo "Running: docimp analyze ./src --incremental --dry-run"
+OUTPUT=$(docimp analyze ./src --incremental --dry-run 2>&1)
 
 if echo "$OUTPUT" | grep -q "dry run mode"; then
     print_success "Dry-run mode activated"
@@ -224,8 +224,8 @@ fi
 
 # Test 5: Actual incremental run after dry-run
 print_header "Test 5: Actual incremental analysis after dry-run"
-echo "Running: docimpanalyze ./src --incremental"
-OUTPUT=$(docimpanalyze ./src --incremental 2>&1)
+echo "Running: docimp analyze ./src --incremental"
+OUTPUT=$(docimp analyze ./src --incremental 2>&1)
 
 if echo "$OUTPUT" | grep -q "2 file(s) have changed"; then
     print_success "Detected 2 changed files (file1.py and file2.py)"
@@ -249,8 +249,8 @@ def function_eleven():
     return 11
 EOF
 
-echo "Running: docimpanalyze ./src --incremental"
-OUTPUT=$(docimpanalyze ./src --incremental 2>&1)
+echo "Running: docimp analyze ./src --incremental"
+OUTPUT=$(docimp analyze ./src --incremental 2>&1)
 
 # Check if new file detected
 NEW_FILE_COUNT=$(grep -o '"src/' .docimp/workflow-state.json | wc -l | tr -d ' ')
@@ -264,8 +264,8 @@ fi
 print_header "Test 7: Delete file"
 rm src/file6.py
 
-echo "Running: docimpanalyze ./src --incremental"
-OUTPUT=$(docimpanalyze ./src --incremental 2>&1)
+echo "Running: docimp analyze ./src --incremental"
+OUTPUT=$(docimp analyze ./src --incremental 2>&1)
 
 # Check if deleted file removed from checksums
 DELETED_FILE_COUNT=$(grep -o '"src/' .docimp/workflow-state.json | wc -l | tr -d ' ')
@@ -296,9 +296,9 @@ def function_modified():
     return 555
 EOF
 
-echo "Running: docimpanalyze ./src --incremental"
+echo "Running: docimp analyze ./src --incremental"
 START_TIME=$(date +%s%3N)
-OUTPUT=$(docimpanalyze ./src --incremental 2>&1)
+OUTPUT=$(docimp analyze ./src --incremental 2>&1)
 LARGE_INCREMENTAL_TIME=$(( $(date +%s%3N) - START_TIME ))
 
 if echo "$OUTPUT" | grep -q "file(s) have changed"; then
@@ -312,9 +312,9 @@ echo "Baseline time: ${BASELINE_TIME}ms"
 
 # Test 9: Full re-analysis for comparison
 print_header "Test 9: Full re-analysis (no --incremental)"
-echo "Running: docimpanalyze ./src (full analysis)"
+echo "Running: docimp analyze ./src (full analysis)"
 START_TIME=$(date +%s%3N)
-docimpanalyze ./src > /dev/null 2>&1
+docimp analyze ./src > /dev/null 2>&1
 FULL_REANALYSIS_TIME=$(( $(date +%s%3N) - START_TIME ))
 echo "Full re-analysis time: ${FULL_REANALYSIS_TIME}ms"
 

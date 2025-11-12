@@ -64,8 +64,8 @@ echo "Removed .docimp directory"
 
 # Test 1: Status with empty workflow state
 print_header "Test 1: Status with empty workflow state"
-echo "Running: docimpstatus"
-OUTPUT=$(docimpstatus 2>&1)
+echo "Running: docimp status"
+OUTPUT=$(docimp status 2>&1)
 
 if echo "$OUTPUT" | grep -q "Not run yet"; then
     print_success "Status shows 'Not run yet' for all commands"
@@ -75,11 +75,11 @@ fi
 
 # Test 2: Status after analyze
 print_header "Test 2: Status after running analyze"
-echo "Running: docimpanalyze ."
-docimpanalyze . > /dev/null 2>&1
+echo "Running: docimp analyze ."
+docimp analyze . > /dev/null 2>&1
 
-echo "Running: docimpstatus"
-OUTPUT=$(docimpstatus 2>&1)
+echo "Running: docimp status"
+OUTPUT=$(docimp status 2>&1)
 
 if echo "$OUTPUT" | grep -q "analyze.*Run"; then
     print_success "Status shows analyze as run"
@@ -103,11 +103,11 @@ fi
 
 # Test 3: Status after plan
 print_header "Test 3: Status after running plan"
-echo "Running: docimpplan ."
-docimpplan . > /dev/null 2>&1
+echo "Running: docimp plan ."
+docimp plan . > /dev/null 2>&1
 
-echo "Running: docimpstatus"
-OUTPUT=$(docimpstatus 2>&1)
+echo "Running: docimp status"
+OUTPUT=$(docimp status 2>&1)
 
 if echo "$OUTPUT" | grep -q "plan.*Run"; then
     print_success "Status shows plan as run"
@@ -129,8 +129,8 @@ echo "Modifying src/python/calculator.py"
 # Append a comment to trigger checksum change
 echo "# Modified for testing" >> src/python/calculator.py
 
-echo "Running: docimpstatus"
-OUTPUT=$(docimpstatus 2>&1)
+echo "Running: docimp status"
+OUTPUT=$(docimp status 2>&1)
 
 if echo "$OUTPUT" | grep -q -i "stale\|warning"; then
     print_success "Status shows staleness warning"
@@ -143,8 +143,8 @@ git checkout src/python/calculator.py 2>/dev/null || true
 
 # Test 5: JSON output format
 print_header "Test 5: JSON output validation"
-echo "Running: docimpstatus --json"
-JSON_OUTPUT=$(docimpstatus --json 2>&1)
+echo "Running: docimp status --json"
+JSON_OUTPUT=$(docimp status --json 2>&1)
 
 # Check if output is valid JSON
 if echo "$JSON_OUTPUT" | python3 -m json.tool > /dev/null 2>&1; then
@@ -168,8 +168,8 @@ fi
 
 # Test 6: Human-readable timestamps
 print_header "Test 6: Human-readable timestamp formatting"
-echo "Running: docimpstatus (check timestamp format)"
-OUTPUT=$(docimpstatus 2>&1)
+echo "Running: docimp status (check timestamp format)"
+OUTPUT=$(docimp status 2>&1)
 
 # Check for relative time format (e.g., "2 seconds ago", "just now", "1 minute ago")
 if echo "$OUTPUT" | grep -q -E "(second|minute|hour|just now|ago)"; then
@@ -182,8 +182,8 @@ fi
 print_header "Test 7: Actionable suggestions"
 # Clean state to trigger suggestions
 rm -rf .docimp
-echo "Running: docimpstatus (empty state)"
-OUTPUT=$(docimpstatus 2>&1)
+echo "Running: docimp status (empty state)"
+OUTPUT=$(docimp status 2>&1)
 
 if echo "$OUTPUT" | grep -q -i "suggest\|next\|run"; then
     print_success "Status provides actionable suggestions"
@@ -193,15 +193,15 @@ fi
 
 # Test 8: Status command performance
 print_header "Test 8: Status command performance"
-echo "Running: docimpanalyze ."
-docimpanalyze . > /dev/null 2>&1
+echo "Running: docimp analyze ."
+docimp analyze . > /dev/null 2>&1
 
-echo "Running: docimpplan ."
-docimpplan . > /dev/null 2>&1
+echo "Running: docimp plan ."
+docimp plan . > /dev/null 2>&1
 
 echo "Measuring status command execution time"
 START_TIME=$(date +%s%3N)  # Milliseconds
-docimpstatus > /dev/null 2>&1
+docimp status > /dev/null 2>&1
 END_TIME=$(date +%s%3N)
 DURATION=$(( END_TIME - START_TIME ))
 
@@ -251,12 +251,12 @@ fi
 # Test 10: Status with all commands run
 print_header "Test 10: Status with full workflow"
 echo "Simulating full workflow (analyze → audit → plan)"
-docimpanalyze . > /dev/null 2>&1
+docimp analyze . > /dev/null 2>&1
 # Skip audit since it's interactive and requires API key
-docimpplan . > /dev/null 2>&1
+docimp plan . > /dev/null 2>&1
 
-echo "Running: docimpstatus"
-OUTPUT=$(docimpstatus 2>&1)
+echo "Running: docimp status"
+OUTPUT=$(docimp status 2>&1)
 
 # Verify comprehensive output
 COMMAND_COUNT=$(echo "$OUTPUT" | grep -c "Run\|Not run" || true)
