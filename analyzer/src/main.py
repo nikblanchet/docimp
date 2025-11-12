@@ -52,10 +52,9 @@ def compare_file_checksums(
     """
     if not newer_state.file_checksums or not older_state.file_checksums:
         raise ValueError(
-            "Cannot compare file checksums: file_checksums missing "
-            "from command state. This may indicate legacy workflow "
-            "state data. Re-run analysis to update workflow state "
-            "with checksums."
+            "Cannot compare file checksums: file_checksums missing from command state. "
+            "This may indicate legacy workflow state data. "
+            "Re-run analysis to update workflow state with checksums."
         )
 
     changed_count = 0
