@@ -2,6 +2,10 @@
 
 This module provides the main entry point for running the analyzer from the
 command line. It uses argparse to handle subcommands and configuration.
+
+Workflow state management utilities:
+- compare_file_checksums: Detects modified/added/removed files between states
+- format_staleness_message: Consistent staleness warning formatting
 """
 
 import argparse
