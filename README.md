@@ -1609,7 +1609,7 @@ for full details.
 
 ## Project Status
 
-**Current Version**: 1.0.0-alpha
+**Current Version**: 1.0.6-α
 
 **MVP Scope**:
 
@@ -1721,8 +1721,8 @@ pipelines where you want to enforce clean syntax before analyzing documentation.
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/USERNAME/docimp/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/USERNAME/docimp/discussions)
+- **Issues**: [GitHub Issues](https://github.com/nikblanchet/docimp/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/nikblanchet/docimp/discussions)
 - **Documentation**: See README.md and inline documentation for complete usage guide
 
 ---
