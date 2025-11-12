@@ -25,6 +25,53 @@ from .writer.docstring_writer import DocstringWriter
 from .writer.transaction_manager import TransactionManager
 
 
+def compare_file_checksums(
+    newer_state: CommandState, older_state: CommandState
+) -> tuple[bool, int]:
+    """
+    Compare file checksums between two command states to detect changes.
+
+    Detects three types of changes:
+    - File modified: Same filepath, different checksum
+    - File removed: Present in older state, absent in newer state
+    - File added: Absent in older state, present in newer state
+
+    Args:
+        newer_state: Command state with more recent analysis results
+        older_state: Command state with older results to compare against
+
+    Returns:
+        Tuple of (hasChanges, changedCount)
+
+    Raises:
+        ValueError: If file_checksums is missing from either state
+    """
+    if not newer_state.file_checksums or not older_state.file_checksums:
+        raise ValueError(
+            "Cannot compare file checksums: file_checksums missing "
+            "from command state. This may indicate legacy workflow "
+            "state data. Re-run analysis to update workflow state "
+            "with checksums."
+        )
+
+    changed_count = 0
+
+    # Check for modified and removed files
+    for filepath, older_checksum in older_state.file_checksums.items():
+        if filepath in newer_state.file_checksums:
+            if newer_state.file_checksums[filepath] != older_checksum:
+                changed_count += 1  # File modified
+        else:
+            changed_count += 1  # File removed
+
+    # Check for added files
+    for filepath in newer_state.file_checksums:
+        if filepath not in older_state.file_checksums:
+            changed_count += 1  # File added
+
+    return (changed_count > 0, changed_count)
+
+
 def create_analyzer(parsers: dict, scorer: ImpactScorer) -> DocumentationAnalyzer:
     """Create a DocumentationAnalyzer with injected dependencies.
 
@@ -650,53 +697,6 @@ def cmd_status(args: argparse.Namespace) -> int:
                 workflow_data = json.load(f)
                 schema_version = workflow_data.get("schema_version", "legacy")
                 migration_available = schema_version != CURRENT_WORKFLOW_STATE_VERSION
-
-        # Helper to compare file checksums between two command states
-        def compare_file_checksums(
-            newer_state: "CommandState", older_state: "CommandState"
-        ) -> tuple[bool, int]:
-            """
-            Compare file checksums between two command states to detect changes.
-
-            Detects three types of changes:
-            - File modified: Same filepath, different checksum
-            - File removed: Present in older state, absent in newer state
-            - File added: Absent in older state, present in newer state
-
-            Args:
-                newer_state: Command state with more recent analysis results
-                older_state: Command state with older results to compare against
-
-            Returns:
-                Tuple of (hasChanges, changedCount)
-
-            Raises:
-                ValueError: If file_checksums is missing from either state
-            """
-            if not newer_state.file_checksums or not older_state.file_checksums:
-                raise ValueError(
-                    "Cannot compare file checksums: file_checksums missing "
-                    "from command state. This may indicate legacy workflow "
-                    "state data. Re-run analysis to update workflow state "
-                    "with checksums."
-                )
-
-            changed_count = 0
-
-            # Check for modified and removed files
-            for filepath, older_checksum in older_state.file_checksums.items():
-                if filepath in newer_state.file_checksums:
-                    if newer_state.file_checksums[filepath] != older_checksum:
-                        changed_count += 1  # File modified
-                else:
-                    changed_count += 1  # File removed
-
-            # Check for added files
-            for filepath in newer_state.file_checksums:
-                if filepath not in older_state.file_checksums:
-                    changed_count += 1  # File added
-
-            return (changed_count > 0, changed_count)
 
         # Helper to calculate staleness
         def is_stale(
