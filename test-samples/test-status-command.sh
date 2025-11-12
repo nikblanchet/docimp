@@ -67,8 +67,8 @@ print_header "Test 1: Status with empty workflow state"
 echo "Running: docimp status"
 OUTPUT=$(docimp status 2>&1 || true)  # Allow command to fail without exiting script
 
-if echo "$OUTPUT" | grep -q "Not run yet"; then
-    print_success "Status shows 'Not run yet' for all commands"
+if echo "$OUTPUT" | grep -q "not run"; then
+    print_success "Status shows 'not run' for all commands"
 else
     print_failure "Status should indicate commands not run yet"
 fi
@@ -81,7 +81,7 @@ docimp analyze . > /dev/null 2>&1
 echo "Running: docimp status"
 OUTPUT=$(docimp status 2>&1)
 
-if echo "$OUTPUT" | grep -q "analyze.*Run"; then
+if echo "$OUTPUT" | grep -q "analyze.*run"; then
     print_success "Status shows analyze as run"
 else
     print_failure "Status should show analyze timestamp"
@@ -109,14 +109,14 @@ docimp plan . > /dev/null 2>&1
 echo "Running: docimp status"
 OUTPUT=$(docimp status 2>&1)
 
-if echo "$OUTPUT" | grep -q "plan.*Run"; then
+if echo "$OUTPUT" | grep -q "plan.*run"; then
     print_success "Status shows plan as run"
 else
     print_failure "Status should show plan timestamp"
 fi
 
 # Both analyze and plan should show
-if echo "$OUTPUT" | grep -q "analyze.*Run" && echo "$OUTPUT" | grep -q "plan.*Run"; then
+if echo "$OUTPUT" | grep -q "analyze.*run" && echo "$OUTPUT" | grep -q "plan.*run"; then
     print_success "Status shows multiple commands"
 else
     print_failure "Status should show both analyze and plan"
@@ -259,7 +259,7 @@ echo "Running: docimp status"
 OUTPUT=$(docimp status 2>&1)
 
 # Verify comprehensive output
-COMMAND_COUNT=$(echo "$OUTPUT" | grep -c "Run\|Not run" || true)
+COMMAND_COUNT=$(echo "$OUTPUT" | grep -c "run\|not run" || true)
 if [ "$COMMAND_COUNT" -ge 4 ]; then
     print_success "Status shows all 4 commands (analyze, audit, plan, improve)"
 else
