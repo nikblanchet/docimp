@@ -72,6 +72,29 @@ def compare_file_checksums(
     return (changed_count > 0, changed_count)
 
 
+def format_staleness_message(command: str, reason: str, count: int | None = None) -> str:
+    """
+    Format staleness warning message with consistent pattern.
+
+    Args:
+        command: Command name that is stale (e.g., 'analyze', 'audit', 'plan')
+        reason: Reason for staleness (e.g., 'file(s) modified', 're-run since')
+        count: Optional file count for modified file messages
+
+    Returns:
+        Formatted staleness message
+
+    Examples:
+        >>> format_staleness_message('analyze', 'file(s) modified since last run', 3)
+        'analyze is stale (3 file(s) modified since last run)'
+        >>> format_staleness_message('audit', 're-run since audit')
+        'audit is stale (re-run since audit)'
+    """
+    if count is not None:
+        return f"{command} is stale ({count} {reason})"
+    return f"{command} is stale ({reason})"
+
+
 def create_analyzer(parsers: dict, scorer: ImpactScorer) -> DocumentationAnalyzer:
     """Create a DocumentationAnalyzer with injected dependencies.
 
@@ -724,12 +747,10 @@ def cmd_status(args: argparse.Namespace) -> int:
                 )
 
                 if has_changes:
-                    return (
-                        True,
-                        changed_count,
-                        f"{older_cmd} is stale "
-                        f"({changed_count} file(s) modified since {older_cmd})",
+                    message = format_staleness_message(
+                        older_cmd, f"file(s) modified since {older_cmd}", changed_count
                     )
+                    return (True, changed_count, message)
                 return False, 0, ""
             except ValueError:
                 # Fallback to timestamp comparison if checksums missing
@@ -742,11 +763,10 @@ def cmd_status(args: argparse.Namespace) -> int:
                 )
 
                 if newer_time > older_time:
-                    return (
-                        True,
-                        0,
-                        f"{older_cmd} is stale (analyze re-run since {older_cmd})",
+                    message = format_staleness_message(
+                        older_cmd, f"analyze re-run since {older_cmd}"
                     )
+                    return (True, 0, message)
                 return False, 0, ""
 
         # Detect file modifications since last analyze
@@ -793,7 +813,9 @@ def cmd_status(args: argparse.Namespace) -> int:
         # Check if analyze is stale (files modified)
         if state.last_analyze and file_mods > 0:
             staleness_warnings.append(
-                f"analyze is stale ({file_mods} file(s) modified since last run)"
+                format_staleness_message(
+                    "analyze", "file(s) modified since last run", file_mods
+                )
             )
 
         # Check if audit is stale (analyze re-run)
@@ -808,7 +830,7 @@ def cmd_status(args: argparse.Namespace) -> int:
 
         is_plan_stale_audit, _, msg = is_stale("audit", "plan")
         if is_plan_stale_audit:
-            staleness_warnings.append("plan is stale (audit re-run since plan)")
+            staleness_warnings.append(msg)
 
         # Build suggestions
         suggestions = []
