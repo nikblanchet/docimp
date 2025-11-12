@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
+import type { IWorkflowHistoryConfig } from '../config/i-config.js';
 import {
   applyMigrations,
   CURRENT_WORKFLOW_STATE_VERSION,
@@ -86,10 +87,15 @@ export class WorkflowStateManager {
 
   /**
    * Update the state for a specific command
+   *
+   * @param command - Command to update state for
+   * @param commandState - New state for the command
+   * @param historyConfig - Optional workflow history configuration for snapshot tracking
    */
   static async updateCommandState(
     command: 'analyze' | 'audit' | 'plan' | 'improve',
-    commandState: CommandState
+    commandState: CommandState,
+    historyConfig?: IWorkflowHistoryConfig
   ): Promise<void> {
     const state = await this.loadWorkflowState();
 
@@ -114,6 +120,16 @@ export class WorkflowStateManager {
     }
 
     await this.saveWorkflowState(state);
+
+    // Save history snapshot if enabled
+    if (historyConfig?.enabled) {
+      await this.saveHistorySnapshot(state);
+
+      // Rotate old snapshots using hybrid strategy
+      const maxSnapshots = historyConfig.maxSnapshots ?? 50;
+      const maxAgeDays = historyConfig.maxAgeDays ?? 30;
+      await this.rotateHistory(maxSnapshots, maxAgeDays);
+    }
   }
 
   /**
@@ -175,5 +191,115 @@ export class WorkflowStateManager {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Save a timestamped snapshot of workflow state to history directory
+   * Uses atomic write pattern (temp + rename) for safety
+   *
+   * @param state - Workflow state to snapshot
+   * @returns Path to the created snapshot file
+   */
+  static async saveHistorySnapshot(state: WorkflowState): Promise<string> {
+    // Generate cross-platform safe timestamp (replace : and . with -)
+    const timestamp = new Date().toISOString().replaceAll(/[:.]/g, '-');
+    const filename = `workflow-state-${timestamp}.json`;
+    const filepath = path.join(StateManager.getHistoryDir(), filename);
+    const temporaryPath = `${filepath}.tmp`;
+
+    // Ensure history directory exists
+    StateManager.ensureStateDir();
+
+    // Validate state against schema
+    const validated = WorkflowStateSchema.parse(state);
+
+    // Write to temp file first
+    await fs.writeFile(
+      temporaryPath,
+      JSON.stringify(validated, null, 2),
+      'utf8'
+    );
+
+    // Atomic rename
+    await fs.rename(temporaryPath, filepath);
+
+    return filepath;
+  }
+
+  /**
+   * List all workflow state history snapshots, sorted newest first
+   *
+   * @returns Array of snapshot file paths, sorted by timestamp (newest first)
+   */
+  static async listHistorySnapshots(): Promise<string[]> {
+    const historyDirectory = StateManager.getHistoryDir();
+
+    try {
+      const files = await fs.readdir(historyDirectory);
+
+      // Filter for workflow state snapshots only
+      const snapshots = files
+        .filter((f) => f.startsWith('workflow-state-') && f.endsWith('.json'))
+        .map((f) => path.join(historyDirectory, f))
+        .toSorted()
+        .toReversed(); // ISO 8601 timestamps are lexicographically sortable
+
+      return snapshots;
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        error.code === 'ENOENT'
+      ) {
+        // History directory doesn't exist yet - return empty array
+        return [];
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Rotate workflow history using hybrid strategy:
+   * - Keep last N snapshots (count limit)
+   * - Keep snapshots from last M days (time limit)
+   * - Delete snapshots that violate BOTH limits
+   *
+   * @param maxSnapshots - Maximum number of snapshots to keep (default: 50)
+   * @param maxAgeDays - Maximum age in days to keep snapshots (default: 30)
+   */
+  static async rotateHistory(
+    maxSnapshots: number = 50,
+    maxAgeDays: number = 30
+  ): Promise<void> {
+    const snapshots = await this.listHistorySnapshots();
+
+    if (snapshots.length === 0) {
+      return; // Nothing to rotate
+    }
+
+    // Calculate age threshold (Unix timestamp in milliseconds)
+    const now = Date.now();
+    const ageThresholdMs = maxAgeDays * 24 * 60 * 60 * 1000;
+    const ageThreshold = now - ageThresholdMs;
+
+    const toDelete: string[] = [];
+
+    for (const [i, snapshot] of snapshots.entries()) {
+
+      // Get file modification time
+      const stats = await fs.stat(snapshot);
+      const fileAge = stats.mtimeMs;
+
+      // Hybrid logic: Delete if BOTH conditions are violated
+      const violatesCountLimit = i >= maxSnapshots; // Index-based (0-indexed)
+      const violatesTimeLimit = fileAge < ageThreshold;
+
+      if (violatesCountLimit || violatesTimeLimit) {
+        toDelete.push(snapshot);
+      }
+    }
+
+    // Delete snapshots that violate limits
+    await Promise.all(toDelete.map((snapshot) => fs.unlink(snapshot)));
   }
 }
