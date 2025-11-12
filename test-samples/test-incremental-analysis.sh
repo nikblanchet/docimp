@@ -58,13 +58,13 @@ cd "$(dirname "$0")/example-project" || exit 1
 
 # Clean up from previous runs
 print_header "Cleaning up from previous runs"
-rm -rf .docimp
-echo "Removed .docimp directory"
+rm -rf .docimp test-incremental
+echo "Removed .docimp and test-incremental directories"
 
-# Create test files
+# Create test files in isolated directory
 print_header "Creating test files for incremental analysis"
-mkdir -p src
-cat > src/file1.py << 'EOF'
+mkdir -p test-incremental
+cat > test-incremental/file1.py << 'EOF'
 def function_one():
     """Documented function one"""
     return 1
@@ -73,7 +73,7 @@ def function_two():
     return 2
 EOF
 
-cat > src/file2.py << 'EOF'
+cat > test-incremental/file2.py << 'EOF'
 def function_three():
     """Documented function three"""
     return 3
@@ -82,7 +82,7 @@ def function_four():
     return 4
 EOF
 
-cat > src/file3.py << 'EOF'
+cat > test-incremental/file3.py << 'EOF'
 def function_five():
     """Documented function five"""
     return 5
@@ -91,7 +91,7 @@ def function_six():
     return 6
 EOF
 
-cat > src/file4.py << 'EOF'
+cat > test-incremental/file4.py << 'EOF'
 def function_seven():
     """Documented function seven"""
     return 7
@@ -100,7 +100,7 @@ def function_eight():
     return 8
 EOF
 
-cat > src/file5.py << 'EOF'
+cat > test-incremental/file5.py << 'EOF'
 def function_nine():
     """Documented function nine"""
     return 9
@@ -113,9 +113,9 @@ echo "Created 5 Python files (10 functions total)"
 
 # Test 1: Baseline analysis
 print_header "Test 1: Baseline analysis"
-echo "Running: docimp analyze ./src"
+echo "Running: docimp analyze ./test-incremental"
 START_TIME=$(date +%s%3N)  # Milliseconds
-docimp analyze ./src > /dev/null 2>&1
+docimp analyze ./test-incremental > /dev/null 2>&1
 BASELINE_TIME=$(( $(date +%s%3N) - START_TIME ))
 echo "Baseline analysis time: ${BASELINE_TIME}ms"
 
@@ -127,7 +127,7 @@ else
 fi
 
 # Verify all 5 files in checksums
-CHECKSUM_COUNT=$(grep -o '"src/' .docimp/workflow-state.json | wc -l | tr -d ' ')
+CHECKSUM_COUNT=$(grep -o '"test-incremental/' .docimp/workflow-state.json | wc -l | tr -d ' ')
 if [ "$CHECKSUM_COUNT" -eq 5 ]; then
     print_success "All 5 files tracked in workflow state checksums"
 else
@@ -136,8 +136,8 @@ fi
 
 # Test 2: No changes - incremental should skip analysis
 print_header "Test 2: Incremental analysis with no changes"
-echo "Running: docimp analyze ./src --incremental"
-OUTPUT=$(docimp analyze ./src --incremental 2>&1)
+echo "Running: docimp analyze ./test-incremental --incremental"
+OUTPUT=$(docimp analyze ./test-incremental --incremental 2>&1)
 if echo "$OUTPUT" | grep -q "0 file(s) have changed"; then
     print_success "Detected 0 changed files"
 else
@@ -146,8 +146,8 @@ fi
 
 # Test 3: Modify 1 file (20% of files)
 print_header "Test 3: Modify 1 file and run incremental analysis"
-echo "Modifying src/file1.py"
-cat > src/file1.py << 'EOF'
+echo "Modifying test-incremental/file1.py"
+cat > test-incremental/file1.py << 'EOF'
 def function_one():
     """Documented function one"""
     return 1
@@ -159,9 +159,9 @@ def function_new():
     return 99
 EOF
 
-echo "Running: docimp analyze ./src --incremental"
+echo "Running: docimp analyze ./test-incremental --incremental"
 START_TIME=$(date +%s%3N)
-OUTPUT=$(docimp analyze ./src --incremental 2>&1)
+OUTPUT=$(docimp analyze ./test-incremental --incremental 2>&1)
 INCREMENTAL_TIME=$(( $(date +%s%3N) - START_TIME ))
 echo "Incremental analysis time: ${INCREMENTAL_TIME}ms"
 
@@ -186,8 +186,8 @@ fi
 
 # Test 4: Dry-run preview
 print_header "Test 4: Dry-run preview"
-echo "Modifying src/file2.py"
-cat > src/file2.py << 'EOF'
+echo "Modifying test-incremental/file2.py"
+cat > test-incremental/file2.py << 'EOF'
 def function_three():
     """Documented function three"""
     return 3
@@ -199,8 +199,8 @@ def function_another():
     return 88
 EOF
 
-echo "Running: docimp analyze ./src --incremental --dry-run"
-OUTPUT=$(docimp analyze ./src --incremental --dry-run 2>&1)
+echo "Running: docimp analyze ./test-incremental --incremental --dry-run"
+OUTPUT=$(docimp analyze ./test-incremental --incremental --dry-run 2>&1)
 
 if echo "$OUTPUT" | grep -q "dry run mode"; then
     print_success "Dry-run mode activated"
@@ -215,7 +215,7 @@ else
 fi
 
 # Verify workflow state NOT updated by dry-run
-CHECKSUM_BEFORE=$(grep '"src/file2.py"' .docimp/workflow-state.json)
+CHECKSUM_BEFORE=$(grep '"test-incremental/file2.py"' .docimp/workflow-state.json)
 if [ -n "$CHECKSUM_BEFORE" ]; then
     print_success "Dry-run did not modify workflow state"
 else
@@ -224,8 +224,8 @@ fi
 
 # Test 5: Actual incremental run after dry-run
 print_header "Test 5: Actual incremental analysis after dry-run"
-echo "Running: docimp analyze ./src --incremental"
-OUTPUT=$(docimp analyze ./src --incremental 2>&1)
+echo "Running: docimp analyze ./test-incremental --incremental"
+OUTPUT=$(docimp analyze ./test-incremental --incremental 2>&1)
 
 if echo "$OUTPUT" | grep -q "2 file(s) have changed"; then
     print_success "Detected 2 changed files (file1.py and file2.py)"
@@ -234,7 +234,7 @@ else
 fi
 
 # Verify workflow state updated
-CHECKSUM_AFTER=$(grep '"src/file2.py"' .docimp/workflow-state.json)
+CHECKSUM_AFTER=$(grep '"test-incremental/file2.py"' .docimp/workflow-state.json)
 if [ "$CHECKSUM_AFTER" != "$CHECKSUM_BEFORE" ]; then
     print_success "Workflow state updated with new checksums"
 else
@@ -243,17 +243,17 @@ fi
 
 # Test 6: Add new file
 print_header "Test 6: Add new file"
-cat > src/file6.py << 'EOF'
+cat > test-incremental/file6.py << 'EOF'
 def function_eleven():
     """Documented function eleven"""
     return 11
 EOF
 
-echo "Running: docimp analyze ./src --incremental"
-OUTPUT=$(docimp analyze ./src --incremental 2>&1)
+echo "Running: docimp analyze ./test-incremental --incremental"
+OUTPUT=$(docimp analyze ./test-incremental --incremental 2>&1)
 
 # Check if new file detected
-NEW_FILE_COUNT=$(grep -o '"src/' .docimp/workflow-state.json | wc -l | tr -d ' ')
+NEW_FILE_COUNT=$(grep -o '"test-incremental/' .docimp/workflow-state.json | wc -l | tr -d ' ')
 if [ "$NEW_FILE_COUNT" -eq 6 ]; then
     print_success "New file added to workflow state (now 6 files)"
 else
@@ -262,13 +262,13 @@ fi
 
 # Test 7: Delete file
 print_header "Test 7: Delete file"
-rm src/file6.py
+rm test-incremental/file6.py
 
-echo "Running: docimp analyze ./src --incremental"
-OUTPUT=$(docimp analyze ./src --incremental 2>&1)
+echo "Running: docimp analyze ./test-incremental --incremental"
+OUTPUT=$(docimp analyze ./test-incremental --incremental 2>&1)
 
 # Check if deleted file removed from checksums
-DELETED_FILE_COUNT=$(grep -o '"src/' .docimp/workflow-state.json | wc -l | tr -d ' ')
+DELETED_FILE_COUNT=$(grep -o '"test-incremental/' .docimp/workflow-state.json | wc -l | tr -d ' ')
 if [ "$DELETED_FILE_COUNT" -eq 5 ]; then
     print_success "Deleted file removed from workflow state (back to 5 files)"
 else
@@ -278,27 +278,27 @@ fi
 # Test 8: Large-scale modification (verify behavior, not strict 90% savings due to small dataset)
 print_header "Test 8: Multiple file modifications"
 echo "Modifying 3 more files (60% of files)"
-cat >> src/file3.py << 'EOF'
+cat >> test-incremental/file3.py << 'EOF'
 
 def function_modified():
     return 333
 EOF
 
-cat >> src/file4.py << 'EOF'
+cat >> test-incremental/file4.py << 'EOF'
 
 def function_modified():
     return 444
 EOF
 
-cat >> src/file5.py << 'EOF'
+cat >> test-incremental/file5.py << 'EOF'
 
 def function_modified():
     return 555
 EOF
 
-echo "Running: docimp analyze ./src --incremental"
+echo "Running: docimp analyze ./test-incremental --incremental"
 START_TIME=$(date +%s%3N)
-OUTPUT=$(docimp analyze ./src --incremental 2>&1)
+OUTPUT=$(docimp analyze ./test-incremental --incremental 2>&1)
 LARGE_INCREMENTAL_TIME=$(( $(date +%s%3N) - START_TIME ))
 
 if echo "$OUTPUT" | grep -q "file(s) have changed"; then
@@ -312,9 +312,9 @@ echo "Baseline time: ${BASELINE_TIME}ms"
 
 # Test 9: Full re-analysis for comparison
 print_header "Test 9: Full re-analysis (no --incremental)"
-echo "Running: docimp analyze ./src (full analysis)"
+echo "Running: docimp analyze ./test-incremental (full analysis)"
 START_TIME=$(date +%s%3N)
-docimp analyze ./src > /dev/null 2>&1
+docimp analyze ./test-incremental > /dev/null 2>&1
 FULL_REANALYSIS_TIME=$(( $(date +%s%3N) - START_TIME ))
 echo "Full re-analysis time: ${FULL_REANALYSIS_TIME}ms"
 
