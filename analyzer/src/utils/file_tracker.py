@@ -133,9 +133,7 @@ class FileTracker:
         return snapshots
 
     @staticmethod
-    def _check_file_changed(
-        filepath: str, old_snapshot: FileSnapshot
-    ) -> str | None:
+    def _check_file_changed(filepath: str, old_snapshot: FileSnapshot) -> str | None:
         """Check if a single file has changed since snapshot.
 
         Args:
