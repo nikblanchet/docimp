@@ -26,6 +26,8 @@ export const FileTracker = {
   /**
    * Create snapshots of files for modification detection.
    *
+   * Checksums are calculated in parallel for improved performance on large file sets.
+   *
    * @param filepaths - List of file paths to snapshot
    * @returns Mapping of filepath to FileSnapshot
    *
@@ -34,16 +36,15 @@ export const FileTracker = {
   async createSnapshot(
     filepaths: string[]
   ): Promise<Record<string, FileSnapshot>> {
-    const snapshots: Record<string, FileSnapshot> = {};
-
-    for (const filepath of filepaths) {
+    // Process all files in parallel
+    const snapshotPromises = filepaths.map(async (filepath) => {
       try {
         // Get file metadata
         const stats = await fs.stat(filepath);
 
         // Skip if not a regular file
         if (!stats.isFile()) {
-          continue;
+          return null;
         }
 
         const timestamp = stats.mtimeMs;
@@ -56,7 +57,7 @@ export const FileTracker = {
         const checksum = hash.digest('hex');
 
         // Create snapshot
-        snapshots[filepath] = {
+        return {
           filepath,
           timestamp,
           checksum,
@@ -69,7 +70,18 @@ export const FileTracker = {
           console.warn(`Warning: Permission denied when reading ${filepath}`);
         }
         // Skip files we can't read (permission errors, non-existent files, etc.)
-        continue;
+        return null;
+      }
+    });
+
+    // Wait for all snapshot operations to complete
+    const results = await Promise.all(snapshotPromises);
+
+    // Convert array to record, filtering out null entries
+    const snapshots: Record<string, FileSnapshot> = {};
+    for (const snapshot of results) {
+      if (snapshot !== null) {
+        snapshots[snapshot.filepath] = snapshot;
       }
     }
 
@@ -85,6 +97,8 @@ export const FileTracker = {
    *
    * Timestamp-only changes (same checksum) are NOT considered modifications.
    *
+   * Checksums are recalculated in parallel for improved performance on large file sets.
+   *
    * Note: Missing files and permission errors are both treated as changes
    * to trigger re-analysis. This matches Python implementation behavior.
    *
@@ -94,41 +108,50 @@ export const FileTracker = {
   async detectChanges(
     snapshot: Record<string, FileSnapshot>
   ): Promise<string[]> {
-    const changedFiles: string[] = [];
+    // Check all files in parallel
+    const changePromises = Object.entries(snapshot).map(
+      async ([filepath, oldSnapshot]) => {
+        try {
+          // Check if file still exists
+          await fs.access(filepath);
 
-    for (const [filepath, oldSnapshot] of Object.entries(snapshot)) {
-      try {
-        // Check if file still exists
-        await fs.access(filepath);
+          // Recompute checksum
+          const fileBuffer = await fs.readFile(filepath);
+          const hash = createHash('sha256');
+          hash.update(fileBuffer);
+          const newChecksum = hash.digest('hex');
 
-        // Recompute checksum
-        const fileBuffer = await fs.readFile(filepath);
-        const hash = createHash('sha256');
-        hash.update(fileBuffer);
-        const newChecksum = hash.digest('hex');
-
-        // Compare checksums (timestamp changes alone don't count)
-        if (newChecksum !== oldSnapshot.checksum) {
-          changedFiles.push(filepath);
-        }
-      } catch (error) {
-        const nodeError = error as NodeJS.ErrnoException;
-        // Handle different error types explicitly (matches Python implementation)
-        if (nodeError.code === 'ENOENT') {
-          // File deleted - mark as changed
-          changedFiles.push(filepath);
-        } else if (nodeError.code === 'EACCES' || nodeError.code === 'EPERM') {
-          // Permission denied - log warning and mark as changed
-          console.warn(`Warning: Permission denied when reading ${filepath}`);
-          changedFiles.push(filepath);
-        } else {
-          // Other errors (OS errors, etc.) - mark as changed
-          changedFiles.push(filepath);
+          // Compare checksums (timestamp changes alone don't count)
+          if (newChecksum !== oldSnapshot.checksum) {
+            return filepath;
+          }
+          return null;
+        } catch (error) {
+          const nodeError = error as NodeJS.ErrnoException;
+          // Handle different error types explicitly (matches Python implementation)
+          if (nodeError.code === 'ENOENT') {
+            // File deleted - mark as changed
+            return filepath;
+          } else if (
+            nodeError.code === 'EACCES' ||
+            nodeError.code === 'EPERM'
+          ) {
+            // Permission denied - log warning and mark as changed
+            console.warn(`Warning: Permission denied when reading ${filepath}`);
+            return filepath;
+          } else {
+            // Other errors (OS errors, etc.) - mark as changed
+            return filepath;
+          }
         }
       }
-    }
+    );
 
-    return changedFiles;
+    // Wait for all change detection operations to complete
+    const results = await Promise.all(changePromises);
+
+    // Filter out null entries (unchanged files)
+    return results.filter((filepath): filepath is string => filepath !== null);
   },
 
   /**

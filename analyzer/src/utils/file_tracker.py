@@ -5,6 +5,7 @@ Provides checksum and timestamp-based file modification detection for session re
 
 import hashlib
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -52,8 +53,57 @@ class FileTracker:
     """Tracks file modifications using checksums and timestamps."""
 
     @staticmethod
+    def _compute_snapshot(filepath: str) -> FileSnapshot | None:
+        """Compute snapshot for a single file.
+
+        Args:
+            filepath: Path to file
+
+        Returns:
+            FileSnapshot or None if file cannot be read
+        """
+        path = Path(filepath)
+
+        # Skip if file doesn't exist or is not readable
+        if not path.exists() or not path.is_file():
+            return None
+
+        try:
+            # Get file metadata
+            stat = path.stat()
+            timestamp = stat.st_mtime
+            size = stat.st_size
+
+            # Compute SHA256 checksum
+            sha256_hash = hashlib.sha256()
+            with path.open("rb") as f:
+                # Read in chunks to handle large files efficiently
+                for chunk in iter(lambda: f.read(8192), b""):
+                    sha256_hash.update(chunk)
+            checksum = sha256_hash.hexdigest()
+
+            # Create snapshot
+            return FileSnapshot(
+                filepath=filepath,
+                timestamp=timestamp,
+                checksum=checksum,
+                size=size,
+            )
+
+        except PermissionError:
+            # Log permission errors but continue with other files
+            logger.warning(f"Permission denied when reading {filepath}")
+            return None
+        except OSError:
+            # Skip other OS errors (e.g., file is a directory)
+            return None
+
+    @staticmethod
     def create_snapshot(filepaths: list[str]) -> dict[str, FileSnapshot]:
         """Create snapshots of files for modification detection.
+
+        Checksums are calculated in parallel for improved performance
+        on large file sets.
 
         Args:
             filepaths: List of file paths to snapshot
@@ -66,44 +116,59 @@ class FileTracker:
         """
         snapshots: dict[str, FileSnapshot] = {}
 
-        for filepath in filepaths:
-            path = Path(filepath)
+        # Process files in parallel using thread pool
+        with ThreadPoolExecutor() as executor:
+            # Submit all file processing tasks
+            future_to_filepath = {
+                executor.submit(FileTracker._compute_snapshot, fp): fp
+                for fp in filepaths
+            }
 
-            # Skip if file doesn't exist or is not readable
-            if not path.exists() or not path.is_file():
-                continue
-
-            try:
-                # Get file metadata
-                stat = path.stat()
-                timestamp = stat.st_mtime
-                size = stat.st_size
-
-                # Compute SHA256 checksum
-                sha256_hash = hashlib.sha256()
-                with path.open("rb") as f:
-                    # Read in chunks to handle large files efficiently
-                    for chunk in iter(lambda: f.read(8192), b""):
-                        sha256_hash.update(chunk)
-                checksum = sha256_hash.hexdigest()
-
-                # Create snapshot
-                snapshots[filepath] = FileSnapshot(
-                    filepath=filepath,
-                    timestamp=timestamp,
-                    checksum=checksum,
-                    size=size,
-                )
-
-            except PermissionError:
-                # Log permission errors but continue with other files
-                logger.warning(f"Permission denied when reading {filepath}")
-                continue
-            except OSError:
-                # Skip other OS errors (e.g., file is a directory)
-                continue
+            # Collect results as they complete
+            for future in as_completed(future_to_filepath):
+                snapshot = future.result()
+                if snapshot is not None:
+                    snapshots[snapshot.filepath] = snapshot
 
         return snapshots
+
+    @staticmethod
+    def _check_file_changed(filepath: str, old_snapshot: FileSnapshot) -> str | None:
+        """Check if a single file has changed since snapshot.
+
+        Args:
+            filepath: Path to file
+            old_snapshot: Previous snapshot to compare against
+
+        Returns:
+            Filepath if changed, None if unchanged
+        """
+        path = Path(filepath)
+
+        # File deleted
+        if not path.exists():
+            return filepath
+
+        try:
+            # Recompute checksum
+            sha256_hash = hashlib.sha256()
+            with path.open("rb") as f:
+                for chunk in iter(lambda: f.read(8192), b""):
+                    sha256_hash.update(chunk)
+            new_checksum = sha256_hash.hexdigest()
+
+            # Compare checksums (timestamp changes alone don't count)
+            if new_checksum != old_snapshot.checksum:
+                return filepath
+            return None
+
+        except PermissionError:
+            # Log permission errors
+            logger.warning(f"Permission denied when reading {filepath}")
+            return filepath
+        except OSError:
+            # Can't read file for other reasons - consider it changed
+            return filepath
 
     @staticmethod
     def detect_changes(snapshot: dict[str, FileSnapshot]) -> list[str]:
@@ -116,6 +181,9 @@ class FileTracker:
 
         Timestamp-only changes (same checksum) are NOT considered modifications.
 
+        Checksums are recalculated in parallel for improved performance
+        on large file sets.
+
         Args:
             snapshot: File snapshots from create_snapshot()
 
@@ -124,33 +192,21 @@ class FileTracker:
         """
         changed_files: list[str] = []
 
-        for filepath, old_snapshot in snapshot.items():
-            path = Path(filepath)
+        # Process files in parallel using thread pool
+        with ThreadPoolExecutor() as executor:
+            # Submit all change detection tasks
+            future_to_filepath = {
+                executor.submit(
+                    FileTracker._check_file_changed, filepath, old_snapshot
+                ): filepath
+                for filepath, old_snapshot in snapshot.items()
+            }
 
-            # File deleted
-            if not path.exists():
-                changed_files.append(filepath)
-                continue
-
-            try:
-                # Recompute checksum
-                sha256_hash = hashlib.sha256()
-                with path.open("rb") as f:
-                    for chunk in iter(lambda: f.read(8192), b""):
-                        sha256_hash.update(chunk)
-                new_checksum = sha256_hash.hexdigest()
-
-                # Compare checksums (timestamp changes alone don't count)
-                if new_checksum != old_snapshot.checksum:
-                    changed_files.append(filepath)
-
-            except PermissionError:
-                # Log permission errors
-                logger.warning(f"Permission denied when reading {filepath}")
-                changed_files.append(filepath)
-            except OSError:
-                # Can't read file for other reasons - consider it changed
-                changed_files.append(filepath)
+            # Collect results as they complete
+            for future in as_completed(future_to_filepath):
+                result = future.result()
+                if result is not None:
+                    changed_files.append(result)
 
         return changed_files
 
