@@ -13,32 +13,30 @@ import * as path from 'node:path';
 import os from 'node:os';
 import { WorkflowStateManager } from '../utils/workflow-state-manager';
 import { WorkflowValidator } from '../utils/workflow-validator';
+import { StateManager } from '../utils/state-manager';
 import type { WorkflowState } from '../types/workflow-state';
 
 describe('Performance Benchmarks', () => {
   let tempDir: string;
-  let originalCwd: string;
+  let getStateDirSpy: jest.SpyInstance;
 
   beforeEach(async () => {
-    originalCwd = process.cwd();
     tempDir = path.join(
       os.tmpdir(),
       `docimp-bench-${Date.now()}-${Math.random().toString(36).slice(2)}`
     );
-    await fs.mkdir(tempDir, { recursive: true });
-    process.chdir(tempDir);
-
-    // Create .docimp directory
     const docimpDir = path.join(tempDir, '.docimp');
     await fs.mkdir(docimpDir, { recursive: true });
+
+    // Mock StateManager.getStateDir() to return our temp directory
+    // This avoids changing process.cwd() which causes race conditions in CI
+    getStateDirSpy = jest
+      .spyOn(StateManager, 'getStateDir')
+      .mockReturnValue(docimpDir);
   });
 
   afterEach(async () => {
-    try {
-      process.chdir(originalCwd);
-    } catch {
-      // Ignore if directory no longer exists
-    }
+    getStateDirSpy.mockRestore();
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
