@@ -390,6 +390,29 @@ describe('WorkflowValidator', () => {
         'Cannot compare file checksums'
       );
     });
+
+    it('should handle legacy workflow state with empty checksums', () => {
+      // This test verifies the error is thrown (not silently swallowed)
+      const legacyState = createCommandState(5, {}); // Empty checksums
+      const newerState = createCommandState(3, {});
+
+      expect(() => compareFileChecksums(newerState, legacyState)).toThrow(
+        'file_checksums missing from command state'
+      );
+    });
+
+    it('should throw error with actionable message for legacy data', () => {
+      const legacyState = createCommandState(10, {});
+      const newerState = createCommandState(10, { 'file.ts': 'abc123' });
+
+      expect(() => compareFileChecksums(newerState, legacyState)).toThrow(
+        'This may indicate legacy workflow state data'
+      );
+
+      expect(() => compareFileChecksums(newerState, legacyState)).toThrow(
+        'Re-run analysis to update workflow state with checksums'
+      );
+    });
   });
 
   describe('isAuditStale', () => {

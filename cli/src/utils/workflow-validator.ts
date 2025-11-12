@@ -86,7 +86,12 @@ export function compareFileChecksums(
   newerState: CommandState,
   olderState: CommandState
 ): ChecksumComparisonResult {
-  if (!newerState.file_checksums || !olderState.file_checksums) {
+  if (
+    !newerState.file_checksums ||
+    !olderState.file_checksums ||
+    Object.keys(newerState.file_checksums).length === 0 ||
+    Object.keys(olderState.file_checksums).length === 0
+  ) {
     throw new Error(
       'Cannot compare file checksums: file_checksums missing from command state. ' +
         'This may indicate legacy workflow state data. ' +
