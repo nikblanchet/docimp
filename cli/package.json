@@ -1,6 +1,6 @@
 {
   "name": "docimp-cli",
-  "version": "1.1.0-β",
+  "version": "1.1.0-beta.1",
   "description": "TypeScript CLI for DocImp - impact-driven documentation coverage tool",
   "type": "module",
   "main": "dist/index.js",
