@@ -1,6 +1,6 @@
 [project]
 name = "docimp-analyzer"
-version = "0.2.0"
+version = "1.1.0-β"
 description = "Python analysis engine for DocImp - impact-driven documentation coverage tool"
 readme = "README.md"
 requires-python = ">=3.13"
