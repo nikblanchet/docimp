@@ -107,7 +107,7 @@ Would re-analyze 5 file(s):
 
 Would reuse results from 995 unchanged file(s)
 
-Estimated time savings: ~99%
+Estimated time savings: ~95%
 
 Run without --dry-run to perform incremental analysis
 ```
@@ -157,6 +157,8 @@ docimp improve ./src
 ### Audit-Driven Workflows: Quality Ratings Affect Priority
 
 **Scenario**: You want documentation quality ratings to influence which items get documented first.
+
+**Prerequisites**: This workflow requires a completed `docimp analyze` run. The audit command validates analyze results exist before proceeding.
 
 **Workflow**:
 
@@ -528,9 +530,19 @@ docimp status                     # Should show no warnings
 └──────┬──────────────────────────────────┘
        ↓
 ┌─────────────────────────────────────────┐
+│  docimp status                          │
+│  Shows: analyze ✓ Run (250 items)       │
+└──────┬──────────────────────────────────┘
+       ↓
+┌─────────────────────────────────────────┐
 │  docimp audit ./src                     │
 │  Interactive: Rate 50 items (1-4)       │
 │  Creates: audit.json                    │
+└──────┬──────────────────────────────────┘
+       ↓
+┌─────────────────────────────────────────┐
+│  docimp status                          │
+│  Shows: analyze ✓, audit ✓ (50 rated)   │
 └──────┬──────────────────────────────────┘
        ↓
 ┌─────────────────────────────────────────┐
@@ -543,6 +555,11 @@ docimp status                     # Should show no warnings
 │  docimp plan ./src                      │
 │  Priority: Terrible(1) > No docs > Good │
 │  Creates: plan.json with 30 items       │
+└──────┬──────────────────────────────────┘
+       ↓
+┌─────────────────────────────────────────┐
+│  docimp status                          │
+│  Shows: All commands complete           │
 └──────┬──────────────────────────────────┘
        ↓
 ┌─────────────────────────────────────────┐
@@ -609,8 +626,8 @@ This script performs manual testing with:
 - Real-world command sequences
 
 **Test file locations**:
-- Integration tests: `cli/src/__tests__/integration/workflow-state-integration.test.ts`
-- Bash script: `test-samples/test-workflow-state-integration.sh`
+- Integration tests: [`cli/src/__tests__/integration/workflow-state-integration.test.ts`](../../cli/src/__tests__/integration/workflow-state-integration.test.ts)
+- Bash script: [`test-samples/test-workflow-state-integration.sh`](../../test-samples/test-workflow-state-integration.sh)
 
 ### What integration tests cover workflow state?
 
@@ -715,7 +732,7 @@ it('should only re-analyze modified files', async () => {
 });
 ```
 
-**Full test file**: See `cli/src/__tests__/integration/workflow-state-integration.test.ts` for all 18 test cases.
+**Full test file**: See [`cli/src/__tests__/integration/workflow-state-integration.test.ts`](../../cli/src/__tests__/integration/workflow-state-integration.test.ts) for all 18 test cases.
 
 ## Advanced Tips
 
