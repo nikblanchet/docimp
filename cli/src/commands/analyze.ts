@@ -125,6 +125,11 @@ async function handleIncrementalAnalysis(
     return previousResult;
   }
 
+  // Always show change detection message for incremental analysis
+  display.showMessage(
+    `Incremental analysis: ${changedFiles.length} file(s) have changed`
+  );
+
   if (changedFiles.length === 0) {
     if (options.verbose) {
       display.showMessage(
@@ -409,14 +414,17 @@ export async function analyzeCore(
   StateManager.ensureStateDir();
 
   // Smart auto-clean: check if audit.json exists and prompt user
-  const shouldClean = await handleSmartAutoClean(options, display);
+  // Skip clearing for incremental analysis (needs previous analyze-latest.json)
+  const shouldClean = options.incremental
+    ? false
+    : await handleSmartAutoClean(options, display);
 
   if (shouldClean) {
     const filesRemoved = StateManager.clearSessionReports();
     if (filesRemoved > 0 && options.verbose) {
       display.showMessage(`Cleared ${filesRemoved} previous session report(s)`);
     }
-  } else if (options.verbose) {
+  } else if (options.verbose && !options.incremental) {
     display.showMessage('Keeping previous session reports');
   }
 
