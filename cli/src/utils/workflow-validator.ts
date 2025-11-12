@@ -129,6 +129,42 @@ export function compareFileChecksums(
 }
 
 /**
+ * Format staleness warning message with consistent pattern
+ *
+ * Generates a user-friendly warning message when workflow data is stale.
+ * Includes file count and actionable suggestion.
+ *
+ * @param commandName - Command that is stale (e.g., 'audit', 'plan')
+ * @param changedCount - Number of files modified
+ * @param suggestion - Actionable suggestion for user
+ * @returns Formatted warning message
+ *
+ * @example
+ * ```typescript
+ * const message = formatStalenessWarning(
+ *   'audit',
+ *   3,
+ *   "Consider re-running 'docimp audit' to refresh ratings."
+ * );
+ * // Returns:
+ * // "\nWarning: Audit data may be stale (3 file(s) modified since audit).\n" +
+ * // "Consider re-running 'docimp audit' to refresh ratings.\n" +
+ * // "(See Issue #386 for future --verbose flag to show detailed file changes)\n"
+ * ```
+ */
+export function formatStalenessWarning(
+  commandName: string,
+  changedCount: number,
+  suggestion: string
+): string {
+  return (
+    `\nWarning: ${commandName.charAt(0).toUpperCase() + commandName.slice(1)} data may be stale (${changedCount} file(s) modified since ${commandName}).\n` +
+    `${suggestion}\n` +
+    `(See Issue #386 for future --verbose flag to show detailed file changes)\n`
+  );
+}
+
+/**
  * Validates workflow prerequisites before command execution.
  *
  * Ensures commands are run in the correct order and that required

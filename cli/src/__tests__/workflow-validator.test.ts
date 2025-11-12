@@ -415,6 +415,58 @@ describe('WorkflowValidator', () => {
     });
   });
 
+  describe('formatStalenessWarning', () => {
+    it('should format audit staleness warning correctly', () => {
+      const { formatStalenessWarning } = require('../utils/workflow-validator');
+      const message = formatStalenessWarning(
+        'audit',
+        3,
+        "Consider re-running 'docimp audit' to refresh ratings."
+      );
+
+      expect(message).toContain('Warning: Audit data may be stale');
+      expect(message).toContain('3 file(s) modified since audit');
+      expect(message).toContain(
+        "Consider re-running 'docimp audit' to refresh ratings."
+      );
+      expect(message).toContain('Issue #386');
+    });
+
+    it('should format plan staleness warning correctly', () => {
+      const { formatStalenessWarning } = require('../utils/workflow-validator');
+      const message = formatStalenessWarning(
+        'plan',
+        5,
+        "Consider re-running 'docimp plan' to regenerate with latest analysis."
+      );
+
+      expect(message).toContain('Warning: Plan data may be stale');
+      expect(message).toContain('5 file(s) modified since plan');
+      expect(message).toContain(
+        "Consider re-running 'docimp plan' to regenerate with latest analysis."
+      );
+      expect(message).toContain('Issue #386');
+    });
+
+    it('should capitalize command name', () => {
+      const { formatStalenessWarning } = require('../utils/workflow-validator');
+      const message = formatStalenessWarning('audit', 1, 'Test suggestion.');
+
+      expect(message).toContain('Warning: Audit data');
+      expect(message).not.toContain('Warning: audit data');
+    });
+
+    it('should handle different file counts', () => {
+      const { formatStalenessWarning } = require('../utils/workflow-validator');
+
+      const message1 = formatStalenessWarning('audit', 1, 'Test');
+      expect(message1).toContain('1 file(s) modified');
+
+      const message10 = formatStalenessWarning('audit', 10, 'Test');
+      expect(message10).toContain('10 file(s) modified');
+    });
+  });
+
   describe('isAuditStale', () => {
     it('should return not stale if audit has not been run', async () => {
       mockWorkflowStateManager.loadWorkflowState.mockResolvedValue({

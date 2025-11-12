@@ -40,7 +40,10 @@ import { FileTracker } from '../utils/file-tracker.js';
 import { PathValidator } from '../utils/path-validator.js';
 import { SessionStateManager } from '../utils/session-state-manager.js';
 import { StateManager } from '../utils/state-manager.js';
-import { WorkflowValidator } from '../utils/workflow-validator.js';
+import {
+  WorkflowValidator,
+  formatStalenessWarning,
+} from '../utils/workflow-validator.js';
 
 /**
  * User cancelled the operation.
@@ -540,9 +543,11 @@ export async function improveCore(
   const planStaleCheck = await WorkflowValidator.isPlanStale();
   if (planStaleCheck.isStale) {
     display.showMessage(
-      `\nWarning: Plan data may be stale (${planStaleCheck.changedCount} file(s) modified since plan).\n` +
-        `Consider re-running 'docimp plan' to regenerate with latest analysis.\n` +
-        `(See Issue #386 for future --verbose flag to show detailed file changes)\n`
+      formatStalenessWarning(
+        'plan',
+        planStaleCheck.changedCount,
+        "Consider re-running 'docimp plan' to regenerate with latest analysis."
+      )
     );
   }
 
