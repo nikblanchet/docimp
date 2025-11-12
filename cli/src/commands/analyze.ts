@@ -220,6 +220,19 @@ async function handleIncrementalAnalysis(
     );
     const mergedFailures = [...unchangedFailures, ...changedFailures];
 
+    // Merge analyzed_files: keep unchanged files from previous result, add new analyzed files
+    const unchangedAnalyzedFiles =
+      previousResult.analyzed_files?.filter(
+        (filepath) => !changedFiles.includes(filepath)
+      ) || [];
+    const changedAnalyzedFiles = changedResults.flatMap(
+      (result) => result.analyzed_files || []
+    );
+    const mergedAnalyzedFiles = [
+      ...unchangedAnalyzedFiles,
+      ...changedAnalyzedFiles,
+    ];
+
     if (options.verbose) {
       display.showMessage(
         `Merged ${unchangedItems.length} unchanged + ${changedItems.length} changed = ${mergedItems.length} total items`
@@ -233,6 +246,7 @@ async function handleIncrementalAnalysis(
       documented_items: documentedItems,
       by_language: byLanguage,
       parse_failures: mergedFailures,
+      analyzed_files: mergedAnalyzedFiles,
     };
   } catch (error) {
     stopSpinner();
@@ -477,7 +491,9 @@ export async function analyzeCore(
     }
 
     // Update workflow state with file checksums
-    const filepaths = result.items.map((item) => item.filepath);
+    // Use analyzed_files (all files analyzed) instead of just files with CodeItems
+    const filepaths =
+      result.analyzed_files || result.items.map((item) => item.filepath);
     const snapshot = await FileTracker.createSnapshot(filepaths);
 
     // Extract checksums from snapshot (WorkflowState expects Record<string, string>)

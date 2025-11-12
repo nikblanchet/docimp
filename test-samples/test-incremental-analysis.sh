@@ -126,8 +126,8 @@ else
     exit 1
 fi
 
-# Verify all 5 files in checksums
-CHECKSUM_COUNT=$(grep -o '"test-incremental/' .docimp/workflow-state.json | wc -l | tr -d ' ')
+# Verify all 5 files in checksums (use file_checksums object keys)
+CHECKSUM_COUNT=$(grep -o 'test-incremental/file[0-9]\.py' .docimp/workflow-state.json | wc -l | tr -d ' ')
 if [ "$CHECKSUM_COUNT" -eq 5 ]; then
     print_success "All 5 files tracked in workflow state checksums"
 else
@@ -253,7 +253,7 @@ echo "Running: docimp analyze ./test-incremental --incremental"
 OUTPUT=$(docimp analyze ./test-incremental --incremental 2>&1)
 
 # Check if new file detected
-NEW_FILE_COUNT=$(grep -o '"test-incremental/' .docimp/workflow-state.json | wc -l | tr -d ' ')
+NEW_FILE_COUNT=$(grep -o 'test-incremental/file[0-9]\.py' .docimp/workflow-state.json | wc -l | tr -d ' ')
 if [ "$NEW_FILE_COUNT" -eq 6 ]; then
     print_success "New file added to workflow state (now 6 files)"
 else
@@ -268,7 +268,7 @@ echo "Running: docimp analyze ./test-incremental --incremental"
 OUTPUT=$(docimp analyze ./test-incremental --incremental 2>&1)
 
 # Check if deleted file removed from checksums
-DELETED_FILE_COUNT=$(grep -o '"test-incremental/' .docimp/workflow-state.json | wc -l | tr -d ' ')
+DELETED_FILE_COUNT=$(grep -o 'test-incremental/file[0-9]\.py' .docimp/workflow-state.json | wc -l | tr -d ' ')
 if [ "$DELETED_FILE_COUNT" -eq 5 ]; then
     print_success "Deleted file removed from workflow state (back to 5 files)"
 else
