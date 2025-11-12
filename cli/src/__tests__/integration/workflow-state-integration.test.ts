@@ -1,0 +1,1314 @@
+/**
+ * Integration tests for workflow state management across command boundaries.
+ *
+ * Tests validate workflow state updates, dependency checking, staleness detection,
+ * and file modification tracking across analyze, audit, plan, and improve commands.
+ *
+ * Coverage:
+ * - Workflow A: analyze → plan → improve
+ * - Workflow B: analyze → audit → plan → improve
+ * - File modification scenarios (add, modify, delete)
+ * - Smart auto-clean integration
+ * - Error handling and validation
+ */
+
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { promises as fs } from 'node:fs';
+import { existsSync } from 'node:fs';
+import * as path from 'node:path';
+import os from 'node:os';
+import { analyzeCore } from '../../commands/analyze.js';
+import { auditCore } from '../../commands/audit.js';
+import { planCore } from '../../commands/plan.js';
+import { improveCore } from '../../commands/improve.js';
+import { WorkflowStateManager } from '../../utils/workflow-state-manager.js';
+import { WorkflowValidator } from '../../utils/workflow-validator.js';
+import { FileTracker } from '../../utils/file-tracker.js';
+import type { IPythonBridge } from '../../python-bridge/i-python-bridge.js';
+import type { IDisplay } from '../../display/i-display.js';
+import type { IConfigLoader } from '../../config/i-config-loader.js';
+import type { IConfig } from '../../config/i-config.js';
+import type { CodeItem, AnalysisResult } from '../../types/analysis.js';
+import type { PlanResult } from '../../types/plan.js';
+import type { AuditResult } from '../../types/audit.js';
+import { createMockCodeItem } from '../test-helpers.js';
+
+describe('Workflow State Integration', () => {
+  let tempRoot: string;
+  let tempDir: string;
+  let originalCwd: string;
+  let mockBridge: jest.Mocked<IPythonBridge>;
+  let mockDisplay: jest.Mocked<IDisplay>;
+  let mockConfigLoader: jest.Mocked<IConfigLoader>;
+  let mockConfig: IConfig;
+
+  beforeEach(async () => {
+    originalCwd = process.cwd();
+    tempRoot = path.join(
+      os.tmpdir(),
+      `docimp-test-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    );
+    tempDir = tempRoot;
+    const docimpDir = path.join(tempDir, '.docimp');
+    const sessionReportsDir = path.join(docimpDir, 'session-reports');
+
+    // Create .docimp/session-reports directory
+    await fs.mkdir(sessionReportsDir, { recursive: true });
+
+    process.chdir(tempDir);
+
+    // Create mock config
+    mockConfig = {
+      styleGuides: {},
+      tone: 'concise',
+      claude: {
+        apiKey: 'test-key',
+        model: 'claude-3-5-sonnet-20241022',
+        maxTokens: 4096,
+        temperature: 0,
+        timeout: 30000,
+        maxRetries: 3,
+        retryDelay: 1000,
+      },
+      pythonBridge: {
+        analyzeTimeout: 60000,
+        auditTimeout: 300000,
+        planTimeout: 60000,
+        improveTimeout: 120000,
+        killEscalationDelay: 5000,
+      },
+      audit: {
+        showCode: 'auto',
+        maxLines: 30,
+      },
+      impactWeights: {
+        complexity: 0.6,
+        quality: 0.4,
+      },
+      plugins: [],
+      exclude: [],
+    };
+
+    // Create mock Python bridge
+    mockBridge = {
+      analyze: jest.fn(),
+      audit: jest.fn(),
+      plan: jest.fn(),
+      improve: jest.fn(),
+      generateDocstring: jest.fn(),
+      writeDocstring: jest.fn(),
+      beginTransaction: jest.fn(),
+      recordWrite: jest.fn(),
+      commitTransaction: jest.fn(),
+      rollbackSession: jest.fn(),
+      rollbackChange: jest.fn(),
+      listSessions: jest.fn(),
+      listChanges: jest.fn(),
+      cleanup: jest.fn(),
+    } as unknown as jest.Mocked<IPythonBridge>;
+
+    // Create mock display
+    mockDisplay = {
+      showAnalysisResult: jest.fn(),
+      showConfig: jest.fn(),
+      showMessage: jest.fn(),
+      showError: jest.fn(),
+      showWarning: jest.fn(),
+      showSuccess: jest.fn(),
+      showCodeItems: jest.fn(),
+      startSpinner: jest.fn(() => jest.fn()),
+      showProgress: jest.fn(),
+      showAuditSummary: jest.fn(),
+      showBoxedDocstring: jest.fn(),
+      showCodeBlock: jest.fn(),
+      showSignature: jest.fn(),
+      showSessionList: jest.fn(),
+      showChangeList: jest.fn(),
+      showRollbackResult: jest.fn(),
+      showWorkflowStatus: jest.fn(),
+      showIncrementalDryRun: jest.fn(),
+    } as unknown as jest.Mocked<IDisplay>;
+
+    // Create mock config loader
+    mockConfigLoader = {
+      load: jest.fn().mockResolvedValue(mockConfig),
+    } as unknown as jest.Mocked<IConfigLoader>;
+  });
+
+  afterEach(async () => {
+    try {
+      process.chdir(originalCwd);
+    } catch {
+      // Ignore chdir errors if directory no longer exists
+    }
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  });
+
+  describe('Workflow A: analyze → plan → improve', () => {
+    it('should create workflow state with checksums after analyze', async () => {
+      // Create test files
+      const testFile1 = path.join(tempDir, 'test1.py');
+      const testFile2 = path.join(tempDir, 'test2.py');
+      await fs.writeFile(testFile1, 'def foo():\n    pass\n');
+      await fs.writeFile(testFile2, 'def bar():\n    pass\n');
+
+      const mockItems: CodeItem[] = [
+        createMockCodeItem({
+          name: 'foo',
+          filepath: testFile1,
+          complexity: 3,
+        }),
+        createMockCodeItem({
+          name: 'bar',
+          filepath: testFile2,
+          complexity: 5,
+        }),
+      ];
+
+      const mockResult: AnalysisResult = {
+        items: mockItems,
+        coverage_percent: 0,
+        total_items: 2,
+        documented_items: 0,
+        by_language: {
+          python: {
+            total_items: 2,
+            documented_items: 0,
+            coverage_percent: 0,
+          },
+        },
+        parse_failures: [],
+      };
+
+      mockBridge.analyze.mockResolvedValue(mockResult);
+
+      // Run analyze
+      await analyzeCore(
+        tempDir,
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockConfig,
+        {
+          incremental: false,
+          applyAudit: false,
+          preserveAudit: false,
+          forceClean: false,
+          dryRun: false,
+        }
+      );
+
+      // Verify workflow state was created
+      const workflowStatePath = path.join(
+        tempDir,
+        '.docimp/workflow-state.json'
+      );
+      expect(existsSync(workflowStatePath)).toBe(true);
+
+      const workflowState = JSON.parse(
+        await fs.readFile(workflowStatePath, 'utf8')
+      );
+
+      expect(workflowState).toMatchObject({
+        schema_version: '1.0',
+        last_analyze: expect.objectContaining({
+          timestamp: expect.any(String),
+          item_count: 2,
+          file_checksums: expect.objectContaining({
+            [testFile1]: expect.any(String),
+            [testFile2]: expect.any(String),
+          }),
+        }),
+        last_audit: null,
+        last_plan: null,
+        last_improve: null,
+      });
+    });
+
+    it('should validate analyze prerequisite when running plan', async () => {
+      // Attempt to run plan without analyze
+      const mockPlanResult: PlanResult = {
+        items: [],
+        total_items: 0,
+        metadata: {
+          created_at: new Date().toISOString(),
+          audit_applied: false,
+        },
+      };
+
+      mockBridge.plan.mockResolvedValue(mockPlanResult);
+
+      // Should throw error about missing analyze
+      await expect(
+        planCore(
+          tempDir,
+          mockBridge,
+          mockDisplay,
+          mockConfigLoader,
+          mockConfig,
+          {}
+        )
+      ).rejects.toThrow(/analyze/i);
+    });
+
+    it('should update workflow state with plan timestamp after plan', async () => {
+      // First run analyze
+      const testFile = path.join(tempDir, 'test.py');
+      await fs.writeFile(testFile, 'def test():\n    pass\n');
+
+      const mockItems: CodeItem[] = [
+        createMockCodeItem({
+          name: 'test',
+          filepath: testFile,
+        }),
+      ];
+
+      const mockAnalyzeResult: AnalysisResult = {
+        items: mockItems,
+        coverage_percent: 0,
+        total_items: 1,
+        documented_items: 0,
+        by_language: {},
+        parse_failures: [],
+      };
+
+      mockBridge.analyze.mockResolvedValue(mockAnalyzeResult);
+
+      await analyzeCore(
+        tempDir,
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockConfig,
+        {
+          incremental: false,
+          applyAudit: false,
+          preserveAudit: false,
+          forceClean: false,
+          dryRun: false,
+        }
+      );
+
+      // Now run plan
+      const mockPlanResult: PlanResult = {
+        items: mockItems,
+        total_items: 1,
+        metadata: {
+          created_at: new Date().toISOString(),
+          audit_applied: false,
+        },
+      };
+
+      mockBridge.plan.mockResolvedValue(mockPlanResult);
+
+      const beforePlanTime = Date.now();
+      await planCore(
+        tempDir,
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockConfig,
+        {}
+      );
+
+      // Verify workflow state was updated
+      const workflowState = JSON.parse(
+        await fs.readFile(
+          path.join(tempDir, '.docimp/workflow-state.json'),
+          'utf8'
+        )
+      );
+
+      expect(workflowState.last_plan).toBeTruthy();
+      expect(workflowState.last_plan.timestamp).toBeTruthy();
+      expect(workflowState.last_plan.item_count).toBe(1);
+      expect(
+        new Date(workflowState.last_plan.timestamp).getTime()
+      ).toBeGreaterThanOrEqual(beforePlanTime);
+    });
+
+    it('should validate plan prerequisite when running improve', async () => {
+      // Create analyze result but no plan
+      const testFile = path.join(tempDir, 'test.py');
+      await fs.writeFile(testFile, 'def test():\n    pass\n');
+
+      const mockItems: CodeItem[] = [
+        createMockCodeItem({
+          name: 'test',
+          filepath: testFile,
+        }),
+      ];
+
+      const mockAnalyzeResult: AnalysisResult = {
+        items: mockItems,
+        coverage_percent: 0,
+        total_items: 1,
+        documented_items: 0,
+        by_language: {},
+        parse_failures: [],
+      };
+
+      mockBridge.analyze.mockResolvedValue(mockAnalyzeResult);
+
+      await analyzeCore(
+        tempDir,
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockConfig,
+        {
+          incremental: false,
+          applyAudit: false,
+          preserveAudit: false,
+          forceClean: false,
+          dryRun: false,
+        }
+      );
+
+      // Attempt to run improve without plan
+      await expect(
+        improveCore(
+          tempDir,
+          mockBridge,
+          mockDisplay,
+          mockConfigLoader,
+          mockConfig,
+          {
+            nonInteractive: true,
+            resume: false,
+            newSession: false,
+            clearSession: false,
+          }
+        )
+      ).rejects.toThrow(/plan/i);
+    });
+
+    it('should detect stale plan when analyze is re-run', async () => {
+      // Run analyze
+      const testFile = path.join(tempDir, 'test.py');
+      await fs.writeFile(testFile, 'def test():\n    pass\n');
+
+      const mockItems: CodeItem[] = [
+        createMockCodeItem({
+          name: 'test',
+          filepath: testFile,
+        }),
+      ];
+
+      const mockAnalyzeResult: AnalysisResult = {
+        items: mockItems,
+        coverage_percent: 0,
+        total_items: 1,
+        documented_items: 0,
+        by_language: {},
+        parse_failures: [],
+      };
+
+      mockBridge.analyze.mockResolvedValue(mockAnalyzeResult);
+
+      await analyzeCore(
+        tempDir,
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockConfig,
+        {
+          incremental: false,
+          applyAudit: false,
+          preserveAudit: false,
+          forceClean: false,
+          dryRun: false,
+        }
+      );
+
+      // Run plan
+      const mockPlanResult: PlanResult = {
+        items: mockItems,
+        total_items: 1,
+        metadata: {
+          created_at: new Date().toISOString(),
+          audit_applied: false,
+        },
+      };
+
+      mockBridge.plan.mockResolvedValue(mockPlanResult);
+      await planCore(
+        tempDir,
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockConfig,
+        {}
+      );
+
+      // Wait a moment to ensure timestamp difference
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Re-run analyze
+      await analyzeCore(
+        tempDir,
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockConfig,
+        {
+          incremental: false,
+          applyAudit: false,
+          preserveAudit: false,
+          forceClean: false,
+          dryRun: false,
+        }
+      );
+
+      // Check staleness
+      const workflowState = JSON.parse(
+        await fs.readFile(
+          path.join(tempDir, '.docimp/workflow-state.json'),
+          'utf8'
+        )
+      );
+
+      const validator = new WorkflowValidator(workflowState);
+      const stalePlan = validator.checkStalePlan();
+
+      expect(stalePlan.isStale).toBe(true);
+      expect(stalePlan.reason).toContain('analyze');
+    });
+  });
+
+  describe('Workflow B: analyze → audit → plan → improve', () => {
+    it('should validate analyze prerequisite when running audit', async () => {
+      // Attempt to run audit without analyze
+      await expect(
+        auditCore(
+          tempDir,
+          mockBridge,
+          mockDisplay,
+          mockConfigLoader,
+          mockConfig,
+          { resume: false, newSession: false, clearSession: false }
+        )
+      ).rejects.toThrow(/analyze/i);
+    });
+
+    it('should update workflow state with audit timestamp', async () => {
+      // First run analyze
+      const testFile = path.join(tempDir, 'test.py');
+      await fs.writeFile(testFile, 'def test():\n    pass\n');
+
+      const mockItems: CodeItem[] = [
+        createMockCodeItem({
+          name: 'test',
+          filepath: testFile,
+        }),
+      ];
+
+      const mockAnalyzeResult: AnalysisResult = {
+        items: mockItems,
+        coverage_percent: 0,
+        total_items: 1,
+        documented_items: 0,
+        by_language: {},
+        parse_failures: [],
+      };
+
+      mockBridge.analyze.mockResolvedValue(mockAnalyzeResult);
+
+      await analyzeCore(
+        tempDir,
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockConfig,
+        {
+          incremental: false,
+          applyAudit: false,
+          preserveAudit: false,
+          forceClean: false,
+          dryRun: false,
+        }
+      );
+
+      // Now run audit (simulating completion)
+      const mockAuditResult: AuditResult = {
+        items: mockItems.map((item) => ({
+          ...item,
+          audit_rating: 2,
+        })),
+        metadata: {
+          created_at: new Date().toISOString(),
+          total_rated: 1,
+        },
+      };
+
+      // Create audit.json to simulate completed audit
+      await fs.writeFile(
+        path.join(tempDir, '.docimp/audit.json'),
+        JSON.stringify(mockAuditResult, null, 2)
+      );
+
+      // Update workflow state manually (since auditCore is interactive)
+      const stateManager = new WorkflowStateManager(tempDir);
+      const state = await stateManager.load();
+      const checksums = await FileTracker.calculateChecksums([testFile]);
+      state.last_audit = {
+        timestamp: new Date().toISOString(),
+        item_count: 1,
+        file_checksums: checksums,
+      };
+      await stateManager.save(state);
+
+      // Verify workflow state was updated
+      const workflowState = JSON.parse(
+        await fs.readFile(
+          path.join(tempDir, '.docimp/workflow-state.json'),
+          'utf8'
+        )
+      );
+
+      expect(workflowState.last_audit).toBeTruthy();
+      expect(workflowState.last_audit.timestamp).toBeTruthy();
+      expect(workflowState.last_audit.item_count).toBe(1);
+    });
+
+    it('should load audit ratings in plan when audit exists', async () => {
+      // Run analyze
+      const testFile = path.join(tempDir, 'test.py');
+      await fs.writeFile(testFile, 'def test():\n    pass\n');
+
+      const mockItems: CodeItem[] = [
+        createMockCodeItem({
+          name: 'test',
+          filepath: testFile,
+        }),
+      ];
+
+      const mockAnalyzeResult: AnalysisResult = {
+        items: mockItems,
+        coverage_percent: 0,
+        total_items: 1,
+        documented_items: 0,
+        by_language: {},
+        parse_failures: [],
+      };
+
+      mockBridge.analyze.mockResolvedValue(mockAnalyzeResult);
+
+      await analyzeCore(
+        tempDir,
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockConfig,
+        {
+          incremental: false,
+          applyAudit: false,
+          preserveAudit: false,
+          forceClean: false,
+          dryRun: false,
+        }
+      );
+
+      // Create audit.json
+      const mockAuditResult: AuditResult = {
+        items: mockItems.map((item) => ({
+          ...item,
+          audit_rating: 2,
+        })),
+        metadata: {
+          created_at: new Date().toISOString(),
+          total_rated: 1,
+        },
+      };
+
+      await fs.writeFile(
+        path.join(tempDir, '.docimp/audit.json'),
+        JSON.stringify(mockAuditResult, null, 2)
+      );
+
+      // Update workflow state
+      const stateManager = new WorkflowStateManager(tempDir);
+      const state = await stateManager.load();
+      const checksums = await FileTracker.calculateChecksums([testFile]);
+      state.last_audit = {
+        timestamp: new Date().toISOString(),
+        item_count: 1,
+        file_checksums: checksums,
+      };
+      await stateManager.save(state);
+
+      // Run plan (should load audit ratings)
+      const mockPlanResult: PlanResult = {
+        items: mockItems.map((item) => ({
+          ...item,
+          audit_rating: 2,
+        })),
+        total_items: 1,
+        metadata: {
+          created_at: new Date().toISOString(),
+          audit_applied: true,
+        },
+      };
+
+      mockBridge.plan.mockResolvedValue(mockPlanResult);
+      await planCore(
+        tempDir,
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockConfig,
+        {}
+      );
+
+      // Verify plan was called (audit ratings should be in the analysis result)
+      expect(mockBridge.plan).toHaveBeenCalled();
+    });
+
+    it('should detect stale audit and plan when analyze is re-run', async () => {
+      // Run analyze
+      const testFile = path.join(tempDir, 'test.py');
+      await fs.writeFile(testFile, 'def test():\n    pass\n');
+
+      const mockItems: CodeItem[] = [
+        createMockCodeItem({
+          name: 'test',
+          filepath: testFile,
+        }),
+      ];
+
+      const mockAnalyzeResult: AnalysisResult = {
+        items: mockItems,
+        coverage_percent: 0,
+        total_items: 1,
+        documented_items: 0,
+        by_language: {},
+        parse_failures: [],
+      };
+
+      mockBridge.analyze.mockResolvedValue(mockAnalyzeResult);
+
+      await analyzeCore(
+        tempDir,
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockConfig,
+        {
+          incremental: false,
+          applyAudit: false,
+          preserveAudit: false,
+          forceClean: false,
+          dryRun: false,
+        }
+      );
+
+      // Create audit
+      const mockAuditResult: AuditResult = {
+        items: mockItems.map((item) => ({
+          ...item,
+          audit_rating: 2,
+        })),
+        metadata: {
+          created_at: new Date().toISOString(),
+          total_rated: 1,
+        },
+      };
+
+      await fs.writeFile(
+        path.join(tempDir, '.docimp/audit.json'),
+        JSON.stringify(mockAuditResult, null, 2)
+      );
+
+      // Update workflow state with audit
+      const stateManager = new WorkflowStateManager(tempDir);
+      let state = await stateManager.load();
+      const checksums = await FileTracker.calculateChecksums([testFile]);
+      state.last_audit = {
+        timestamp: new Date().toISOString(),
+        item_count: 1,
+        file_checksums: checksums,
+      };
+      await stateManager.save(state);
+
+      // Run plan
+      const mockPlanResult: PlanResult = {
+        items: mockItems,
+        total_items: 1,
+        metadata: {
+          created_at: new Date().toISOString(),
+          audit_applied: true,
+        },
+      };
+
+      mockBridge.plan.mockResolvedValue(mockPlanResult);
+      await planCore(
+        tempDir,
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockConfig,
+        {}
+      );
+
+      // Wait a moment
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Re-run analyze
+      await analyzeCore(
+        tempDir,
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockConfig,
+        {
+          incremental: false,
+          applyAudit: false,
+          preserveAudit: false,
+          forceClean: false,
+          dryRun: false,
+        }
+      );
+
+      // Check staleness for both audit and plan
+      const workflowState = JSON.parse(
+        await fs.readFile(
+          path.join(tempDir, '.docimp/workflow-state.json'),
+          'utf8'
+        )
+      );
+
+      const validator = new WorkflowValidator(workflowState);
+      const staleAnalysis = validator.checkStaleAnalysis();
+      const stalePlan = validator.checkStalePlan();
+
+      expect(staleAnalysis.isStale).toBe(true);
+      expect(stalePlan.isStale).toBe(true);
+    });
+  });
+
+  describe('File Modification and Incremental Analysis', () => {
+    it('should only re-analyze modified files in incremental mode', async () => {
+      // Create initial files
+      const testFile1 = path.join(tempDir, 'test1.py');
+      const testFile2 = path.join(tempDir, 'test2.py');
+      const testFile3 = path.join(tempDir, 'test3.py');
+      await fs.writeFile(testFile1, 'def foo():\n    pass\n');
+      await fs.writeFile(testFile2, 'def bar():\n    pass\n');
+      await fs.writeFile(testFile3, 'def baz():\n    pass\n');
+
+      const mockItems: CodeItem[] = [
+        createMockCodeItem({ name: 'foo', filepath: testFile1 }),
+        createMockCodeItem({ name: 'bar', filepath: testFile2 }),
+        createMockCodeItem({ name: 'baz', filepath: testFile3 }),
+      ];
+
+      const mockResult: AnalysisResult = {
+        items: mockItems,
+        coverage_percent: 0,
+        total_items: 3,
+        documented_items: 0,
+        by_language: {},
+        parse_failures: [],
+      };
+
+      mockBridge.analyze.mockResolvedValue(mockResult);
+
+      // Run initial analyze
+      await analyzeCore(
+        tempDir,
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockConfig,
+        {
+          incremental: false,
+          applyAudit: false,
+          preserveAudit: false,
+          forceClean: false,
+          dryRun: false,
+        }
+      );
+
+      // Modify only 2 files
+      await fs.writeFile(testFile1, 'def foo():\n    return 42\n');
+      await fs.writeFile(testFile2, 'def bar():\n    return 84\n');
+
+      // Run incremental analyze
+      const mockIncrementalResult: AnalysisResult = {
+        items: [
+          createMockCodeItem({ name: 'foo', filepath: testFile1 }),
+          createMockCodeItem({ name: 'bar', filepath: testFile2 }),
+        ],
+        coverage_percent: 0,
+        total_items: 2,
+        documented_items: 0,
+        by_language: {},
+        parse_failures: [],
+      };
+
+      mockBridge.analyze.mockResolvedValue(mockIncrementalResult);
+
+      await analyzeCore(
+        tempDir,
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockConfig,
+        {
+          incremental: true,
+          applyAudit: false,
+          preserveAudit: false,
+          forceClean: false,
+          dryRun: false,
+        }
+      );
+
+      // Verify only 2 files were passed to analyze
+      const analyzeCall = mockBridge.analyze.mock.calls[1];
+      const filesToAnalyze = analyzeCall[0];
+
+      // The incremental mode should have detected 2 changed files
+      expect(filesToAnalyze.length).toBe(2);
+      expect(filesToAnalyze).toContain(testFile1);
+      expect(filesToAnalyze).toContain(testFile2);
+    });
+
+    it('should remove deleted file from workflow state', async () => {
+      // Create files
+      const testFile1 = path.join(tempDir, 'test1.py');
+      const testFile2 = path.join(tempDir, 'test2.py');
+      await fs.writeFile(testFile1, 'def foo():\n    pass\n');
+      await fs.writeFile(testFile2, 'def bar():\n    pass\n');
+
+      const mockItems: CodeItem[] = [
+        createMockCodeItem({ name: 'foo', filepath: testFile1 }),
+        createMockCodeItem({ name: 'bar', filepath: testFile2 }),
+      ];
+
+      const mockResult: AnalysisResult = {
+        items: mockItems,
+        coverage_percent: 0,
+        total_items: 2,
+        documented_items: 0,
+        by_language: {},
+        parse_failures: [],
+      };
+
+      mockBridge.analyze.mockResolvedValue(mockResult);
+
+      // Run initial analyze
+      await analyzeCore(
+        tempDir,
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockConfig,
+        {
+          incremental: false,
+          applyAudit: false,
+          preserveAudit: false,
+          forceClean: false,
+          dryRun: false,
+        }
+      );
+
+      // Delete one file
+      await fs.unlink(testFile2);
+
+      // Run analyze again
+      const mockNewResult: AnalysisResult = {
+        items: [createMockCodeItem({ name: 'foo', filepath: testFile1 })],
+        coverage_percent: 0,
+        total_items: 1,
+        documented_items: 0,
+        by_language: {},
+        parse_failures: [],
+      };
+
+      mockBridge.analyze.mockResolvedValue(mockNewResult);
+
+      await analyzeCore(
+        tempDir,
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockConfig,
+        {
+          incremental: false,
+          applyAudit: false,
+          preserveAudit: false,
+          forceClean: false,
+          dryRun: false,
+        }
+      );
+
+      // Verify workflow state no longer includes deleted file
+      const workflowState = JSON.parse(
+        await fs.readFile(
+          path.join(tempDir, '.docimp/workflow-state.json'),
+          'utf8'
+        )
+      );
+
+      expect(
+        workflowState.last_analyze.file_checksums[testFile2]
+      ).toBeUndefined();
+      expect(
+        workflowState.last_analyze.file_checksums[testFile1]
+      ).toBeDefined();
+    });
+
+    it('should add new file to workflow state', async () => {
+      // Create initial file
+      const testFile1 = path.join(tempDir, 'test1.py');
+      await fs.writeFile(testFile1, 'def foo():\n    pass\n');
+
+      const mockItems1: CodeItem[] = [
+        createMockCodeItem({ name: 'foo', filepath: testFile1 }),
+      ];
+
+      const mockResult1: AnalysisResult = {
+        items: mockItems1,
+        coverage_percent: 0,
+        total_items: 1,
+        documented_items: 0,
+        by_language: {},
+        parse_failures: [],
+      };
+
+      mockBridge.analyze.mockResolvedValue(mockResult1);
+
+      // Run initial analyze
+      await analyzeCore(
+        tempDir,
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockConfig,
+        {
+          incremental: false,
+          applyAudit: false,
+          preserveAudit: false,
+          forceClean: false,
+          dryRun: false,
+        }
+      );
+
+      // Add new file
+      const testFile2 = path.join(tempDir, 'test2.py');
+      await fs.writeFile(testFile2, 'def bar():\n    pass\n');
+
+      // Run analyze again
+      const mockItems2: CodeItem[] = [
+        createMockCodeItem({ name: 'foo', filepath: testFile1 }),
+        createMockCodeItem({ name: 'bar', filepath: testFile2 }),
+      ];
+
+      const mockResult2: AnalysisResult = {
+        items: mockItems2,
+        coverage_percent: 0,
+        total_items: 2,
+        documented_items: 0,
+        by_language: {},
+        parse_failures: [],
+      };
+
+      mockBridge.analyze.mockResolvedValue(mockResult2);
+
+      await analyzeCore(
+        tempDir,
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockConfig,
+        {
+          incremental: false,
+          applyAudit: false,
+          preserveAudit: false,
+          forceClean: false,
+          dryRun: false,
+        }
+      );
+
+      // Verify workflow state includes new file
+      const workflowState = JSON.parse(
+        await fs.readFile(
+          path.join(tempDir, '.docimp/workflow-state.json'),
+          'utf8'
+        )
+      );
+
+      expect(
+        workflowState.last_analyze.file_checksums[testFile1]
+      ).toBeDefined();
+      expect(
+        workflowState.last_analyze.file_checksums[testFile2]
+      ).toBeDefined();
+      expect(workflowState.last_analyze.item_count).toBe(2);
+    });
+  });
+
+  describe('Smart Auto-Clean Integration', () => {
+    it('should preserve audit.json when --preserve-audit flag is used', async () => {
+      // Create existing audit.json
+      const auditPath = path.join(tempDir, '.docimp/audit.json');
+      await fs.writeFile(
+        auditPath,
+        JSON.stringify({
+          items: [],
+          metadata: { created_at: new Date().toISOString(), total_rated: 0 },
+        })
+      );
+
+      // Run analyze with preserve-audit
+      const testFile = path.join(tempDir, 'test.py');
+      await fs.writeFile(testFile, 'def test():\n    pass\n');
+
+      const mockItems: CodeItem[] = [
+        createMockCodeItem({ name: 'test', filepath: testFile }),
+      ];
+
+      const mockResult: AnalysisResult = {
+        items: mockItems,
+        coverage_percent: 0,
+        total_items: 1,
+        documented_items: 0,
+        by_language: {},
+        parse_failures: [],
+      };
+
+      mockBridge.analyze.mockResolvedValue(mockResult);
+
+      await analyzeCore(
+        tempDir,
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockConfig,
+        {
+          incremental: false,
+          applyAudit: false,
+          preserveAudit: true,
+          forceClean: false,
+          dryRun: false,
+        }
+      );
+
+      // Verify audit.json still exists
+      expect(existsSync(auditPath)).toBe(true);
+    });
+
+    it('should handle missing audit.json gracefully', async () => {
+      // Run analyze without existing audit.json
+      const testFile = path.join(tempDir, 'test.py');
+      await fs.writeFile(testFile, 'def test():\n    pass\n');
+
+      const mockItems: CodeItem[] = [
+        createMockCodeItem({ name: 'test', filepath: testFile }),
+      ];
+
+      const mockResult: AnalysisResult = {
+        items: mockItems,
+        coverage_percent: 0,
+        total_items: 1,
+        documented_items: 0,
+        by_language: {},
+        parse_failures: [],
+      };
+
+      mockBridge.analyze.mockResolvedValue(mockResult);
+
+      // Should not throw error
+      await expect(
+        analyzeCore(
+          tempDir,
+          mockBridge,
+          mockDisplay,
+          mockConfigLoader,
+          mockConfig,
+          {
+            incremental: false,
+            applyAudit: false,
+            preserveAudit: false,
+            forceClean: false,
+            dryRun: false,
+          }
+        )
+      ).resolves.toBeDefined();
+    });
+
+    it('should skip prompt with --force-clean flag', async () => {
+      // Create existing audit.json
+      const auditPath = path.join(tempDir, '.docimp/audit.json');
+      await fs.writeFile(
+        auditPath,
+        JSON.stringify({
+          items: [],
+          metadata: { created_at: new Date().toISOString(), total_rated: 0 },
+        })
+      );
+
+      // Run analyze with force-clean (no prompt should be shown)
+      const testFile = path.join(tempDir, 'test.py');
+      await fs.writeFile(testFile, 'def test():\n    pass\n');
+
+      const mockItems: CodeItem[] = [
+        createMockCodeItem({ name: 'test', filepath: testFile }),
+      ];
+
+      const mockResult: AnalysisResult = {
+        items: mockItems,
+        coverage_percent: 0,
+        total_items: 1,
+        documented_items: 0,
+        by_language: {},
+        parse_failures: [],
+      };
+
+      mockBridge.analyze.mockResolvedValue(mockResult);
+
+      await analyzeCore(
+        tempDir,
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockConfig,
+        {
+          incremental: false,
+          applyAudit: false,
+          preserveAudit: false,
+          forceClean: true,
+          dryRun: false,
+        }
+      );
+
+      // With force-clean, the analysis should complete successfully
+      expect(mockBridge.analyze).toHaveBeenCalled();
+    });
+  });
+
+  describe('Error Handling and Validation', () => {
+    it('should provide clear error message when audit run without analyze', async () => {
+      // Attempt audit without analyze
+      await expect(
+        auditCore(
+          tempDir,
+          mockBridge,
+          mockDisplay,
+          mockConfigLoader,
+          mockConfig,
+          { resume: false, newSession: false, clearSession: false }
+        )
+      ).rejects.toThrow(/analyze/i);
+    });
+
+    it('should provide clear error message when improve run without plan', async () => {
+      // Create analyze result but no plan
+      const testFile = path.join(tempDir, 'test.py');
+      await fs.writeFile(testFile, 'def test():\n    pass\n');
+
+      const mockItems: CodeItem[] = [
+        createMockCodeItem({ name: 'test', filepath: testFile }),
+      ];
+
+      const mockResult: AnalysisResult = {
+        items: mockItems,
+        coverage_percent: 0,
+        total_items: 1,
+        documented_items: 0,
+        by_language: {},
+        parse_failures: [],
+      };
+
+      mockBridge.analyze.mockResolvedValue(mockResult);
+
+      await analyzeCore(
+        tempDir,
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader,
+        mockConfig,
+        {
+          incremental: false,
+          applyAudit: false,
+          preserveAudit: false,
+          forceClean: false,
+          dryRun: false,
+        }
+      );
+
+      // Attempt improve without plan
+      await expect(
+        improveCore(
+          tempDir,
+          mockBridge,
+          mockDisplay,
+          mockConfigLoader,
+          mockConfig,
+          {
+            nonInteractive: true,
+            resume: false,
+            newSession: false,
+            clearSession: false,
+          }
+        )
+      ).rejects.toThrow(/plan/i);
+    });
+
+    it('should recover from corrupted workflow-state.json', async () => {
+      // Create corrupted workflow-state.json
+      const workflowStatePath = path.join(
+        tempDir,
+        '.docimp/workflow-state.json'
+      );
+      const docimpDir = path.join(tempDir, '.docimp');
+      await fs.mkdir(docimpDir, { recursive: true });
+      await fs.writeFile(workflowStatePath, '{invalid json}');
+
+      // Run analyze (should recover by creating new workflow state)
+      const testFile = path.join(tempDir, 'test.py');
+      await fs.writeFile(testFile, 'def test():\n    pass\n');
+
+      const mockItems: CodeItem[] = [
+        createMockCodeItem({ name: 'test', filepath: testFile }),
+      ];
+
+      const mockResult: AnalysisResult = {
+        items: mockItems,
+        coverage_percent: 0,
+        total_items: 1,
+        documented_items: 0,
+        by_language: {},
+        parse_failures: [],
+      };
+
+      mockBridge.analyze.mockResolvedValue(mockResult);
+
+      // Should not throw error (recovers gracefully)
+      await expect(
+        analyzeCore(
+          tempDir,
+          mockBridge,
+          mockDisplay,
+          mockConfigLoader,
+          mockConfig,
+          {
+            incremental: false,
+            applyAudit: false,
+            preserveAudit: false,
+            forceClean: false,
+            dryRun: false,
+          }
+        )
+      ).resolves.toBeDefined();
+
+      // Verify new valid workflow state was created
+      const workflowState = JSON.parse(
+        await fs.readFile(workflowStatePath, 'utf8')
+      );
+
+      expect(workflowState.schema_version).toBe('1.0');
+      expect(workflowState.last_analyze).toBeTruthy();
+    });
+  });
+});
