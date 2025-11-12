@@ -46,18 +46,12 @@ print_warning() {
     echo -e "${YELLOW}⚠${NC} $1"
 }
 
-# Helper function to run docimp (CI compatible)
-run_docimp() {
-    if [ -n "$CI" ]; then
-        node "$GITHUB_WORKSPACE/cli/dist/index.js" "$@"
-    elif command -v docimp &> /dev/null; then
-        docimp "$@"
-    else
-        # Use local CLI build if docimp not in PATH
-        SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-        node "$SCRIPT_DIR/../cli/dist/index.js" "$@"
-    fi
-}
+# Verify docimp is available
+if ! command -v docimp &> /dev/null; then
+    echo -e "${RED}Error: 'docimp' command not found in PATH${NC}"
+    echo "Please ensure docimp is installed and available"
+    exit 1
+fi
 
 # Change to test project directory
 cd "$(dirname "$0")/example-project" || exit 1
@@ -119,9 +113,9 @@ echo "Created 5 Python files (10 functions total)"
 
 # Test 1: Baseline analysis
 print_header "Test 1: Baseline analysis"
-echo "Running: run_docimp analyze ./src"
+echo "Running: docimpanalyze ./src"
 START_TIME=$(date +%s%3N)  # Milliseconds
-run_run_docimp analyze ./src > /dev/null 2>&1
+run_docimpanalyze ./src > /dev/null 2>&1
 BASELINE_TIME=$(( $(date +%s%3N) - START_TIME ))
 echo "Baseline analysis time: ${BASELINE_TIME}ms"
 
@@ -142,8 +136,8 @@ fi
 
 # Test 2: No changes - incremental should skip analysis
 print_header "Test 2: Incremental analysis with no changes"
-echo "Running: run_docimp analyze ./src --incremental"
-OUTPUT=$(run_docimp analyze ./src --incremental 2>&1)
+echo "Running: docimpanalyze ./src --incremental"
+OUTPUT=$(docimpanalyze ./src --incremental 2>&1)
 if echo "$OUTPUT" | grep -q "0 file(s) have changed"; then
     print_success "Detected 0 changed files"
 else
@@ -165,9 +159,9 @@ def function_new():
     return 99
 EOF
 
-echo "Running: run_docimp analyze ./src --incremental"
+echo "Running: docimpanalyze ./src --incremental"
 START_TIME=$(date +%s%3N)
-OUTPUT=$(run_docimp analyze ./src --incremental 2>&1)
+OUTPUT=$(docimpanalyze ./src --incremental 2>&1)
 INCREMENTAL_TIME=$(( $(date +%s%3N) - START_TIME ))
 echo "Incremental analysis time: ${INCREMENTAL_TIME}ms"
 
@@ -205,8 +199,8 @@ def function_another():
     return 88
 EOF
 
-echo "Running: run_docimp analyze ./src --incremental --dry-run"
-OUTPUT=$(run_docimp analyze ./src --incremental --dry-run 2>&1)
+echo "Running: docimpanalyze ./src --incremental --dry-run"
+OUTPUT=$(docimpanalyze ./src --incremental --dry-run 2>&1)
 
 if echo "$OUTPUT" | grep -q "dry run mode"; then
     print_success "Dry-run mode activated"
@@ -230,8 +224,8 @@ fi
 
 # Test 5: Actual incremental run after dry-run
 print_header "Test 5: Actual incremental analysis after dry-run"
-echo "Running: run_docimp analyze ./src --incremental"
-OUTPUT=$(run_docimp analyze ./src --incremental 2>&1)
+echo "Running: docimpanalyze ./src --incremental"
+OUTPUT=$(docimpanalyze ./src --incremental 2>&1)
 
 if echo "$OUTPUT" | grep -q "2 file(s) have changed"; then
     print_success "Detected 2 changed files (file1.py and file2.py)"
@@ -255,8 +249,8 @@ def function_eleven():
     return 11
 EOF
 
-echo "Running: run_docimp analyze ./src --incremental"
-OUTPUT=$(run_docimp analyze ./src --incremental 2>&1)
+echo "Running: docimpanalyze ./src --incremental"
+OUTPUT=$(docimpanalyze ./src --incremental 2>&1)
 
 # Check if new file detected
 NEW_FILE_COUNT=$(grep -o '"src/' .docimp/workflow-state.json | wc -l | tr -d ' ')
@@ -270,8 +264,8 @@ fi
 print_header "Test 7: Delete file"
 rm src/file6.py
 
-echo "Running: run_docimp analyze ./src --incremental"
-OUTPUT=$(run_docimp analyze ./src --incremental 2>&1)
+echo "Running: docimpanalyze ./src --incremental"
+OUTPUT=$(docimpanalyze ./src --incremental 2>&1)
 
 # Check if deleted file removed from checksums
 DELETED_FILE_COUNT=$(grep -o '"src/' .docimp/workflow-state.json | wc -l | tr -d ' ')
@@ -302,9 +296,9 @@ def function_modified():
     return 555
 EOF
 
-echo "Running: run_docimp analyze ./src --incremental"
+echo "Running: docimpanalyze ./src --incremental"
 START_TIME=$(date +%s%3N)
-OUTPUT=$(run_docimp analyze ./src --incremental 2>&1)
+OUTPUT=$(docimpanalyze ./src --incremental 2>&1)
 LARGE_INCREMENTAL_TIME=$(( $(date +%s%3N) - START_TIME ))
 
 if echo "$OUTPUT" | grep -q "file(s) have changed"; then
@@ -318,9 +312,9 @@ echo "Baseline time: ${BASELINE_TIME}ms"
 
 # Test 9: Full re-analysis for comparison
 print_header "Test 9: Full re-analysis (no --incremental)"
-echo "Running: run_docimp analyze ./src (full analysis)"
+echo "Running: docimpanalyze ./src (full analysis)"
 START_TIME=$(date +%s%3N)
-run_docimp analyze ./src > /dev/null 2>&1
+docimpanalyze ./src > /dev/null 2>&1
 FULL_REANALYSIS_TIME=$(( $(date +%s%3N) - START_TIME ))
 echo "Full re-analysis time: ${FULL_REANALYSIS_TIME}ms"
 
