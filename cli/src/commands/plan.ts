@@ -8,8 +8,11 @@
 import { EXIT_CODE, type ExitCode } from '../constants/exit-codes.js';
 import type { IDisplay } from '../display/i-display.js';
 import type { IPythonBridge } from '../python-bridge/i-python-bridge.js';
+import { createCommandState } from '../types/workflow-state.js';
+import { FileTracker } from '../utils/file-tracker.js';
 import { PathValidator } from '../utils/path-validator.js';
 import { StateManager } from '../utils/state-manager.js';
+import { WorkflowStateManager } from '../utils/workflow-state-manager.js';
 import {
   WorkflowValidator,
   formatStalenessWarning,
@@ -88,6 +91,18 @@ export async function planCore(
     });
 
     stopSpinner();
+
+    // Update workflow state to track plan execution
+    // Extract filepaths from result items for checksum tracking
+    const filepaths = [...new Set(result.items.map((item) => item.filepath))];
+    const snapshot = await FileTracker.createSnapshot(filepaths);
+    const fileChecksums: Record<string, string> = {};
+    for (const [filepath, fileSnapshot] of Object.entries(snapshot)) {
+      fileChecksums[filepath] = fileSnapshot.checksum;
+    }
+
+    const commandState = createCommandState(result.total_items, fileChecksums);
+    await WorkflowStateManager.updateCommandState('plan', commandState);
 
     // Display plan summary
     display.showMessage('\n' + '='.repeat(60));
