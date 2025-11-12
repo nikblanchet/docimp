@@ -72,7 +72,9 @@ def compare_file_checksums(
     return (changed_count > 0, changed_count)
 
 
-def format_staleness_message(command: str, reason: str, count: int | None = None) -> str:
+def format_staleness_message(
+    command: str, reason: str, count: int | None = None
+) -> str:
     """
     Format staleness warning message with consistent pattern.
 
