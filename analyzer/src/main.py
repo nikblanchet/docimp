@@ -737,8 +737,11 @@ def cmd_status(args: argparse.Namespace) -> int:
             Returns:
                 Tuple of (isStale, changedCount, message)
             """
-            newer_state = getattr(state, f"last_{newer_cmd}") if newer_cmd else None
-            older_state = getattr(state, f"last_{older_cmd}") if older_cmd else None
+            if not newer_cmd or not older_cmd:
+                return False, 0, ""
+
+            newer_state = getattr(state, f"last_{newer_cmd}")
+            older_state = getattr(state, f"last_{older_cmd}")
 
             if not newer_state or not older_state:
                 return False, 0, ""
