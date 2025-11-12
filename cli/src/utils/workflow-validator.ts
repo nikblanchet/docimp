@@ -14,9 +14,50 @@ export interface ValidationResult {
 
 /**
  * Result of comparing file checksums between two command states
+ *
+ * Used to detect if analyzed files have been modified, added, or removed
+ * between two workflow command executions (e.g., analyze → audit).
+ *
+ * @example
+ * ```typescript
+ * const analyzeState = {
+ *   timestamp: '2025-01-01T12:00:00Z',
+ *   item_count: 10,
+ *   file_checksums: {
+ *     'file1.ts': 'abc123',
+ *     'file2.ts': 'def456'
+ *   }
+ * };
+ *
+ * const auditState = {
+ *   timestamp: '2025-01-01T10:00:00Z',
+ *   item_count: 10,
+ *   file_checksums: {
+ *     'file1.ts': 'oldabc',  // Modified
+ *     'file3.ts': 'removed'  // Removed
+ *   }
+ * };
+ *
+ * const result = compareFileChecksums(analyzeState, auditState);
+ * // result = { hasChanges: true, changedCount: 3 }
+ * // (1 modified + 1 added + 1 removed = 3 changes)
+ * ```
  */
 export interface ChecksumComparisonResult {
+  /**
+   * Whether any changes were detected
+   *
+   * True if any files were modified, added, or removed.
+   * False only when all file checksums match exactly.
+   */
   hasChanges: boolean;
+
+  /**
+   * Total number of changed files
+   *
+   * Sum of modified + added + removed files.
+   * Zero when hasChanges is false.
+   */
   changedCount: number;
 }
 
