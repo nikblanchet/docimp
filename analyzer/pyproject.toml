@@ -26,8 +26,6 @@ line-length = 88
 # SIM: flake8-simplify (remove unnecessary complexity)
 # PERF: perflint (performance anti-patterns)
 # YTT: flake8-2020 (modern sys.version_info checks)
-#
-# See .planning/MODERNIZATION.md for detailed rule descriptions
 select = [
     "E",     # pycodestyle errors
     "F",     # pyflakes

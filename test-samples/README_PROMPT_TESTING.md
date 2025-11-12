@@ -179,10 +179,10 @@ After testing all three options:
 
 An option passes if:
 
-- ✅ **Zero** markdown code fences wrapping responses
-- ✅ All files remain syntactically valid
-- ✅ Code examples within docstrings are preserved
-- ✅ Works consistently across all three languages
+- ✓ **Zero** markdown code fences wrapping responses
+- ✓ All files remain syntactically valid
+- ✓ Code examples within docstrings are preserved
+- ✓ Works consistently across all three languages
 
 ## Troubleshooting
 

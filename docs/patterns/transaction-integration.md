@@ -50,7 +50,7 @@ Interactive [U]ndo option added to improve workflow:
 - Change tracking: `changeCount` field, incremented on accept, decremented on undo
 - Conditional display: [U] only shown when `changeCount > 0 && transactionActive`
 - Python backend: RollbackResult enhanced with `item_name`, `item_type`, `filepath` fields
-- Test coverage: 451 TypeScript tests (4 undo tests passing, 4 skipped - see `.scratch/undo-tests-todo.md`)
+- Test coverage: 451 TypeScript tests (4 undo tests passing, 4 skipped pending transaction lifecycle mock improvements)
 
 ### Future Work
 

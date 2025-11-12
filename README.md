@@ -138,7 +138,7 @@ docimp analyze ./src
 # │  By Language:                            │
 # │  • Python:       60.0% (12/20)           │
 # │  • TypeScript:   50.0% (8/16)            │
-# │  • JavaScript:   20.0% (3/15) ⚠️         │
+# │  • JavaScript:   20.0% (3/15) ⚠         │
 # └──────────────────────────────────────────┘
 
 # Advanced Analysis Options
@@ -1193,10 +1193,10 @@ Plugins are **user-controlled JavaScript code with NO sandboxing**.
 
 **Trade-offs**:
 
-- ✅ Full access to Node.js APIs and TypeScript compiler
-- ✅ Real validation (not just pattern matching)
-- ❌ No security boundary - plugins run with full file system access
-- ❌ User must trust plugin source code
+- ✓ Full access to Node.js APIs and TypeScript compiler
+- ✓ Real validation (not just pattern matching)
+- ✗ No security boundary - plugins run with full file system access
+- ✗ User must trust plugin source code
 
 **Default behavior**: Only load plugins from:
 
@@ -1727,4 +1727,4 @@ pipelines where you want to enforce clean syntax before analyzing documentation.
 
 ---
 
-**Star this repo if DocImp helps your project!** ⭐
+**Star this repo if DocImp helps your project!**

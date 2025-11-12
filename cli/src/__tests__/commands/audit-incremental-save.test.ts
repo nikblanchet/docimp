@@ -165,10 +165,9 @@ describe('Audit Incremental Save Integration', () => {
     jest.restoreAllMocks();
   });
 
-  // NOTE: Additional integration tests for session file validation are deferred to Session 3
-  // when resume functionality is implemented. These tests require the full audit workflow
-  // to complete with actual file I/O which is better tested end-to-end.
-  // See .planning/issue-216-save-resume-feature.md Session 3 deliverables.
+  // NOTE: Additional integration tests for session file validation are deferred
+  // until resume functionality is implemented (Issue #216). These tests require the full
+  // audit workflow to complete with actual file I/O which is better tested end-to-end.
 
   it('should update current_index as audit progresses', async () => {
     // Mock bridge with multiple items

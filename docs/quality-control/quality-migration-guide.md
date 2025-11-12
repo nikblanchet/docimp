@@ -89,7 +89,7 @@ git commit -m "Apply Prettier formatting"
 
 **Team Communication**:
 ```
-🎨 Code Formatting Update
+Code Formatting Update
 
 We've adopted [Ruff/Prettier] for automatic code formatting.
 
@@ -232,7 +232,7 @@ git commit -m "Fix ESLint issues"
 
 **Team Communication**:
 ```
-🔍 Linting Enabled
+Linting Enabled
 
 We've enabled [Ruff/ESLint] to catch bugs automatically.
 
@@ -361,7 +361,7 @@ npx tsc --noEmit
 
 **Team Communication**:
 ```
-🎯 Type Checking Added
+Type Checking Added
 
 We're gradually adopting static type checking.
 
@@ -572,7 +572,7 @@ git push origin main
 
 **Team Communication**:
 ```
-🤖 CI/CD Pipeline Active
+CI/CD Pipeline Active
 
 All PRs now run automated quality checks.
 
