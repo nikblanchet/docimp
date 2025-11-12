@@ -114,9 +114,9 @@ echo "Created 5 Python files (10 functions total)"
 # Test 1: Baseline analysis
 print_header "Test 1: Baseline analysis"
 echo "Running: docimp analyze ./test-incremental"
-START_TIME=$(date +%s%3N)  # Milliseconds
+START_TIME=$(date +%s)  # Seconds (cross-platform compatible)
 docimp analyze ./test-incremental > /dev/null 2>&1
-BASELINE_TIME=$(( $(date +%s%3N) - START_TIME ))
+BASELINE_TIME=$(( ($(date +%s) - START_TIME) * 1000 ))
 echo "Baseline analysis time: ${BASELINE_TIME}ms"
 
 if [ -f .docimp/workflow-state.json ]; then
@@ -160,9 +160,9 @@ def function_new():
 EOF
 
 echo "Running: docimp analyze ./test-incremental --incremental"
-START_TIME=$(date +%s%3N)
+START_TIME=$(date +%s)
 OUTPUT=$(docimp analyze ./test-incremental --incremental 2>&1)
-INCREMENTAL_TIME=$(( $(date +%s%3N) - START_TIME ))
+INCREMENTAL_TIME=$(( ($(date +%s) - START_TIME) * 1000 ))
 echo "Incremental analysis time: ${INCREMENTAL_TIME}ms"
 
 if echo "$OUTPUT" | grep -q "1 file(s) have changed"; then
@@ -305,9 +305,9 @@ def function_modified():
 EOF
 
 echo "Running: docimp analyze ./test-incremental --incremental"
-START_TIME=$(date +%s%3N)
+START_TIME=$(date +%s)
 OUTPUT=$(docimp analyze ./test-incremental --incremental 2>&1)
-LARGE_INCREMENTAL_TIME=$(( $(date +%s%3N) - START_TIME ))
+LARGE_INCREMENTAL_TIME=$(( ($(date +%s) - START_TIME) * 1000 ))
 
 if echo "$OUTPUT" | grep -q "file(s) have changed"; then
     print_success "Incremental analysis completed for multiple file changes"
@@ -321,9 +321,9 @@ echo "Baseline time: ${BASELINE_TIME}ms"
 # Test 9: Full re-analysis for comparison
 print_header "Test 9: Full re-analysis (no --incremental)"
 echo "Running: docimp analyze ./test-incremental (full analysis)"
-START_TIME=$(date +%s%3N)
+START_TIME=$(date +%s)
 docimp analyze ./test-incremental > /dev/null 2>&1
-FULL_REANALYSIS_TIME=$(( $(date +%s%3N) - START_TIME ))
+FULL_REANALYSIS_TIME=$(( ($(date +%s) - START_TIME) * 1000 ))
 echo "Full re-analysis time: ${FULL_REANALYSIS_TIME}ms"
 
 if [ "$FULL_REANALYSIS_TIME" -ge "$LARGE_INCREMENTAL_TIME" ]; then

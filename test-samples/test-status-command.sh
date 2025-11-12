@@ -200,10 +200,10 @@ echo "Running: docimp plan ."
 docimp plan . > /dev/null 2>&1
 
 echo "Measuring status command execution time"
-START_TIME=$(date +%s%3N)  # Milliseconds
+START_TIME=$(date +%s)  # Seconds (cross-platform compatible)
 docimp status > /dev/null 2>&1
-END_TIME=$(date +%s%3N)
-DURATION=$(( END_TIME - START_TIME ))
+END_TIME=$(date +%s)
+DURATION=$(( (END_TIME - START_TIME) * 1000 ))
 
 echo "Status command took: ${DURATION}ms"
 
