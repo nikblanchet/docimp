@@ -551,6 +551,172 @@ docimp status                     # Should show no warnings
 └─────────────────────────────────────────┘
 ```
 
+## Frequently Asked Questions
+
+### How do I test workflow state integration?
+
+DocImp includes comprehensive integration tests that validate workflow state management across command boundaries.
+
+**Running integration tests**:
+
+```bash
+# Run all integration tests
+cd cli
+npm test -- workflow-state-integration
+
+# Run specific test suite
+npm test -- workflow-state-integration -t "Workflow A"
+```
+
+**Test coverage** (18 integration tests):
+
+1. **Workflow A tests** (analyze → plan → improve):
+   - Workflow state creation and checksums
+   - Timestamp validation (ISO 8601 format)
+   - Command prerequisite validation
+   - Staleness detection
+
+2. **Workflow B tests** (analyze → audit → plan → improve):
+   - Audit workflow integration
+   - Audit rating application
+   - Multi-level staleness detection
+
+3. **File modification tests**:
+   - Incremental analysis (modified files only)
+   - Deleted file handling
+   - Added file detection
+
+4. **Smart auto-clean tests**:
+   - --preserve-audit behavior
+   - --force-clean behavior
+   - Missing audit.json handling
+
+5. **Error handling tests**:
+   - Missing prerequisite errors (clear messages)
+   - Corrupted workflow-state.json recovery
+
+**Manual end-to-end testing**:
+
+```bash
+# Run bash integration test script
+./test-samples/test-workflow-state-integration.sh
+```
+
+This script performs manual testing with:
+- Full workflow scenarios (A and B)
+- File modification detection
+- Colorful pass/fail reporting
+- Real-world command sequences
+
+**Test file locations**:
+- Integration tests: `cli/src/__tests__/integration/workflow-state-integration.test.ts`
+- Bash script: `test-samples/test-workflow-state-integration.sh`
+
+### What integration tests cover workflow state?
+
+The workflow state integration test suite covers all cross-command scenarios:
+
+**Test categories**:
+
+| Category | Tests | What It Validates |
+|----------|-------|-------------------|
+| Workflow A | 6 tests | analyze → plan → improve flow |
+| Workflow B | 3 tests | analyze → audit → plan → improve flow |
+| File Modifications | 3 tests | Incremental analysis with add/modify/delete |
+| Smart Auto-Clean | 3 tests | Audit preservation and cleaning behavior |
+| Error Handling | 3 tests | Clear error messages for workflow violations |
+
+**Example test scenarios**:
+
+```typescript
+// Test: Only re-analyze modified files in incremental mode
+1. Run analyze on 3 files
+2. Modify 1 file
+3. Run analyze --incremental
+4. Verify: Only 1 file re-analyzed, 2 cached
+
+// Test: Detect stale plan when analyze re-run
+1. Run analyze
+2. Run plan
+3. Modify files and re-run analyze
+4. Run plan again
+5. Verify: Warning about stale plan from previous analyze
+
+// Test: Clear error when improve run without plan
+1. Run analyze
+2. Try to run improve (skip plan)
+3. Verify: Clear error message explaining workflow steps
+```
+
+**Coverage**: All workflow state features tested across 18 integration tests with 100% success rate.
+
+### Can I see example workflow test code?
+
+Yes! The integration tests provide excellent examples of how workflow state works.
+
+**Example 1: Basic workflow state creation**
+
+```typescript
+// After analyze completes, workflow state contains checksums
+it('should create workflow state with checksums after analyze', async () => {
+  await analyzeCore({ path: tempDir }, mockBridge, mockDisplay);
+
+  const state = await WorkflowStateManager.load(path.join(tempDir, '.docimp'));
+
+  expect(state.last_analyze).not.toBeNull();
+  expect(state.last_analyze?.file_checksums).toEqual({
+    'file1.py': expect.any(String),  // SHA-256 checksum
+    'file2.py': expect.any(String),
+    'file3.py': expect.any(String),
+  });
+});
+```
+
+**Example 2: Staleness detection**
+
+```typescript
+// Re-running analyze after plan makes plan stale
+it('should detect stale plan when analyze is re-run', async () => {
+  // Step 1: Initial workflow
+  await analyzeCore({ path: tempDir }, mockBridge, mockDisplay);
+  await planCore({ path: tempDir }, mockBridge, mockDisplay);
+
+  // Step 2: Re-run analyze
+  await analyzeCore({ path: tempDir }, mockBridge, mockDisplay);
+
+  // Step 3: Verify plan is now stale
+  const validator = new WorkflowValidator(path.join(tempDir, '.docimp'));
+  const warnings = await validator.checkStalePlan();
+
+  expect(warnings).toContain('analyze re-run since plan generated');
+});
+```
+
+**Example 3: Incremental analysis**
+
+```typescript
+// Only modified files are re-analyzed in incremental mode
+it('should only re-analyze modified files', async () => {
+  // Initial analyze
+  await analyzeCore({ path: tempDir, incremental: false }, mockBridge, mockDisplay);
+
+  // Modify one file
+  await fs.writeFile(path.join(tempDir, 'file2.py'), '# modified');
+
+  // Incremental analyze - only file2.py re-analyzed
+  await analyzeCore({ path: tempDir, incremental: true }, mockBridge, mockDisplay);
+
+  // Verify: file2.py has new checksum, others unchanged
+  const state = await WorkflowStateManager.load(path.join(tempDir, '.docimp'));
+  const newChecksum = state.last_analyze?.file_checksums['file2.py'];
+
+  expect(newChecksum).not.toEqual(originalChecksum);  // Changed
+  expect(state.last_analyze?.file_checksums['file1.py']).toEqual(originalChecksums['file1.py']);  // Unchanged
+});
+```
+
+**Full test file**: See `cli/src/__tests__/integration/workflow-state-integration.test.ts` for all 18 test cases.
+
 ## Advanced Tips
 
 ### Combining Flags for Maximum Efficiency
