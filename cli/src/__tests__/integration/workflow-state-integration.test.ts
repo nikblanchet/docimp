@@ -237,6 +237,69 @@ describe('Workflow State Integration', () => {
       });
     });
 
+    it('should use ISO 8601 timestamp format in workflow state', async () => {
+      // Create test file
+      const testFile = path.join(tempDir, 'test.py');
+      await fs.writeFile(testFile, 'def test():\n    pass\n');
+
+      const mockItems: CodeItem[] = [
+        createMockCodeItem({
+          name: 'test',
+          filepath: testFile,
+        }),
+      ];
+
+      const mockResult: AnalysisResult = {
+        items: mockItems,
+        coverage_percent: 0,
+        total_items: 1,
+        documented_items: 0,
+        by_language: {},
+        parse_failures: [],
+      };
+
+      mockBridge.analyze.mockResolvedValue(mockResult);
+
+      // Run analyze
+      await analyzeCore(
+        tempDir,
+        {
+          incremental: false,
+          applyAudit: false,
+          preserveAudit: false,
+          forceClean: false,
+          dryRun: false,
+        },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader
+      );
+
+      // Load workflow state and verify timestamp format
+      const workflowState = JSON.parse(
+        await fs.readFile(
+          path.join(tempDir, '.docimp/workflow-state.json'),
+          'utf8'
+        )
+      );
+
+      // ISO 8601 format regex: YYYY-MM-DDTHH:mm:ss.sssZ or YYYY-MM-DDTHH:mm:ss±HH:mm
+      const iso8601Regex =
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?([+-]\d{2}:\d{2}|Z)$/;
+
+      expect(workflowState.last_analyze.timestamp).toMatch(iso8601Regex);
+
+      // Verify timestamp is parseable as valid Date
+      const timestamp = new Date(workflowState.last_analyze.timestamp);
+      expect(timestamp.toString()).not.toBe('Invalid Date');
+
+      // Verify timestamp is recent (within last 5 seconds)
+      const now = Date.now();
+      const timestampMs = timestamp.getTime();
+      const diffMs = Math.abs(now - timestampMs);
+      expect(diffMs).toBeLessThan(5000); // 5 seconds
+    });
+
     it('should validate analyze prerequisite when running plan', async () => {
       // Attempt to run plan without analyze
       const mockPlanResult: PlanResult = {
