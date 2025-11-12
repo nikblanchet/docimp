@@ -10,7 +10,10 @@ import type { IDisplay } from '../display/i-display.js';
 import type { IPythonBridge } from '../python-bridge/i-python-bridge.js';
 import { PathValidator } from '../utils/path-validator.js';
 import { StateManager } from '../utils/state-manager.js';
-import { WorkflowValidator } from '../utils/workflow-validator.js';
+import {
+  WorkflowValidator,
+  formatStalenessWarning,
+} from '../utils/workflow-validator.js';
 
 /**
  * Core plan logic (extracted for testability).
@@ -53,11 +56,14 @@ export async function planCore(
   }
 
   // Check for stale audit data
-  const auditStale = await WorkflowValidator.isAuditStale();
-  if (auditStale) {
+  const auditStaleCheck = await WorkflowValidator.isAuditStale();
+  if (auditStaleCheck.isStale) {
     display.showMessage(
-      '\nWarning: Analysis has been re-run since audit. ' +
-        'Audit ratings may be incomplete or stale.\n'
+      formatStalenessWarning(
+        'audit',
+        auditStaleCheck.changedCount,
+        "Consider re-running 'docimp audit' to refresh ratings."
+      )
     );
   }
 

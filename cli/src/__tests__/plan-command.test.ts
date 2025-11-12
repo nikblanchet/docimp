@@ -202,8 +202,16 @@ describe('plan command path validation', () => {
           validatePlanPrerequisites: jest
             .fn()
             .mockResolvedValue({ valid: true }),
-          isAuditStale: jest.fn().mockResolvedValue(true),
+          isAuditStale: jest
+            .fn()
+            .mockResolvedValue({ isStale: true, changedCount: 3 }),
         },
+        formatStalenessWarning: jest
+          .fn()
+          .mockImplementation(
+            (cmd: string, count: number, suggestion: string) =>
+              `\nWarning: ${cmd.charAt(0).toUpperCase() + cmd.slice(1)} data may be stale (${count} file(s) modified since ${cmd}).\n${suggestion}\n(See Issue #386 for future --verbose flag to show detailed file changes)\n`
+          ),
       }));
 
       // Re-import planCore to get mocked WorkflowValidator
@@ -212,12 +220,12 @@ describe('plan command path validation', () => {
 
       await freshPlanCore(tempDir, {}, mockBridge, mockDisplay);
 
-      // Verify warning was displayed
+      // Verify warning was displayed with file count
       expect(mockDisplay.showMessage).toHaveBeenCalledWith(
-        expect.stringContaining('Analysis has been re-run since audit')
+        expect.stringContaining('Audit data may be stale')
       );
       expect(mockDisplay.showMessage).toHaveBeenCalledWith(
-        expect.stringContaining('Audit ratings may be incomplete or stale')
+        expect.stringContaining('3 file(s) modified since audit')
       );
     });
 
@@ -228,8 +236,16 @@ describe('plan command path validation', () => {
           validatePlanPrerequisites: jest
             .fn()
             .mockResolvedValue({ valid: true }),
-          isAuditStale: jest.fn().mockResolvedValue(false),
+          isAuditStale: jest
+            .fn()
+            .mockResolvedValue({ isStale: false, changedCount: 0 }),
         },
+        formatStalenessWarning: jest
+          .fn()
+          .mockImplementation(
+            (cmd: string, count: number, suggestion: string) =>
+              `\nWarning: ${cmd.charAt(0).toUpperCase() + cmd.slice(1)} data may be stale (${count} file(s) modified since ${cmd}).\n${suggestion}\n(See Issue #386 for future --verbose flag to show detailed file changes)\n`
+          ),
       }));
 
       jest.resetModules();
@@ -241,7 +257,7 @@ describe('plan command path validation', () => {
       const showMessageCalls = (mockDisplay.showMessage as jest.Mock).mock
         .calls;
       const staleWarnings = showMessageCalls.filter((call) =>
-        call[0].includes('Analysis has been re-run since audit')
+        call[0].includes('Audit data may be stale')
       );
       expect(staleWarnings).toHaveLength(0);
     });

@@ -40,7 +40,10 @@ import { FileTracker } from '../utils/file-tracker.js';
 import { PathValidator } from '../utils/path-validator.js';
 import { SessionStateManager } from '../utils/session-state-manager.js';
 import { StateManager } from '../utils/state-manager.js';
-import { WorkflowValidator } from '../utils/workflow-validator.js';
+import {
+  WorkflowValidator,
+  formatStalenessWarning,
+} from '../utils/workflow-validator.js';
 
 /**
  * User cancelled the operation.
@@ -537,11 +540,14 @@ export async function improveCore(
   }
 
   // Check for stale plan (already validated in validateImprovePrerequisites, but show warning)
-  const planStale = await WorkflowValidator.isPlanStale();
-  if (planStale) {
+  const planStaleCheck = await WorkflowValidator.isPlanStale();
+  if (planStaleCheck.isStale) {
     display.showMessage(
-      '\nWarning: Plan is stale (analysis has been re-run). ' +
-        'Consider regenerating plan with "docimp plan" for latest priorities.\n'
+      formatStalenessWarning(
+        'plan',
+        planStaleCheck.changedCount,
+        "Consider re-running 'docimp plan' to regenerate with latest analysis."
+      )
     );
   }
 

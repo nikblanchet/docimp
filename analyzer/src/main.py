@@ -2,6 +2,10 @@
 
 This module provides the main entry point for running the analyzer from the
 command line. It uses argparse to handle subcommands and configuration.
+
+Workflow state management utilities:
+- compare_file_checksums: Detects modified/added/removed files between states
+- format_staleness_message: Consistent staleness warning formatting
 """
 
 import argparse
@@ -13,6 +17,7 @@ from .analysis.analyzer import DocumentationAnalyzer
 from .audit.quality_rater import AuditResult, save_audit_results
 from .claude.claude_client import ClaudeClient
 from .claude.prompt_builder import PromptBuilder
+from .models.workflow_state import CommandState
 from .parsers.python_parser import PythonParser
 from .parsers.typescript_parser import TypeScriptParser
 from .planning.plan_generator import generate_plan, save_plan
@@ -22,6 +27,77 @@ from .utils.state_manager import StateManager
 from .utils.workflow_state_manager import WorkflowStateManager
 from .writer.docstring_writer import DocstringWriter
 from .writer.transaction_manager import TransactionManager
+
+
+def compare_file_checksums(
+    newer_state: CommandState, older_state: CommandState
+) -> tuple[bool, int]:
+    """
+    Compare file checksums between two command states to detect changes.
+
+    Detects three types of changes:
+    - File modified: Same filepath, different checksum
+    - File removed: Present in older state, absent in newer state
+    - File added: Absent in older state, present in newer state
+
+    Args:
+        newer_state: Command state with more recent analysis results
+        older_state: Command state with older results to compare against
+
+    Returns:
+        Tuple of (hasChanges, changedCount)
+
+    Raises:
+        ValueError: If file_checksums is missing from either state
+    """
+    if not newer_state.file_checksums or not older_state.file_checksums:
+        raise ValueError(
+            "Cannot compare file checksums: file_checksums missing from command state. "
+            "This may indicate legacy workflow state data. "
+            "Re-run analysis to update workflow state with checksums."
+        )
+
+    changed_count = 0
+
+    # Check for modified and removed files
+    for filepath, older_checksum in older_state.file_checksums.items():
+        if filepath in newer_state.file_checksums:
+            if newer_state.file_checksums[filepath] != older_checksum:
+                changed_count += 1  # File modified
+        else:
+            changed_count += 1  # File removed
+
+    # Check for added files
+    for filepath in newer_state.file_checksums:
+        if filepath not in older_state.file_checksums:
+            changed_count += 1  # File added
+
+    return (changed_count > 0, changed_count)
+
+
+def format_staleness_message(
+    command: str, reason: str, count: int | None = None
+) -> str:
+    """
+    Format staleness warning message with consistent pattern.
+
+    Args:
+        command: Command name that is stale (e.g., 'analyze', 'audit', 'plan')
+        reason: Reason for staleness (e.g., 'file(s) modified', 're-run since')
+        count: Optional file count for modified file messages
+
+    Returns:
+        Formatted staleness message
+
+    Examples:
+        >>> format_staleness_message('analyze', 'file(s) modified since last run', 3)
+        'analyze is stale (3 file(s) modified since last run)'
+        >>> format_staleness_message('audit', 're-run since audit')
+        'audit is stale (re-run since audit)'
+    """
+    if count is not None:
+        return f"{command} is stale ({count} {reason})"
+    return f"{command} is stale ({reason})"
 
 
 def create_analyzer(parsers: dict, scorer: ImpactScorer) -> DocumentationAnalyzer:
@@ -651,45 +727,70 @@ def cmd_status(args: argparse.Namespace) -> int:
                 migration_available = schema_version != CURRENT_WORKFLOW_STATE_VERSION
 
         # Helper to calculate staleness
-        def is_stale(newer_cmd: str | None, older_cmd: str | None) -> tuple[bool, str]:
-            """Check if older_cmd is stale compared to newer_cmd."""
-            newer_state = getattr(state, f"last_{newer_cmd}") if newer_cmd else None
-            older_state = getattr(state, f"last_{older_cmd}") if older_cmd else None
+        def is_stale(
+            newer_cmd: str | None, older_cmd: str | None
+        ) -> tuple[bool, int, str]:
+            """
+            Check if older_cmd is stale compared to newer_cmd using file checksums.
+
+            Args:
+                newer_cmd: Name of the newer command (e.g., 'analyze')
+                older_cmd: Name of the older command to check (e.g., 'audit', 'plan')
+
+            Returns:
+                Tuple of (isStale, changedCount, message)
+            """
+            if not newer_cmd or not older_cmd:
+                return False, 0, ""
+
+            newer_state = getattr(state, f"last_{newer_cmd}")
+            older_state = getattr(state, f"last_{older_cmd}")
 
             if not newer_state or not older_state:
-                return False, ""
+                return False, 0, ""
 
-            newer_time = datetime.fromisoformat(
-                newer_state.timestamp.replace("Z", "+00:00")
-            )
-            older_time = datetime.fromisoformat(
-                older_state.timestamp.replace("Z", "+00:00")
-            )
+            try:
+                has_changes, changed_count = compare_file_checksums(
+                    newer_state, older_state
+                )
 
-            if newer_time > older_time:
-                return True, f"{older_cmd} is stale (analyze re-run since {older_cmd})"
-            return False, ""
+                if has_changes:
+                    message = format_staleness_message(
+                        older_cmd, f"file(s) modified since {older_cmd}", changed_count
+                    )
+                    return (True, changed_count, message)
+                return False, 0, ""
+            except ValueError:
+                # Fallback to timestamp comparison if checksums missing
+                # (legacy data)
+                newer_time = datetime.fromisoformat(
+                    newer_state.timestamp.replace("Z", "+00:00")
+                )
+                older_time = datetime.fromisoformat(
+                    older_state.timestamp.replace("Z", "+00:00")
+                )
+
+                if newer_time > older_time:
+                    message = format_staleness_message(
+                        older_cmd, f"analyze re-run since {older_cmd}"
+                    )
+                    return (True, 0, message)
+                return False, 0, ""
 
         # Detect file modifications since last analyze
-        import hashlib
+        # Use FileTracker.detect_changes() for parallelized checksum calculation
+        from .utils.file_tracker import FileSnapshot, FileTracker
 
         file_mods = 0
         if state.last_analyze:
-            for filepath, checksum in state.last_analyze.file_checksums.items():
-                try:
-                    # Calculate current checksum
-                    filepath_obj = Path(filepath)
-                    if filepath_obj.exists():
-                        with filepath_obj.open("rb") as file_handle:
-                            current_checksum = hashlib.sha256(
-                                file_handle.read()
-                            ).hexdigest()
-                        if current_checksum != checksum:
-                            file_mods += 1
-                    else:
-                        file_mods += 1  # File deleted
-                except OSError:
-                    pass  # Skip inaccessible files
+            # Convert checksums dict to FileSnapshot dict (required format)
+            snapshot = {
+                fp: FileSnapshot(fp, 0, checksum, 0)
+                for fp, checksum in state.last_analyze.file_checksums.items()
+            }
+            # detect_changes uses ThreadPoolExecutor for parallel processing
+            changed_files = FileTracker.detect_changes(snapshot)
+            file_mods = len(changed_files)
 
         # Build command states
         commands = []
@@ -714,22 +815,24 @@ def cmd_status(args: argparse.Namespace) -> int:
         # Check if analyze is stale (files modified)
         if state.last_analyze and file_mods > 0:
             staleness_warnings.append(
-                f"analyze is stale ({file_mods} file(s) modified since last run)"
+                format_staleness_message(
+                    "analyze", "file(s) modified since last run", file_mods
+                )
             )
 
         # Check if audit is stale (analyze re-run)
-        is_audit_stale, msg = is_stale("analyze", "audit")
+        is_audit_stale, _, msg = is_stale("analyze", "audit")
         if is_audit_stale:
             staleness_warnings.append(msg)
 
         # Check if plan is stale (analyze or audit re-run)
-        is_plan_stale_analyze, msg = is_stale("analyze", "plan")
+        is_plan_stale_analyze, _, msg = is_stale("analyze", "plan")
         if is_plan_stale_analyze:
             staleness_warnings.append(msg)
 
-        is_plan_stale_audit, msg = is_stale("audit", "plan")
+        is_plan_stale_audit, _, msg = is_stale("audit", "plan")
         if is_plan_stale_audit:
-            staleness_warnings.append("plan is stale (audit re-run since plan)")
+            staleness_warnings.append(msg)
 
         # Build suggestions
         suggestions = []
