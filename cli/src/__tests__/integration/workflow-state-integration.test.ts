@@ -439,6 +439,9 @@ describe('Workflow State Integration', () => {
       // Wait a moment to ensure timestamp difference
       await new Promise((resolve) => setTimeout(resolve, 10));
 
+      // Modify the file to trigger staleness detection
+      await fs.writeFile(testFile, 'def test():\n    return 42\n');
+
       // Re-run analyze
       await analyzeCore(
         tempDir,
@@ -454,19 +457,11 @@ describe('Workflow State Integration', () => {
         mockConfigLoader
       );
 
-      // Check staleness
-      const workflowState = JSON.parse(
-        await fs.readFile(
-          path.join(tempDir, '.docimp/workflow-state.json'),
-          'utf8'
-        )
-      );
-
-      const validator = new WorkflowValidator(workflowState);
-      const stalePlan = validator.checkStalePlan();
+      // Check staleness - plan should be stale after analyze re-run
+      const stalePlan = await WorkflowValidator.isPlanStale();
 
       expect(stalePlan.isStale).toBe(true);
-      expect(stalePlan.reason).toContain('analyze');
+      expect(stalePlan.changedCount).toBeGreaterThan(0);
     });
   });
 
@@ -739,6 +734,9 @@ describe('Workflow State Integration', () => {
       // Wait a moment
       await new Promise((resolve) => setTimeout(resolve, 10));
 
+      // Modify the file to trigger staleness detection
+      await fs.writeFile(testFile, 'def test():\n    return 42\n');
+
       // Re-run analyze
       await analyzeCore(
         tempDir,
@@ -755,19 +753,13 @@ describe('Workflow State Integration', () => {
       );
 
       // Check staleness for both audit and plan
-      const workflowState = JSON.parse(
-        await fs.readFile(
-          path.join(tempDir, '.docimp/workflow-state.json'),
-          'utf8'
-        )
-      );
+      const staleAudit = await WorkflowValidator.isAuditStale();
+      const stalePlan = await WorkflowValidator.isPlanStale();
 
-      const validator = new WorkflowValidator(workflowState);
-      const staleAnalysis = validator.checkStaleAnalysis();
-      const stalePlan = validator.checkStalePlan();
-
-      expect(staleAnalysis.isStale).toBe(true);
+      expect(staleAudit.isStale).toBe(true);
+      expect(staleAudit.changedCount).toBeGreaterThan(0);
       expect(stalePlan.isStale).toBe(true);
+      expect(stalePlan.changedCount).toBeGreaterThan(0);
     });
   });
 
