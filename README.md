@@ -414,6 +414,98 @@ docimp status --json | jq '.commands[] | select(.command == "analyze") | .item_c
 - **Automation**: Shell scripts triggering re-analysis when files change
 - **Automation**: Integration with monitoring/alerting systems
 
+## Workflow State Management
+
+DocImp tracks command execution history, file checksums, and dependencies in `.docimp/workflow-state.json`. This enables incremental re-analysis, automatic staleness detection, and intelligent workflow validation.
+
+### Incremental Analysis
+
+Re-analyze only files that have changed since the last analysis run. Typical time savings: 90-95% for large codebases with minor changes.
+
+```bash
+# Initial analysis: 100 files, 30 seconds
+docimp analyze ./src
+
+# Modify 5 files
+# Incremental: analyzes only 5 changed files, ~3 seconds
+docimp analyze ./src --incremental
+```
+
+**Output example**:
+
+```
+Incremental Analysis
+Using cached results from 95 unchanged files
+Re-analyzing 5 modified files...
+
+Analyzing src/analyzer.ts... [1/5]
+Analyzing src/parser.py... [2/5]
+...
+
+Analysis complete: 100 items (5 re-analyzed, 95 cached)
+Time saved: ~90%
+```
+
+**Preview mode**: Use `--dry-run` to see what would be re-analyzed without running the analysis:
+
+```bash
+docimp analyze ./src --incremental --dry-run
+```
+
+```
+Incremental Analysis (dry run mode)
+
+Would re-analyze 3 file(s):
+  • src/analyzer.ts
+  • src/parser.py
+  • cli/commands/analyze.ts
+
+Would reuse results from 97 unchanged file(s)
+
+Estimated time savings: ~97%
+```
+
+### Audit Rating Application
+
+Apply audit ratings from a previous `docimp audit` session to affect impact score calculation in `docimp plan`.
+
+```bash
+# Workflow: analyze → audit → re-analyze with ratings → plan
+docimp analyze ./src              # Step 1: Initial analysis
+docimp audit ./src                # Step 2: Rate documentation quality (1-4)
+docimp analyze ./src --apply-audit  # Step 3: Apply ratings to analysis
+docimp plan ./src                 # Step 4: Plan uses ratings for priority
+```
+
+**Impact score formula with audit ratings**:
+- Without audit: `impact_score = min(100, complexity × 5)`
+- With audit: `impact_score = (0.6 × complexity_score) + (0.4 × quality_penalty)`
+
+**Penalty scale**: No docs=100, Terrible(1)=80, OK(2)=40, Good(3)=20, Excellent(4)=0
+
+**Combine with incremental**: `--apply-audit --incremental` applies ratings while only re-analyzing changed files.
+
+### Smart Auto-Clean
+
+When running `docimp analyze`, if `audit.json` exists from a previous session, DocImp prompts to clean it (analysis changes may invalidate audit ratings).
+
+**Flags**:
+- `--preserve-audit`: Keep existing `audit.json` without prompting
+- `--force-clean`: Delete `audit.json` without prompting (CI/CD mode)
+
+```bash
+# Default: prompts before cleaning
+docimp analyze ./src
+
+# Keep audit.json (useful when only new files added)
+docimp analyze ./src --preserve-audit
+
+# Force clean for non-interactive mode
+docimp analyze ./src --force-clean
+```
+
+For detailed architecture and API reference, see [Workflow State Management](docs/patterns/workflow-state-management.md).
+
 ### Improve
 
 Interactive documentation improvement workflow.
@@ -1716,6 +1808,69 @@ pipelines where you want to enforce clean syntax before analyzing documentation.
 1. Review the error message for file path and line number
 2. Fix the syntax error in the source file
 3. Re-run `docimp analyze`
+
+### Workflow State Issues
+
+Troubleshooting common workflow state problems.
+
+**Stale data warnings**:
+
+If `docimp status` shows staleness warnings:
+
+```
+Staleness Warnings:
+  • analyze is stale (2 files modified since last run)
+  • plan is stale (analyze re-run since plan generated)
+```
+
+**Resolution**:
+
+```bash
+# Update analysis incrementally (fast)
+docimp analyze ./src --incremental
+
+# Regenerate plan with latest analysis
+docimp plan ./src
+```
+
+**Corrupted workflow-state.json**:
+
+If you see errors like "Failed to parse workflow state" or "Invalid schema version":
+
+```bash
+# Delete corrupted state file (safe - will be recreated)
+rm .docimp/workflow-state.json
+
+# Re-run analysis to create fresh state
+docimp analyze ./src
+```
+
+**Missing files in workflow state**:
+
+If files were deleted but still appear in workflow state:
+
+```bash
+# Re-run analysis to update file list
+docimp analyze ./src
+
+# Or use incremental mode (detects deletions automatically)
+docimp analyze ./src --incremental
+```
+
+**Reset workflow state completely**:
+
+To start fresh (clears all command history):
+
+```bash
+# Remove state file
+rm .docimp/workflow-state.json
+
+# Optionally remove all session data
+rm -rf .docimp/session-reports/*
+
+# Re-run workflow from scratch
+docimp analyze ./src
+```
 
 ---
 
