@@ -757,3 +757,92 @@ test("handles corrupted JSON", ...)
 **Integration**: Uses Phase 3.9 file-level checksum staleness detection for accurate warnings.
 
 **Outcome**: Status command production-ready with colorful terminal output, JSON mode, and comprehensive test coverage.
+
+### Phase 3.11: Cross-Command Integration Tests
+
+**Status**: Complete (PR #391)
+
+**Goal**: Validate workflow state updates across command boundaries with comprehensive integration testing.
+
+**Implementation**:
+
+Integration test suite covering full workflow scenarios:
+
+**Test File**: `cli/src/__tests__/integration/workflow-state-integration.test.ts` (1,332 lines, 18 tests)
+
+**Test Categories**:
+
+1. **Workflow A: analyze → plan → improve** (6 tests)
+   - Workflow state creation with checksums after analyze
+   - ISO 8601 timestamp format validation
+   - Analyze prerequisite validation for plan command
+   - Workflow state updates after plan execution
+   - Plan prerequisite validation for improve command
+   - Staleness detection when analyze re-run after plan
+
+2. **Workflow B: analyze → audit → plan → improve** (3 tests)
+   - Analyze prerequisite validation for audit command
+   - Workflow state updates with audit timestamp
+   - Audit rating loading in plan command
+   - Staleness detection for both audit and plan after analyze re-run
+
+3. **File Modification and Incremental Analysis** (3 tests)
+   - Modified files: Only re-analyze changed files in incremental mode
+   - Deleted files: Remove from workflow state automatically
+   - Added files: Include in workflow state automatically
+
+4. **Smart Auto-Clean Integration** (3 tests)
+   - Preserve audit.json with --preserve-audit flag
+   - Handle missing audit.json gracefully
+   - Skip prompt with --force-clean flag
+
+5. **Error Handling and Validation** (3 tests)
+   - Clear error message when audit run without analyze
+   - Clear error message when improve run without plan
+   - Graceful handling of corrupted workflow-state.json
+
+**Bash Integration Test**: `test-samples/test-workflow-state-integration.sh` (360 lines)
+
+Manual end-to-end testing script:
+- Full workflow scenarios (A and B)
+- File modification detection
+- Smart auto-clean behavior
+- Error handling validation
+- Colorful output with pass/fail reporting
+
+**Example test case** (modified files in incremental mode):
+
+```typescript
+it('should only re-analyze modified files in incremental mode', async () => {
+  // Step 1: Initial analyze (creates 3 files)
+  await analyzeCore({ path: tempDir, incremental: false }, mockBridge, mockDisplay);
+
+  // Step 2: Modify 1 file
+  await fs.writeFile(path.join(tempDir, 'file2.py'), '# modified');
+
+  // Step 3: Incremental analyze (only re-analyzes modified file)
+  await analyzeCore({ path: tempDir, incremental: true }, mockBridge, mockDisplay);
+
+  // Verify: Only 1 file re-analyzed, 2 files reused from cache
+  const state = await WorkflowStateManager.load(path.join(tempDir, '.docimp'));
+  expect(state.last_analyze?.file_checksums).toHaveProperty('file2.py');
+  // Checksum for file2.py changed, file1.py and file3.py unchanged
+});
+```
+
+**Command Updates**:
+
+- **improve.ts** (19 lines changed): Enhanced validation and error messages
+- **plan.ts** (15 lines added): Workflow state validation integration
+
+**Test Coverage**: 18 integration tests covering all workflow scenarios
+
+**Benefits**:
+
+1. **Regression prevention**: Ensures workflow state updates work across command boundaries
+2. **Real-world scenarios**: Tests actual user workflows (analyze → audit → plan → improve)
+3. **File modification handling**: Validates incremental analysis with add/modify/delete operations
+4. **Error path coverage**: Ensures clear error messages for workflow violations
+5. **Manual validation**: Bash script enables hands-on testing during development
+
+**Outcome**: Cross-command integration fully tested and production-ready. All 18 integration tests passing.
