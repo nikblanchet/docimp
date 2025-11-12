@@ -778,25 +778,19 @@ def cmd_status(args: argparse.Namespace) -> int:
                 return False, 0, ""
 
         # Detect file modifications since last analyze
-        import hashlib
+        # Use FileTracker.detect_changes() for parallelized checksum calculation
+        from .utils.file_tracker import FileSnapshot, FileTracker
 
         file_mods = 0
         if state.last_analyze:
-            for filepath, checksum in state.last_analyze.file_checksums.items():
-                try:
-                    # Calculate current checksum
-                    filepath_obj = Path(filepath)
-                    if filepath_obj.exists():
-                        with filepath_obj.open("rb") as file_handle:
-                            current_checksum = hashlib.sha256(
-                                file_handle.read()
-                            ).hexdigest()
-                        if current_checksum != checksum:
-                            file_mods += 1
-                    else:
-                        file_mods += 1  # File deleted
-                except OSError:
-                    pass  # Skip inaccessible files
+            # Convert checksums dict to FileSnapshot dict (required format)
+            snapshot = {
+                fp: FileSnapshot(fp, 0, checksum, 0)
+                for fp, checksum in state.last_analyze.file_checksums.items()
+            }
+            # detect_changes uses ThreadPoolExecutor for parallel processing
+            changed_files = FileTracker.detect_changes(snapshot)
+            file_mods = len(changed_files)
 
         # Build command states
         commands = []
