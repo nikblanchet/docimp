@@ -206,6 +206,12 @@ describe('plan command path validation', () => {
             .fn()
             .mockResolvedValue({ isStale: true, changedCount: 3 }),
         },
+        formatStalenessWarning: jest
+          .fn()
+          .mockImplementation(
+            (cmd: string, count: number, suggestion: string) =>
+              `\nWarning: ${cmd.charAt(0).toUpperCase() + cmd.slice(1)} data may be stale (${count} file(s) modified since ${cmd}).\n${suggestion}\n(See Issue #386 for future --verbose flag to show detailed file changes)\n`
+          ),
       }));
 
       // Re-import planCore to get mocked WorkflowValidator
@@ -234,6 +240,12 @@ describe('plan command path validation', () => {
             .fn()
             .mockResolvedValue({ isStale: false, changedCount: 0 }),
         },
+        formatStalenessWarning: jest
+          .fn()
+          .mockImplementation(
+            (cmd: string, count: number, suggestion: string) =>
+              `\nWarning: ${cmd.charAt(0).toUpperCase() + cmd.slice(1)} data may be stale (${count} file(s) modified since ${cmd}).\n${suggestion}\n(See Issue #386 for future --verbose flag to show detailed file changes)\n`
+          ),
       }));
 
       jest.resetModules();

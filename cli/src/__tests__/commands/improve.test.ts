@@ -181,13 +181,13 @@ describe('improve command', () => {
       last_analyze: {
         timestamp: new Date().toISOString(),
         item_count: 1,
-        file_checksums: {},
+        file_checksums: { 'test.js': 'abc123' },
       },
       last_audit: null,
       last_plan: {
         timestamp: new Date().toISOString(),
         item_count: 1,
-        file_checksums: {},
+        file_checksums: { 'test.js': 'abc123' },
       },
       last_improve: null,
     });
@@ -411,13 +411,13 @@ describe('improve command', () => {
         last_analyze: {
           timestamp: new Date().toISOString(),
           item_count: 0,
-          file_checksums: {},
+          file_checksums: { 'test.js': 'abc123' },
         },
         last_audit: null,
         last_plan: {
           timestamp: new Date().toISOString(),
           item_count: 0,
-          file_checksums: {},
+          file_checksums: { 'test.js': 'abc123' },
         },
         last_improve: null,
       });
@@ -544,13 +544,13 @@ describe('improve command', () => {
         last_analyze: {
           timestamp: new Date().toISOString(),
           item_count: 2,
-          file_checksums: {},
+          file_checksums: { 'test.js': 'abc123' },
         },
         last_audit: null,
         last_plan: {
           timestamp: new Date().toISOString(),
           item_count: 2,
-          file_checksums: {},
+          file_checksums: { 'test.js': 'abc123' },
         },
         last_improve: null,
       });
@@ -821,13 +821,13 @@ describe('improve command', () => {
         last_analyze: {
           timestamp: new Date().toISOString(),
           item_count: 2,
-          file_checksums: {},
+          file_checksums: { 'test.js': 'abc123' },
         },
         last_audit: null,
         last_plan: {
           timestamp: new Date().toISOString(),
           item_count: 2,
-          file_checksums: {},
+          file_checksums: { 'test.js': 'abc123' },
         },
         last_improve: null,
       });
@@ -895,13 +895,13 @@ describe('improve command', () => {
         last_analyze: {
           timestamp: new Date().toISOString(),
           item_count: 1,
-          file_checksums: {},
+          file_checksums: { 'test.js': 'abc123' },
         },
         last_audit: null,
         last_plan: {
           timestamp: new Date().toISOString(),
           item_count: 1,
-          file_checksums: {},
+          file_checksums: { 'test.js': 'abc123' },
         },
         last_improve: null,
       });
@@ -966,13 +966,13 @@ describe('improve command', () => {
         last_analyze: {
           timestamp: new Date().toISOString(),
           item_count: 2,
-          file_checksums: {},
+          file_checksums: { 'test.js': 'abc123' },
         },
         last_audit: null,
         last_plan: {
           timestamp: new Date().toISOString(),
           item_count: 2,
-          file_checksums: {},
+          file_checksums: { 'test.js': 'abc123' },
         },
         last_improve: null,
       });
@@ -1203,13 +1203,13 @@ describe('improve command', () => {
         last_analyze: {
           timestamp: new Date().toISOString(),
           item_count: 1,
-          file_checksums: {},
+          file_checksums: { 'test.js': 'abc123' },
         },
         last_audit: null,
         last_plan: {
           timestamp: new Date().toISOString(),
           item_count: 1,
-          file_checksums: {},
+          file_checksums: { 'test.js': 'abc123' },
         },
         last_improve: null,
       });
@@ -1304,13 +1304,13 @@ describe('improve command', () => {
         last_analyze: {
           timestamp: new Date().toISOString(),
           item_count: 2,
-          file_checksums: {},
+          file_checksums: { 'test.js': 'abc123' },
         },
         last_audit: null,
         last_plan: {
           timestamp: new Date().toISOString(),
           item_count: 2,
-          file_checksums: {},
+          file_checksums: { 'test.js': 'abc123' },
         },
         last_improve: null,
       });
