@@ -204,12 +204,7 @@ class WorkflowStateManager:
         from datetime import UTC, datetime
 
         # Generate cross-platform safe timestamp (replace : and . with -)
-        timestamp = (
-            datetime.now(tz=UTC)
-            .isoformat()
-            .replace(":", "-")
-            .replace(".", "-")
-        )
+        timestamp = datetime.now(tz=UTC).isoformat().replace(":", "-").replace(".", "-")
         filename = f"workflow-state-{timestamp}.json"
         filepath = StateManager.get_history_dir() / filename
         temp_path = filepath.with_suffix(".json.tmp")

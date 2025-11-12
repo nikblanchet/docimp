@@ -285,7 +285,6 @@ export class WorkflowStateManager {
     const toDelete: string[] = [];
 
     for (const [i, snapshot] of snapshots.entries()) {
-
       // Get file modification time
       const stats = await fs.stat(snapshot);
       const fileAge = stats.mtimeMs;
