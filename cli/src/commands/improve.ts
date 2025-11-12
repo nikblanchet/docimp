@@ -516,26 +516,27 @@ export async function improveCore(
     return;
   }
 
-  // Check for ANTHROPIC_API_KEY
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error(
-      'ANTHROPIC_API_KEY environment variable is required.\n' +
-        'Please set it to your Claude API key: export ANTHROPIC_API_KEY=sk-ant-...'
-    );
-  }
-
   // Validate path exists and is accessible (for consistency with other commands)
   const absolutePath = PathValidator.validatePathExists(path);
   PathValidator.validatePathReadable(absolutePath);
   PathValidator.warnIfEmpty(absolutePath);
 
-  // Validate workflow prerequisites
+  // Validate workflow prerequisites first (before API key check)
+  // This ensures we give better error messages when workflow steps are missing
   const validationResult = await WorkflowValidator.validateImprovePrerequisites(
     options.skipValidation ?? false
   );
   if (!validationResult.valid) {
     throw new Error(
       `${validationResult.error}\n${validationResult.suggestion}`
+    );
+  }
+
+  // Check for ANTHROPIC_API_KEY (after workflow validation)
+  if (!process.env.ANTHROPIC_API_KEY) {
+    throw new Error(
+      'ANTHROPIC_API_KEY environment variable is required.\n' +
+        'Please set it to your Claude API key: export ANTHROPIC_API_KEY=sk-ant-...'
     );
   }
 
