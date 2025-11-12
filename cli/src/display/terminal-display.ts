@@ -5,6 +5,8 @@
  * cli-table3 for tables, and ora for progress spinners.
  */
 
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import ora, { Ora } from 'ora';
@@ -933,5 +935,118 @@ export class TerminalDisplay implements IDisplay {
       chalk.dim('Run without --dry-run to perform incremental analysis')
     );
     console.log('');
+  }
+
+  /**
+   * Display workflow state history snapshots.
+   *
+   * Shows all saved snapshots in a formatted table or JSON output.
+   */
+  public async showWorkflowHistory(
+    snapshots: string[],
+    json: boolean
+  ): Promise<void> {
+    // Handle JSON output
+    if (json) {
+      const snapshotData = await Promise.all(
+        snapshots.map(async (snapshotPath) => {
+          const stats = await fs.stat(snapshotPath);
+          const filename = path.basename(snapshotPath);
+
+          // Extract timestamp from filename: workflow-state-2025-01-12T14-30-00-123Z.json
+          const timestampMatch = filename.match(/workflow-state-(.+)\.json$/);
+          const timestamp = timestampMatch
+            ? timestampMatch[1]
+                .replaceAll('-', ':')
+                .replace(/T(\d{2}):(\d{2}):(\d{2}):(\d{3})Z/, 'T$1:$2:$3.$4Z')
+            : 'unknown';
+
+          return {
+            path: snapshotPath,
+            filename,
+            timestamp,
+            size_bytes: stats.size,
+            modified: stats.mtime.toISOString(),
+          };
+        })
+      );
+
+      console.log(JSON.stringify(snapshotData, null, 2));
+      return;
+    }
+
+    // Handle table output
+    if (snapshots.length === 0) {
+      console.log(chalk.dim('No workflow history snapshots found.'));
+      console.log(
+        chalk.yellow(
+          '\nHistory tracking may be disabled in your configuration.'
+        )
+      );
+      console.log(
+        chalk.dim(
+          'Set workflowHistory.enabled: true in docimp.config.js to enable.'
+        )
+      );
+      return;
+    }
+
+    console.log(chalk.bold('\nWorkflow State History\n'));
+
+    const table = this.createResponsiveTable(
+      [chalk.cyan('Timestamp'), chalk.cyan('Size'), chalk.cyan('Age')],
+      [30, 12, 20], // Full widths
+      [24, 10, 16] // Compact widths
+    );
+
+    for (const snapshotPath of snapshots) {
+      const stats = await fs.stat(snapshotPath);
+      const filename = path.basename(snapshotPath);
+
+      // Extract timestamp from filename: workflow-state-2025-01-12T14-30-00-123Z.json
+      const timestampMatch = filename.match(/workflow-state-(.+)\.json$/);
+      let displayTimestamp = 'unknown';
+      if (timestampMatch) {
+        // Convert back to readable format: 2025-01-12 14:30:00
+        const isoTimestamp = timestampMatch[1]
+          .replace(/-(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/, 'T$1:$2:$3.$4Z')
+          .replace(/T(\d{2})-(\d{2})-(\d{2})/, 'T$1:$2:$3');
+
+        try {
+          const date = new Date(isoTimestamp);
+          displayTimestamp = date.toISOString().slice(0, 19).replace('T', ' ');
+        } catch {
+          displayTimestamp = timestampMatch[1];
+        }
+      }
+
+      // Format file size
+      const sizeKB = (stats.size / 1024).toFixed(1);
+      const sizeDisplay = `${sizeKB} KB`;
+
+      // Calculate relative time
+      const now = Date.now();
+      const age = now - stats.mtime.getTime();
+      const ageSeconds = Math.floor(age / 1000);
+      const ageMinutes = Math.floor(ageSeconds / 60);
+      const ageHours = Math.floor(ageMinutes / 60);
+      const ageDays = Math.floor(ageHours / 24);
+
+      let ageDisplay: string;
+      if (ageDays > 0) {
+        ageDisplay = `${ageDays} day${ageDays === 1 ? '' : 's'} ago`;
+      } else if (ageHours > 0) {
+        ageDisplay = `${ageHours} hour${ageHours === 1 ? '' : 's'} ago`;
+      } else if (ageMinutes > 0) {
+        ageDisplay = `${ageMinutes} min${ageMinutes === 1 ? '' : 's'} ago`;
+      } else {
+        ageDisplay = 'just now';
+      }
+
+      table.push([displayTimestamp, sizeDisplay, chalk.dim(ageDisplay)]);
+    }
+
+    console.log(table.toString());
+    console.log(chalk.dim(`\nTotal: ${snapshots.length} snapshot(s)\n`));
   }
 }
