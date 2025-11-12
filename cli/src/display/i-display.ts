@@ -204,4 +204,15 @@ export interface IDisplay {
     unchangedFiles: string[];
     previousResult: AnalysisResult;
   }): void;
+
+  /**
+   * Display workflow state history snapshots.
+   *
+   * Shows all saved workflow state snapshots from the history directory,
+   * including timestamp, file size, and relative age.
+   *
+   * @param snapshots - Array of snapshot file paths (sorted newest first)
+   * @param json - Output as JSON instead of formatted table
+   */
+  showWorkflowHistory(snapshots: string[], json: boolean): Promise<void>;
 }
