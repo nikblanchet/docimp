@@ -22,6 +22,7 @@ import {
 import { improveCommand } from './commands/improve.js';
 import { listChangesCommand } from './commands/list-changes.js';
 import { listSessionsCommand } from './commands/list-sessions.js';
+import { listWorkflowHistoryCommand } from './commands/list-workflow-history.js';
 import { migrateWorkflowStateCommand } from './commands/migrate-workflow-state.js';
 import { planCommand } from './commands/plan.js';
 import { rollbackChangeCommand } from './commands/rollback-change.js';
@@ -466,6 +467,35 @@ program
   .action(async (sessionId, options) => {
     try {
       const exitCode = await deleteImproveSessionCommand(sessionId, options);
+      if (exitCode !== EXIT_CODE.SUCCESS) {
+        process.exit(exitCode);
+      }
+    } catch (error) {
+      const errorDisplay = new TerminalDisplay();
+      errorDisplay.showError(
+        `Unexpected error: ${error instanceof Error ? error.message : String(error)}`
+      );
+      process.exit(EXIT_CODE.ERROR);
+    }
+  });
+
+// List-workflow-history command (workflow state history)
+program
+  .command('list-workflow-history')
+  .description('List all saved workflow state snapshots')
+  .option('--json', 'Output as JSON')
+  .option('--limit <number>', 'Limit number of snapshots to display')
+  .action(async (options) => {
+    try {
+      const display = new TerminalDisplay();
+
+      // Parse limit option if provided
+      const parsedOptions = {
+        json: options.json || false,
+        limit: options.limit ? Number.parseInt(options.limit, 10) : undefined,
+      };
+
+      const exitCode = await listWorkflowHistoryCommand(display, parsedOptions);
       if (exitCode !== EXIT_CODE.SUCCESS) {
         process.exit(exitCode);
       }
