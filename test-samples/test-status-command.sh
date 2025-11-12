@@ -65,7 +65,7 @@ echo "Removed .docimp directory"
 # Test 1: Status with empty workflow state
 print_header "Test 1: Status with empty workflow state"
 echo "Running: docimp status"
-OUTPUT=$(docimp status 2>&1)
+OUTPUT=$(docimp status 2>&1 || true)  # Allow command to fail without exiting script
 
 if echo "$OUTPUT" | grep -q "Not run yet"; then
     print_success "Status shows 'Not run yet' for all commands"
