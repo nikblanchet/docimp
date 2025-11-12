@@ -25,6 +25,7 @@ import { listSessionsCommand } from './commands/list-sessions.js';
 import { listWorkflowHistoryCommand } from './commands/list-workflow-history.js';
 import { migrateWorkflowStateCommand } from './commands/migrate-workflow-state.js';
 import { planCommand } from './commands/plan.js';
+import { restoreWorkflowStateCommand } from './commands/restore-workflow-state.js';
 import { rollbackChangeCommand } from './commands/rollback-change.js';
 import { rollbackSessionCommand } from './commands/rollback-session.js';
 import { statusCommand } from './commands/status.js';
@@ -496,6 +497,27 @@ program
       };
 
       const exitCode = await listWorkflowHistoryCommand(display, parsedOptions);
+      if (exitCode !== EXIT_CODE.SUCCESS) {
+        process.exit(exitCode);
+      }
+    } catch (error) {
+      const errorDisplay = new TerminalDisplay();
+      errorDisplay.showError(
+        `Unexpected error: ${error instanceof Error ? error.message : String(error)}`
+      );
+      process.exit(EXIT_CODE.ERROR);
+    }
+  });
+
+// Restore-workflow-state command (workflow state history)
+program
+  .command('restore-workflow-state <snapshot-path>')
+  .description('Restore workflow state from a history snapshot')
+  .option('--dry-run', 'Show what would happen without making changes')
+  .option('--force', 'Skip confirmation prompt')
+  .action(async (snapshotPath, options) => {
+    try {
+      const exitCode = await restoreWorkflowStateCommand(snapshotPath, options);
       if (exitCode !== EXIT_CODE.SUCCESS) {
         process.exit(exitCode);
       }
