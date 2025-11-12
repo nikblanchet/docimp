@@ -140,9 +140,9 @@ return false; // File unchanged
 ```
 
 **Trade-offs**:
-- ✅ Accurate change detection (no false positives)
-- ✅ Works across git operations (checkout, merge, stash)
-- ❌ Checksum calculation takes time (~10-50ms per file on SSD)
+- ✓ Accurate change detection (no false positives)
+- ✓ Works across git operations (checkout, merge, stash)
+- ✗ Checksum calculation takes time (~10-50ms per file on SSD)
 - Mitigation: Only checksum files already analyzed (not entire codebase)
 
 **Alternative Considered**: Timestamp-only
@@ -182,10 +182,10 @@ function loadWorkflowState(): WorkflowState {
 ```
 
 **Trade-offs**:
-- ✅ Future-proof design
-- ✅ No breaking changes on schema evolution
-- ❌ Slightly more complex initial implementation
-- ❌ Migration code adds maintenance burden
+- ✓ Future-proof design
+- ✓ No breaking changes on schema evolution
+- ✗ Slightly more complex initial implementation
+- ✗ Migration code adds maintenance burden
 
 **Alternative Considered**: No schema versioning (YAGNI)
 - Simpler initially but requires manual file deletion on breaking changes
@@ -227,9 +227,9 @@ Consider re-running 'docimp audit' to refresh ratings.
 ```
 
 **Trade-offs**:
-- ✅ No false positives (only warns when commands actually re-run)
-- ✅ User remains in control
-- ❌ Doesn't detect file changes without re-running analyze
+- ✓ No false positives (only warns when commands actually re-run)
+- ✓ User remains in control
+- ✗ Doesn't detect file changes without re-running analyze
 
 **Alternative Considered**: File checksum-based staleness
 - Warn if checksums differ between analyze and audit
@@ -260,9 +260,9 @@ async function saveWorkflowState(state: WorkflowState): Promise<void> {
 - **No partial writes**: Either old file exists or new file exists, never partial
 
 **Trade-offs**:
-- ✅ Corruption-proof
-- ✅ Works on all platforms (Linux, macOS, Windows)
-- ❌ Slightly more disk I/O (temp file creation)
+- ✓ Corruption-proof
+- ✓ Works on all platforms (Linux, macOS, Windows)
+- ✗ Slightly more disk I/O (temp file creation)
 - Mitigation: Negligible for small JSON files (<1KB)
 
 **Alternative Considered**: Direct overwrite
@@ -279,9 +279,9 @@ async function saveWorkflowState(state: WorkflowState): Promise<void> {
 - **Clear separation of concerns**: Easier to understand and maintain
 
 **Trade-offs**:
-- ✅ Clear boundaries between features
-- ✅ Independent evolution
-- ❌ Two file management systems instead of one
+- ✓ Clear boundaries between features
+- ✓ Independent evolution
+- ✗ Two file management systems instead of one
 - Mitigation: Shared utilities (StateManager, FileTracker)
 
 **Alternative Considered**: Single unified state file

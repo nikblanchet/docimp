@@ -795,7 +795,7 @@ export class TerminalDisplay implements IDisplay {
     if (status.migration_available) {
       console.log(
         chalk.yellow(
-          `Schema Version: ${displayVersion} ⚠️  Migration available to ${status.schema_current}`
+          `Schema Version: ${displayVersion} ⚠  Migration available to ${status.schema_current}`
         )
       );
       console.log(
