@@ -117,6 +117,11 @@ export interface IConfig {
    * Transaction system configuration.
    */
   transaction?: ITransactionConfig;
+
+  /**
+   * Workflow state history configuration.
+   */
+  workflowHistory?: IWorkflowHistoryConfig;
 }
 
 /**
@@ -310,6 +315,32 @@ export interface ITransactionConfig {
 }
 
 /**
+ * Workflow state history configuration.
+ */
+export interface IWorkflowHistoryConfig {
+  /**
+   * Enable or disable workflow history tracking.
+   * When disabled, no history snapshots are saved.
+   * Default: true
+   */
+  enabled?: boolean;
+
+  /**
+   * Maximum number of history snapshots to keep.
+   * Older snapshots beyond this limit are deleted during rotation.
+   * Default: 50
+   */
+  maxSnapshots?: number;
+
+  /**
+   * Maximum age in days to keep history snapshots.
+   * Snapshots older than this are deleted during rotation.
+   * Default: 30
+   */
+  maxAgeDays?: number;
+}
+
+/**
  * Default configuration values.
  */
 export const defaultConfig: IConfig = {
@@ -366,5 +397,10 @@ export const defaultConfig: IConfig = {
       slowScale: 4, // 30s * 4.0 = 120s (slow operations)
       maxTimeout: 300_000, // 5 minutes (absolute maximum)
     },
+  },
+  workflowHistory: {
+    enabled: true,
+    maxSnapshots: 50,
+    maxAgeDays: 30,
   },
 };
