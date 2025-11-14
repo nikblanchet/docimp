@@ -11,6 +11,7 @@ type AnalysisResultValue = (
     | int
     | dict[str, dict[str, LanguageMetricsValue]]
     | list[dict[str, str]]
+    | list[str]
 )
 
 
@@ -78,6 +79,7 @@ class AnalysisResult:
         documented_items: Number of elements with documentation.
         by_language: Dictionary mapping language names to their metrics.
         parse_failures: List of files that failed to parse.
+        analyzed_files: List of all file paths that were analyzed.
     """
 
     items: list[CodeItem]
@@ -86,6 +88,7 @@ class AnalysisResult:
     documented_items: int
     by_language: dict[str, LanguageMetrics] = field(default_factory=dict)
     parse_failures: list[ParseFailure] = field(default_factory=list)
+    analyzed_files: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, AnalysisResultValue]:
         """Serialize AnalysisResult to a JSON-compatible dictionary.

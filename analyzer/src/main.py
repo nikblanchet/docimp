@@ -162,6 +162,7 @@ def format_json(result) -> str:
             {"filepath": failure.filepath, "error": failure.error}
             for failure in result.parse_failures
         ],
+        "analyzed_files": result.analyzed_files,
     }
     return json.dumps(data, indent=2)
 

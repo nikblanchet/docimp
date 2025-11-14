@@ -901,10 +901,11 @@ describe('Workflow State Integration', () => {
         mockConfigLoader
       );
 
-      // Verify analyze was called (incremental mode will detect changes)
-      // Note: In integration tests, we verify the command completes successfully
-      // rather than checking internal mock call details
-      expect(mockBridge.analyze).toHaveBeenCalledTimes(2);
+      // Verify analyze was called:
+      // - 1 call for initial baseline (4 files)
+      // - 2 calls for incremental (1 per modified file)
+      // Total: 3 calls
+      expect(mockBridge.analyze).toHaveBeenCalledTimes(3);
     });
 
     it('should remove deleted file from workflow state', async () => {

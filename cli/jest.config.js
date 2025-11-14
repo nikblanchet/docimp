@@ -21,7 +21,7 @@ export default {
           isolatedModules: true,
         },
         diagnostics: {
-          ignoreCodes: [151002, 1343],
+          ignoreCodes: [151_002, 1343],
         },
       },
     ],
@@ -45,11 +45,8 @@ export default {
     '**/?(*.)+(spec|test).ts',
     '**/?(*.)+(spec|test).js',
   ],
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-    '!src/index.ts',
-  ],
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts', '!src/index.ts'],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
+  modulePathIgnorePatterns: ['<rootDir>/dist/'],
 };

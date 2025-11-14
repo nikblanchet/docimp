@@ -128,6 +128,7 @@ describe('PythonBridge JSON Validation', () => {
           },
         ],
         parse_failures: [],
+        analyzed_files: ['/path/to/file.py'],
       };
 
       mockSuccessfulProcess(JSON.stringify(validResult));
@@ -209,6 +210,7 @@ describe('PythonBridge JSON Validation', () => {
         by_language: {},
         items: [],
         parse_failures: [],
+        analyzed_files: [],
         // Extra field added in future Python version
         future_field: 'some value',
       };
@@ -608,6 +610,7 @@ describe('PythonBridge Timeout Handling', () => {
         by_language: {},
         items: [],
         parse_failures: [],
+        analyzed_files: [],
       };
 
       const mockProcess = mockSuccessfulProcessWithDelay(

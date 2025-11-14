@@ -134,6 +134,11 @@ jobs:
           cd cli
           npm run test:integration
 
+      - name: Performance Benchmarks
+        run: |
+          cd cli
+          npm test -- performance.bench.test.ts
+
   integration-test:
     name: Integration Test (Python + TypeScript)
     runs-on: ubuntu-latest
@@ -275,9 +280,28 @@ jobs:
           npm ci
           npm run build
 
+      - name: Install docimp CLI globally
+        run: |
+          cd cli
+          npm link
+
       - name: Run workflow validation tests
         env:
           DOCIMP_ANALYZER_PATH: ${{ github.workspace }}/analyzer
         run: |
           chmod +x test-samples/test-workflows.sh
           ./test-samples/test-workflows.sh
+
+      - name: Run incremental analysis tests
+        env:
+          DOCIMP_ANALYZER_PATH: ${{ github.workspace }}/analyzer
+        run: |
+          chmod +x test-samples/test-incremental-analysis.sh
+          ./test-samples/test-incremental-analysis.sh
+
+      - name: Run status command tests
+        env:
+          DOCIMP_ANALYZER_PATH: ${{ github.workspace }}/analyzer
+        run: |
+          chmod +x test-samples/test-status-command.sh
+          ./test-samples/test-status-command.sh
