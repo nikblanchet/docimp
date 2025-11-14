@@ -1157,7 +1157,7 @@ export class PythonBridge implements IPythonBridge {
    * @throws Error if workflow state file is corrupted or Python process fails
    */
   async status(): Promise<WorkflowStatusResult> {
-    const arguments_ = ['-m', 'analyzer', 'status', '--format', 'json'];
+    const arguments_ = ['-m', 'src.main', 'status'];
 
     const result = await this.executePython<WorkflowStatusResult>(
       arguments_,
