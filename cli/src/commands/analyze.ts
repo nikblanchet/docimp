@@ -236,10 +236,7 @@ async function handleIncrementalAnalysis(
     const changedAnalyzedFiles = changedResults.flatMap(
       (result) => result.analyzed_files || []
     );
-    const mergedAnalyzedFiles = [
-      ...unchangedAnalyzedFiles,
-      ...changedAnalyzedFiles,
-    ];
+    const mergedAnalyzedFiles = [...new Set([...unchangedAnalyzedFiles, ...changedAnalyzedFiles])];
 
     if (options.verbose) {
       display.showMessage(
