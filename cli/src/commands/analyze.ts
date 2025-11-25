@@ -225,7 +225,10 @@ async function handleIncrementalAnalysis(
     );
     const mergedFailures = [...unchangedFailures, ...changedFailures];
 
-    // Merge analyzed_files: keep unchanged files from previous result, add new analyzed files
+    // Merge analyzed_files from previous and current analysis:
+    // - analyzed_files tracks ALL files successfully analyzed (even if no CodeItems extracted)
+    // - This differs from items array which only contains files with extractable code
+    // - Keep unchanged files from previous result, add newly analyzed files
     const unchangedAnalyzedFiles =
       previousResult.analyzed_files?.filter(
         (filepath) => !changedFiles.includes(filepath)
