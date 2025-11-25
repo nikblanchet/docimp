@@ -125,6 +125,11 @@ async function handleIncrementalAnalysis(
     return previousResult;
   }
 
+  // Always show change detection message for incremental analysis
+  display.showMessage(
+    `Incremental analysis: ${changedFiles.length} file(s) have changed`
+  );
+
   if (changedFiles.length === 0) {
     if (options.verbose) {
       display.showMessage(
@@ -220,6 +225,21 @@ async function handleIncrementalAnalysis(
     );
     const mergedFailures = [...unchangedFailures, ...changedFailures];
 
+    // Merge analyzed_files from previous and current analysis:
+    // - analyzed_files tracks ALL files successfully analyzed (even if no CodeItems extracted)
+    // - This differs from items array which only contains files with extractable code
+    // - Keep unchanged files from previous result, add newly analyzed files
+    const unchangedAnalyzedFiles =
+      previousResult.analyzed_files?.filter(
+        (filepath) => !changedFiles.includes(filepath)
+      ) || [];
+    const changedAnalyzedFiles = changedResults.flatMap(
+      (result) => result.analyzed_files || []
+    );
+    const mergedAnalyzedFiles = [
+      ...new Set([...unchangedAnalyzedFiles, ...changedAnalyzedFiles]),
+    ];
+
     if (options.verbose) {
       display.showMessage(
         `Merged ${unchangedItems.length} unchanged + ${changedItems.length} changed = ${mergedItems.length} total items`
@@ -233,6 +253,7 @@ async function handleIncrementalAnalysis(
       documented_items: documentedItems,
       by_language: byLanguage,
       parse_failures: mergedFailures,
+      analyzed_files: mergedAnalyzedFiles,
     };
   } catch (error) {
     stopSpinner();
@@ -395,14 +416,17 @@ export async function analyzeCore(
   StateManager.ensureStateDir();
 
   // Smart auto-clean: check if audit.json exists and prompt user
-  const shouldClean = await handleSmartAutoClean(options, display);
+  // Skip clearing for incremental analysis (needs previous analyze-latest.json)
+  const shouldClean = options.incremental
+    ? false
+    : await handleSmartAutoClean(options, display);
 
   if (shouldClean) {
     const filesRemoved = StateManager.clearSessionReports();
     if (filesRemoved > 0 && options.verbose) {
       display.showMessage(`Cleared ${filesRemoved} previous session report(s)`);
     }
-  } else if (options.verbose) {
+  } else if (options.verbose && !options.incremental) {
     display.showMessage('Keeping previous session reports');
   }
 
@@ -477,7 +501,9 @@ export async function analyzeCore(
     }
 
     // Update workflow state with file checksums
-    const filepaths = result.items.map((item) => item.filepath);
+    // Use analyzed_files (all files analyzed) instead of just files with CodeItems
+    const filepaths =
+      result.analyzed_files || result.items.map((item) => item.filepath);
     const snapshot = await FileTracker.createSnapshot(filepaths);
 
     // Extract checksums from snapshot (WorkflowState expects Record<string, string>)

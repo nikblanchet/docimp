@@ -75,6 +75,7 @@ export const AnalysisResultSchema = z
     by_language: z.record(z.string(), LanguageMetricsSchema),
     items: z.array(CodeItemSchema),
     parse_failures: z.array(ParseFailureSchema),
+    analyzed_files: z.array(z.string()),
   })
   .passthrough();
 

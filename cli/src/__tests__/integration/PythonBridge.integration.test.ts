@@ -238,6 +238,7 @@ describe('PythonBridge Integration (Real Python Subprocess)', () => {
         documented_items: 0,
         by_language: {},
         parse_failures: [],
+        analyzed_files: ['/test/minimal.py'],
       };
 
       // Validate that Zod schema accepts JSON with missing optional fields

@@ -118,6 +118,9 @@ export interface AnalysisResult {
 
   /** Files that failed to parse */
   parse_failures: ParseFailure[];
+
+  /** All files that were analyzed (for checksum tracking) */
+  analyzed_files: string[];
 }
 
 /**

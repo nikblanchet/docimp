@@ -162,6 +162,7 @@ def format_json(result) -> str:
             {"filepath": failure.filepath, "error": failure.error}
             for failure in result.parse_failures
         ],
+        "analyzed_files": result.analyzed_files,
     }
     return json.dumps(data, indent=2)
 
@@ -711,13 +712,28 @@ def cmd_status(args: argparse.Namespace) -> int:
     try:
         # Load workflow state
         from datetime import datetime
+        from pathlib import Path
 
         from .models.workflow_state_migrations import CURRENT_WORKFLOW_STATE_VERSION
 
-        state = WorkflowStateManager.load_workflow_state()
+        # Use base_path if provided, otherwise use current directory
+        base_path = Path(args.base_path) if args.base_path else None
+
+        # Validate base_path if provided
+        if base_path is not None:
+            if not base_path.exists():
+                print(f"Error: Base path does not exist: {base_path}", file=sys.stderr)
+                return 1
+            if not base_path.is_dir():
+                print(
+                    f"Error: Base path is not a directory: {base_path}", file=sys.stderr
+                )
+                return 1
+
+        state = WorkflowStateManager.load_workflow_state(base_path)
 
         # Detect schema version (for display)
-        workflow_file = StateManager.get_state_dir() / "workflow-state.json"
+        workflow_file = StateManager.get_state_dir(base_path) / "workflow-state.json"
         schema_version = "legacy"
         migration_available = False
         if workflow_file.exists():
@@ -1871,6 +1887,12 @@ def main(argv: list | None = None) -> int:
     # Status command (display workflow state)
     status_parser = subparsers.add_parser(
         "status", help="Display workflow state and suggestions"
+    )
+    status_parser.add_argument(
+        "--base-path",
+        type=str,
+        default=None,
+        help="Base directory for .docimp state files (default: current directory)",
     )
     status_parser.add_argument(
         "--verbose", action="store_true", help="Enable verbose output"

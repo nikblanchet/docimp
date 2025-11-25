@@ -24,9 +24,13 @@ class WorkflowStateManager:
     """
 
     @staticmethod
-    def _get_workflow_state_file() -> Path:
-        """Get the path to the workflow state file."""
-        return StateManager.get_state_dir() / "workflow-state.json"
+    def _get_workflow_state_file(base_path: Path | None = None) -> Path:
+        """Get the path to the workflow state file.
+
+        Args:
+            base_path: Base directory for .docimp state files (default: cwd)
+        """
+        return StateManager.get_state_dir(base_path) / "workflow-state.json"
 
     @staticmethod
     def save_workflow_state(state: WorkflowState) -> None:
@@ -56,10 +60,13 @@ class WorkflowStateManager:
         temp_path.replace(file_path)
 
     @staticmethod
-    def load_workflow_state() -> WorkflowState:
+    def load_workflow_state(base_path: Path | None = None) -> WorkflowState:
         """
         Load workflow state from disk with schema validation and migration support.
         Returns empty state if file doesn't exist.
+
+        Args:
+            base_path: Base directory for .docimp state files (default: cwd)
 
         Returns:
             WorkflowState: The loaded or empty workflow state
@@ -67,7 +74,7 @@ class WorkflowStateManager:
         Raises:
             ValueError: If JSON is malformed or schema is invalid
         """
-        file_path = WorkflowStateManager._get_workflow_state_file()
+        file_path = WorkflowStateManager._get_workflow_state_file(base_path)
 
         if not file_path.exists():
             return WorkflowState.create_empty()

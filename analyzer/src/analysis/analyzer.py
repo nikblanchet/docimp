@@ -151,6 +151,7 @@ class DocumentationAnalyzer:
             documented_items=documented_count,
             by_language=by_language,
             parse_failures=parse_failures,
+            analyzed_files=[str(f) for f in files],
         )
 
     def _discover_files(self, path: Path) -> list[Path]:
