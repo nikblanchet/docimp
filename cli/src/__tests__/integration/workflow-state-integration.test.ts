@@ -1077,6 +1077,103 @@ describe('Workflow State Integration', () => {
       ).toBeDefined();
       expect(workflowState.last_analyze.item_count).toBe(2);
     });
+
+    it('should deduplicate analyzed_files when merging incremental results', async () => {
+      // Create 3 test files
+      const testFile1 = path.join(tempDir, 'dedup1.py');
+      const testFile2 = path.join(tempDir, 'dedup2.py');
+      const testFile3 = path.join(tempDir, 'dedup3.py');
+      await fs.writeFile(testFile1, 'def foo():\n    pass\n');
+      await fs.writeFile(testFile2, 'def bar():\n    pass\n');
+      await fs.writeFile(testFile3, 'def baz():\n    pass\n');
+
+      const mockItems: CodeItem[] = [
+        createMockCodeItem({ name: 'foo', filepath: testFile1 }),
+        createMockCodeItem({ name: 'bar', filepath: testFile2 }),
+        createMockCodeItem({ name: 'baz', filepath: testFile3 }),
+      ];
+
+      const mockResult: AnalysisResult = {
+        items: mockItems,
+        coverage_percent: 0,
+        total_items: 3,
+        documented_items: 0,
+        by_language: {},
+        parse_failures: [],
+        analyzed_files: [testFile1, testFile2, testFile3],
+      };
+
+      mockBridge.analyze.mockResolvedValue(mockResult);
+
+      // Run initial analyze
+      await analyzeCore(
+        tempDir,
+        {
+          incremental: false,
+          applyAudit: false,
+          preserveAudit: false,
+          forceClean: false,
+          dryRun: false,
+        },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader
+      );
+
+      // Modify 2 files
+      await fs.writeFile(testFile1, 'def foo():\n    return 42\n');
+      await fs.writeFile(testFile2, 'def bar():\n    return 84\n');
+
+      // Mock incremental result with INTENTIONAL DUPLICATES to test deduplication
+      // Simulate Python analyzer returning same files multiple times
+      const mockIncrementalResult: AnalysisResult = {
+        items: [
+          createMockCodeItem({ name: 'foo', filepath: testFile1 }),
+          createMockCodeItem({ name: 'bar', filepath: testFile2 }),
+        ],
+        coverage_percent: 0,
+        total_items: 2,
+        documented_items: 0,
+        by_language: {},
+        parse_failures: [],
+        // Intentional duplicates to test Set deduplication
+        analyzed_files: [testFile1, testFile2, testFile1, testFile2],
+      };
+
+      mockBridge.analyze.mockResolvedValue(mockIncrementalResult);
+
+      // Run incremental analyze
+      await analyzeCore(
+        tempDir,
+        {
+          incremental: true,
+          applyAudit: false,
+          preserveAudit: false,
+          forceClean: false,
+          dryRun: false,
+        },
+        mockBridge,
+        mockDisplay,
+        mockConfigLoader
+      );
+
+      // Load final analysis result from session reports
+      const analyzeFile = path.join(
+        tempDir,
+        '.docimp/session-reports/analyze-latest.json'
+      );
+      const finalResult = JSON.parse(await fs.readFile(analyzeFile, 'utf8'));
+
+      // Assert: No duplicates in analyzed_files (Set removes them)
+      const uniqueFiles = new Set(finalResult.analyzed_files);
+      expect(finalResult.analyzed_files.length).toBe(uniqueFiles.size);
+
+      // Assert: Contains exactly 3 unique files
+      expect(uniqueFiles.size).toBe(3);
+      expect(uniqueFiles.has(testFile1)).toBe(true);
+      expect(uniqueFiles.has(testFile2)).toBe(true);
+      expect(uniqueFiles.has(testFile3)).toBe(true);
+    });
   });
 
   describe('Smart Auto-Clean Integration', () => {
