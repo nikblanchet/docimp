@@ -718,6 +718,18 @@ def cmd_status(args: argparse.Namespace) -> int:
 
         # Use base_path if provided, otherwise use current directory
         base_path = Path(args.base_path) if args.base_path else None
+
+        # Validate base_path if provided
+        if base_path is not None:
+            if not base_path.exists():
+                print(f"Error: Base path does not exist: {base_path}", file=sys.stderr)
+                return 1
+            if not base_path.is_dir():
+                print(
+                    f"Error: Base path is not a directory: {base_path}", file=sys.stderr
+                )
+                return 1
+
         state = WorkflowStateManager.load_workflow_state(base_path)
 
         # Detect schema version (for display)

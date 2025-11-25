@@ -24,6 +24,7 @@ def mock_args():
     """Create mock command-line arguments."""
     args = MagicMock()
     args.verbose = False
+    args.base_path = None  # Use current directory (default behavior)
     return args
 
 
