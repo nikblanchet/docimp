@@ -504,6 +504,85 @@ docimp analyze ./src --preserve-audit
 docimp analyze ./src --force-clean
 ```
 
+### Workflow History
+
+DocImp automatically saves timestamped snapshots of `workflow-state.json` to `.docimp/history/` after each command execution. This provides an audit trail and enables state recovery for debugging.
+
+**List snapshots**:
+```bash
+# Table display (default)
+docimp list-workflow-history
+
+# Output:
+# Workflow History (3 snapshots)
+#
+# ┌────────────────────────────────────────────┬──────────┬───────────┐
+# │ Timestamp                                  │ Size     │ Age       │
+# ├────────────────────────────────────────────┼──────────┼───────────┤
+# │ 2025-11-12T14:30:00.123Z                  │ 2.4 KB   │ 2h ago    │
+# │ 2025-11-12T10:15:30.456Z                  │ 1.8 KB   │ 6h ago    │
+# │ 2025-11-11T08:00:00.789Z                  │ 1.2 KB   │ 1d ago    │
+# └────────────────────────────────────────────┴──────────┴───────────┘
+
+# JSON output for scripts
+docimp list-workflow-history --json
+
+# Limit results
+docimp list-workflow-history --limit 10  # Most recent 10 snapshots
+docimp list-workflow-history --limit 0   # No snapshots (useful for counting)
+```
+
+**Restore from snapshot**:
+```bash
+# Interactive restore (prompts for confirmation)
+docimp restore-workflow-state .docimp/history/workflow-state-2025-11-12T14-30-00-123Z.json
+
+# Preview without changes
+docimp restore-workflow-state <path> --dry-run
+
+# Skip confirmation prompt
+docimp restore-workflow-state <path> --force
+```
+
+**Restore behavior**:
+- Creates backup of current state before overwriting (`.docimp/workflow-state.json.backup-{timestamp}.json`)
+- Validates snapshot against schema before restore
+- Uses atomic write (temp file + rename) for safety
+
+**Prune old snapshots**:
+```bash
+# Delete snapshots older than 30 days
+docimp prune-workflow-history --older-than 30d
+
+# Keep only 50 most recent snapshots
+docimp prune-workflow-history --keep-last 50
+
+# Hybrid pruning (OR logic): delete if older than 7d OR beyond top 20
+docimp prune-workflow-history --older-than 7d --keep-last 20
+
+# Preview deletions without executing
+docimp prune-workflow-history --dry-run --keep-last 10
+```
+
+**Age format**: `30d` (days), `7d` (days), `1h` (hours), `30m` (minutes)
+
+**Automatic rotation**: Configure in `docimp.config.js`:
+```javascript
+workflowHistory: {
+  enabled: true,        // Auto-save snapshots (default: true)
+  maxSnapshots: 100,    // Auto-prune when count exceeded (0 = unlimited)
+  maxAgeDays: 90        // Auto-prune snapshots older than N days (0 = no age limit)
+}
+```
+
+**Snapshot format**: `workflow-state-YYYY-MM-DDTHH-MM-SS-MMMZ.json` (ISO 8601, cross-platform safe)
+
+**When to use**:
+- Debug workflow state issues
+- Recover from accidental state corruption
+- Audit command execution history
+- Compare workflow state across time
+
 For detailed architecture and API reference, see [Workflow State Management](docs/patterns/workflow-state-management.md).
 
 ### Improve

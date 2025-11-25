@@ -450,3 +450,249 @@ class TestWorkflowState:
         assert state.last_analyze is not None
         assert state.last_analyze.item_count == 10
         assert state.last_audit is None
+
+
+class TestWorkflowHistoryMethods:
+    """Tests for workflow history snapshot methods."""
+
+    def test_save_history_snapshot(self, tmp_path):
+        """Test saving timestamped history snapshot."""
+        # Setup test history directory
+        history_dir = tmp_path / ".docimp" / "history"
+        history_dir.mkdir(parents=True)
+
+        # Mock StateManager to return our test directory
+        with patch(
+            "src.utils.workflow_state_manager.StateManager.get_history_dir"
+        ) as mock_history_dir:
+            mock_history_dir.return_value = history_dir
+
+            # Create a workflow state
+            state = WorkflowState.create_empty()
+
+            # Save snapshot
+            snapshot_path = WorkflowStateManager.save_history_snapshot(state)
+
+            # Verify snapshot was created
+            assert snapshot_path.exists()
+            assert snapshot_path.parent == history_dir
+
+            # Verify filename format (cross-platform safe)
+            filename = snapshot_path.name
+            assert filename.startswith("workflow-state-")
+            assert filename.endswith(".json")
+            # Should not contain : or . except before extension
+            assert ":" not in filename
+            assert filename.count(".") == 1  # Only .json extension
+
+    def test_save_history_snapshot_content(self, tmp_path):
+        """Test snapshot content matches workflow state."""
+        history_dir = tmp_path / ".docimp" / "history"
+        history_dir.mkdir(parents=True)
+
+        with patch(
+            "src.utils.workflow_state_manager.StateManager.get_history_dir"
+        ) as mock_history_dir:
+            mock_history_dir.return_value = history_dir
+
+            # Create state with data
+            command_state = CommandState(
+                timestamp="2025-01-01T00:00:00Z",
+                item_count=10,
+                file_checksums={"file.py": "abc123"},
+            )
+            state = WorkflowState(
+                schema_version="1.0",
+                last_analyze=command_state,
+                last_audit=None,
+                last_plan=None,
+                last_improve=None,
+            )
+
+            snapshot_path = WorkflowStateManager.save_history_snapshot(state)
+
+            # Load and verify content
+            with snapshot_path.open() as f:
+                data = json.load(f)
+
+            assert data["schema_version"] == "1.0"
+            assert data["last_analyze"]["item_count"] == 10
+            assert data["last_analyze"]["file_checksums"] == {"file.py": "abc123"}
+
+    def test_list_history_snapshots(self, tmp_path):
+        """Test listing history snapshots sorted newest first."""
+        history_dir = tmp_path / ".docimp" / "history"
+        history_dir.mkdir(parents=True)
+
+        # Create test snapshots (out of order)
+        snapshot1 = history_dir / "workflow-state-2025-01-01T10-00-00-000Z.json"
+        snapshot2 = history_dir / "workflow-state-2025-01-03T10-00-00-000Z.json"
+        snapshot3 = history_dir / "workflow-state-2025-01-02T10-00-00-000Z.json"
+        other_file = history_dir / "audit.json"
+
+        for f in [snapshot1, snapshot2, snapshot3, other_file]:
+            f.write_text("{}")
+
+        with patch(
+            "src.utils.workflow_state_manager.StateManager.get_history_dir"
+        ) as mock_history_dir:
+            mock_history_dir.return_value = history_dir
+
+            snapshots = WorkflowStateManager.list_history_snapshots()
+
+            # Should return 3 snapshots (not other_file)
+            assert len(snapshots) == 3
+
+            # Should be sorted newest first
+            assert "2025-01-03" in str(snapshots[0])  # Newest
+            assert "2025-01-02" in str(snapshots[1])
+            assert "2025-01-01" in str(snapshots[2])  # Oldest
+
+    def test_list_history_snapshots_empty_directory(self, tmp_path):
+        """Test listing snapshots from empty directory."""
+        history_dir = tmp_path / ".docimp" / "history"
+        history_dir.mkdir(parents=True)
+
+        with patch(
+            "src.utils.workflow_state_manager.StateManager.get_history_dir"
+        ) as mock_history_dir:
+            mock_history_dir.return_value = history_dir
+
+            snapshots = WorkflowStateManager.list_history_snapshots()
+            assert snapshots == []
+
+    def test_list_history_snapshots_missing_directory(self, tmp_path):
+        """Test listing snapshots when directory doesn't exist."""
+        history_dir = tmp_path / ".docimp" / "history"  # Not created
+
+        with patch(
+            "src.utils.workflow_state_manager.StateManager.get_history_dir"
+        ) as mock_history_dir:
+            mock_history_dir.return_value = history_dir
+
+            snapshots = WorkflowStateManager.list_history_snapshots()
+            assert snapshots == []
+
+    def test_rotate_history_count_limit(self, tmp_path):
+        """Test rotation with count limit exceeded."""
+        history_dir = tmp_path / ".docimp" / "history"
+        history_dir.mkdir(parents=True)
+
+        # Create 55 snapshots (exceeds default 50 limit)
+        for i in range(55):
+            snapshot = (
+                history_dir / f"workflow-state-2025-01-01T{i:02d}-00-00-000Z.json"
+            )
+            snapshot.write_text("{}")
+
+        with patch(
+            "src.utils.workflow_state_manager.StateManager.get_history_dir"
+        ) as mock_history_dir:
+            mock_history_dir.return_value = history_dir
+
+            WorkflowStateManager.rotate_history(max_snapshots=50, max_age_days=30)
+
+            # Should have 50 files remaining
+            remaining = list(history_dir.glob("workflow-state-*.json"))
+            assert len(remaining) == 50
+
+    def test_rotate_history_age_limit(self, tmp_path):
+        """Test rotation with age limit exceeded."""
+        import time
+
+        history_dir = tmp_path / ".docimp" / "history"
+        history_dir.mkdir(parents=True)
+
+        # Create 2 snapshots
+        new_snapshot = history_dir / "workflow-state-2025-01-02T00-00-00-000Z.json"
+        old_snapshot = history_dir / "workflow-state-2025-01-01T00-00-00-000Z.json"
+
+        new_snapshot.write_text("{}")
+        old_snapshot.write_text("{}")
+
+        # Make old_snapshot appear 40 days old
+        now = time.time()
+        old_time = now - (40 * 24 * 60 * 60)  # 40 days ago
+        import os
+
+        os.utime(old_snapshot, (old_time, old_time))
+
+        with patch(
+            "src.utils.workflow_state_manager.StateManager.get_history_dir"
+        ) as mock_history_dir:
+            mock_history_dir.return_value = history_dir
+
+            WorkflowStateManager.rotate_history(max_snapshots=50, max_age_days=30)
+
+            # Old snapshot should be deleted
+            assert new_snapshot.exists()
+            assert not old_snapshot.exists()
+
+    def test_rotate_history_hybrid_strategy(self, tmp_path):
+        """Test hybrid rotation (OR logic: count OR age)."""
+        import time
+
+        history_dir = tmp_path / ".docimp" / "history"
+        history_dir.mkdir(parents=True)
+
+        # Create 2 snapshots, both within count limit
+        new_snapshot = history_dir / "workflow-state-2025-01-02T00-00-00-000Z.json"
+        old_snapshot = history_dir / "workflow-state-2025-01-01T00-00-00-000Z.json"
+
+        new_snapshot.write_text("{}")
+        old_snapshot.write_text("{}")
+
+        # Make old_snapshot 40 days old (violates time limit)
+        now = time.time()
+        old_time = now - (40 * 24 * 60 * 60)
+        import os
+
+        os.utime(old_snapshot, (old_time, old_time))
+
+        with patch(
+            "src.utils.workflow_state_manager.StateManager.get_history_dir"
+        ) as mock_history_dir:
+            mock_history_dir.return_value = history_dir
+
+            # Count limit not exceeded (2 < 50), but age limit exceeded for one file
+            WorkflowStateManager.rotate_history(max_snapshots=50, max_age_days=30)
+
+            # Old file should be deleted even though count is fine
+            assert new_snapshot.exists()
+            assert not old_snapshot.exists()
+
+    def test_rotate_history_empty_directory(self, tmp_path):
+        """Test rotation with no snapshots."""
+        history_dir = tmp_path / ".docimp" / "history"
+        history_dir.mkdir(parents=True)
+
+        with patch(
+            "src.utils.workflow_state_manager.StateManager.get_history_dir"
+        ) as mock_history_dir:
+            mock_history_dir.return_value = history_dir
+
+            # Should not raise error
+            WorkflowStateManager.rotate_history(max_snapshots=50, max_age_days=30)
+
+    def test_rotate_history_custom_limits(self, tmp_path):
+        """Test rotation with custom limits."""
+        history_dir = tmp_path / ".docimp" / "history"
+        history_dir.mkdir(parents=True)
+
+        # Create 15 snapshots
+        for i in range(15):
+            snapshot = (
+                history_dir / f"workflow-state-2025-01-{i + 1:02d}T00-00-00-000Z.json"
+            )
+            snapshot.write_text("{}")
+
+        with patch(
+            "src.utils.workflow_state_manager.StateManager.get_history_dir"
+        ) as mock_history_dir:
+            mock_history_dir.return_value = history_dir
+
+            # Keep only last 10
+            WorkflowStateManager.rotate_history(max_snapshots=10, max_age_days=30)
+
+            remaining = list(history_dir.glob("workflow-state-*.json"))
+            assert len(remaining) == 10

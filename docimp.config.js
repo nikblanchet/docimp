@@ -244,6 +244,50 @@ export default {
     },
   },
 
+  // Workflow history configuration.
+  //
+  // Controls automatic snapshots of workflow-state.json saved to .docimp/history/
+  // after each command execution. Useful for debugging, auditing, and recovery.
+  //
+  // Commands:
+  // - docimp list-workflow-history: View saved snapshots
+  // - docimp restore-workflow-state <path>: Restore from a snapshot
+  // - docimp prune-workflow-history: Clean up old snapshots
+  //
+  // Use cases:
+  // - Debugging workflow issues: Keep more snapshots (maxSnapshots: 200)
+  // - Disk space constrained: Reduce retention (maxSnapshots: 20, maxAgeDays: 7)
+  // - Long-running projects: Increase age limit (maxAgeDays: 365)
+  // - Disable entirely: Set enabled: false
+  workflowHistory: {
+    // Enable automatic history snapshots.
+    //
+    // When true, saves a timestamped copy of workflow-state.json to
+    // .docimp/history/ after each command (analyze, audit, plan, improve).
+    //
+    // Default: true
+    enabled: true,
+
+    // Maximum number of snapshots to retain.
+    //
+    // When exceeded, oldest snapshots are automatically deleted (auto-rotation).
+    // Set to 0 for unlimited snapshots (not recommended for long-running projects).
+    //
+    // Default: 100
+    maxSnapshots: 100,
+
+    // Maximum age of snapshots in days.
+    //
+    // Snapshots older than this are automatically deleted during rotation.
+    // Set to 0 to disable age-based pruning (keep snapshots indefinitely).
+    //
+    // Note: Uses OR logic with maxSnapshots - snapshots violating EITHER
+    // limit are deleted during auto-rotation.
+    //
+    // Default: 90
+    maxAgeDays: 90,
+  },
+
   // Impact scoring weights.
   //
   // Controls how DocImp prioritizes undocumented code.

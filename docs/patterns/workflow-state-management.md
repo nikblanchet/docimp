@@ -846,3 +846,398 @@ it('should only re-analyze modified files in incremental mode', async () => {
 5. **Manual validation**: Bash script enables hands-on testing during development
 
 **Outcome**: Cross-command integration fully tested and production-ready. All 18 integration tests passing.
+
+### Phase 3.14: Workflow History (Timestamped Snapshots)
+
+**Status**: Complete (Issue #395, PR #396)
+
+**Goal**: Provide audit trail and recovery capability through automatic timestamped snapshots of `workflow-state.json`.
+
+**Problem**: Users need to:
+- Debug workflow state issues (why is plan stale?)
+- Recover from accidental state corruption
+- Audit command execution history over time
+- Compare workflow state across sessions
+
+**Solution**: Automatic snapshots of workflow-state.json saved to `.docimp/history/` after each command execution.
+
+**Commands**:
+
+1. **list-workflow-history**: Display all snapshots
+   ```bash
+   docimp list-workflow-history              # Table output
+   docimp list-workflow-history --json       # JSON output
+   docimp list-workflow-history --limit 10   # Most recent 10
+   ```
+
+2. **restore-workflow-state**: Restore from snapshot
+   ```bash
+   docimp restore-workflow-state <path>             # Interactive (prompts)
+   docimp restore-workflow-state <path> --dry-run   # Preview only
+   docimp restore-workflow-state <path> --force     # Skip confirmation
+   ```
+
+3. **prune-workflow-history**: Delete old snapshots
+   ```bash
+   docimp prune-workflow-history --older-than 30d   # Age-based
+   docimp prune-workflow-history --keep-last 50     # Count-based
+   docimp prune-workflow-history --older-than 7d --keep-last 20  # Hybrid (OR)
+   docimp prune-workflow-history --dry-run --keep-last 10  # Preview
+   ```
+
+**Implementation**:
+
+#### Core Methods (TypeScript + Python)
+
+**saveHistorySnapshot()**: Save current workflow state to history directory
+
+```typescript
+// TypeScript: cli/src/utils/workflow-state-manager.ts
+public static async saveHistorySnapshot(): Promise<void> {
+  const currentState = await this.load();
+  const historyDir = path.join(StateManager.getStateDir(), 'history');
+  await fs.mkdir(historyDir, { recursive: true });
+
+  // Cross-platform safe timestamp (replace : and . with -)
+  const timestamp = new Date().toISOString()
+    .replaceAll(':', '-')
+    .replace(/\.\d+Z$/, 'Z')
+    .replace('Z', `-${Date.now() % 1000}Z`);
+
+  const filename = `workflow-state-${timestamp}.json`;
+  const snapshotPath = path.join(historyDir, filename);
+
+  // Atomic write (temp + rename)
+  const tempPath = `${snapshotPath}.tmp`;
+  await fs.writeFile(tempPath, JSON.stringify(currentState, null, 2), 'utf8');
+  await fs.rename(tempPath, snapshotPath);
+}
+```
+
+```python
+# Python: analyzer/src/utils/workflow_state_manager.py
+@staticmethod
+def save_history_snapshot() -> None:
+    """Save current workflow state to history directory."""
+    current_state = WorkflowStateManager.load_workflow_state()
+    history_dir = StateManager.get_state_dir() / "history"
+    history_dir.mkdir(parents=True, exist_ok=True)
+
+    # Cross-platform safe timestamp
+    timestamp = datetime.now(datetime.UTC).isoformat()
+    timestamp = timestamp.replace(":", "-").replace(".", "-")
+
+    filename = f"workflow-state-{timestamp}.json"
+    snapshot_path = history_dir / filename
+
+    # Atomic write (temp + rename)
+    temp_path = snapshot_path.with_suffix(".tmp")
+    temp_path.write_text(json.dumps(current_state, indent=2))
+    temp_path.rename(snapshot_path)
+```
+
+**listHistorySnapshots()**: List all snapshots sorted by timestamp (newest first)
+
+```typescript
+// TypeScript
+public static async listHistorySnapshots(): Promise<string[]> {
+  const historyDir = path.join(StateManager.getStateDir(), 'history');
+
+  try {
+    const files = await fs.readdir(historyDir);
+    const snapshotFiles = files.filter(f =>
+      f.startsWith('workflow-state-') && f.endsWith('.json')
+    );
+
+    // Sort by timestamp (newest first)
+    return snapshotFiles
+      .toSorted()
+      .toReversed()
+      .map(f => path.join(historyDir, f));
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return [];
+    }
+    throw err;
+  }
+}
+```
+
+**rotateHistory()**: Delete old snapshots based on config limits
+
+```typescript
+// TypeScript
+public static async rotateHistory(config: IWorkflowHistoryConfig): Promise<void> {
+  const snapshots = await this.listHistorySnapshots();
+
+  const toDelete: string[] = [];
+
+  for (const [index, snapshot] of snapshots.entries()) {
+    const stats = await fs.stat(snapshot);
+
+    // Violates count limit (OR logic)
+    const violatesCount = config.maxSnapshots > 0 &&
+                          index >= config.maxSnapshots;
+
+    // Violates age limit
+    const ageMs = Date.now() - stats.mtimeMs;
+    const ageDays = ageMs / (1000 * 60 * 60 * 24);
+    const violatesAge = config.maxAgeDays > 0 &&
+                        ageDays > config.maxAgeDays;
+
+    if (violatesCount || violatesAge) {
+      toDelete.push(snapshot);
+    }
+  }
+
+  await Promise.all(toDelete.map(f => fs.unlink(f)));
+}
+```
+
+#### Configuration
+
+```javascript
+// docimp.config.js
+export default {
+  workflowHistory: {
+    enabled: true,       // Auto-save snapshots after each command
+    maxSnapshots: 100,   // Auto-prune when count exceeded (0 = unlimited)
+    maxAgeDays: 90       // Auto-prune snapshots older than N days (0 = no age limit)
+  }
+};
+```
+
+```typescript
+// cli/src/config/i-config.ts
+export interface IWorkflowHistoryConfig {
+  enabled?: boolean;      // Default: true
+  maxSnapshots?: number;  // Default: 100
+  maxAgeDays?: number;    // Default: 90
+}
+```
+
+#### Command Integration
+
+**Snapshot Trigger Points**:
+
+After each command completes successfully:
+- `updateCommandState()` → `saveHistorySnapshot()` → `rotateHistory()`
+
+```typescript
+// TypeScript: cli/src/utils/workflow-state-manager.ts
+public static async updateCommandState(
+  command: WorkflowCommand,
+  state: CommandState
+): Promise<void> {
+  const workflowState = await this.load();
+  workflowState[`last_${command}`] = state;
+  await this.save(workflowState);
+
+  // Save history snapshot (if enabled)
+  const config = ConfigLoader.loadConfig();
+  if (config.workflowHistory?.enabled !== false) {
+    await this.saveHistorySnapshot();
+    await this.rotateHistory(config.workflowHistory || {});
+  }
+}
+```
+
+#### Display Implementation
+
+**list-workflow-history**: Table or JSON output
+
+```typescript
+// cli/src/display/terminal-display.ts
+public async showWorkflowHistory(
+  snapshots: string[],
+  json: boolean
+): Promise<void> {
+  if (json) {
+    const data = await Promise.all(
+      snapshots.map(async (snapshotPath) => {
+        const stats = await fs.stat(snapshotPath);
+        const filename = path.basename(snapshotPath);
+        const timestamp = filename
+          .match(/workflow-state-(.+)\.json$/)?.[1]
+          .replaceAll('-', ':') || 'unknown';
+
+        return {
+          path: snapshotPath,
+          filename,
+          timestamp,
+          size_bytes: stats.size,
+          modified: new Date(stats.mtimeMs).toISOString()
+        };
+      })
+    );
+
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+
+  // Table display with timestamp, size, age columns
+  const rows = await Promise.all(
+    snapshots.map(async (snapshotPath) => {
+      const stats = await fs.stat(snapshotPath);
+      const filename = path.basename(snapshotPath);
+      const timestamp = filename.match(/workflow-state-(.+)\.json$/)?.[1];
+      const sizeKB = (stats.size / 1024).toFixed(1);
+      const age = this.formatRelativeTime(stats.mtimeMs);
+
+      return [timestamp, `${sizeKB} KB`, age];
+    })
+  );
+
+  // Render table with borders and headers
+  this.renderTable(
+    ['Timestamp', 'Size', 'Age'],
+    rows
+  );
+}
+```
+
+**restore-workflow-state**: Confirmation prompt, backup creation
+
+```typescript
+// cli/src/commands/restore-workflow-state.ts
+export async function restoreWorkflowStateCore(
+  snapshotPath: string,
+  options: RestoreWorkflowStateOptions
+): Promise<void> {
+  // Validate snapshot exists and is valid JSON
+  const snapshotContent = await fs.readFile(snapshotPath, 'utf8');
+  const validatedSnapshot = WorkflowStateSchema.parse(JSON.parse(snapshotContent));
+
+  if (options.dryRun) {
+    console.log('Dry run mode - preview only');
+    console.log(JSON.stringify(validatedSnapshot, null, 2).slice(0, 500));
+    return;
+  }
+
+  // Prompt unless --force
+  if (!options.force && currentStateExists) {
+    const response = await prompts({
+      type: 'confirm',
+      name: 'value',
+      message: 'Proceed with restore?',
+      initial: false,
+    });
+
+    if (!response.value) {
+      console.log('Restore cancelled.');
+      return;
+    }
+  }
+
+  // Create backup before overwriting
+  if (currentStateExists) {
+    const backupPath = `${currentStateFile}.backup-${Date.now()}.json`;
+    await fs.copyFile(currentStateFile, backupPath);
+  }
+
+  // Atomic write
+  const tempFile = `${currentStateFile}.tmp`;
+  await fs.writeFile(tempFile, JSON.stringify(validatedSnapshot, null, 2), 'utf8');
+  await fs.rename(tempFile, currentStateFile);
+}
+```
+
+**prune-workflow-history**: Age/count filtering, dry-run preview
+
+```typescript
+// cli/src/commands/prune-workflow-history.ts
+function parseAgeString(ageString: string): number {
+  const match = ageString.match(/^(\d+)([dhm])$/);
+  if (!match) {
+    throw new Error(`Invalid age format: ${ageString}. Use "30d", "7d", "1h".`);
+  }
+
+  const value = Number.parseInt(match[1], 10);
+  const unit = match[2];
+
+  switch (unit) {
+    case 'd': return value * 24 * 60 * 60 * 1000;  // Days
+    case 'h': return value * 60 * 60 * 1000;       // Hours
+    case 'm': return value * 60 * 1000;            // Minutes
+  }
+}
+
+export async function pruneWorkflowHistoryCore(
+  options: PruneWorkflowHistoryOptions
+): Promise<void> {
+  const snapshots = await WorkflowStateManager.listHistorySnapshots();
+  const toDelete: string[] = [];
+
+  for (const [i, snapshot] of snapshots.entries()) {
+    const stats = await fs.stat(snapshot);
+
+    // Check keep-last (index-based, 0 = newest)
+    const violatesKeepLast = options.keepLast !== undefined &&
+                             i >= options.keepLast;
+
+    // Check older-than (age-based)
+    const ageThreshold = options.olderThan
+      ? Date.now() - parseAgeString(options.olderThan)
+      : undefined;
+    const violatesOlderThan = ageThreshold !== undefined &&
+                              stats.mtimeMs < ageThreshold;
+
+    // Delete if violates ANY criterion (OR logic)
+    if (violatesKeepLast || violatesOlderThan) {
+      toDelete.push(snapshot);
+    }
+  }
+
+  if (options.dryRun) {
+    console.log('Dry run mode - preview only');
+    console.log(`Would delete ${toDelete.length} snapshots`);
+    return;
+  }
+
+  await Promise.all(toDelete.map(f => fs.unlink(f)));
+  console.log(`Deleted ${toDelete.length} snapshots successfully.`);
+}
+```
+
+**Test Coverage**: 73 new tests (18 TS + 10 Python core + 45 command tests)
+
+**TypeScript Tests**:
+- `workflow-state-manager.test.ts`: 18 tests for core methods (save, list, rotate)
+- `list-workflow-history.test.ts`: 16 tests for list command
+- `restore-workflow-state.test.ts`: 17 tests for restore command
+- `prune-workflow-history.test.ts`: 12 tests for prune command
+
+**Python Tests**:
+- `test_workflow_state_manager_history.py`: 10 tests for Python parity
+
+**Edge Cases Covered**:
+- Empty history directory (no snapshots)
+- Limit of 0 (valid, shows no snapshots)
+- Invalid snapshot JSON (validation errors)
+- Missing snapshot file (ENOENT)
+- Ctrl+C during restore prompt (cancelled)
+- Age parsing (days, hours, minutes)
+- Hybrid pruning with OR logic
+- Cross-platform timestamp format (no `:` or `.` in filenames)
+
+**Snapshot Format**:
+
+```
+workflow-state-2025-11-12T14-30-00-123Z.json
+               ├─────┬─────┤ ├─┬──┤ ├─┤
+               Date   Time   MS  TZ
+```
+
+- ISO 8601 format with `-` instead of `:` for cross-platform compatibility
+- Milliseconds included for uniqueness
+- Sorted lexicographically (newest first)
+
+**Benefits**:
+
+1. **Audit trail**: Full command execution history preserved
+2. **Recovery**: Restore from any previous state
+3. **Debugging**: Compare workflow state across time
+4. **Automatic rotation**: Prevents unbounded disk usage
+5. **Flexible pruning**: Manual cleanup with age/count filters
+
+**Outcome**: Workflow history feature production-ready with automatic snapshots, manual commands, and comprehensive test coverage. All 73 new tests passing.
