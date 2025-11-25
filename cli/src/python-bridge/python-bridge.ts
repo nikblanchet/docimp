@@ -1157,7 +1157,17 @@ export class PythonBridge implements IPythonBridge {
    * @throws Error if workflow state file is corrupted or Python process fails
    */
   async status(): Promise<WorkflowStatusResult> {
-    const arguments_ = ['-m', 'src.main', 'status'];
+    // Resolve base path to absolute before passing to Python subprocess
+    // This is necessary because the subprocess runs with CWD set to analyzer/
+    const absoluteBasePath = path.resolve(process.cwd());
+
+    const arguments_ = [
+      '-m',
+      'src.main',
+      'status',
+      '--base-path',
+      absoluteBasePath,
+    ];
 
     const result = await this.executePython<WorkflowStatusResult>(
       arguments_,

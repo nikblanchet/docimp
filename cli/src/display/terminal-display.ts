@@ -818,8 +818,8 @@ export class TerminalDisplay implements IDisplay {
         chalk.cyan('Last Run'),
         chalk.cyan('Items'),
       ],
-      [15, 12, 25, 15], // Full widths
-      [12, 10, 20, 12] // Compact widths
+      [15, 12, 25, 20], // Full widths (Items: 20 to fit "XX items, XX files")
+      [12, 10, 15, 18] // Compact widths (Items: 18 to fit counts)
     );
 
     for (const cmd of status.commands) {
