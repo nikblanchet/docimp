@@ -7,4 +7,4 @@ This package provides the core analysis engine for DocImp, including:
 - Claude AI integration for documentation generation
 """
 
-__version__ = "1.0.6-α"
+__version__ = "1.1.0b1"

@@ -50,7 +50,7 @@ class TestCLI:
         assert exc.value.code == 0
         captured = capsys.readouterr()
         assert "analyzer" in captured.out
-        assert "1.0.6-α" in captured.out
+        assert "1.1.0b1" in captured.out
 
     def test_analyze_json_format(self, examples_dir, capsys):
         """Test analyze command with JSON output."""
