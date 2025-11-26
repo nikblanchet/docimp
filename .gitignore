@@ -62,6 +62,7 @@ CLAUDE_CONTEXT.md
 .envrc.local
 
 # E2E test artifacts from bash scripts
+# Note: test-incremental/ location depends on where test script is run from
 cli/test-incremental/
 test-samples/example-project/test-incremental/
 test-samples/example-project/src/file[0-9]*.py
