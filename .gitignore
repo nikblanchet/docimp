@@ -61,6 +61,12 @@ CLAUDE_CONTEXT.md
 .direnv/
 .envrc.local
 
+# E2E test artifacts from bash scripts
+# Note: test-incremental/ location depends on where test script is run from
+cli/test-incremental/
+test-samples/example-project/test-incremental/
+test-samples/example-project/src/file[0-9]*.py
+
 # NOTE on credential patterns (*.key, *.pem, credentials.json, etc.):
 # We intentionally do NOT include these patterns. Adding them to .gitignore
 # creates false security - they don't prevent "git add -f" and give developers
