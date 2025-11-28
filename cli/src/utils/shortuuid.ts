@@ -42,6 +42,9 @@ function intToString(
   const alphabetLength = BigInt(alphabet.length);
   const digits: string[] = [];
 
+  // Edge case: number === 0n returns empty string before padding is applied.
+  // This is correct: UUID 00000000-0000-0000-0000-000000000000
+  // encodes to '2222222222222222222222' via padding (all first alphabet chars).
   while (number > 0n) {
     const remainder = number % alphabetLength;
     number = number / alphabetLength;
@@ -171,6 +174,9 @@ export function decode(shortUuid: string): string {
  *
  * formatDisplay('vytxeTZskVKR7C7WgdSP3d', { truncate: 12 })
  * // Returns: 'vytx-eTZs-kVKR'
+ *
+ * formatDisplay('vytxeTZskVKR7C7WgdSP3d', { truncate: 22 })
+ * // Returns: 'vy-txeT-ZskV-KR7C-7Wgd-SP3d' (full length, same as no truncate)
  */
 export function formatDisplay(
   shortUuid: string,
@@ -181,6 +187,9 @@ export function formatDisplay(
 
   // Apply truncation if requested
   if (options?.truncate !== undefined) {
+    if (!Number.isInteger(options.truncate) || options.truncate < 0) {
+      throw new Error('truncate must be a non-negative integer');
+    }
     cleaned = cleaned.slice(0, options.truncate);
   }
 

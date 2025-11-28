@@ -1,8 +1,24 @@
 /**
  * Unit tests for validation utilities.
+ *
+ * Tests UUID validation, shortuuid validation, and session ID utilities
+ * including format detection, normalization, and display formatting.
  */
 
-import { isValidUuid } from '../../utils/validation.js';
+import {
+  detectSessionIdFormat,
+  formatSessionIdForDisplay,
+  isValidSessionId,
+  isValidShortUuid,
+  isValidUuid,
+  normalizeSessionId,
+} from '../../utils/validation.js';
+
+/** Characters excluded from base57 alphabet (similar-looking) */
+const BASE57_EXCLUDED_CHARS = ['0', '1', 'I', 'O', 'l'] as const;
+
+/** UUID 00000000-0000-0000-0000-000000000000 encodes to all 2s */
+const ZERO_UUID_ENCODING = '2222222222222222222222';
 
 describe('isValidUuid', () => {
   describe('valid UUIDs', () => {
@@ -69,6 +85,177 @@ describe('isValidUuid', () => {
     it('should reject special keyword "last"', () => {
       // "last" is a special keyword handled separately, not a valid UUID
       expect(isValidUuid('last')).toBe(false);
+    });
+  });
+});
+
+describe('isValidShortUuid', () => {
+  describe('valid shortuuids', () => {
+    it('should accept valid 22-character shortuuids', () => {
+      expect(isValidShortUuid('CXc85b4rqinB7s5J52TRYb')).toBe(true);
+      expect(isValidShortUuid('vytxeTZskVKR7C7WgdSP3d')).toBe(true);
+    });
+
+    it('should accept shortuuids with hyphens', () => {
+      expect(isValidShortUuid('CXc8-5b4r-qinB-7s5J-52TR-Yb')).toBe(true);
+      expect(isValidShortUuid('vy-txeT-ZskV-KR7C-7Wgd-SP3d')).toBe(true);
+    });
+
+    it('should accept zero UUID encoding', () => {
+      expect(isValidShortUuid(ZERO_UUID_ENCODING)).toBe(true);
+    });
+  });
+
+  describe('invalid shortuuids', () => {
+    it('should reject strings that are too short', () => {
+      expect(isValidShortUuid('tooshort')).toBe(false);
+      expect(isValidShortUuid('CXc85b4rqinB')).toBe(false);
+    });
+
+    it('should reject strings that are too long', () => {
+      expect(isValidShortUuid('CXc85b4rqinB7s5J52TRYbX')).toBe(false);
+    });
+
+    it('should reject strings with invalid characters', () => {
+      // All excluded base57 characters should be rejected
+      for (const char of BASE57_EXCLUDED_CHARS) {
+        const invalidUuid = `CXc85b4rqinB7s5J52TR${char}b`;
+        expect(isValidShortUuid(invalidUuid)).toBe(false);
+      }
+    });
+
+    it('should reject empty string', () => {
+      expect(isValidShortUuid('')).toBe(false);
+    });
+  });
+});
+
+describe('isValidSessionId', () => {
+  describe('valid session IDs', () => {
+    it('should accept standard UUIDs', () => {
+      expect(isValidSessionId('550e8400-e29b-41d4-a716-446655440000')).toBe(
+        true
+      );
+      expect(isValidSessionId('00000000-0000-4000-8000-000000000001')).toBe(
+        true
+      );
+    });
+
+    it('should accept shortuuids', () => {
+      expect(isValidSessionId('CXc85b4rqinB7s5J52TRYb')).toBe(true);
+      expect(isValidSessionId('vytxeTZskVKR7C7WgdSP3d')).toBe(true);
+    });
+
+    it('should accept hyphenated shortuuids', () => {
+      expect(isValidSessionId('CXc8-5b4r-qinB-7s5J-52TR-Yb')).toBe(true);
+    });
+  });
+
+  describe('invalid session IDs', () => {
+    it('should reject invalid formats', () => {
+      expect(isValidSessionId('invalid-session')).toBe(false);
+      expect(isValidSessionId('not-valid')).toBe(false);
+    });
+
+    it('should reject empty string', () => {
+      expect(isValidSessionId('')).toBe(false);
+    });
+
+    it('should reject strings that are neither UUID nor shortuuid', () => {
+      expect(isValidSessionId('12345')).toBe(false);
+      expect(isValidSessionId('abcdefghijklmnopqrstuvwxyz')).toBe(false);
+    });
+  });
+});
+
+describe('detectSessionIdFormat', () => {
+  it('should detect UUID format', () => {
+    expect(detectSessionIdFormat('550e8400-e29b-41d4-a716-446655440000')).toBe(
+      'uuid'
+    );
+    expect(detectSessionIdFormat('00000000-0000-4000-8000-000000000001')).toBe(
+      'uuid'
+    );
+  });
+
+  it('should detect shortuuid format', () => {
+    expect(detectSessionIdFormat('CXc85b4rqinB7s5J52TRYb')).toBe('shortuuid');
+    expect(detectSessionIdFormat('vytxeTZskVKR7C7WgdSP3d')).toBe('shortuuid');
+  });
+
+  it('should detect shortuuid with hyphens', () => {
+    expect(detectSessionIdFormat('CXc8-5b4r-qinB-7s5J-52TR-Yb')).toBe(
+      'shortuuid'
+    );
+  });
+
+  it('should return invalid for bad input', () => {
+    expect(detectSessionIdFormat('invalid-session')).toBe('invalid');
+    expect(detectSessionIdFormat('')).toBe('invalid');
+    expect(detectSessionIdFormat('12345')).toBe('invalid');
+  });
+});
+
+describe('normalizeSessionId', () => {
+  it('should preserve UUIDs unchanged', () => {
+    const uuid = '550e8400-e29b-41d4-a716-446655440000';
+    expect(normalizeSessionId(uuid)).toBe(uuid);
+  });
+
+  it('should preserve shortuuids without hyphens', () => {
+    const shortuuid = 'CXc85b4rqinB7s5J52TRYb';
+    expect(normalizeSessionId(shortuuid)).toBe(shortuuid);
+  });
+
+  it('should strip hyphens from hyphenated shortuuids', () => {
+    expect(normalizeSessionId('CXc8-5b4r-qinB-7s5J-52TR-Yb')).toBe(
+      'CXc85b4rqinB7s5J52TRYb'
+    );
+    expect(normalizeSessionId('vy-txeT-ZskV-KR7C-7Wgd-SP3d')).toBe(
+      'vytxeTZskVKR7C7WgdSP3d'
+    );
+  });
+});
+
+describe('formatSessionIdForDisplay', () => {
+  describe('UUID formatting', () => {
+    it('should truncate UUIDs without adding hyphens', () => {
+      expect(
+        formatSessionIdForDisplay('550e8400-e29b-41d4-a716-446655440000', 8)
+      ).toBe('550e8400');
+      expect(
+        formatSessionIdForDisplay('550e8400-e29b-41d4-a716-446655440000', 12)
+      ).toBe('550e8400-e29');
+    });
+  });
+
+  describe('shortuuid formatting', () => {
+    it('should format shortuuids with truncation and hyphens', () => {
+      expect(formatSessionIdForDisplay('CXc85b4rqinB7s5J52TRYb', 8)).toBe(
+        'CXc8-5b4r'
+      );
+      expect(formatSessionIdForDisplay('vytxeTZskVKR7C7WgdSP3d', 8)).toBe(
+        'vytx-eTZs'
+      );
+    });
+
+    it('should format with truncate 12', () => {
+      expect(formatSessionIdForDisplay('CXc85b4rqinB7s5J52TRYb', 12)).toBe(
+        'CXc8-5b4r-qinB'
+      );
+    });
+
+    it('should handle already-hyphenated shortuuids', () => {
+      expect(formatSessionIdForDisplay('CXc8-5b4r-qinB-7s5J-52TR-Yb', 8)).toBe(
+        'CXc8-5b4r'
+      );
+    });
+
+    it('should format full shortuuid without truncation', () => {
+      // When truncate >= 22, shows full formatted output
+      expect(formatSessionIdForDisplay('CXc85b4rqinB7s5J52TRYb', 22)).toBe(
+        'CX-c85b-4rqi-nB7s-5J52-TRYb'
+      );
     });
   });
 });
