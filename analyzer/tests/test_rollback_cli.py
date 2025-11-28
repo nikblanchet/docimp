@@ -31,7 +31,7 @@ class TestListSessions:
 
         # Create mock sessions
         session1 = TransactionManifest(
-            session_id="session-1",
+            session_id="44444444-4444-4444-8444-444444444444",
             started_at="2024-01-01T10:00:00",
             status="in_progress",
             entries=[
@@ -48,7 +48,7 @@ class TestListSessions:
             ],
         )
         session2 = TransactionManifest(
-            session_id="session-2",
+            session_id="55555555-5555-4555-8555-555555555555",
             started_at="2024-01-01T11:00:00",
             status="in_progress",
             entries=[],
@@ -68,8 +68,8 @@ class TestListSessions:
         # Check output
         captured = capsys.readouterr()
         assert "Active DocImp Sessions" in captured.out
-        assert "session-1" in captured.out
-        assert "session-2" in captured.out
+        assert "44444444-4444-4444-8444-444444444444" in captured.out
+        assert "55555555-5555-4555-8555-555555555555" in captured.out
         assert "Total: 2 session(s)" in captured.out
 
     def test_list_sessions_no_sessions(self, capsys):
@@ -130,16 +130,15 @@ class TestListChanges:
 
         manager.list_session_changes.return_value = [change1, change2]
 
-        args = argparse.Namespace(
-            session_id="test-session", verbose=False, format="table"
-        )
+        test_uuid = "11111111-1111-4111-8111-111111111111"
+        args = argparse.Namespace(session_id=test_uuid, verbose=False, format="table")
 
         with patch("src.main.GitHelper.check_git_available", return_value=True):
             result = cmd_list_changes(args, manager)
 
         assert result == 0
         captured = capsys.readouterr()
-        assert "Changes in Session: test-session" in captured.out
+        assert f"Changes in Session: {test_uuid}" in captured.out
         assert "abc123" in captured.out
         assert "def456" in captured.out
         assert "Total: 2 change(s)" in captured.out
@@ -150,7 +149,7 @@ class TestListChanges:
         manager.list_session_changes.side_effect = ValueError("Session does not exist")
 
         args = argparse.Namespace(
-            session_id="invalid-session", verbose=False, format="table"
+            session_id="invalid-session-id", verbose=False, format="table"
         )
 
         with patch("src.main.GitHelper.check_git_available", return_value=True):
@@ -158,8 +157,8 @@ class TestListChanges:
 
         assert result == 1
         captured = capsys.readouterr()
-        assert "Session does not exist" in captured.err
-        assert "docimp list-sessions" in captured.err
+        assert "Invalid session ID format" in captured.err
+        assert "UUID format" in captured.err
 
 
 class TestRollbackSession:
@@ -171,7 +170,7 @@ class TestRollbackSession:
 
         # Create two mock sessions with different timestamps
         session1 = TransactionManifest(
-            session_id="session-older",
+            session_id="22222222-2222-4222-8222-222222222222",
             started_at="2024-01-01T10:00:00",
             status="in_progress",
             entries=[
@@ -188,7 +187,7 @@ class TestRollbackSession:
             ],
         )
         session2 = TransactionManifest(
-            session_id="session-newer",
+            session_id="33333333-3333-4333-8333-333333333333",
             started_at="2024-01-01T11:00:00",
             status="in_progress",
             entries=[
@@ -221,9 +220,10 @@ class TestRollbackSession:
             result = cmd_rollback_session(args, manager)
 
         assert result == 0
-        # Verify the most recent session (session-newer) was loaded
+        # Verify the most recent session was loaded
+        newer_uuid = "33333333-3333-4333-8333-333333333333"
         manager.load_manifest.assert_called_once()
-        assert "session-newer" in str(manager.load_manifest.call_args)
+        assert newer_uuid in str(manager.load_manifest.call_args)
 
     def test_rollback_session_last_no_sessions(self, capsys):
         """Test 'last' flag when no sessions exist."""
@@ -247,7 +247,7 @@ class TestRollbackSession:
 
         # Create mock manifest
         manifest = TransactionManifest(
-            session_id="test-session",
+            session_id="11111111-1111-4111-8111-111111111111",
             started_at="2024-01-01T10:00:00",
             status="in_progress",
             entries=[
@@ -267,8 +267,9 @@ class TestRollbackSession:
         manager.load_manifest.return_value = manifest
         manager.rollback_transaction.return_value = 1
 
+        test_uuid = "11111111-1111-4111-8111-111111111111"
         args = argparse.Namespace(
-            session_id="test-session", verbose=False, format="table", no_confirm=False
+            session_id=test_uuid, verbose=False, format="table", no_confirm=False
         )
 
         # Mock Path.exists to return True for manifest
@@ -288,7 +289,7 @@ class TestRollbackSession:
         manager = Mock()
 
         manifest = TransactionManifest(
-            session_id="test-session",
+            session_id="11111111-1111-4111-8111-111111111111",
             started_at="2024-01-01T10:00:00",
             status="in_progress",
             entries=[],
@@ -296,8 +297,9 @@ class TestRollbackSession:
 
         manager.load_manifest.return_value = manifest
 
+        test_uuid = "11111111-1111-4111-8111-111111111111"
         args = argparse.Namespace(
-            session_id="test-session", verbose=False, format="table", no_confirm=False
+            session_id=test_uuid, verbose=False, format="table", no_confirm=False
         )
 
         with (
@@ -315,8 +317,9 @@ class TestRollbackSession:
     def test_rollback_session_not_found(self, capsys):
         """Test rollback for non-existent session."""
         manager = Mock()
+        nonexistent_uuid = "99999999-9999-4999-8999-999999999999"
         args = argparse.Namespace(
-            session_id="nonexistent", verbose=False, format="table", no_confirm=False
+            session_id=nonexistent_uuid, verbose=False, format="table", no_confirm=False
         )
 
         with (
@@ -327,7 +330,7 @@ class TestRollbackSession:
 
         assert result == 1
         captured = capsys.readouterr()
-        assert "Session not found: nonexistent" in captured.err
+        assert f"Session not found: {nonexistent_uuid}" in captured.err
 
 
 class TestRollbackChange:
@@ -339,13 +342,13 @@ class TestRollbackChange:
 
         # Create mock sessions with changes
         session1 = TransactionManifest(
-            session_id="session-1",
+            session_id="44444444-4444-4444-8444-444444444444",
             started_at="2024-01-01T10:00:00",
             status="in_progress",
             entries=[],
         )
         session2 = TransactionManifest(
-            session_id="session-2",
+            session_id="55555555-5555-4555-8555-555555555555",
             started_at="2024-01-01T11:00:00",
             status="in_progress",
             entries=[],
@@ -384,8 +387,9 @@ class TestRollbackChange:
         )
 
         manager.list_uncommitted_transactions.return_value = [session1, session2]
+        session1_uuid = "44444444-4444-4444-8444-444444444444"
         manager.list_session_changes.side_effect = lambda sid: (
-            [change1, change3] if sid == "session-1" else [change2]
+            [change1, change3] if sid == session1_uuid else [change2]
         )
         manager.get_change_diff.return_value = "diff --git a/file2.py b/file2.py\n..."
         manager.rollback_change.return_value = RollbackResult(
@@ -429,7 +433,7 @@ class TestRollbackChange:
         manager = Mock()
 
         session = TransactionManifest(
-            session_id="session-1",
+            session_id="44444444-4444-4444-8444-444444444444",
             started_at="2024-01-01T10:00:00",
             status="in_progress",
             entries=[],
@@ -513,7 +517,7 @@ class TestInteractiveRollback:
 
         # Mock session data
         session = TransactionManifest(
-            session_id="test-session",
+            session_id="11111111-1111-4111-8111-111111111111",
             started_at="2024-01-01T10:00:00",
             status="in_progress",
             entries=[],
@@ -560,7 +564,7 @@ class TestInteractiveRollback:
         manager = Mock()
 
         session = TransactionManifest(
-            session_id="test-session",
+            session_id="11111111-1111-4111-8111-111111111111",
             started_at="2024-01-01T10:00:00",
             status="in_progress",
             entries=[],

@@ -38,7 +38,7 @@ describe('Transaction Recording Integration', () => {
 
   describe('recordWrite', () => {
     it('should create git commit after recording write', async () => {
-      const sessionId = 'test-session-record-write';
+      const sessionId = '00000000-0000-4000-8000-000000000001';
 
       // Begin transaction
       await pythonBridge.beginTransaction(sessionId);
@@ -89,7 +89,7 @@ describe('Transaction Recording Integration', () => {
     }, 15000);
 
     it('should include metadata in commit message', async () => {
-      const sessionId = 'test-session-metadata';
+      const sessionId = '00000000-0000-4000-8000-000000000002';
 
       // Begin transaction
       await pythonBridge.beginTransaction(sessionId);
@@ -146,7 +146,7 @@ describe('Transaction Recording Integration', () => {
     }, 15000);
 
     it('should preserve backup file after recording', async () => {
-      const sessionId = 'test-session-backup';
+      const sessionId = '00000000-0000-4000-8000-000000000003';
 
       // Begin transaction
       await pythonBridge.beginTransaction(sessionId);
@@ -197,7 +197,7 @@ describe('Transaction Recording Integration', () => {
     }, 15000);
 
     it('should handle multiple writes in same session', async () => {
-      const sessionId = 'test-session-multiple';
+      const sessionId = '00000000-0000-4000-8000-000000000004';
 
       // Begin transaction
       await pythonBridge.beginTransaction(sessionId);

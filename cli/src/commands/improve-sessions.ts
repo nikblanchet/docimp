@@ -14,6 +14,7 @@ import { EXIT_CODE, type ExitCode } from '../constants/exit-codes.js';
 import type { ImproveSessionState } from '../types/improve-session-state.js';
 import { SessionStateManager } from '../utils/session-state-manager.js';
 import { StateManager } from '../utils/state-manager.js';
+import { isValidUuid } from '../utils/validation.js';
 
 const execPromise = promisify(exec);
 
@@ -288,6 +289,14 @@ export async function deleteImproveSessionCore(
   // Handle specific session ID
   if (!sessionId) {
     throw new Error('Session ID is required');
+  }
+
+  // Validate UUID format
+  if (!isValidUuid(sessionId)) {
+    throw new Error(
+      `Invalid session ID format: ${sessionId}. ` +
+        'Expected UUID format (e.g., 550e8400-e29b-41d4-a716-446655440000)'
+    );
   }
 
   // Verify session exists before prompting

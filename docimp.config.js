@@ -331,6 +331,18 @@ export default {
   // - Provide auto-fix suggestions
   // - Block acceptance if validation fails
   //
+  // IMPORTANT: Execution Model
+  // Plugins run SEQUENTIALLY, not in parallel. This means:
+  // - Total validation time = sum of all plugin execution times
+  // - 2 plugins at 10s each = 20s total (not concurrent)
+  // - Keep individual plugins fast (< 5s recommended) for good UX
+  //
+  // Performance guidelines:
+  // - Style checks: < 2s
+  // - JSDoc parsing: < 5s
+  // - TypeScript compilation: 5-10s
+  // - If total > 30s, optimize slow plugins or reduce plugin count
+  //
   // Built-in plugins:
   // - validate-types.js: Real JSDoc type-checking with TypeScript compiler
   // - jsdoc-style.js: JSDoc style enforcement

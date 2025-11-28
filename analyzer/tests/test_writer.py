@@ -784,10 +784,10 @@ class TestAtomicWrites:
 
             def mock_copy2(src, dst):
                 call_count[0] += 1
-                # First call is backup creation (line 258) - let it succeed
+                # First call is backup creation - let it succeed
                 if call_count[0] == 1:
                     return original_copy2(src, dst)
-                # Second call is restore (line 156 in _safe_restore) - make it fail
+                # Second call is restore during error handling - make it fail
                 raise PermissionError("Mock restore failure")
 
             # Also mock os.replace to fail, triggering restore attempt

@@ -406,3 +406,89 @@ try {
 ```
 
 **Result**: Documentation written normally, no transaction tracking, session completes without rollback capability.
+
+## Troubleshooting
+
+### Git Operation Timeouts
+
+If you see errors like "Git operation 'git merge' timed out after 120.0 seconds":
+
+**1. Identify operation category:**
+- Fast (status, rev-parse, branch, show, diff): 5s default
+- Default (add, commit, checkout): 30s default
+- Slow (merge, revert, reset, init, rebase): 120s default
+
+**2. Common causes:**
+- Network-mounted filesystems: Operations may be 2-4x slower
+- Large repositories (100K+ files): Merge/revert operations slower
+- Degraded disk performance: Check with `df -h` and `iostat`
+- High CPU load: Other processes competing for resources
+
+**3. Configuration examples in `docimp.config.js`:**
+
+```javascript
+// For network-mounted filesystems (2x slower)
+transaction: {
+  git: {
+    baseTimeout: 60000,    // 60s base (was 30s)
+    slowScale: 6.0         // 360s for slow ops (was 120s)
+  }
+}
+
+// For very large repositories
+transaction: {
+  git: {
+    baseTimeout: 90000,    // 90s base
+    slowScale: 10.0,       // 900s for slow ops
+    maxTimeout: 600000     // 10 minute absolute max
+  }
+}
+```
+
+### Orphaned Backup Cleanup
+
+When sessions are interrupted (crashes, SIGKILL, power loss), `.bak` backup files may be left orphaned in the project directory.
+
+**Identifying orphaned backups:**
+
+```bash
+# Find all .bak files in project
+find . -name "*.bak" -type f 2>/dev/null
+
+# Example output:
+# ./src/scorer.py.20251030-195622.bak
+# ./cli/src/formatter.ts.20251030-200115.bak
+```
+
+**Safe cleanup procedure:**
+
+1. Check for uncommitted sessions:
+   ```bash
+   docimp list-sessions
+   # If any sessions show "in_progress", they may still need these backups
+   ```
+
+2. Verify the backup is orphaned:
+   ```bash
+   # Compare backup to current file
+   diff src/scorer.py src/scorer.py.20251030-195622.bak
+   ```
+
+3. Delete orphaned backups:
+   ```bash
+   # Delete a single backup
+   rm src/scorer.py.20251030-195622.bak
+
+   # Delete all orphaned backups (after verification)
+   find . -name "*.bak" -type f -delete
+   ```
+
+**When NOT to delete:**
+- Session is still in progress (`docimp list-sessions` shows `in_progress`)
+- You want to manually restore the original file
+- You're debugging a failed session
+
+**Prevention:**
+- Use `docimp improve` with proper exit (Q to quit, completes transaction)
+- Avoid SIGKILL (kill -9) on running improve sessions
+- If session crashes, use `docimp rollback-session --last` before cleanup

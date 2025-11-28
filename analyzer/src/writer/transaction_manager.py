@@ -21,6 +21,9 @@ import json
 import shutil
 from datetime import UTC, datetime
 
+# Standard short SHA length for git commit display (7 hex chars = 28 bits)
+GIT_SHORT_SHA_LENGTH = 7
+
 
 @dataclass
 class TransactionEntry:
@@ -578,7 +581,7 @@ Metadata:
                 except (ValueError, IndexError):
                     logger.warning(
                         f"Malformed Metadata-Version in commit "
-                        f"{commit_sha[:7]}, defaulting to 0"
+                        f"{commit_sha[:GIT_SHORT_SHA_LENGTH]}, defaulting to 0"
                     )
 
         # Extract metadata section
@@ -596,7 +599,8 @@ Metadata:
 
         # Build TransactionEntry from metadata
         if not metadata:
-            logger.warning(f"No metadata found in commit {commit_sha[:7]}, skipping")
+            short_sha = commit_sha[:GIT_SHORT_SHA_LENGTH]
+            logger.warning(f"No metadata found in commit {short_sha}, skipping")
             return None
 
         # Validate required fields (for version 1+)
@@ -604,8 +608,9 @@ Metadata:
         missing_fields = [field for field in required_fields if field not in metadata]
 
         if metadata_version >= 1 and missing_fields:
+            short_sha = commit_sha[:GIT_SHORT_SHA_LENGTH]
             logger.warning(
-                f"Commit {commit_sha[:7]} missing required fields: {missing_fields}. "
+                f"Commit {short_sha} missing required fields: {missing_fields}. "
                 f"Skipping entry."
             )
             return None

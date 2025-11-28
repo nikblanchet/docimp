@@ -12,11 +12,9 @@
 
 set -e  # Exit on error
 
-# Colors for output
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+# Source shared color constants
+SCRIPT_DIR_COLORS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR_COLORS/scripts/colors.sh" 2>/dev/null || source "$SCRIPT_DIR_COLORS/../scripts/colors.sh"
 
 echo -e "${YELLOW}Testing PythonBridge path resolution (Issue #81)${NC}"
 echo ""
