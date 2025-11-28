@@ -21,9 +21,6 @@ class ClaudeResponseParser:
     - Preserve code examples within docstrings
     """
 
-    # Supported language specifiers for markdown fences
-    LANGUAGE_SPECIFIERS = ["python", "javascript", "js", "typescript", "ts"]
-
     @staticmethod
     def strip_markdown_fences(response: str, language: str) -> str:
         """Remove markdown code fence wrappers if present.
