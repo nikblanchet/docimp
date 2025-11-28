@@ -45,6 +45,27 @@ print_warning() {
     echo -e "${YELLOW}⚠${NC} $1"
 }
 
+# Check if error output contains stack traces (not user-friendly)
+# Returns 0 if stack trace detected, 1 otherwise
+contains_stack_trace() {
+    local output="$1"
+    # Python stack traces
+    if echo "$output" | grep -qE "Traceback \(most recent call last\)"; then
+        return 0
+    fi
+    if echo "$output" | grep -qE '  File ".+", line [0-9]+'; then
+        return 0
+    fi
+    # JavaScript/TypeScript stack traces
+    if echo "$output" | grep -qE "at Object\.<anonymous>|at Module\._compile|at Module\._load"; then
+        return 0
+    fi
+    if echo "$output" | grep -qE "    at .+:[0-9]+:[0-9]+"; then
+        return 0
+    fi
+    return 1
+}
+
 # Change to test project directory
 cd "$(dirname "$0")/example-project" || exit 1
 
@@ -442,6 +463,10 @@ else
     else
         print_warning "Plan error message unclear: $ERROR_OUTPUT"
     fi
+    # Check for stack traces (not user-friendly)
+    if contains_stack_trace "$ERROR_OUTPUT"; then
+        print_failure "Error message contains stack trace instead of user-friendly message"
+    fi
 fi
 
 # Test 2: Malformed audit.json (wrong data type)
@@ -478,6 +503,10 @@ else
     else
         print_warning "Plan error message unclear: $ERROR_OUTPUT"
     fi
+    # Check for stack traces (not user-friendly)
+    if contains_stack_trace "$ERROR_OUTPUT"; then
+        print_failure "Error message contains stack trace instead of user-friendly message"
+    fi
 fi
 
 # Test 3: Missing required fields in audit.json
@@ -513,6 +542,10 @@ else
     else
         print_warning "Plan error message unclear: $ERROR_OUTPUT"
     fi
+    # Check for stack traces (not user-friendly)
+    if contains_stack_trace "$ERROR_OUTPUT"; then
+        print_failure "Error message contains stack trace instead of user-friendly message"
+    fi
 fi
 
 # Test 4: Empty state directory (edge case)
@@ -543,6 +576,10 @@ else
         print_success "Plan shows helpful error for missing analysis"
     else
         print_warning "Plan error message unclear: $ERROR_OUTPUT"
+    fi
+    # Check for stack traces (not user-friendly)
+    if contains_stack_trace "$ERROR_OUTPUT"; then
+        print_failure "Error message contains stack trace instead of user-friendly message"
     fi
 fi
 
@@ -581,6 +618,10 @@ if [ $ANALYZE_EXIT_CODE -ne 0 ]; then
         print_success "Analyze shows helpful error for permission issues"
     else
         print_warning "Analyze error message unclear: $ERROR_OUTPUT"
+    fi
+    # Check for stack traces (not user-friendly)
+    if contains_stack_trace "$ERROR_OUTPUT"; then
+        print_failure "Error message contains stack trace instead of user-friendly message"
     fi
 else
     print_failure "Analyze should detect write permission issues but succeeded"

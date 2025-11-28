@@ -599,7 +599,8 @@ Metadata:
 
         # Build TransactionEntry from metadata
         if not metadata:
-            logger.warning(f"No metadata found in commit {commit_sha[:GIT_SHORT_SHA_LENGTH]}, skipping")
+            short_sha = commit_sha[:GIT_SHORT_SHA_LENGTH]
+            logger.warning(f"No metadata found in commit {short_sha}, skipping")
             return None
 
         # Validate required fields (for version 1+)
@@ -607,8 +608,9 @@ Metadata:
         missing_fields = [field for field in required_fields if field not in metadata]
 
         if metadata_version >= 1 and missing_fields:
+            short_sha = commit_sha[:GIT_SHORT_SHA_LENGTH]
             logger.warning(
-                f"Commit {commit_sha[:GIT_SHORT_SHA_LENGTH]} missing required fields: {missing_fields}. "
+                f"Commit {short_sha} missing required fields: {missing_fields}. "
                 f"Skipping entry."
             )
             return None

@@ -35,7 +35,7 @@ describe('Transaction Lifecycle Integration', () => {
 
   describe('beginTransaction', () => {
     it('should create git branch in side-car repository', async () => {
-      const sessionId = 'test-session-123';
+      const sessionId = '00000000-0000-4000-8000-000000000010';
 
       await pythonBridge.beginTransaction(sessionId);
 
@@ -55,7 +55,7 @@ describe('Transaction Lifecycle Integration', () => {
     it('should throw error if git backend unavailable', async () => {
       // Mock scenario where git is not available
       // This test depends on Python implementation returning proper error
-      const sessionId = 'test-session-no-git';
+      const sessionId = '00000000-0000-4000-8000-000000000011';
 
       // Note: This test assumes Git is available in CI/dev environments
       // If git is not available, the test will verify proper error handling
@@ -73,8 +73,8 @@ describe('Transaction Lifecycle Integration', () => {
     }, 10000); // Longer timeout for git operations
 
     it('should handle multiple sequential sessions', async () => {
-      const sessionId1 = 'test-session-001';
-      const sessionId2 = 'test-session-002';
+      const sessionId1 = '00000000-0000-4000-8000-000000000012';
+      const sessionId2 = '00000000-0000-4000-8000-000000000013';
 
       await pythonBridge.beginTransaction(sessionId1);
       await pythonBridge.beginTransaction(sessionId2);

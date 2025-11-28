@@ -6,6 +6,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import chalk from 'chalk';
 import Table from 'cli-table3';
 import prompts from 'prompts';
 import type { IConfigLoader } from '../config/i-config-loader.js';
@@ -780,7 +781,9 @@ export async function auditCore(
         break;
       }
       case 'on-demand': {
-        // Don't show code, but make [C] available
+        // Don't show code, but indicate it's available
+        display.showMessage(chalk.gray('(Code hidden - press C to view)'));
+        display.showMessage(''); // Blank line
         showCodeOption = true;
 
         break;
