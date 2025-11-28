@@ -855,3 +855,49 @@ str
             f"Issue #220 scenario: Expected multiple docstrings (bug), "
             f"found {docstring_count}"
         )
+
+
+class TestClaudeClientParameterValidation:
+    """Test ClaudeClient parameter validation (Issue #273)."""
+
+    def test_negative_timeout_raises_error(self):
+        """Test that negative timeout raises ValueError."""
+        with pytest.raises(ValueError, match="timeout must be positive"):
+            ClaudeClient(api_key="sk-ant-test", timeout=-1.0)
+
+    def test_zero_timeout_raises_error(self):
+        """Test that zero timeout raises ValueError."""
+        with pytest.raises(ValueError, match="timeout must be positive"):
+            ClaudeClient(api_key="sk-ant-test", timeout=0)
+
+    def test_negative_max_retries_raises_error(self):
+        """Test that negative max_retries raises ValueError."""
+        with pytest.raises(ValueError, match="max_retries must be non-negative"):
+            ClaudeClient(api_key="sk-ant-test", max_retries=-1)
+
+    def test_zero_max_retries_is_valid(self):
+        """Test that zero max_retries is valid (no retries)."""
+        client = ClaudeClient(api_key="sk-ant-test", max_retries=0)
+        assert client.max_retries == 0
+
+    def test_negative_retry_delay_raises_error(self):
+        """Test that negative retry_delay raises ValueError."""
+        with pytest.raises(ValueError, match="retry_delay must be positive"):
+            ClaudeClient(api_key="sk-ant-test", retry_delay=-1.0)
+
+    def test_zero_retry_delay_raises_error(self):
+        """Test that zero retry_delay raises ValueError."""
+        with pytest.raises(ValueError, match="retry_delay must be positive"):
+            ClaudeClient(api_key="sk-ant-test", retry_delay=0)
+
+    def test_valid_parameters_accepted(self):
+        """Test that valid parameters are accepted."""
+        client = ClaudeClient(
+            api_key="sk-ant-test",
+            timeout=60.0,
+            max_retries=5,
+            retry_delay=2.0,
+        )
+        assert client.timeout == 60.0
+        assert client.max_retries == 5
+        assert client.retry_delay == 2.0

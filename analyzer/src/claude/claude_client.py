@@ -52,6 +52,18 @@ class ClaudeClient:
                 "ANTHROPIC_API_KEY environment variable"
             )
 
+        # Validate timeout
+        if timeout <= 0:
+            raise ValueError(f"timeout must be positive, got {timeout}")
+
+        # Validate max_retries
+        if max_retries < 0:
+            raise ValueError(f"max_retries must be non-negative, got {max_retries}")
+
+        # Validate retry_delay
+        if retry_delay <= 0:
+            raise ValueError(f"retry_delay must be positive, got {retry_delay}")
+
         self.model = model
         self.max_retries = max_retries
         self.retry_delay = retry_delay
