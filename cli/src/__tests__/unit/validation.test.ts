@@ -14,6 +14,12 @@ import {
   normalizeSessionId,
 } from '../../utils/validation.js';
 
+/** Characters excluded from base57 alphabet (similar-looking) */
+const BASE57_EXCLUDED_CHARS = ['0', '1', 'I', 'O', 'l'] as const;
+
+/** UUID 00000000-0000-0000-0000-000000000000 encodes to all 2s */
+const ZERO_UUID_ENCODING = '2222222222222222222222';
+
 describe('isValidUuid', () => {
   describe('valid UUIDs', () => {
     it('should accept UUID v4 format', () => {
@@ -96,8 +102,7 @@ describe('isValidShortUuid', () => {
     });
 
     it('should accept zero UUID encoding', () => {
-      // UUID 00000000-0000-0000-0000-000000000000 encodes to all 2s
-      expect(isValidShortUuid('2222222222222222222222')).toBe(true);
+      expect(isValidShortUuid(ZERO_UUID_ENCODING)).toBe(true);
     });
   });
 
@@ -112,16 +117,11 @@ describe('isValidShortUuid', () => {
     });
 
     it('should reject strings with invalid characters', () => {
-      // '0' is not in base57 alphabet
-      expect(isValidShortUuid('CXc85b4rqinB7s5J52TR0b')).toBe(false);
-      // '1' is not in base57 alphabet
-      expect(isValidShortUuid('CXc85b4rqinB7s5J52TR1b')).toBe(false);
-      // 'I' is not in base57 alphabet
-      expect(isValidShortUuid('CXc85b4rqinB7s5J52TRIb')).toBe(false);
-      // 'O' is not in base57 alphabet
-      expect(isValidShortUuid('CXc85b4rqinB7s5J52TROb')).toBe(false);
-      // 'l' is not in base57 alphabet
-      expect(isValidShortUuid('CXc85b4rqinB7s5J52TRlb')).toBe(false);
+      // All excluded base57 characters should be rejected
+      for (const char of BASE57_EXCLUDED_CHARS) {
+        const invalidUuid = `CXc85b4rqinB7s5J52TR${char}b`;
+        expect(isValidShortUuid(invalidUuid)).toBe(false);
+      }
     });
 
     it('should reject empty string', () => {

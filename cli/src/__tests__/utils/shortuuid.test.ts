@@ -154,6 +154,44 @@ describe('shortuuid', () => {
     it('should handle exactly 4 chars without hyphen', () => {
       expect(formatDisplay('abcd')).toBe('abcd');
     });
+
+    describe('truncate validation', () => {
+      it('should throw error for negative truncate', () => {
+        expect(() =>
+          formatDisplay('CXc85b4rqinB7s5J52TRYb', { truncate: -1 })
+        ).toThrow('truncate must be a non-negative integer');
+      });
+
+      it('should throw error for non-integer truncate', () => {
+        expect(() =>
+          formatDisplay('CXc85b4rqinB7s5J52TRYb', { truncate: 8.5 })
+        ).toThrow('truncate must be a non-negative integer');
+      });
+
+      it('should throw error for NaN truncate', () => {
+        expect(() =>
+          formatDisplay('CXc85b4rqinB7s5J52TRYb', { truncate: NaN })
+        ).toThrow('truncate must be a non-negative integer');
+      });
+
+      it('should throw error for Infinity truncate', () => {
+        expect(() =>
+          formatDisplay('CXc85b4rqinB7s5J52TRYb', { truncate: Infinity })
+        ).toThrow('truncate must be a non-negative integer');
+      });
+
+      it('should handle truncate: 0 (empty string)', () => {
+        expect(formatDisplay('CXc85b4rqinB7s5J52TRYb', { truncate: 0 })).toBe(
+          ''
+        );
+      });
+
+      it('should handle very large truncate (returns full formatted)', () => {
+        expect(
+          formatDisplay('CXc85b4rqinB7s5J52TRYb', { truncate: 1000000 })
+        ).toBe('CX-c85b-4rqi-nB7s-5J52-TRYb');
+      });
+    });
   });
 
   describe('isValid', () => {

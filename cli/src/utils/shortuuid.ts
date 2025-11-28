@@ -174,6 +174,9 @@ export function decode(shortUuid: string): string {
  *
  * formatDisplay('vytxeTZskVKR7C7WgdSP3d', { truncate: 12 })
  * // Returns: 'vytx-eTZs-kVKR'
+ *
+ * formatDisplay('vytxeTZskVKR7C7WgdSP3d', { truncate: 22 })
+ * // Returns: 'vy-txeT-ZskV-KR7C-7Wgd-SP3d' (full length, same as no truncate)
  */
 export function formatDisplay(
   shortUuid: string,
