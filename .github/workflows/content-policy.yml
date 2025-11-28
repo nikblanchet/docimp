@@ -2,11 +2,16 @@ name: Content Policy
 
 on:
   pull_request:
-    types: [opened, edited]
+    types: [opened, edited, reopened]
   issues:
-    types: [opened, edited]
+    types: [opened, edited, reopened]
   issue_comment:
     types: [created, edited]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
 
 jobs:
   validate:
@@ -42,8 +47,8 @@ jobs:
               }
             }
 
-            // Check for redundant Claude attributions
-            const hasCoAuthored = content.includes('Co-Authored-By: Claude');
+            // Check for redundant Claude attributions (use full email to avoid false positives)
+            const hasCoAuthored = content.includes('Co-Authored-By: Claude <noreply@anthropic.com>');
             const hasGeneratedWith = content.includes('Generated with [Claude Code]');
 
             if (hasCoAuthored && hasGeneratedWith) {

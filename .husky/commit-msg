@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+set -e
 # commit-msg hook: Reject forbidden emojis in commit messages
 #
 # This is a global hook (committed to repo) that applies to all contributors.
@@ -8,15 +9,30 @@
 #   git commit --no-verify
 
 commit_msg_file=$1
-commit_msg=$(cat "$commit_msg_file")
+
+# Extract just the commit message (before any diff/patch content)
+# This prevents false positives when commits remove emojis from code
+commit_msg=$(sed '/^---$/q;/^diff /q' "$commit_msg_file" | sed '$d')
 
 # Forbidden emojis (commonly added by AI tools)
-if printf '%s' "$commit_msg" | grep -qE '[🤖✅❌🚀🚫✨❤️]'; then
+FORBIDDEN_EMOJIS="🤖 ✅ ❌ 🚀 🚫 ✨ ❤️"
+
+detected=""
+for emoji in $FORBIDDEN_EMOJIS; do
+    if printf '%s' "$commit_msg" | grep -q "$emoji"; then
+        detected="$emoji"
+        break
+    fi
+done
+
+if [ -n "$detected" ]; then
     echo ""
     echo "COMMIT REJECTED"
     echo ""
-    echo "Commit message contains forbidden emoji."
+    echo "Commit message contains forbidden emoji: $detected"
     echo "Please remove emojis from your commit message."
+    echo ""
+    echo "To bypass (emergencies only): git commit --no-verify"
     echo ""
     exit 1
 fi
@@ -24,5 +40,5 @@ fi
 # Call local hook if it exists (for personal/machine-specific rules)
 GIT_COMMON_DIR=$(git rev-parse --git-common-dir)
 if [ -x "$GIT_COMMON_DIR/hooks/commit-msg" ]; then
-    "$GIT_COMMON_DIR/hooks/commit-msg" "$@"
+    "$GIT_COMMON_DIR/hooks/commit-msg" "$@" || exit $?
 fi
