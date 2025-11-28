@@ -99,7 +99,8 @@ def encode(uuid_obj: _uu.UUID) -> ShortUUIDStr:
     """
     if not isinstance(uuid_obj, _uu.UUID):
         raise TypeError(f"Expected UUID, got {type(uuid_obj).__name__}")
-    return ShortUUIDStr(_int_to_string(uuid_obj.int, _ALPHABET_LIST, padding=_ENCODED_LENGTH))
+    encoded = _int_to_string(uuid_obj.int, _ALPHABET_LIST, padding=_ENCODED_LENGTH)
+    return ShortUUIDStr(encoded)
 
 
 def decode(short_uuid: str) -> _uu.UUID:
@@ -150,12 +151,9 @@ def format_display(short_uuid: str, truncate: int | None = None) -> str:
     if len(cleaned) <= 4:
         return cleaned
 
-    result: list[str] = []
     remainder = len(cleaned) % 4
-    if remainder:
-        result.append(cleaned[:remainder])
-    for i in range(remainder, len(cleaned), 4):
-        result.append(cleaned[i : i + 4])
+    result: list[str] = [cleaned[:remainder]] if remainder else []
+    result.extend(cleaned[i : i + 4] for i in range(remainder, len(cleaned), 4))
     return "-".join(result)
 
 

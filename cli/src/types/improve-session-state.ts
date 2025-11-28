@@ -6,7 +6,6 @@
  */
 
 import { z } from 'zod';
-
 import { FileSnapshotSchema } from './audit-session-state.js';
 import { SessionIdSchema } from './session-id.js';
 

@@ -25,7 +25,9 @@ from src.utils.shortuuid import (
 @pytest.fixture
 def test_vectors() -> dict:
     """Load shared test vectors for cross-language compatibility testing."""
-    vectors_path = Path(__file__).parent.parent.parent / "test-fixtures" / "shortuuid-vectors.json"
+    vectors_path = (
+        Path(__file__).parent.parent.parent / "test-fixtures" / "shortuuid-vectors.json"
+    )
     with vectors_path.open() as f:
         return json.load(f)
 
@@ -51,7 +53,7 @@ class TestEncodeDecode:
         for _ in range(10):
             encoded = generate()
             for char in encoded:
-                assert char in DEFAULT_ALPHABET, f"Invalid char '{char}' not in alphabet"
+                assert char in DEFAULT_ALPHABET, f"Invalid char '{char}'"
 
     def test_encode_decode_vectors(self, test_vectors: dict) -> None:
         """Verify encode/decode against shared test vectors."""

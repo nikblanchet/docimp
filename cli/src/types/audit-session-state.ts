@@ -6,7 +6,6 @@
  */
 
 import { z } from 'zod';
-
 import { SessionIdSchema } from './session-id.js';
 
 /**

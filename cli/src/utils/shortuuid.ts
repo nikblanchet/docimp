@@ -39,12 +39,12 @@ function intToString(
   alphabet: string[],
   padding?: number
 ): string {
-  const alphaLen = BigInt(alphabet.length);
+  const alphabetLength = BigInt(alphabet.length);
   const digits: string[] = [];
 
   while (number > 0n) {
-    const remainder = number % alphaLen;
-    number = number / alphaLen;
+    const remainder = number % alphabetLength;
+    number = number / alphabetLength;
     digits.push(alphabet[Number(remainder)]);
   }
 
@@ -64,21 +64,21 @@ function intToString(
  *
  * The input is assumed to have the most significant digit first.
  *
- * @param str - Encoded string to convert.
+ * @param encoded - Encoded string to convert.
  * @param alphabet - Array of characters used as digits.
  * @returns Decoded BigInt value.
  * @throws Error if string contains characters not in alphabet.
  */
-function stringToInt(str: string, alphabet: string[]): bigint {
-  const alphaLen = BigInt(alphabet.length);
+function stringToInt(encoded: string, alphabet: string[]): bigint {
+  const alphabetLength = BigInt(alphabet.length);
   let number = 0n;
 
-  for (const char of str) {
+  for (const char of encoded) {
     const index = alphabet.indexOf(char);
     if (index === -1) {
       throw new Error(`Invalid character '${char}' not in alphabet`);
     }
-    number = number * alphaLen + BigInt(index);
+    number = number * alphabetLength + BigInt(index);
   }
 
   return number;
@@ -91,18 +91,18 @@ function stringToInt(str: string, alphabet: string[]): bigint {
  * @returns BigInt representation of the UUID.
  */
 function uuidToInt(uuid: string): bigint {
-  const hex = uuid.replace(/-/g, '');
+  const hex = uuid.replaceAll('-', '');
   return BigInt('0x' + hex);
 }
 
 /**
  * Convert a BigInt to a UUID string.
  *
- * @param num - BigInt representation of a UUID (0 to 2^128 - 1).
+ * @param value - BigInt representation of a UUID (0 to 2^128 - 1).
  * @returns UUID string in standard format with hyphens.
  */
-function intToUuid(num: bigint): string {
-  const hex = num.toString(16).padStart(32, '0');
+function intToUuid(value: bigint): string {
+  const hex = value.toString(16).padStart(32, '0');
   return [
     hex.slice(0, 8),
     hex.slice(8, 12),
@@ -129,8 +129,8 @@ export function generate(): string {
  * @returns 22-character base57-encoded string.
  */
 export function encode(uuid: string): string {
-  const num = uuidToInt(uuid);
-  return intToString(num, ALPHABET_LIST, ENCODED_LENGTH);
+  const value = uuidToInt(uuid);
+  return intToString(value, ALPHABET_LIST, ENCODED_LENGTH);
 }
 
 /**
@@ -149,8 +149,8 @@ export function decode(shortUuid: string): string {
       `Invalid short UUID length: ${cleaned.length} (expected ${ENCODED_LENGTH})`
     );
   }
-  const num = stringToInt(cleaned, ALPHABET_LIST);
-  return intToUuid(num);
+  const value = stringToInt(cleaned, ALPHABET_LIST);
+  return intToUuid(value);
 }
 
 /**
@@ -159,7 +159,7 @@ export function decode(shortUuid: string): string {
  * @param shortUuid - Raw short UUID string (22 chars) or hyphenated format.
  * @param options - Optional configuration.
  * @param options.truncate - Truncation length (e.g., 8 or 12). If provided,
- *   takes first N characters before adding hyphens.
+ * takes first N characters before adding hyphens.
  * @returns Formatted string with hyphens inserted every 4 characters from right.
  *
  * @example
@@ -210,7 +210,7 @@ export function formatDisplay(
  * @returns String with all hyphens removed.
  */
 export function stripHyphens(formatted: string): string {
-  return formatted.replace(/-/g, '');
+  return formatted.replaceAll('-', '');
 }
 
 /**

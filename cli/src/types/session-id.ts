@@ -7,7 +7,6 @@
  */
 
 import { z } from 'zod';
-
 import { isValidSessionId } from '../utils/validation.js';
 
 /**
