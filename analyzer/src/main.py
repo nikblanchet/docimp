@@ -1415,8 +1415,12 @@ def cmd_rollback_session(args: argparse.Namespace, manager: TransactionManager) 
         if session_id != "last" and not validate_session_id(session_id):
             error_msg = f"Invalid session ID format: {session_id}"
             hint = "Expected UUID format or 'last' for most recent session"
-            print(f"Error: {error_msg}", file=sys.stderr)
-            print(f"Hint: {hint}", file=sys.stderr)
+            if hasattr(args, "format") and args.format == "json":
+                result = {"success": False, "error": error_msg, "hint": hint}
+                print(json.dumps(result))
+            else:
+                print(f"Error: {error_msg}", file=sys.stderr)
+                print(f"Hint: {hint}", file=sys.stderr)
             return 1
 
         # Check git availability

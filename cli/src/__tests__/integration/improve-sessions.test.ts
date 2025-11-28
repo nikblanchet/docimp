@@ -359,7 +359,8 @@ describe('Improve Session Management Integration Tests', () => {
     });
 
     it('should throw error when session not found', async () => {
-      const sessionId = 'nonexistent';
+      // Use a valid UUID format that doesn't exist
+      const sessionId = '999e8400-e29b-41d4-a716-446655440000';
 
       (SessionStateManager.loadSessionState as jest.Mock).mockRejectedValue(
         new Error('Session file not found')
@@ -367,7 +368,22 @@ describe('Improve Session Management Integration Tests', () => {
 
       await expect(
         deleteImproveSessionCore(sessionId, { all: false, force: false })
-      ).rejects.toThrow("Improve session 'nonexistent' not found");
+      ).rejects.toThrow(
+        "Improve session '999e8400-e29b-41d4-a716-446655440000' not found"
+      );
+    });
+
+    it('should throw error for invalid UUID format', async () => {
+      const invalidSessionId = 'not-a-valid-uuid';
+
+      await expect(
+        deleteImproveSessionCore(invalidSessionId, { all: false, force: false })
+      ).rejects.toThrow(
+        'Invalid session ID format: not-a-valid-uuid. Expected UUID format'
+      );
+
+      // Verify session lookup was never attempted
+      expect(SessionStateManager.loadSessionState).not.toHaveBeenCalled();
     });
 
     it('should throw error when neither session ID nor --all flag provided', async () => {
@@ -377,8 +393,10 @@ describe('Improve Session Management Integration Tests', () => {
     });
 
     it('should throw error when both session ID and --all flag provided', async () => {
+      // Use a valid UUID format
+      const validSessionId = '550e8400-e29b-41d4-a716-446655440000';
       await expect(
-        deleteImproveSessionCore('some-id', { all: true, force: false })
+        deleteImproveSessionCore(validSessionId, { all: true, force: false })
       ).rejects.toThrow('Cannot specify both session ID and --all flag');
     });
   });

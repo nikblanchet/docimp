@@ -258,6 +258,19 @@ describe('Audit Session Management Integration Tests', () => {
       );
     });
 
+    it('should throw error for invalid UUID format', async () => {
+      const invalidSessionId = 'not-a-valid-uuid';
+
+      await expect(
+        deleteAuditSessionCore(invalidSessionId, {})
+      ).rejects.toThrow(
+        'Invalid session ID format: not-a-valid-uuid. Expected UUID format'
+      );
+
+      // Verify session lookup was never attempted
+      expect(SessionStateManager.loadSessionState).not.toHaveBeenCalled();
+    });
+
     it('should delete all sessions with confirmation', async () => {
       // Mock: multiple sessions exist
       const sessions = [

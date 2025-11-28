@@ -14,9 +14,10 @@
 
 set -e  # Exit on error
 
-# Load shared color constants
+# Load shared color constants and helper functions
 SCRIPT_DIR_COLORS="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR_COLORS/scripts/colors.sh" 2>/dev/null || source "$SCRIPT_DIR_COLORS/../scripts/colors.sh"
+source "$SCRIPT_DIR_COLORS/scripts/test-helpers.sh" 2>/dev/null || source "$SCRIPT_DIR_COLORS/../scripts/test-helpers.sh"
 
 # Test counters
 TESTS_PASSED=0
@@ -43,27 +44,6 @@ print_failure() {
 
 print_warning() {
     echo -e "${YELLOW}⚠${NC} $1"
-}
-
-# Check if error output contains stack traces (not user-friendly)
-# Returns 0 if stack trace detected, 1 otherwise
-contains_stack_trace() {
-    local output="$1"
-    # Python stack traces
-    if echo "$output" | grep -qE "Traceback \(most recent call last\)"; then
-        return 0
-    fi
-    if echo "$output" | grep -qE '  File ".+", line [0-9]+'; then
-        return 0
-    fi
-    # JavaScript/TypeScript stack traces
-    if echo "$output" | grep -qE "at Object\.<anonymous>|at Module\._compile|at Module\._load"; then
-        return 0
-    fi
-    if echo "$output" | grep -qE "    at .+:[0-9]+:[0-9]+"; then
-        return 0
-    fi
-    return 1
 }
 
 # Change to test project directory
