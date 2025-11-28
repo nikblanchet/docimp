@@ -5,7 +5,6 @@
  * documented items to the user for interactive rating.
  */
 
-import { randomUUID } from 'node:crypto';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import prompts from 'prompts';
@@ -26,6 +25,7 @@ import { CodeExtractor } from '../utils/code-extractor.js';
 import { FileTracker } from '../utils/file-tracker.js';
 import { PathValidator } from '../utils/path-validator.js';
 import { SessionStateManager } from '../utils/session-state-manager.js';
+import { generate as generateSessionId } from '../utils/shortuuid.js';
 import { StateManager } from '../utils/state-manager.js';
 import { WorkflowValidator } from '../utils/workflow-validator.js';
 
@@ -118,7 +118,7 @@ async function initializeAuditSession(
     maxLines: number;
   }
 ): Promise<AuditSessionState> {
-  const sessionId = randomUUID();
+  const sessionId = generateSessionId();
 
   // Extract unique filepaths from items
   const filepaths = [...new Set(items.map((item) => item.filepath))];

@@ -11,7 +11,6 @@
 
 import chalk from 'chalk';
 import prompts from 'prompts';
-import { v4 as uuidv4 } from 'uuid';
 import { UserCancellationError } from '../commands/improve.js';
 import type { IConfig } from '../config/i-config.js';
 import type { IEditorLauncher } from '../editor/i-editor-launcher.js';
@@ -22,6 +21,7 @@ import type { PlanItem, SupportedLanguage } from '../types/analysis.js';
 import type { ImproveSessionState } from '../types/improve-session-state.js';
 import { FileTracker } from '../utils/file-tracker.js';
 import { SessionStateManager } from '../utils/session-state-manager.js';
+import { generate as generateSessionId } from '../utils/shortuuid.js';
 import type { IInteractiveSession } from './i-interactive-session.js';
 import { ProgressTracker } from './progress-tracker.js';
 
@@ -202,7 +202,7 @@ export class InteractiveSession implements IInteractiveSession {
           );
 
           // Generate new transaction ID for continuation
-          const newSessionId = uuidv4();
+          const newSessionId = generateSessionId();
           const oldSessionId = this.sessionState.session_id;
 
           try {
@@ -248,7 +248,7 @@ export class InteractiveSession implements IInteractiveSession {
         // No default
       }
     } else {
-      this.sessionId = uuidv4();
+      this.sessionId = generateSessionId();
 
       try {
         await this.pythonBridge.beginTransaction(this.sessionId);
