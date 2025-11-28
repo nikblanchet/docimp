@@ -22,7 +22,6 @@ export const DEFAULT_ALPHABET =
 /** Pre-computed values for default alphabet */
 const ALPHABET_LIST = [...DEFAULT_ALPHABET];
 const ALPHABET_SET = new Set(DEFAULT_ALPHABET);
-const ALPHABET_LEN = BigInt(DEFAULT_ALPHABET.length); // 57n
 const ENCODED_LENGTH = 22; // ceil(log(2^128) / log(57))
 
 /**
