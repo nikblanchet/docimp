@@ -226,7 +226,11 @@ export async function deleteAuditSessionCore(
 
   // Delete session
   await SessionStateManager.deleteSessionState(sessionId, 'audit');
-  console.log(chalk.green(`Deleted audit session ${formatSessionIdForDisplay(sessionId, 12)}.`));
+  console.log(
+    chalk.green(
+      `Deleted audit session ${formatSessionIdForDisplay(sessionId, 12)}.`
+    )
+  );
 }
 
 /**

@@ -118,8 +118,7 @@ class TestFormatDisplay:
             expected = vector["full"]
             actual = format_display(input_short)
             assert actual == expected, (
-                f"Format mismatch for {input_short}: "
-                f"expected {expected}, got {actual}"
+                f"Format mismatch for {input_short}: expected {expected}, got {actual}"
             )
 
     def test_format_display_truncate_8(self, test_vectors: dict) -> None:

@@ -172,7 +172,10 @@ export async function listImproveSessionsCore(): Promise<void> {
   for (const session of sessions) {
     const improveSession = session as ImproveSessionState;
     const sessionId = formatSessionIdForDisplay(improveSession.session_id, 12);
-    const transactionId = formatSessionIdForDisplay(improveSession.transaction_id, 12);
+    const transactionId = formatSessionIdForDisplay(
+      improveSession.transaction_id,
+      12
+    );
     const started = formatElapsedTime(improveSession.started_at);
     const completed = improveSession.completed_at
       ? formatElapsedTime(improveSession.completed_at)
@@ -334,7 +337,9 @@ export async function deleteImproveSessionCore(
   // Delete session
   await SessionStateManager.deleteSessionState(sessionId, 'improve');
   console.log(
-    chalk.green(`Deleted improve session ${formatSessionIdForDisplay(sessionId, 12)}.`)
+    chalk.green(
+      `Deleted improve session ${formatSessionIdForDisplay(sessionId, 12)}.`
+    )
   );
 }
 
