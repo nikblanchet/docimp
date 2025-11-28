@@ -1,0 +1,63 @@
+name: Content Policy
+
+on:
+  pull_request:
+    types: [opened, edited]
+  issues:
+    types: [opened, edited]
+  issue_comment:
+    types: [created, edited]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check content policy
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const FORBIDDEN_EMOJIS = ['🤖', '✅', '❌', '🚀', '🚫', '✨', '❤️'];
+
+            // Get the content to check based on event type
+            let content = '';
+            let contentType = '';
+
+            if (context.eventName === 'pull_request') {
+              content = context.payload.pull_request.body || '';
+              contentType = 'PR description';
+            } else if (context.eventName === 'issues') {
+              content = context.payload.issue.body || '';
+              contentType = 'Issue description';
+            } else if (context.eventName === 'issue_comment') {
+              content = context.payload.comment.body || '';
+              contentType = 'Comment';
+            }
+
+            const errors = [];
+
+            // Check for forbidden emojis
+            for (const emoji of FORBIDDEN_EMOJIS) {
+              if (content.includes(emoji)) {
+                errors.push(`Contains forbidden emoji: ${emoji}`);
+              }
+            }
+
+            // Check for redundant Claude attributions
+            const hasCoAuthored = content.includes('Co-Authored-By: Claude');
+            const hasGeneratedWith = content.includes('Generated with [Claude Code]');
+
+            if (hasCoAuthored && hasGeneratedWith) {
+              errors.push('Contains both "Co-Authored-By: Claude" and "Generated with [Claude Code]" - use one or the other, not both');
+            }
+
+            if (errors.length > 0) {
+              let message = `## Content Policy Violation\n\n${contentType} contains the following issues:\n\n${errors.map(e => `- ${e}`).join('\n')}\n\n`;
+
+              // Add recommendation for redundant Claude attributions
+              if (hasCoAuthored && hasGeneratedWith) {
+                message += `**Recommended signature for Claude Code contributions:**\n\n> Generated with [Claude Code](https://claude.com/claude-code)\n> Steered and verified by @your-username\n\n`;
+              }
+
+              message += 'Please edit to fix these issues.';
+              core.setFailed(message);
+            }
