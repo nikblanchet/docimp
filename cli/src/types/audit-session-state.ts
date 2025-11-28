@@ -7,6 +7,8 @@
 
 import { z } from 'zod';
 
+import { SessionIdSchema } from './session-id.js';
+
 /**
  * Schema for FileSnapshot.
  * Represents a snapshot of a source file for modification detection.
@@ -47,7 +49,7 @@ export type AuditConfig = z.infer<typeof AuditConfigSchema>;
  */
 export const AuditSessionStateSchema = z
   .object({
-    session_id: z.string().uuid(),
+    session_id: SessionIdSchema,
     schema_version: z.string().default('1.0'), // Schema version for migration support
     started_at: z.string().datetime(), // ISO 8601 timestamp
     current_index: z.number().int().nonnegative(),

@@ -6,7 +6,9 @@
  */
 
 import { z } from 'zod';
+
 import { FileSnapshotSchema } from './audit-session-state.js';
+import { SessionIdSchema } from './session-id.js';
 
 /**
  * Schema for improve status record.
@@ -47,9 +49,9 @@ export type ImproveConfig = z.infer<typeof ImproveConfigSchema>;
  */
 export const ImproveSessionStateSchema = z
   .object({
-    session_id: z.string().uuid(),
+    session_id: SessionIdSchema,
     schema_version: z.string().default('1.0'), // Schema version for migration support
-    transaction_id: z.string().uuid(), // Links to git transaction branch
+    transaction_id: SessionIdSchema, // Links to git transaction branch
     started_at: z.string().datetime(), // ISO 8601 timestamp
     current_index: z.number().int().nonnegative(),
     total_items: z.number().int().positive(),
@@ -63,7 +65,7 @@ export const ImproveSessionStateSchema = z
     file_snapshot: z.record(z.string(), FileSnapshotSchema), // filepath -> FileSnapshot
     config: ImproveConfigSchema,
     completed_at: z.string().datetime().nullable(), // ISO 8601 timestamp or null if in-progress
-    previous_session_id: z.string().uuid().optional(), // Links to previous session if this is a continuation
+    previous_session_id: SessionIdSchema.optional(), // Links to previous session if this is a continuation
   })
   .passthrough(); // Keep .passthrough() for forward compatibility - allows loading sessions from newer versions
 
