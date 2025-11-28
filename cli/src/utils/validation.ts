@@ -2,7 +2,11 @@
  * Validation utilities for input parameters.
  */
 
-import { isValid as isValidShortUuidFormat, stripHyphens } from './shortuuid.js';
+import {
+  formatDisplay,
+  isValid as isValidShortUuidFormat,
+  stripHyphens,
+} from './shortuuid.js';
 
 /**
  * Validate that a string is a valid UUID format (v1-v5).
@@ -76,4 +80,39 @@ export function normalizeSessionId(sessionId: string): string {
   }
   // For shortuuids, strip hyphens
   return stripHyphens(sessionId);
+}
+
+/**
+ * Format a session ID for display with optional truncation.
+ *
+ * For shortuuids: truncates and adds hyphens every 4 chars from right
+ * For UUIDs: just truncates (they already have natural hyphen breaks)
+ *
+ * @param sessionId - The session ID to format
+ * @param truncate - Number of characters to show (8 or 12 typical)
+ * @returns Formatted session ID for display
+ *
+ * @example
+ * // Shortuuid: formatted with hyphens
+ * formatSessionIdForDisplay('vytxeTZskVKR7C7WgdSP3d', 8)
+ * // Returns: 'vytx-eTZs'
+ *
+ * formatSessionIdForDisplay('vytxeTZskVKR7C7WgdSP3d', 12)
+ * // Returns: 'vytx-eTZs-kVKR'
+ *
+ * // UUID: simple truncation (already has hyphens)
+ * formatSessionIdForDisplay('550e8400-e29b-41d4-a716-446655440000', 8)
+ * // Returns: '550e8400'
+ */
+export function formatSessionIdForDisplay(
+  sessionId: string,
+  truncate: number
+): string {
+  // For legacy UUIDs, just truncate (they have natural hyphen structure)
+  if (isValidUuid(sessionId)) {
+    return sessionId.slice(0, truncate);
+  }
+
+  // For shortuuids, use formatDisplay with truncation and hyphenation
+  return formatDisplay(sessionId, { truncate });
 }
