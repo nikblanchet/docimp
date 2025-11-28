@@ -242,7 +242,8 @@ describe('InteractiveSession', () => {
 
       expect(mockPythonBridge.beginTransaction).toHaveBeenCalledWith(
         expect.stringMatching(
-          /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+          // Shortuuid format: 22 chars, base57 alphabet
+          /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{22}$/
         )
       );
     });
@@ -320,7 +321,8 @@ describe('InteractiveSession', () => {
 
       expect(mockPythonBridge.recordWrite).toHaveBeenCalledWith(
         expect.stringMatching(
-          /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+          // Shortuuid format: 22 chars, base57 alphabet
+          /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{22}$/
         ),
         mockPlanItem.filepath,
         expect.stringContaining('.bak'),
@@ -411,7 +413,8 @@ describe('InteractiveSession', () => {
 
       expect(mockPythonBridge.commitTransaction).toHaveBeenCalledWith(
         expect.stringMatching(
-          /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+          // Shortuuid format: 22 chars, base57 alphabet
+          /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{22}$/
         )
       );
       expect(mockPythonBridge.commitTransaction).toHaveBeenCalledTimes(1);
@@ -1196,7 +1199,8 @@ describe('InteractiveSession', () => {
       expect(mockPythonBridge.beginTransaction).toHaveBeenCalledTimes(1);
       expect(mockPythonBridge.beginTransaction).toHaveBeenCalledWith(
         expect.stringMatching(
-          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+          // Shortuuid format: 22 chars, base57 alphabet
+          /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{22}$/
         )
       );
 

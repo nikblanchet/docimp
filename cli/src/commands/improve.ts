@@ -40,6 +40,7 @@ import { FileTracker } from '../utils/file-tracker.js';
 import { PathValidator } from '../utils/path-validator.js';
 import { SessionStateManager } from '../utils/session-state-manager.js';
 import { StateManager } from '../utils/state-manager.js';
+import { formatSessionIdForDisplay } from '../utils/validation.js';
 import {
   WorkflowValidator,
   formatStalenessWarning,
@@ -135,7 +136,7 @@ async function promptSelectSession(
 
   for (const [index, session] of incomplete.entries()) {
     const improveSession = session as ImproveSessionState;
-    const sessionId = improveSession.session_id.slice(0, 12);
+    const sessionId = formatSessionIdForDisplay(improveSession.session_id, 12);
 
     // Count processed items (with status records)
     let processed = 0;
@@ -237,7 +238,7 @@ async function loadResumeImproveSession(
   const remaining = validated.total_items - processed;
 
   // Show concise banner
-  const shortSessionId = validated.session_id.slice(0, 8);
+  const shortSessionId = formatSessionIdForDisplay(validated.session_id, 8);
   display.showMessage(
     `Resuming session ${shortSessionId} (${processed} processed, ${remaining} remaining)`
   );
@@ -428,7 +429,7 @@ async function detectAndPromptResumeImprove(
 
   const remaining = latest.total_items - processed;
   const elapsed = formatElapsedTime(String(latest.started_at));
-  const sessionId = latest.session_id.slice(0, 8);
+  const sessionId = formatSessionIdForDisplay(latest.session_id, 8);
 
   // Prompt user (default Yes)
   const shouldResume = await promptYesNo(

@@ -11,7 +11,10 @@ import prompts from 'prompts';
 import { EXIT_CODE, type ExitCode } from '../constants/exit-codes.js';
 import type { AuditSessionState } from '../types/audit-session-state.js';
 import { SessionStateManager } from '../utils/session-state-manager.js';
-import { isValidUuid } from '../utils/validation.js';
+import {
+  formatSessionIdForDisplay,
+  isValidSessionId,
+} from '../utils/validation.js';
 
 /**
  * Format elapsed time in human-readable format.
@@ -68,7 +71,7 @@ export async function listAuditSessionsCore(): Promise<void> {
 
   for (const session of sessions) {
     const auditSession = session as AuditSessionState;
-    const sessionId = auditSession.session_id.slice(0, 12);
+    const sessionId = formatSessionIdForDisplay(auditSession.session_id, 12);
     const started = formatElapsedTime(auditSession.started_at);
     const completed = auditSession.completed_at
       ? formatElapsedTime(auditSession.completed_at)
@@ -184,11 +187,11 @@ export async function deleteAuditSessionCore(
     throw new Error('Session ID is required');
   }
 
-  // Validate UUID format
-  if (!isValidUuid(sessionId)) {
+  // Validate session ID format (UUID or shortuuid)
+  if (!isValidSessionId(sessionId)) {
     throw new Error(
       `Invalid session ID format: ${sessionId}. ` +
-        'Expected UUID format (e.g., 550e8400-e29b-41d4-a716-446655440000)'
+        'Expected UUID (36 chars) or shortuuid (22 chars base57).'
     );
   }
 
@@ -210,7 +213,7 @@ export async function deleteAuditSessionCore(
     const response = await prompts({
       type: 'confirm',
       name: 'value',
-      message: `Delete audit session ${sessionId.slice(0, 12)}?`,
+      message: `Delete audit session ${formatSessionIdForDisplay(sessionId, 12)}?`,
       initial: false,
     });
 
@@ -223,7 +226,7 @@ export async function deleteAuditSessionCore(
 
   // Delete session
   await SessionStateManager.deleteSessionState(sessionId, 'audit');
-  console.log(chalk.green(`Deleted audit session ${sessionId.slice(0, 12)}.`));
+  console.log(chalk.green(`Deleted audit session ${formatSessionIdForDisplay(sessionId, 12)}.`));
 }
 
 /**
