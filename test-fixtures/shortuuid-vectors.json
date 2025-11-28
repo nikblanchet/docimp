@@ -1,0 +1,92 @@
+{
+  "description": "Cross-language test vectors for shortuuid encode/decode verification",
+  "alphabet": "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz",
+  "encode_decode_vectors": [
+    {
+      "comment": "Known test UUID",
+      "uuid": "3b1f8b40-222c-4a6e-b77e-779d5a94e21c",
+      "shortuuid": "CXc85b4rqinB7s5J52TRYb"
+    },
+    {
+      "comment": "Zero UUID - tests padding",
+      "uuid": "00000000-0000-0000-0000-000000000000",
+      "shortuuid": "2222222222222222222222"
+    },
+    {
+      "comment": "Max UUID - tests full range",
+      "uuid": "ffffffff-ffff-ffff-ffff-ffffffffffff",
+      "shortuuid": "oZEq7ovRbLq6UnGMPwc8B5"
+    },
+    {
+      "comment": "UUID4 example",
+      "uuid": "550e8400-e29b-41d4-a716-446655440000",
+      "shortuuid": "H9cNmGXLEc8NWcZzSThA9S"
+    },
+    {
+      "comment": "UUID1 namespace DNS",
+      "uuid": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+      "shortuuid": "MAnkyno2VCnFzuVMWtxBda"
+    }
+  ],
+  "format_display_vectors": [
+    {
+      "input": "CXc85b4rqinB7s5J52TRYb",
+      "full": "CX-c85b-4rqi-nB7s-5J52-TRYb",
+      "truncate_8": "CXc8-5b4r",
+      "truncate_12": "CXc8-5b4r-qinB"
+    },
+    {
+      "input": "H9cNmGXLEc8NWcZzSThA9S",
+      "full": "H9-cNmG-XLEc-8NWc-ZzST-hA9S",
+      "truncate_8": "H9cN-mGXL",
+      "truncate_12": "H9cN-mGXL-Ec8N"
+    }
+  ],
+  "validation_vectors": [
+    {
+      "input": "CXc85b4rqinB7s5J52TRYb",
+      "valid": true,
+      "comment": "Valid 22-char shortuuid"
+    },
+    {
+      "input": "CXc8-5b4r-qinB-7s5J-52TR-Yb",
+      "valid": true,
+      "comment": "Valid with hyphens (stripped before validation)"
+    },
+    {
+      "input": "CXc85b4rqinB7s5J52TRY",
+      "valid": false,
+      "comment": "Too short (21 chars)"
+    },
+    {
+      "input": "CXc85b4rqinB7s5J52TRYbb",
+      "valid": false,
+      "comment": "Too long (23 chars)"
+    },
+    {
+      "input": "CXc85b4rqinB7s5J52TR0b",
+      "valid": false,
+      "comment": "Contains invalid char (0)"
+    },
+    {
+      "input": "CXc85b4rqinB7s5J52TRlb",
+      "valid": false,
+      "comment": "Contains invalid char (l)"
+    },
+    {
+      "input": "CXc85b4rqinB7s5J52TRIb",
+      "valid": false,
+      "comment": "Contains invalid char (I)"
+    },
+    {
+      "input": "CXc85b4rqinB7s5J52TROb",
+      "valid": false,
+      "comment": "Contains invalid char (O)"
+    },
+    {
+      "input": "CXc85b4rqinB7s5J52TR1b",
+      "valid": false,
+      "comment": "Contains invalid char (1)"
+    }
+  ]
+}

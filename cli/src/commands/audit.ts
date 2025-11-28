@@ -5,7 +5,6 @@
  * documented items to the user for interactive rating.
  */
 
-import { randomUUID } from 'node:crypto';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import prompts from 'prompts';
@@ -26,7 +25,9 @@ import { CodeExtractor } from '../utils/code-extractor.js';
 import { FileTracker } from '../utils/file-tracker.js';
 import { PathValidator } from '../utils/path-validator.js';
 import { SessionStateManager } from '../utils/session-state-manager.js';
+import { generate as generateSessionId } from '../utils/shortuuid.js';
 import { StateManager } from '../utils/state-manager.js';
+import { formatSessionIdForDisplay } from '../utils/validation.js';
 import { WorkflowValidator } from '../utils/workflow-validator.js';
 
 /**
@@ -118,7 +119,7 @@ async function initializeAuditSession(
     maxLines: number;
   }
 ): Promise<AuditSessionState> {
-  const sessionId = randomUUID();
+  const sessionId = generateSessionId();
 
   // Extract unique filepaths from items
   const filepaths = [...new Set(items.map((item) => item.filepath))];
@@ -240,7 +241,7 @@ async function promptSelectSession(
 
   for (const [index, session] of incomplete.entries()) {
     const auditSession = session as AuditSessionState;
-    const sessionId = auditSession.session_id.slice(0, 12);
+    const sessionId = formatSessionIdForDisplay(auditSession.session_id, 12);
     const progress = `${auditSession.current_index}/${auditSession.total_items} rated`;
     const started = formatElapsedTime(String(auditSession.started_at));
     table.push([index + 1, sessionId, progress, started]);
@@ -313,7 +314,7 @@ async function loadResumeSession(
   const validated = AuditSessionStateSchema.parse(sessionState);
 
   // Show concise banner
-  const shortSessionId = validated.session_id.slice(0, 8);
+  const shortSessionId = formatSessionIdForDisplay(validated.session_id, 8);
   const progress = `${validated.current_index}/${validated.total_items} rated`;
   display.showMessage(`Resuming session ${shortSessionId} (${progress})`);
 
@@ -507,7 +508,7 @@ async function detectAndPromptResume(
   const latest = incomplete[0] as AuditSessionState; // listSessions returns sorted by started_at desc
   const elapsed = formatElapsedTime(String(latest.started_at));
   const progress = `${latest.current_index}/${latest.total_items} rated`;
-  const sessionId = latest.session_id.slice(0, 8);
+  const sessionId = formatSessionIdForDisplay(latest.session_id, 8);
 
   // Prompt user (default Yes)
   const shouldResume = await promptYesNo(

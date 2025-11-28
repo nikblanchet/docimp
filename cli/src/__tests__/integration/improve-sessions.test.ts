@@ -379,7 +379,7 @@ describe('Improve Session Management Integration Tests', () => {
       await expect(
         deleteImproveSessionCore(invalidSessionId, { all: false, force: false })
       ).rejects.toThrow(
-        'Invalid session ID format: not-a-valid-uuid. Expected UUID format'
+        'Invalid session ID format: not-a-valid-uuid. Expected UUID (36 chars) or shortuuid (22 chars base57).'
       );
 
       // Verify session lookup was never attempted

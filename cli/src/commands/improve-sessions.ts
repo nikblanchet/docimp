@@ -14,7 +14,10 @@ import { EXIT_CODE, type ExitCode } from '../constants/exit-codes.js';
 import type { ImproveSessionState } from '../types/improve-session-state.js';
 import { SessionStateManager } from '../utils/session-state-manager.js';
 import { StateManager } from '../utils/state-manager.js';
-import { isValidUuid } from '../utils/validation.js';
+import {
+  formatSessionIdForDisplay,
+  isValidSessionId,
+} from '../utils/validation.js';
 
 const execPromise = promisify(exec);
 
@@ -168,8 +171,11 @@ export async function listImproveSessionsCore(): Promise<void> {
 
   for (const session of sessions) {
     const improveSession = session as ImproveSessionState;
-    const sessionId = improveSession.session_id.slice(0, 12);
-    const transactionId = improveSession.transaction_id.slice(0, 12);
+    const sessionId = formatSessionIdForDisplay(improveSession.session_id, 12);
+    const transactionId = formatSessionIdForDisplay(
+      improveSession.transaction_id,
+      12
+    );
     const started = formatElapsedTime(improveSession.started_at);
     const completed = improveSession.completed_at
       ? formatElapsedTime(improveSession.completed_at)
@@ -291,11 +297,11 @@ export async function deleteImproveSessionCore(
     throw new Error('Session ID is required');
   }
 
-  // Validate UUID format
-  if (!isValidUuid(sessionId)) {
+  // Validate session ID format (UUID or shortuuid)
+  if (!isValidSessionId(sessionId)) {
     throw new Error(
       `Invalid session ID format: ${sessionId}. ` +
-        'Expected UUID format (e.g., 550e8400-e29b-41d4-a716-446655440000)'
+        'Expected UUID (36 chars) or shortuuid (22 chars base57).'
     );
   }
 
@@ -317,7 +323,7 @@ export async function deleteImproveSessionCore(
     const response = await prompts({
       type: 'confirm',
       name: 'value',
-      message: `Delete improve session ${sessionId.slice(0, 12)}?`,
+      message: `Delete improve session ${formatSessionIdForDisplay(sessionId, 12)}?`,
       initial: false,
     });
 
@@ -331,7 +337,9 @@ export async function deleteImproveSessionCore(
   // Delete session
   await SessionStateManager.deleteSessionState(sessionId, 'improve');
   console.log(
-    chalk.green(`Deleted improve session ${sessionId.slice(0, 12)}.`)
+    chalk.green(
+      `Deleted improve session ${formatSessionIdForDisplay(sessionId, 12)}.`
+    )
   );
 }
 

@@ -11,7 +11,6 @@
 
 import chalk from 'chalk';
 import prompts from 'prompts';
-import { v4 as uuidv4 } from 'uuid';
 import { UserCancellationError } from '../commands/improve.js';
 import type { IConfig } from '../config/i-config.js';
 import type { IEditorLauncher } from '../editor/i-editor-launcher.js';
@@ -22,6 +21,8 @@ import type { PlanItem, SupportedLanguage } from '../types/analysis.js';
 import type { ImproveSessionState } from '../types/improve-session-state.js';
 import { FileTracker } from '../utils/file-tracker.js';
 import { SessionStateManager } from '../utils/session-state-manager.js';
+import { generate as generateSessionId } from '../utils/shortuuid.js';
+import { formatSessionIdForDisplay } from '../utils/validation.js';
 import type { IInteractiveSession } from './i-interactive-session.js';
 import { ProgressTracker } from './progress-tracker.js';
 
@@ -154,7 +155,7 @@ export class InteractiveSession implements IInteractiveSession {
           // Transaction not found - branch may have been deleted manually
           console.log(
             chalk.yellow(
-              `Warning: Transaction branch not found for session ${this.sessionState.session_id.slice(0, 8)}.`
+              `Warning: Transaction branch not found for session ${formatSessionIdForDisplay(this.sessionState.session_id, 8)}.`
             )
           );
           console.log(
@@ -194,7 +195,7 @@ export class InteractiveSession implements IInteractiveSession {
           // Transaction was committed - create new transaction as continuation
           console.log(
             chalk.yellow(
-              `Session ${this.sessionState.session_id.slice(0, 8)} was previously committed.`
+              `Session ${formatSessionIdForDisplay(this.sessionState.session_id, 8)} was previously committed.`
             )
           );
           console.log(
@@ -202,7 +203,7 @@ export class InteractiveSession implements IInteractiveSession {
           );
 
           // Generate new transaction ID for continuation
-          const newSessionId = uuidv4();
+          const newSessionId = generateSessionId();
           const oldSessionId = this.sessionState.session_id;
 
           try {
@@ -234,21 +235,21 @@ export class InteractiveSession implements IInteractiveSession {
         case 'rolled_back': {
           // Transaction was rolled back - cannot resume
           throw new Error(
-            `Cannot resume session ${this.sessionState.session_id.slice(0, 8)}: transaction has been rolled back.\n` +
+            `Cannot resume session ${formatSessionIdForDisplay(this.sessionState.session_id, 8)}: transaction has been rolled back.\n` +
               `Use 'docimp improve --new' to start a fresh session.`
           );
         }
         case 'partial_rollback': {
           // Transaction has partial rollback - cannot resume
           throw new Error(
-            `Cannot resume session ${this.sessionState.session_id.slice(0, 8)}: transaction has partial rollback.\n` +
+            `Cannot resume session ${formatSessionIdForDisplay(this.sessionState.session_id, 8)}: transaction has partial rollback.\n` +
               `Use 'docimp improve --new' to start a fresh session.`
           );
         }
         // No default
       }
     } else {
-      this.sessionId = uuidv4();
+      this.sessionId = generateSessionId();
 
       try {
         await this.pythonBridge.beginTransaction(this.sessionId);
@@ -280,7 +281,7 @@ export class InteractiveSession implements IInteractiveSession {
     if (this.transactionActive) {
       console.log(
         chalk.dim(
-          `Transaction tracking: enabled (session ${this.sessionId?.slice(0, 8)}...)\n`
+          `Transaction tracking: enabled (session ${this.sessionId ? formatSessionIdForDisplay(this.sessionId, 8) : 'unknown'}...)\n`
         )
       );
     } else {
@@ -337,7 +338,7 @@ export class InteractiveSession implements IInteractiveSession {
         try {
           await this.pythonBridge.commitTransaction(this.sessionId);
           console.log(chalk.green('\nSession finalized. Changes committed.'));
-          const shortId = this.sessionId.slice(0, 8);
+          const shortId = formatSessionIdForDisplay(this.sessionId, 8);
           console.log(
             chalk.dim(`Session ID: ${shortId}... (full: ${this.sessionId})`)
           );
