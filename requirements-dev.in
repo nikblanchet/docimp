@@ -2,7 +2,7 @@
 -r requirements.in
 
 # Development tools
-pytest>=7.4.0
-pytest-cov>=4.1.0
-ruff>=0.1.0
-mypy>=1.7.0
+pytest>=9.0.0
+pytest-cov>=7.0.0
+ruff>=0.14.0
+mypy>=1.18.0

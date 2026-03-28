@@ -208,9 +208,8 @@ describe('PythonBridge Integration (Real Python Subprocess)', () => {
       // This test verifies Zod .passthrough() and .optional() handle missing fields
       // In practice, Python always includes all fields, but we test defensive behavior
 
-      const { AnalysisResultSchema } = await import(
-        '../../python-bridge/schemas.js'
-      );
+      const { AnalysisResultSchema } =
+        await import('../../python-bridge/schemas.js');
 
       // Create minimal JSON with only required fields
       const minimalJson = {

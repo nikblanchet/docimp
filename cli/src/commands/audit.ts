@@ -796,7 +796,7 @@ export async function auditCore(
     let userRating: string | undefined;
     while (!userRating) {
       // Build prompt message based on whether [C] option is available
-      let promptMessage = '';
+      let promptMessage: string;
       let validOptions = ['1', '2', '3', '4', 'S', 'Q'];
 
       if (showCodeOption) {

@@ -91,7 +91,7 @@ export class ConfigLoader implements IConfigLoader {
         }
       }
 
-      throw new Error(errorMessage.join('\n'));
+      throw new Error(errorMessage.join('\n'), { cause: error });
     }
 
     // Validate and merge with defaults

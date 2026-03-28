@@ -147,7 +147,7 @@ class SessionStateManager:
                 with file_path.open(encoding="utf-8") as f:
                     session = json.load(f)
                     sessions.append(session)
-            except (json.JSONDecodeError, OSError):
+            except json.JSONDecodeError, OSError:
                 # Skip corrupted or unreadable files
                 continue
 

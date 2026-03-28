@@ -6,7 +6,7 @@ import prettierConfig from 'eslint-config-prettier';
 import unicorn from 'eslint-plugin-unicorn';
 import n from 'eslint-plugin-n';
 import promise from 'eslint-plugin-promise';
-import importPlugin from 'eslint-plugin-import';
+import importPlugin from 'eslint-plugin-import-x';
 
 export default [
   eslint.configs.recommended,
@@ -43,7 +43,7 @@ export default [
       ],
 
       // Import: Consistent ordering
-      'import/order': [
+      'import-x/order': [
         'error',
         {
           groups: [
@@ -58,7 +58,7 @@ export default [
           alphabetize: { order: 'asc', caseInsensitive: true },
         },
       ],
-      'import/no-unresolved': 'off', // TypeScript handles this
+      'import-x/no-unresolved': 'off', // TypeScript handles this
     },
   },
 

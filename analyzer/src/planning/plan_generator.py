@@ -60,7 +60,7 @@ class PlanItem:
     reason: str
 
     @classmethod
-    def from_code_item(cls, item: CodeItem, reason: str) -> "PlanItem":
+    def from_code_item(cls, item: CodeItem, reason: str) -> PlanItem:
         """Create a PlanItem from a CodeItem.
 
         Args:

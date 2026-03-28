@@ -313,7 +313,9 @@ export async function deleteImproveSessionCore(
       error instanceof Error &&
       error.message.includes('Session file not found')
     ) {
-      throw new Error(`Improve session '${sessionId}' not found.`);
+      throw new Error(`Improve session '${sessionId}' not found.`, {
+        cause: error,
+      });
     }
     throw error;
   }

@@ -692,9 +692,9 @@ describe('TerminalDisplay.showAnalysisResult with parse failures', () => {
     const loggedLines = consoleLogSpy.mock.calls.map((call) => call[0]);
 
     // Verify parse failures section is displayed
-    expect(
-      loggedLines.some((line) => line.includes('⚠ Parse Failures:'))
-    ).toBe(true);
+    expect(loggedLines.some((line) => line.includes('⚠ Parse Failures:'))).toBe(
+      true
+    );
     expect(loggedLines.some((line) => line.includes('2 files'))).toBe(true);
     expect(loggedLines.some((line) => line.includes('broken.py'))).toBe(true);
     expect(loggedLines.some((line) => line.includes('invalid syntax'))).toBe(

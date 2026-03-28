@@ -81,7 +81,9 @@ export class WorkflowStateManager {
         return createEmptyWorkflowState();
       }
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to load workflow state: ${message}`);
+      throw new Error(`Failed to load workflow state: ${message}`, {
+        cause: error,
+      });
     }
   }
 

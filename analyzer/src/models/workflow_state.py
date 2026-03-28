@@ -26,7 +26,7 @@ class CommandState:
         }
 
     @staticmethod
-    def from_dict(data: dict) -> "CommandState":
+    def from_dict(data: dict) -> CommandState:
         """Create CommandState from dictionary."""
         return CommandState(
             timestamp=data["timestamp"],
@@ -35,7 +35,7 @@ class CommandState:
         )
 
     @staticmethod
-    def create(item_count: int, file_checksums: dict[str, str]) -> "CommandState":
+    def create(item_count: int, file_checksums: dict[str, str]) -> CommandState:
         """Create a new CommandState with current timestamp."""
         return CommandState(
             timestamp=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
@@ -75,7 +75,7 @@ class WorkflowState:
         }
 
     @staticmethod
-    def from_dict(data: dict) -> "WorkflowState":
+    def from_dict(data: dict) -> WorkflowState:
         """Create WorkflowState from dictionary."""
         return WorkflowState(
             schema_version=data["schema_version"],
@@ -95,7 +95,7 @@ class WorkflowState:
         )
 
     @staticmethod
-    def create_empty() -> "WorkflowState":
+    def create_empty() -> WorkflowState:
         """Create an empty workflow state."""
         return WorkflowState(
             schema_version="1.0",

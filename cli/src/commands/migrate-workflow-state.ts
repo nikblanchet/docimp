@@ -127,7 +127,8 @@ export async function migrateWorkflowStateCore(
     console.log(chalk.green('Migration validation passed.'));
   } catch (validationError) {
     throw new Error(
-      `Migration validation failed: ${validationError instanceof Error ? validationError.message : String(validationError)}`
+      `Migration validation failed: ${validationError instanceof Error ? validationError.message : String(validationError)}`,
+      { cause: validationError }
     );
   }
 

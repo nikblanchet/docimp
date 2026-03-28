@@ -78,7 +78,7 @@ def load_audit_results(audit_file: Path | None = None) -> AuditResult:
         with audit_file.open() as f:
             data = json.load(f)
         return AuditResult(ratings=data.get("ratings", {}))
-    except (OSError, json.JSONDecodeError):
+    except OSError, json.JSONDecodeError:
         # If file is corrupted, start fresh
         return AuditResult(ratings={})
 

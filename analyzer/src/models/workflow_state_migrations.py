@@ -42,7 +42,7 @@ class MigrationLogEntry:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, str]) -> "MigrationLogEntry":
+    def from_dict(cls, data: dict[str, str]) -> MigrationLogEntry:
         """Create from dictionary (JSON deserialization)."""
         return cls(
             from_version=data["from"],
