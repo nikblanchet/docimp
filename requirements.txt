@@ -2,7 +2,7 @@
 # Install with: pip install -r requirements.txt
 
 # Claude API client for AI-powered documentation generation
-anthropic>=0.72.0,<1.0.0
+anthropic>=0.86.0,<1.0.0
 
 # Data validation and serialization
 # Note: pydantic and pydantic-core must be version-compatible

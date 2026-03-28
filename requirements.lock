@@ -2,7 +2,7 @@
 #    uv pip compile requirements.in -o requirements.lock
 annotated-types==0.7.0
     # via pydantic
-anthropic==0.72.0
+anthropic==0.86.0
     # via -r requirements.in
 anyio==4.11.0
     # via
@@ -44,6 +44,7 @@ typing-extensions==4.15.0
     # via
     #   -r requirements.in
     #   anthropic
+    #   anyio
     #   pydantic
     #   pydantic-core
     #   typing-inspection

@@ -146,7 +146,13 @@ function detectPythonExecutable(): string {
   // 3. Check for explicit path from environment (for CI)
   const environmentPath = process.env.DOCIMP_PYTHON_PATH;
   if (environmentPath) {
-    return environmentPath;
+    if (existsSync(environmentPath)) {
+      return environmentPath;
+    }
+    throw new Error(
+      `DOCIMP_PYTHON_PATH is set to "${environmentPath}" but executable does not exist.\n` +
+        `Please check the path or unset the environment variable.`
+    );
   }
 
   // 4. Try common Python executables
@@ -396,79 +402,7 @@ export class PythonBridge implements IPythonBridge {
       arguments_.push('--audit-file', absoluteAuditFile);
     }
 
-    // Handle uv wrapper: spawn('uv', ['run', 'python', ...args]) instead of spawn('python', args)
-    let executable: string;
-    let spawnArguments: string[];
-
-    if (this.pythonPath === 'uv') {
-      executable = 'uv';
-      // Use --project flag to point to project root (parent of analyzer/ directory)
-      // This ensures uv finds pyproject.toml even when cwd is analyzer/
-      spawnArguments = ['run', '--project', '..', 'python', ...arguments_];
-    } else {
-      executable = this.pythonPath;
-      spawnArguments = arguments_;
-    }
-
-    // Clean up environment for uv run: remove VIRTUAL_ENV to avoid conflicts
-    const environment = { ...process.env };
-    if (this.pythonPath === 'uv') {
-      delete environment.VIRTUAL_ENV;
-    }
-
-    const childProcess = spawn(executable, spawnArguments, {
-      cwd: this.analyzerModule,
-      env: environment,
-    });
-
-    // Setup timeout handling
-    const { cleanup, timeoutPromise } = this.setupProcessTimeout(
-      childProcess,
-      this.defaultTimeout,
-      'apply-audit'
-    );
-
-    // Create promise for normal process completion
-    const processPromise = new Promise<void>((resolve, reject) => {
-      let stderr = '';
-
-      // Send ratings as JSON via stdin
-      childProcess.stdin.write(JSON.stringify(ratings));
-      childProcess.stdin.end();
-
-      childProcess.stderr.on('data', (data: Buffer) => {
-        stderr += data.toString();
-      });
-
-      childProcess.on('error', (error: Error) => {
-        reject(
-          new Error(
-            `Failed to spawn Python process: ${error.message}\n` +
-              `Make sure Python is installed and the analyzer module is available.`
-          )
-        );
-      });
-
-      childProcess.on('close', (code: number) => {
-        if (code !== 0) {
-          reject(
-            new Error(
-              `Python analyzer exited with code ${code}\n` + `stderr: ${stderr}`
-            )
-          );
-          return;
-        }
-
-        resolve();
-      });
-    });
-
-    // Race between timeout and normal completion, cleanup in finally
-    try {
-      return await Promise.race([processPromise, timeoutPromise]);
-    } finally {
-      cleanup();
-    }
+    return this.executePythonStdin(arguments_, ratings, 'apply-audit');
   }
 
   /**
@@ -563,80 +497,7 @@ export class PythonBridge implements IPythonBridge {
    */
   async apply(data: ApplyData): Promise<void> {
     const arguments_ = ['-m', 'src.main', 'apply'];
-
-    // Handle uv wrapper: spawn('uv', ['run', 'python', ...args]) instead of spawn('python', args)
-    let executable: string;
-    let spawnArguments: string[];
-
-    if (this.pythonPath === 'uv') {
-      executable = 'uv';
-      // Use --project flag to point to project root (parent of analyzer/ directory)
-      // This ensures uv finds pyproject.toml even when cwd is analyzer/
-      spawnArguments = ['run', '--project', '..', 'python', ...arguments_];
-    } else {
-      executable = this.pythonPath;
-      spawnArguments = arguments_;
-    }
-
-    // Clean up environment for uv run: remove VIRTUAL_ENV to avoid conflicts
-    const environment = { ...process.env };
-    if (this.pythonPath === 'uv') {
-      delete environment.VIRTUAL_ENV;
-    }
-
-    const childProcess = spawn(executable, spawnArguments, {
-      cwd: this.analyzerModule,
-      env: environment,
-    });
-
-    // Setup timeout handling
-    const { cleanup, timeoutPromise } = this.setupProcessTimeout(
-      childProcess,
-      this.defaultTimeout,
-      'apply'
-    );
-
-    // Create promise for normal process completion
-    const processPromise = new Promise<void>((resolve, reject) => {
-      let stderr = '';
-
-      // Send apply data as JSON via stdin
-      childProcess.stdin.write(JSON.stringify(data));
-      childProcess.stdin.end();
-
-      childProcess.stderr.on('data', (data: Buffer) => {
-        stderr += data.toString();
-      });
-
-      childProcess.on('error', (error: Error) => {
-        reject(
-          new Error(
-            `Failed to spawn Python process: ${error.message}\n` +
-              `Make sure Python is installed and the analyzer module is available.`
-          )
-        );
-      });
-
-      childProcess.on('close', (code: number) => {
-        if (code !== 0) {
-          reject(
-            new Error(
-              `Python analyzer exited with code ${code}\n` + `stderr: ${stderr}`
-            )
-          );
-          return;
-        }
-
-        resolve();
-      });
-    });
-
-    // Race between timeout and normal completion, cleanup in finally
-    try {
-      return await Promise.race([processPromise, timeoutPromise]);
-    } finally {
-      cleanup();
-    }
+    return this.executePythonStdin(arguments_, data, 'apply');
   }
 
   /**
@@ -691,6 +552,98 @@ export class PythonBridge implements IPythonBridge {
     });
 
     return { cleanup, timeoutPromise };
+  }
+
+  /**
+   * Execute a Python command that receives JSON data via stdin.
+   *
+   * Unlike executePython which reads JSON from stdout, this method
+   * writes JSON data to the process's stdin and waits for exit.
+   *
+   * @param arguments_ - Python module arguments
+   * @param stdinData - Data to serialize as JSON and send via stdin
+   * @param commandName - Name of command for error messages
+   * @param timeoutMs - Optional timeout override (default: this.defaultTimeout)
+   */
+  private async executePythonStdin(
+    arguments_: string[],
+    stdinData: unknown,
+    commandName: string,
+    timeoutMs?: number
+  ): Promise<void> {
+    let executable: string;
+    let spawnArguments: string[];
+
+    if (this.pythonPath === 'uv') {
+      executable = 'uv';
+      spawnArguments = ['run', '--project', '..', 'python', ...arguments_];
+    } else {
+      executable = this.pythonPath;
+      spawnArguments = arguments_;
+    }
+
+    const environment = { ...process.env };
+    if (this.pythonPath === 'uv') {
+      delete environment.VIRTUAL_ENV;
+    }
+
+    const childProcess = spawn(executable, spawnArguments, {
+      cwd: this.analyzerModule,
+      env: environment,
+    });
+
+    const timeout = timeoutMs ?? this.defaultTimeout;
+    const { cleanup, timeoutPromise } = this.setupProcessTimeout(
+      childProcess,
+      timeout,
+      commandName
+    );
+
+    const processPromise = new Promise<void>((resolve, reject) => {
+      let stderr = '';
+
+      childProcess.stdin.on('error', (error: Error) => {
+        reject(
+          new Error(
+            `Failed to write to Python process stdin: ${error.message}`
+          )
+        );
+      });
+
+      childProcess.stdin.write(JSON.stringify(stdinData));
+      childProcess.stdin.end();
+
+      childProcess.stderr.on('data', (data: Buffer) => {
+        stderr += data.toString();
+      });
+
+      childProcess.on('error', (error: Error) => {
+        reject(
+          new Error(
+            `Failed to spawn Python process: ${error.message}\n` +
+              `Make sure Python is installed and the analyzer module is available.`
+          )
+        );
+      });
+
+      childProcess.on('close', (code: number) => {
+        if (code !== 0) {
+          reject(
+            new Error(
+              `Python analyzer exited with code ${code}\n` + `stderr: ${stderr}`
+            )
+          );
+          return;
+        }
+        resolve();
+      });
+    });
+
+    try {
+      return await Promise.race([processPromise, timeoutPromise]);
+    } finally {
+      cleanup();
+    }
   }
 
   /**

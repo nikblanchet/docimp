@@ -483,10 +483,10 @@ describe('PythonBridge Timeout Handling', () => {
     const mockProcess = new EventEmitter() as any;
     mockProcess.stdout = new EventEmitter();
     mockProcess.stderr = new EventEmitter();
-    mockProcess.stdin = {
-      write: jest.fn(),
-      end: jest.fn(),
-    };
+    const stdinEmitter = new EventEmitter() as any;
+    stdinEmitter.write = jest.fn();
+    stdinEmitter.end = jest.fn();
+    mockProcess.stdin = stdinEmitter;
     mockProcess.kill = jest.fn();
     mockProcess.exitCode = null;
     mockSpawn.mockReturnValue(mockProcess);
@@ -503,10 +503,10 @@ describe('PythonBridge Timeout Handling', () => {
     const mockProcess = new EventEmitter() as any;
     mockProcess.stdout = new EventEmitter();
     mockProcess.stderr = new EventEmitter();
-    mockProcess.stdin = {
-      write: jest.fn(),
-      end: jest.fn(),
-    };
+    const stdinEmitter2 = new EventEmitter() as any;
+    stdinEmitter2.write = jest.fn();
+    stdinEmitter2.end = jest.fn();
+    mockProcess.stdin = stdinEmitter2;
     mockProcess.kill = jest.fn();
     mockProcess.exitCode = null;
 
