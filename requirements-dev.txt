@@ -2,9 +2,9 @@
 # Install with: uv pip sync requirements-dev.lock
 
 # Testing
-pytest>=8.0.0
-pytest-cov>=4.1.0  # Coverage reporting
+pytest>=9.0.0
+pytest-cov>=7.0.0  # Coverage reporting
 
-# Code quality (will be added in later steps)
-# ruff>=0.1.0
-# mypy>=1.7.0
+# Code quality
+ruff>=0.14.0
+mypy>=1.18.0

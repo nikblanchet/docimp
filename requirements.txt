@@ -6,8 +6,8 @@ anthropic>=0.86.0,<1.0.0
 
 # Data validation and serialization
 # Note: pydantic and pydantic-core must be version-compatible
-# pydantic 2.12.3 requires pydantic-core 2.41.4 (strict coupling)
-pydantic>=2.12.3,<3.0.0
+# pydantic 2.12.5 requires pydantic-core 2.41.5+ (strict coupling)
+pydantic>=2.12.5,<3.0.0
 pydantic-core>=2.41.4,<3.0.0
 
 # Type checking support

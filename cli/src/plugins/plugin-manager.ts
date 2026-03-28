@@ -64,7 +64,8 @@ export class PluginManager implements IPluginManager {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
         throw new Error(
-          `Failed to load plugin from ${pluginPath}: ${errorMessage}`
+          `Failed to load plugin from ${pluginPath}: ${errorMessage}`,
+          { cause: error }
         );
       }
     }
@@ -153,7 +154,8 @@ export class PluginManager implements IPluginManager {
       canonicalPath = realpathSync(absolutePath);
     } catch (error) {
       throw new Error(
-        `Failed to resolve plugin path ${originalPath}: ${error instanceof Error ? error.message : String(error)}`
+        `Failed to resolve plugin path ${originalPath}: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error }
       );
     }
 

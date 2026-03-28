@@ -3,22 +3,22 @@ name = "docimp-analyzer"
 version = "1.1.0b1"
 description = "Python analysis engine for DocImp - impact-driven documentation coverage tool"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 license = { text = "AGPL-3.0" }
 
 dependencies = [
     "anthropic>=0.86.0,<1.0.0",
-    "pydantic>=2.12.3,<3.0.0",
+    "pydantic>=2.12.5,<3.0.0",
     "pydantic-core>=2.41.4,<3.0.0",
     "typing-extensions>=4.9.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.4.0",
-    "pytest-cov>=4.1.0",
-    "ruff>=0.1.0",
-    "mypy>=1.7.0",
+    "pytest>=9.0.0",
+    "pytest-cov>=7.0.0",
+    "ruff>=0.14.0",
+    "mypy>=1.18.0",
 ]
 
 [build-system]
@@ -29,7 +29,7 @@ build-backend = "hatchling.build"
 packages = ["analyzer"]
 
 [tool.ruff]
-target-version = "py313"
+target-version = "py314"
 line-length = 88
 exclude = [
     ".venv",
@@ -65,7 +65,7 @@ markers = [
 ]
 
 [tool.mypy]
-python_version = "3.13"
+python_version = "3.14"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true

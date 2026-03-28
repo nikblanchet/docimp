@@ -360,7 +360,7 @@ class TestSpecialFilenames:
                 manager.record_write(
                     manifest, str(test_file), backup_path, "foo", "function", "python"
                 )
-            except (OSError, subprocess.CalledProcessError, ValueError):
+            except OSError, subprocess.CalledProcessError, ValueError:
                 # Acceptable to fail on very long filenames, but should not crash
                 pass
 
@@ -431,7 +431,7 @@ class TestGitEdgeCases:
                 manager.commit_transaction(manifest2)
                 # If it works, verify it committed
                 assert manifest2.status == "committed"
-            except (subprocess.CalledProcessError, RuntimeError):
+            except subprocess.CalledProcessError, RuntimeError:
                 # Acceptable to fail in detached HEAD - just verify it fails cleanly
                 pass
 
@@ -481,6 +481,6 @@ class TestConcurrencyAndSafety:
                 # If both succeed, verify both manifests are marked committed
                 assert manifest1.status == "committed"
                 assert manifest2.status == "committed"
-            except (subprocess.CalledProcessError, RuntimeError):
+            except subprocess.CalledProcessError, RuntimeError:
                 # Acceptable to have conflicts with concurrent commits
                 pass

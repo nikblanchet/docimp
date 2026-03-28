@@ -75,7 +75,7 @@ class ImproveSessionState:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ImproveSessionState":
+    def from_dict(cls, data: dict[str, Any]) -> ImproveSessionState:
         """Create from JSON-deserialized dict.
 
         Args:
@@ -111,7 +111,7 @@ class ImproveSessionState:
         items: list[Any],
         file_snapshot: dict[str, FileSnapshot],
         config: dict[str, Any],
-    ) -> "ImproveSessionState":
+    ) -> ImproveSessionState:
         """Create initial session state at start of improve workflow.
 
         Args:

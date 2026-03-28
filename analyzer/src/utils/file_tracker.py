@@ -39,7 +39,7 @@ class FileSnapshot:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "FileSnapshot":
+    def from_dict(cls, data: dict[str, Any]) -> FileSnapshot:
         """Create from JSON-deserialized dict."""
         return cls(
             filepath=data["filepath"],

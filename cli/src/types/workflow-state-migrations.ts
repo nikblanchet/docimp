@@ -153,7 +153,8 @@ export function applyMigrations(
       throw new Error(
         `Migration failed at step ${migrationKey}: ${error instanceof Error ? error.message : String(error)}\n` +
           `Backup your workflow-state.json and inspect the file manually.\n` +
-          `If issue persists, delete the file and re-run 'docimp analyze'.`
+          `If issue persists, delete the file and re-run 'docimp analyze'.`,
+        { cause: error }
       );
     }
   }

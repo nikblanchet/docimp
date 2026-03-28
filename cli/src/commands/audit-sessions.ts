@@ -203,7 +203,9 @@ export async function deleteAuditSessionCore(
       error instanceof Error &&
       error.message.includes('Session file not found')
     ) {
-      throw new Error(`Audit session '${sessionId}' not found.`);
+      throw new Error(`Audit session '${sessionId}' not found.`, {
+        cause: error,
+      });
     }
     throw error;
   }

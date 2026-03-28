@@ -69,7 +69,7 @@ class AuditSessionState:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "AuditSessionState":
+    def from_dict(cls, data: dict[str, Any]) -> AuditSessionState:
         """Create from JSON-deserialized dict.
 
         Args:
@@ -103,7 +103,7 @@ class AuditSessionState:
         items: list[Any],
         file_snapshot: dict[str, FileSnapshot],
         config: dict[str, Any],
-    ) -> "AuditSessionState":
+    ) -> AuditSessionState:
         """Create initial session state at start of audit.
 
         Args:

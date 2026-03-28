@@ -52,7 +52,8 @@ export async function restoreWorkflowStateCore(
     validatedSnapshot = WorkflowStateSchema.parse(snapshotData);
   } catch (error) {
     throw new Error(
-      `Invalid snapshot file: ${error instanceof Error ? error.message : String(error)}`
+      `Invalid snapshot file: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error }
     );
   }
 

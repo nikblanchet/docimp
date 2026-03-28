@@ -13,7 +13,7 @@ Key components:
 
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from src.utils.git_helper import GitTimeoutConfig
@@ -138,7 +138,7 @@ class TransactionManager:
         self,
         base_path: Path | None = None,
         use_git: bool = True,
-        timeout_config: Optional["GitTimeoutConfig"] = None,
+        timeout_config: GitTimeoutConfig | None = None,
     ):
         """Initialize TransactionManager with optional git support and timeout config.
 
@@ -578,7 +578,7 @@ Metadata:
             if line.startswith("Metadata-Version:"):
                 try:
                     metadata_version = int(line.split(":", 1)[1].strip())
-                except (ValueError, IndexError):
+                except ValueError, IndexError:
                     logger.warning(
                         f"Malformed Metadata-Version in commit "
                         f"{commit_sha[:GIT_SHORT_SHA_LENGTH]}, defaulting to 0"
@@ -776,7 +776,7 @@ Metadata:
             return self._rollback_from_in_progress_session(manifest, entry, entry_id)
 
     def _rollback_from_committed_session(
-        self, manifest: "TransactionManifest", entry: "TransactionEntry", entry_id: str
+        self, manifest: TransactionManifest, entry: TransactionEntry, entry_id: str
     ) -> RollbackResult:
         """Handle re-squash strategy for committed sessions.
 
@@ -1010,7 +1010,7 @@ Metadata:
             raise ValueError(f"Failed to rollback change: {str(e)}")
 
     def _rollback_from_in_progress_session(
-        self, manifest: "TransactionManifest", entry: "TransactionEntry", entry_id: str
+        self, manifest: TransactionManifest, entry: TransactionEntry, entry_id: str
     ) -> RollbackResult:
         """Handle simple revert for in-progress sessions.
 

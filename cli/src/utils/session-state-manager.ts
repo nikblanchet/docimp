@@ -137,7 +137,8 @@ export const SessionStateManager = {
         throw new Error(
           `Session file not found: ${filename}.\n` +
             `Use 'docimp list-${commandName}-sessions' to see available sessions ` +
-            `or start a new session with --new.`
+            `or start a new session with --new.`,
+          { cause: error }
         );
       }
       throw error;

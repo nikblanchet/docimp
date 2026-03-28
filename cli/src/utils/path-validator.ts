@@ -76,7 +76,8 @@ export const PathValidator = {
         throw new Error(
           `Permission denied: ${absolutePath}\n` +
             'You do not have permission to read this path.\n' +
-            'Please check the file permissions and try again.'
+            'Please check the file permissions and try again.',
+          { cause: error }
         );
       }
       // Re-throw unexpected errors

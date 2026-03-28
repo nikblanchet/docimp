@@ -7,14 +7,14 @@ exclude = [
     ".pytest_cache",
 ]
 
-# Python 3.13+ required
-target-version = "py313"
+# Python 3.14+ required
+target-version = "py314"
 
 # Line length limit (88 chars is Black default)
 line-length = 88
 
 [tool.ruff.lint]
-# Enable comprehensive rule set for modern Python 3.13+
+# Enable comprehensive rule set for modern Python 3.14+
 #
 # Rule Groups:
 # E: pycodestyle errors (PEP 8 violations)
