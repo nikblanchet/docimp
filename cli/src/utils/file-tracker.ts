@@ -22,6 +22,9 @@ export interface CodeItem {
 /**
  * Compute SHA256 checksum of a file using streaming to avoid
  * loading the entire file into memory.
+ *
+ * @param filepath - Path to the file to checksum
+ * @returns Promise resolving to hex-encoded SHA256 checksum
  */
 function computeFileChecksum(filepath: string): Promise<string> {
   return new Promise((resolve, reject) => {

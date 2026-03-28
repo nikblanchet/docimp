@@ -564,6 +564,7 @@ export class PythonBridge implements IPythonBridge {
    * @param stdinData - Data to serialize as JSON and send via stdin
    * @param commandName - Name of command for error messages
    * @param timeoutMs - Optional timeout override (default: this.defaultTimeout)
+   * @returns Promise resolving when the command completes successfully
    */
   private async executePythonStdin(
     arguments_: string[],
@@ -604,9 +605,7 @@ export class PythonBridge implements IPythonBridge {
 
       childProcess.stdin.on('error', (error: Error) => {
         reject(
-          new Error(
-            `Failed to write to Python process stdin: ${error.message}`
-          )
+          new Error(`Failed to write to Python process stdin: ${error.message}`)
         );
       });
 
