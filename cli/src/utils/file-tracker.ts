@@ -5,7 +5,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { promises as fs } from 'node:fs';
+import { createReadStream, promises as fs } from 'node:fs';
 
 export interface FileSnapshot {
   filepath: string;
@@ -17,6 +17,23 @@ export interface FileSnapshot {
 export interface CodeItem {
   filepath: string;
   [key: string]: unknown;
+}
+
+/**
+ * Compute SHA256 checksum of a file using streaming to avoid
+ * loading the entire file into memory.
+ *
+ * @param filepath - Path to the file to checksum
+ * @returns Promise resolving to hex-encoded SHA256 checksum
+ */
+function computeFileChecksum(filepath: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const hash = createHash('sha256');
+    const stream = createReadStream(filepath);
+    stream.on('data', (chunk) => hash.update(chunk));
+    stream.on('end', () => resolve(hash.digest('hex')));
+    stream.on('error', reject);
+  });
 }
 
 /**
@@ -50,11 +67,8 @@ export const FileTracker = {
         const timestamp = stats.mtimeMs;
         const size = stats.size;
 
-        // Compute SHA256 checksum
-        const fileBuffer = await fs.readFile(filepath);
-        const hash = createHash('sha256');
-        hash.update(fileBuffer);
-        const checksum = hash.digest('hex');
+        // Compute SHA256 checksum using streaming for constant memory usage
+        const checksum = await computeFileChecksum(filepath);
 
         // Create snapshot
         return {
@@ -64,10 +78,11 @@ export const FileTracker = {
           size,
         };
       } catch (error) {
-        // Log permission errors but continue with other files
         const nodeError = error as NodeJS.ErrnoException;
         if (nodeError.code === 'EACCES' || nodeError.code === 'EPERM') {
           console.warn(`Warning: Permission denied when reading ${filepath}`);
+        } else if (nodeError.code === 'ENOENT') {
+          console.warn(`Warning: File not found, skipping: ${filepath}`);
         }
         // Skip files we can't read (permission errors, non-existent files, etc.)
         return null;
@@ -115,11 +130,8 @@ export const FileTracker = {
           // Check if file still exists
           await fs.access(filepath);
 
-          // Recompute checksum
-          const fileBuffer = await fs.readFile(filepath);
-          const hash = createHash('sha256');
-          hash.update(fileBuffer);
-          const newChecksum = hash.digest('hex');
+          // Recompute checksum using streaming for constant memory usage
+          const newChecksum = await computeFileChecksum(filepath);
 
           // Compare checksums (timestamp changes alone don't count)
           if (newChecksum !== oldSnapshot.checksum) {
